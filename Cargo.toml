@@ -1,0 +1,7 @@
+[package]
+name = "budget_app"
+version = "0.1.0"
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+edition = "2018"
+
+[dependencies]
