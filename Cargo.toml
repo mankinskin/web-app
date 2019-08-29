@@ -5,3 +5,5 @@ authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 edition = "2018"
 
 [dependencies]
+chrono = "^0.4"
+tabular = "^0.1"
