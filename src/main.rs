@@ -18,10 +18,12 @@ use crate::budget::{Budget};
 // - implement transaction queries
 //    x with single partner
 //    x with single purpose
-//    - with any of multiple partners
-//    - with any of multiple purposes
-//    - with all of multiple purposes
-//    - find all within timespan
+//    x with any of multiple partners
+//    x with any of multiple purposes
+//    x with all of multiple purposes
+//    x find all within timespan
+//    x find after time
+//    x find before time
 //    x find all with min amount
 //    x find all with max amount
 //    x find all expenses
