@@ -10,11 +10,13 @@ use crate::actor::{
 };
 use crate::purpose::{
     Purpose,
+    PurposeGraph,
 };
 pub struct Budget<C: Currency> {
     name: String,
     balance: C,
     transactions: Vec<Transaction<C>>,
+    purposes: PurposeGraph,
 }
 
 impl<C: Currency> Budget<C> {
@@ -22,7 +24,8 @@ impl<C: Currency> Budget<C> {
         Budget::<C> {
             name: name.into(),
             balance: balance.clone(),
-            transactions: vec![Transaction::get(balance)],
+            transactions: Vec::new(),
+            purposes: PurposeGraph::new(),
         }
     }
     pub fn name(&self) -> &str {

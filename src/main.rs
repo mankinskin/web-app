@@ -1,5 +1,6 @@
 extern crate chrono;
 extern crate tabular;
+extern crate daggy;
 
 mod currency;
 mod file;
@@ -25,7 +26,9 @@ use crate::budget::{Budget};
 //    x find all with max amount
 //    x find all expenses
 //    x find all earnings
-
+// - purpose relations
+//  x A implies B
+//  x use acyclic graph (with transitivity)
 fn main() {
     let mut budget = Budget::create("My Budget", Euro(140));
     budget.get(Euro(19)).set_partner("Papa".into());
