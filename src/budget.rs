@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::currency::{
     Euro,
     Currency,
@@ -18,11 +19,13 @@ use ::chrono::{
 };
 use crate::query::*;
 
+#[allow(unused)]
+#[derive(Clone)]
 pub struct Budget<C: Currency> {
-    name: String,
-    balance: C,
-    transactions: Vec<Transaction<C>>,
-    purposes: PurposeGraph,
+    pub name: String,
+    pub balance: C,
+    pub transactions: Vec<Transaction<C>>,
+    //purposes: PurposeGraph,
 }
 
 impl<C: Currency> Budget<C> {
@@ -31,7 +34,7 @@ impl<C: Currency> Budget<C> {
             name: name.into(),
             balance: balance.clone(),
             transactions: Vec::new(),
-            purposes: PurposeGraph::new(),
+            //purposes: PurposeGraph::new(),
         }
     }
     pub fn name(&self) -> &str {
@@ -62,6 +65,28 @@ impl From<Budget<Euro>> for Euro {
     }
 }
 
+use azul::prelude::*;
+use azul::widgets::button::*;
+
+impl<C: Currency> Budget<C> {
+    fn update_button(event: CallbackInfo<Self>) -> UpdateScreen {
+        event.state.data.balance += C::from(1);
+        Redraw
+    }
+}
+impl<C: Currency + std::fmt::Debug> Layout for Budget<C> {
+    fn layout(&self, window_info: LayoutInfo<Self>) -> Dom<Self> {
+        let mut dom = Dom::div();
+        for t in &self.transactions {
+            dom.add_child(Dom::label(format!("{}", t.amount)));
+        }
+        let mut button = Button::with_label(format!("Balance: {}", self.balance)).dom()
+                          .with_callback(On::LeftMouseUp, Self::update_button);
+        dom.add_child(button);
+        dom
+    }
+}
+
 use tabular::{table, row};
 use std::fmt;
 impl<C: Currency> fmt::Display for Budget<C> {
@@ -76,75 +101,5 @@ impl<C: Currency> fmt::Display for Budget<C> {
             table!("{:<}\t\t{:<}: {:>}",
                    row!(self.name.clone(), "Balance", self.balance.clone())),
                table)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::currency::{
-        Euro,
-    };
-    use crate::budget::{
-        Budget,
-    };
-    fn create_test_budget() -> Budget<Euro> {
-        let mut budget = Budget::create("TestBudget", Euro(140));
-        assert!(budget.balance == Euro(140));
-        assert!(budget.find_earnings().len() == 0);
-        assert!(budget.find_expenses().len() == 0);
-        assert!(budget.find_with_partner("Papa".into()).len() == 0);
-        assert!(budget.find_with_purpose("Fahrstunde".into()).len() == 0);
-        assert!(budget.find_with_purpose("Arbeit".into()).len() == 0);
-
-        budget.get(Euro(19)).set_partner("Papa".into());
-        assert!(budget.balance == Euro(140+19));
-        assert!(budget.find_earnings().len() == 1);
-        assert!(budget.find_expenses().len() == 0);
-        assert!(budget.find_with_partner("Papa".into()).len() == 1);
-        assert!(budget.find_with_purpose("Fahrstunde".into()).len() == 0);
-        assert!(budget.find_with_purpose("Arbeit".into()).len() == 0);
-        assert!(budget.find_with_any_partners(vec!["Papa".into(), "Schölermann".into()]).len() == 1);
-        assert!(budget.find_with_any_partners(vec!["Jonas".into(), "Leon".into(), "Schölermann".into()]).len() == 0);
-
-        budget.give(Euro(49)).set_purpose("Fahrstunde".into()).set_partner("Schölermann".into());
-        assert!(budget.balance == Euro((140+19)-49));
-        assert!(budget.find_earnings().len() == 1);
-        assert!(budget.find_expenses().len() == 1);
-        assert!(budget.find_with_partner("Papa".into()).len() == 1);
-        assert!(budget.find_with_purpose("Fahrstunde".into()).len() == 1);
-        assert!(budget.find_with_purpose("Arbeit".into()).len() == 0);
-        assert!(budget.find_with_any_partners(vec!["Papa".into(), "Schölermann".into()]).len() == 2);
-        assert!(budget.find_with_any_partners(vec!["Jonas".into(), "Leon".into(), "Schölermann".into()]).len() == 1);
-
-        budget.get(Euro(72)).set_purposes(vec!["Arbeit".into(), "Programmieren".into()]);
-        assert!(budget.balance == Euro(((140+19)-49)+72));
-        assert!(budget.find_earnings().len() == 2);
-        assert!(budget.find_expenses().len() == 1);
-        assert!(budget.find_with_partner("Papa".into()).len() == 1);
-        assert!(budget.find_with_purpose("Fahrstunde".into()).len() == 1);
-        assert!(budget.find_with_purpose("Arbeit".into()).len() == 1);
-        assert!(budget.find_with_any_purposes(vec!["Programmieren".into(), "Essen".into()]).len() == 1);
-        assert!(budget.find_with_all_purposes(vec!["Programmieren".into(), "Essen".into()]).len() == 0);
-        assert!(budget.find_with_any_partners(vec!["Papa".into(), "Schölermann".into()]).len() == 2);
-        assert!(budget.find_with_any_partners(vec!["Jonas".into(), "Leon".into(), "Schölermann".into()]).len() == 1);
-
-        budget.give(Euro(19))
-              .set_purposes(vec!["Programmieren".into(), "Essen".into()])
-              .set_partner("Jonas".into());
-        assert!(budget.balance == Euro((((140+19)-49)+72)-19));
-        assert!(budget.find_earnings().len() == 2);
-        assert!(budget.find_expenses().len() == 2);
-        assert!(budget.find_with_partner("Papa".into()).len() == 1);
-        assert!(budget.find_with_purpose("Arbeit".into()).len() == 1);
-        assert!(budget.find_with_any_purposes(vec!["Programmieren".into(), "Essen".into()]).len() == 2);
-        assert!(budget.find_with_all_purposes(vec!["Programmieren".into(), "Essen".into()]).len() == 1);
-        assert!(budget.find_with_any_partners(vec!["Papa".into(), "Schölermann".into()]).len() == 2);
-        assert!(budget.find_with_any_partners(vec!["Jonas".into(), "Leon".into(), "Schölermann".into()]).len() == 2);
-
-        budget
-    }
-    #[test]
-    fn find_partner() {
-        create_test_budget();
     }
 }

@@ -1,3 +1,4 @@
+#![allow(unused)]
 pub type BudgetFile = std::fs::File;
 
 pub fn create_budget_file(filepath: &str) -> std::io::Result<BudgetFile> {
