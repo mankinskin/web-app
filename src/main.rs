@@ -1,6 +1,7 @@
 extern crate chrono;
 extern crate tabular;
 extern crate daggy;
+extern crate nom;
 
 mod currency;
 mod file;
@@ -8,6 +9,8 @@ mod budget;
 mod transaction;
 mod purpose;
 mod actor;
+mod interpreter;
+#[macro_use] mod cartesian;
 
 use crate::currency::{Euro};
 use crate::budget::{Budget};
@@ -16,21 +19,22 @@ use crate::budget::{Budget};
 // - Deserialize budget from .bud file
 // - test budget file reading and writing
 // - implement transaction queries
-//    x with single partner
-//    x with single purpose
-//    x with any of multiple partners
-//    x with any of multiple purposes
-//    x with all of multiple purposes
-//    x find all within timespan
-//    x find after time
-//    x find before time
-//    x find all with min amount
-//    x find all with max amount
-//    x find all expenses
-//    x find all earnings
+//  x with single partner
+//  x with single purpose
+//  x with any of multiple partners
+//  x with any of multiple purposes
+//  x with all of multiple purposes
+//  x find all within timespan
+//  x find after time
+//  x find before time
+//  x find all with min amount
+//  x find all with max amount
+//  x find all expenses
+//  x find all earnings
 // - purpose relations
 //  x A implies B
 //  x use acyclic graph (with transitivity)
+// -
 fn main() {
     let mut budget = Budget::create("My Budget", Euro(140));
     budget.get(Euro(19)).set_partner("Papa".into());
@@ -38,9 +42,7 @@ fn main() {
     budget.give(Euro(49)).set_purpose("Fahrstunde".into());
     budget.give(Euro(19)).set_purpose("Essen".into()).set_partner("Papa".into());
     println!("{}", budget);
-    println!("{:?}", budget.find_with_partner("Papa".into()));
-    println!("{:?}", budget.find_with_purpose("Essen".into()));
-    println!("{:?}", budget.find_earnings());
+    interpreter::run();
 }
 
 mod tests {

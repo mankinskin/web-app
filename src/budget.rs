@@ -36,17 +36,16 @@ impl<C: Currency> Budget<C> {
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn get(&mut self, amount: C) -> &mut Transaction<C> {
-        let t = Transaction::get(amount.clone());
-        self.balance += amount;
+    pub fn execute_transaction(&mut self, t: Transaction<C>) -> &mut Transaction<C> {
+        self.balance += t.amount.clone();
         self.transactions.push(t);
-        self.transactions.iter_mut().last().unwrap()
+        self.transactions.iter_mut().last().expect("Failed to push transaction!")
+    }
+    pub fn get(&mut self, amount: C) -> &mut Transaction<C> {
+        self.execute_transaction(Transaction::get(amount.clone()))
     }
     pub fn give(&mut self, amount: C) -> &mut Transaction<C> {
-        let t = Transaction::give(amount.clone());
-        self.balance -= amount;
-        self.transactions.push(t);
-        self.transactions.iter_mut().last().unwrap()
+        self.execute_transaction(Transaction::give(amount.clone()))
     }
     pub fn find_all_with<P: Fn(&Transaction<C>) -> bool>(&self,
                                                          predicate: P

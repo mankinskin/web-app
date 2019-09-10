@@ -12,7 +12,7 @@ use ::chrono::{
     Utc,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Transaction<C: Currency> {
     pub amount: C,
     pub purposes: Option<Vec<Purpose>>,
@@ -20,6 +20,16 @@ pub struct Transaction<C: Currency> {
     pub date: DateTime<Utc>,
 }
 
+impl<C: Currency> Default for Transaction<C> {
+    fn default() -> Self {
+        Transaction {
+            amount: C::from(0),
+            partner: None,
+            purposes: None,
+            date: Utc::now(),
+        }
+    }
+}
 impl<C: Currency> Transaction<C> {
     pub fn get(amount: C) -> Self {
         assert!(amount != C::from(0));
@@ -39,6 +49,16 @@ impl<C: Currency> Transaction<C> {
             date: Utc::now(),
         }
     }
+    pub fn set_amount(&mut self, amt: C)
+        -> &mut Self {
+            self.amount = amt;
+            self
+        }
+    pub fn set_date(&mut self, date: DateTime<Utc>)
+        -> &mut Self {
+            self.date = date;
+            self
+        }
     pub fn set_partner(&mut self, partner: Actor)
         -> &mut Self {
             self.partner = Some(partner);
@@ -57,6 +77,7 @@ impl<C: Currency> Transaction<C> {
             self
         }
 }
+
 use tabular::{row, Row};
 impl<C: Currency> Into<Row> for Transaction<C> {
     fn into(self) -> Row {
