@@ -10,6 +10,7 @@ mod transaction;
 mod purpose;
 mod actor;
 mod interpreter;
+mod query;
 #[macro_use] mod cartesian;
 
 use crate::currency::{Euro};
