@@ -2,6 +2,7 @@ extern crate chrono;
 extern crate tabular;
 extern crate daggy;
 extern crate nom;
+extern crate azul;
 
 mod currency;
 mod file;
@@ -36,6 +37,9 @@ use crate::budget::{Budget};
 //  x A implies B
 //  x use acyclic graph (with transitivity)
 // -
+use azul::prelude::*;
+use azul::text_layout::*;
+
 fn main() {
     let mut budget = Budget::create("My Budget", Euro(140));
     budget.get(Euro(19)).set_partner("Papa".into());
@@ -43,7 +47,12 @@ fn main() {
     budget.give(Euro(49)).set_purpose("Fahrstunde".into());
     budget.give(Euro(19)).set_purpose("Essen".into()).set_partner("Papa".into());
     println!("{}", budget);
-    interpreter::run();
+    let mut app = App::new(budget.clone(), AppConfig::default()).unwrap();
+
+    let window = app.create_window(WindowCreateOptions::default(), css::native()).unwrap();
+    app.run(window).unwrap();
+
+    //interpreter::run().unwrap();
 }
 
 mod tests {

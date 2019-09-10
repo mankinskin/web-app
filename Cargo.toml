@@ -9,3 +9,4 @@ chrono = "^0.4"
 tabular = "^0.1"
 daggy = "^0.6"
 nom = "^5"
+azul = { git = "https://github.com/maps4print/azul" }
