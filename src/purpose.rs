@@ -1,6 +1,3 @@
-use crate::budget::{
-    Budget,
-};
 use std::collections::{
     HashMap,
 };
@@ -61,6 +58,8 @@ impl PurposeGraph {
     }
 }
 
+
+
 mod tests {
     #[test]
     fn relations() {
@@ -76,17 +75,17 @@ mod tests {
         assert!(!pg.is_related_to("Käse", "Essen").unwrap());
         assert!(!pg.is_related_to("Brot", "Käse").unwrap());
         assert!(!pg.is_related_to("Brot", "Essen").unwrap());
-        pg.link("Käse", "Essen");
+        pg.link("Käse", "Essen").unwrap();
         assert!(!pg.is_related_to("Käse", "Brot").unwrap());
         assert!(pg.is_related_to("Käse", "Essen").unwrap());
         assert!(!pg.is_related_to("Brot", "Käse").unwrap());
         assert!(!pg.is_related_to("Brot", "Essen").unwrap());
-        pg.link("Brot", "Essen");
+        pg.link("Brot", "Essen").unwrap();
         assert!(!pg.is_related_to("Käse", "Brot").unwrap());
         assert!(pg.is_related_to("Käse", "Essen").unwrap());
         assert!(!pg.is_related_to("Brot", "Käse").unwrap());
         assert!(pg.is_related_to("Brot", "Essen").unwrap());
-        pg.link("Essen", "Gesundheit");
+        pg.link("Essen", "Gesundheit").unwrap();
         assert!(pg.is_related_to("Käse", "Gesundheit").unwrap());
         assert!(pg.is_related_to("Brot", "Gesundheit").unwrap());
         assert!(pg.is_related_to("Essen", "Gesundheit").unwrap());
