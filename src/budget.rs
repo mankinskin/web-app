@@ -16,6 +16,7 @@ use ::chrono::{
     DateTime,
     Utc,
 };
+use crate::query::*;
 
 pub struct Budget<C: Currency> {
     name: String,
@@ -47,80 +48,11 @@ impl<C: Currency> Budget<C> {
     pub fn give(&mut self, amount: C) -> &mut Transaction<C> {
         self.execute_transaction(Transaction::give(amount.clone()))
     }
-    pub fn find_all_with<P: Fn(&Transaction<C>) -> bool>(&self,
-                                                         predicate: P
-                                                            ) -> Vec<&Transaction<C>> {
-        self.transactions
-            .iter().filter_map(
-                move |t| if predicate(t) {
-                    Some(t)
-                } else {
-                    None
-                })
-        .collect()
-    }
-    pub fn find_with_partner(&self, a: Actor) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t|
-                           if let Some(p) = &t.partner {
-                               p.clone() == a
-                           } else { false })
-    }
-    pub fn find_with_any_partners(&self, parts: Vec<Actor>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t|
-                           if let Some(p) = &t.partner {
-                               parts.contains(p)
-                           } else { false })
-    }
-    pub fn find_with_purpose(&self, purp: Purpose) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t|
-                           t.purposes
-                            .clone()
-                            .map(|ps| ps.contains(&purp)).unwrap_or(false))
-    }
-    pub fn find_with_any_purposes(&self, purps: Vec<Purpose>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t|
-                t.purposes
-                    .clone()
-                    .map(|ps| ps.iter()
-                           .map(|p| purps.contains(&p))
-                                     .fold(false,
-                                           |acc, x| acc || x))
-                    .unwrap_or(false))
-    }
-    pub fn find_with_all_purposes(&self, purps: Vec<Purpose>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t|
-                t.purposes
-                    .clone()
-                    .map(|ps| ps.iter()
-                           .map(|p| purps.contains(&p))
-                                     .fold(true,
-                                           |acc, x| acc && x))
-                    .unwrap_or(false))
-    }
-    pub fn find_with_max(&self, max: C) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t| t.amount <= max)
-    }
-    pub fn find_with_min(&self, min: C) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t| t.amount >= min)
-    }
-    pub fn find_earnings(&self) -> Vec<&Transaction<C>> {
-        self.find_with_min(C::from(0))
-    }
-    pub fn find_expenses(&self) -> Vec<&Transaction<C>> {
-        self.find_with_max(C::from(0))
-    }
-    pub fn find_before(&self,
-                       time: DateTime<Utc>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t| t.date < time)
-    }
-    pub fn find_after(&self,
-                       time: DateTime<Utc>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t| t.date >= time)
-    }
-    pub fn find_within_timespan(&self,
-                                start: DateTime<Utc>,
-                                end: DateTime<Utc>) -> Vec<&Transaction<C>> {
-        self.find_all_with(|t| t.date >= start && t.date <= end)
+    pub fn find<'a>(&'a self) -> Query<'a, C> {
+        Query(self.transactions
+            .iter().map(|t| t)
+            .collect()
+            )
     }
 }
 
