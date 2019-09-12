@@ -9,6 +9,7 @@ use daggy::{
     NodeIndex,
     Dag,
 };
+
 pub type Purpose = String;
 
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 #![allow(unused)]
 use crate::currency::*;
 use crate::transaction::*;
-use crate::actor::*;
+use crate::person::*;
 use crate::purpose::*;
 use ::chrono::*;
 pub use nom::{
@@ -134,19 +134,19 @@ impl<'a> Parse<'a> for Euro {
         )
     );
 }
-impl<'a> Parse<'a> for Actor {
+impl<'a> Parse<'a> for Person {
     named!(
         parse(&'a str) -> Self,
         map!(
             alphanumeric1,
-            |a| Actor::from(a)
+            |a| Person::from(a)
             )
         );
 }
 
 pub enum Subject {
     Me,
-    Person(Actor),
+    Person(Person),
 }
 impl<'a> Parse<'a> for Subject {
     named!(
@@ -155,7 +155,7 @@ impl<'a> Parse<'a> for Subject {
             tag!("I") => { |_| Self::Me } |
             tag!("me") => { |_| Self::Me } |
             preceded!(space0,
-                      Actor::parse) => { |a| Self::Person(a) }
+                      Person::parse) => { |a| Self::Person(a) }
             )
         );
 }
