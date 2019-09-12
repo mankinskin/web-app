@@ -1,8 +1,6 @@
 use crate::transaction::*;
 use crate::currency::*;
-use crate::actor::{
-    Actor,
-};
+use crate::person::*;
 use crate::purpose::{
     Purpose,
 };
@@ -32,13 +30,13 @@ impl<'a, C: Currency> Query<'a, C> {
             .collect()
             )
     }
-    pub fn with_partner(self, a: Actor) -> Self {
+    pub fn with_partner(self, a: Person) -> Self {
         self.filter(|t|
                     if let Some(p) = &t.partner {
                         p.clone() == a
                     } else { false })
     }
-    pub fn with_any_partners(self, parts: Vec<Actor>) -> Self {
+    pub fn with_any_partners(self, parts: Vec<Person>) -> Self {
         self.filter(|t|
                     if let Some(p) = &t.partner {
                         parts.contains(p)

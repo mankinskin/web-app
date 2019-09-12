@@ -1,8 +1,8 @@
 use crate::purpose::{
     Purpose,
 };
-use crate::actor::{
-    Actor,
+use crate::person::{
+    Person,
 };
 use crate::currency::{
     Currency,
@@ -16,7 +16,7 @@ use ::chrono::{
 pub struct Transaction<C: Currency> {
     pub amount: C,
     pub purposes: Option<Vec<Purpose>>,
-    pub partner: Option<Actor>,
+    pub partner: Option<Person>,
     pub date: DateTime<Utc>,
 }
 
@@ -59,7 +59,7 @@ impl<C: Currency> Transaction<C> {
             self.date = date;
             self
         }
-    pub fn set_partner(&mut self, partner: Actor)
+    pub fn set_partner(&mut self, partner: Person)
         -> &mut Self {
             self.partner = Some(partner);
             self

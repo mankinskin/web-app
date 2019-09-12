@@ -9,7 +9,7 @@ mod file;
 mod budget;
 mod transaction;
 mod purpose;
-mod actor;
+mod person;
 mod interpreter;
 mod query;
 #[macro_use] mod cartesian;
