@@ -82,18 +82,34 @@ impl<C: Currency> Transaction<C> {
             self.purposes = Some(ps);
             self
         }
+    pub fn get_date_string(&self) -> String {
+        match self.date {
+            Some(d) => d.format("%d.%m.%Y %H:%M").to_string(),
+            None => "unknown".into(),
+        }
+    }
+    pub fn get_amount_string(&self) -> String {
+        format!("{}", self.amount)
+    }
+    pub fn get_partner_string(&self) -> String {
+        self.partner.clone().map(|a| format!("{}", a)).unwrap_or("None".into())
+    }
+    pub fn get_purpose_string(&self) -> String {
+        self.purposes.clone()
+             .map(|ps| format!("{}",
+                               ps.iter().fold(String::new(),
+                                |acc, x| format!("{}{}, ", acc, x))))
+                  .unwrap_or("None".into())
+    }
 }
 
 use tabular::{row, Row};
 impl<C: Currency> Into<Row> for Transaction<C> {
     fn into(self) -> Row {
-        row!(self.date.format("%d.%m.%Y %H:%M"),
-             self.amount,
-             self.partner.map(|a| format!("{}", a)).unwrap_or("None".into()),
-             self.purposes
-             .map(|ps| format!("{}",
-                               ps.iter().fold(String::new(),
-                                |acc, x| format!("{}{}, ", acc, x))))
-                  .unwrap_or("None".into()))
+        row!(self.get_date_string(),
+             self.get_amount_string(),
+             self.get_partner_string(),
+             self.get_purpose_string()
+             )
     }
 }
