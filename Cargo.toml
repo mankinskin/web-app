@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 chrono = "^0.4"
-tabular = "^0.1"
-daggy = "^0.6"
-nom = "^5"
-azul = { git = "https://github.com/mankinskin/azul" }
+tabular = "0.1.2"
+daggy = "0.6.0"
+nom = "5.0.1"
+yew = "0.9.0"
+stdweb = "0.4.19"

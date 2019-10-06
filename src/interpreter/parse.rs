@@ -180,7 +180,6 @@ impl<'a> Parse<'a> for Action {
         );
 }
 
-
 mod tests {
     // TODO
     // - Accept transaction declarations

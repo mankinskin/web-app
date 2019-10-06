@@ -65,28 +65,6 @@ impl From<Budget<Euro>> for Euro {
     }
 }
 
-use azul::prelude::*;
-use azul::widgets::button::*;
-
-impl<C: Currency> Budget<C> {
-    fn update_button(event: CallbackInfo<Self>) -> UpdateScreen {
-        event.state.data.balance += C::from(1);
-        Redraw
-    }
-}
-impl<C: Currency + std::fmt::Debug> Layout for Budget<C> {
-    fn layout(&self, window_info: LayoutInfo<Self>) -> Dom<Self> {
-        let mut dom = Dom::div();
-        for t in &self.transactions {
-            dom.add_child(Dom::label(format!("{}", t.amount)));
-        }
-        let mut button = Button::with_label(format!("Balance: {}", self.balance)).dom()
-                          .with_callback(On::LeftMouseUp, Self::update_button);
-        dom.add_child(button);
-        dom
-    }
-}
-
 use tabular::{table, row};
 use std::fmt;
 impl<C: Currency> fmt::Display for Budget<C> {

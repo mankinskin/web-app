@@ -1,8 +1,10 @@
+#![recursion_limit="1000"]
 extern crate chrono;
 extern crate tabular;
 extern crate daggy;
 extern crate nom;
-extern crate azul;
+extern crate yew;
+extern crate stdweb;
 
 mod currency;
 mod file;
@@ -13,6 +15,7 @@ mod person;
 mod interpreter;
 mod query;
 #[macro_use] mod cartesian;
+mod frontend;
 
 use crate::currency::{Euro};
 use crate::budget::{Budget};
@@ -37,22 +40,46 @@ use crate::budget::{Budget};
 //  x A implies B
 //  x use acyclic graph (with transitivity)
 // -
-use azul::prelude::*;
-use azul::text_layout::*;
+use stdweb::{
+    *,
+    unstable::{
+        TryInto,
+    },
+    web::{
+        *,
+        html_element::*,
+    },
+};
+use yew::*;
+use chrono::*;
 
 fn main() {
-    let mut budget = Budget::create("My Budget", Euro(140));
-    budget.get(Euro(19)).set_partner("Papa".into());
-    budget.get(Euro(72)).set_purposes(vec!["Arbeit".into(), "Programmieren".into()]);
-    budget.give(Euro(49)).set_purpose("Fahrstunde".into());
-    budget.give(Euro(19)).set_purpose("Essen".into()).set_partner("Papa".into());
-    println!("{}", budget);
-    let mut app = App::new(budget.clone(), AppConfig::default()).unwrap();
-
-    let window = app.create_window(WindowCreateOptions::default(), css::native()).unwrap();
-    app.run(window).unwrap();
+    //let mut budget = Budget::create("My Budget", Euro(140));
+    //budget.get(Euro(19)).set_partner("Papa".into());
+    //budget.get(Euro(72)).set_purposes(vec!["Arbeit".into(), "Programmieren".into()]);
+    //budget.give(Euro(49)).set_purpose("Fahrstunde".into());
+    //budget.give(Euro(19)).set_purpose("Essen".into()).set_partner("Papa".into());
+    //println!("{}", budget);
 
     //interpreter::run().unwrap();
+    console!(log, "yew::initialize");
+    yew::initialize();
+
+    let body =
+        document()
+        .body()
+        .expect("Failed to get document body element");
+    let mount_class = "mount-point";
+    let mount_point = document().create_element("div").unwrap();
+    mount_point.class_list().add(mount_class).unwrap();
+    body.append_child(&mount_point);
+
+    console!(log, "App::new");
+    yew::App::<Budget<Euro>>::new()
+        .mount(mount_point)
+        .send_message(frontend::Msg::Init);
+    console!(log, "run_loop");
+    yew::run_loop();
 }
 
 mod tests {
