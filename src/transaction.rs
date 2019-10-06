@@ -17,36 +17,40 @@ pub struct Transaction<C: Currency> {
     pub amount: C,
     pub purposes: Option<Vec<Purpose>>,
     pub partner: Option<Person>,
-    pub date: DateTime<Utc>,
+    pub date: Option<DateTime<Utc>>,
 }
-
+use stdweb::*;
 impl<C: Currency> Default for Transaction<C> {
     fn default() -> Self {
+        let timestamp: u64 = stdweb::web::Date::now() as u64;
+        let secs: i64 = (timestamp/1000) as i64;
+        let nanoes: u32 = ((timestamp%1000)*1000000) as u32;
+        let naivetime = chrono::NaiveDateTime::from_timestamp(secs, nanoes);
+        let datetime = chrono::DateTime::<Utc>::from_utc(naivetime, Utc);
         Transaction {
             amount: C::from(0),
             partner: None,
             purposes: None,
-            date: Utc::now(),
+            date: Some(datetime),
         }
     }
 }
+
 impl<C: Currency> Transaction<C> {
-    pub fn get(amount: C) -> Self {
-        assert!(amount != C::from(0));
+    pub fn get<Amt: Into<C>>(amount: Amt) -> Self {
+        let amt = amount.into();
+        assert!(amt != C::from(0));
         Self {
-            amount,
-            partner: None,
-            purposes: None,
-            date: Utc::now(),
+            amount: amt,
+            ..Self::default()
         }
     }
-    pub fn give(amount: C) -> Self {
-        assert!(amount != C::from(0));
+    pub fn give<Amt: Into<C>>(amount: Amt) -> Self {
+        let amt = amount.into();
+        assert!(amt != C::from(0));
         Self {
-            amount: -amount,
-            partner: None,
-            purposes: None,
-            date: Utc::now(),
+            amount: -amt,
+            ..Self::default()
         }
     }
     pub fn set_amount<Amt: Into<C>>(&mut self, amt: Amt)
@@ -56,7 +60,7 @@ impl<C: Currency> Transaction<C> {
         }
     pub fn set_date(&mut self, date: DateTime<Utc>)
         -> &mut Self {
-            self.date = date;
+            self.date = Some(date);
             self
         }
     pub fn set_partner<P: Into<Person>>(&mut self, partner: P)
