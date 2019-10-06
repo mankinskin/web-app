@@ -29,10 +29,10 @@ pub struct Budget<C: Currency> {
 }
 
 impl<C: Currency> Budget<C> {
-    pub fn create(name: &str, balance: C) -> Budget<C> {
+    pub fn create<N: Into<String>, Amt: Into<C>>(name: N, balance: Amt) -> Budget<C> {
         Budget::<C> {
             name: name.into(),
-            balance: balance.clone(),
+            balance: balance.into(),
             transactions: Vec::new(),
             //purposes: PurposeGraph::new(),
         }
@@ -45,11 +45,11 @@ impl<C: Currency> Budget<C> {
         self.transactions.push(t);
         self.transactions.iter_mut().last().expect("Failed to push transaction!")
     }
-    pub fn get(&mut self, amount: C) -> &mut Transaction<C> {
-        self.execute_transaction(Transaction::get(amount.clone()))
+    pub fn get<Amt: Into<C>>(&mut self, amount: Amt) -> &mut Transaction<C> {
+        self.execute_transaction(Transaction::get(amount.into()))
     }
-    pub fn give(&mut self, amount: C) -> &mut Transaction<C> {
-        self.execute_transaction(Transaction::give(amount.clone()))
+    pub fn give<Amt: Into<C>>(&mut self, amount: Amt) -> &mut Transaction<C> {
+        self.execute_transaction(Transaction::give(amount.into()))
     }
     pub fn find<'a>(&'a self) -> Query<'a, C> {
         Query(self.transactions

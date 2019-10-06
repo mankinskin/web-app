@@ -49,9 +49,9 @@ impl<C: Currency> Transaction<C> {
             date: Utc::now(),
         }
     }
-    pub fn set_amount(&mut self, amt: C)
+    pub fn set_amount<Amt: Into<C>>(&mut self, amt: Amt)
         -> &mut Self {
-            self.amount = amt;
+            self.amount = amt.into();
             self
         }
     pub fn set_date(&mut self, date: DateTime<Utc>)
@@ -59,20 +59,22 @@ impl<C: Currency> Transaction<C> {
             self.date = date;
             self
         }
-    pub fn set_partner(&mut self, partner: Person)
+    pub fn set_partner<P: Into<Person>>(&mut self, partner: P)
         -> &mut Self {
-            self.partner = Some(partner);
+            self.partner = Some(partner.into());
             self
         }
-    pub fn set_purposes(&mut self, purposes: Vec<Purpose>)
+    pub fn set_purposes<P: Into<Purpose> + Clone>(&mut self, purposes: Vec<P>)
         -> &mut Self {
-            self.purposes = Some(purposes);
+            let ps: Vec<Purpose> = purposes.iter()
+                .map(|p| p.clone().into()).collect();
+            self.purposes = Some(ps);
             self
         }
-    pub fn set_purpose(&mut self, purpose: Purpose)
+    pub fn set_purpose<P: Into<Purpose>>(&mut self, purpose: P)
         -> &mut Self {
             let mut ps = self.purposes.clone().unwrap_or(Vec::new());
-            ps.push(purpose);
+            ps.push(purpose.into());
             self.purposes = Some(ps);
             self
         }
