@@ -22,9 +22,9 @@ pub struct Transaction<C: Currency> {
 use stdweb::*;
 impl<C: Currency> Default for Transaction<C> {
     fn default() -> Self {
-        let timestamp: u64 = stdweb::web::Date::now() as u64;
-        let secs: i64 = (timestamp/1000) as i64;
-        let nanoes: u32 = ((timestamp%1000)*1000000) as u32;
+        let timestamp = stdweb::web::Date::now();
+        let secs: i64 = (timestamp/1000.0).floor() as i64;
+        let nanoes: u32 = (timestamp as u32%1000)*1_000_000;
         let naivetime = chrono::NaiveDateTime::from_timestamp(secs, nanoes);
         let datetime = chrono::DateTime::<Utc>::from_utc(naivetime, Utc);
         Transaction {
