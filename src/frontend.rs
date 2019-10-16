@@ -107,7 +107,7 @@ impl yew::Renderable<Self> for Budget<Euro> {
                     "
                 }</style>
                 <table align="center">
-                <caption onclick=|_| Msg::Click>{"Transactions"}</caption>
+                <caption onclick=|_| Msg::Click>{"Your Transactions"}</caption>
                 <tr>
                     <td>{"Date"}</td>
                     <td>{"Amount"}</td>
