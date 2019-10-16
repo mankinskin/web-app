@@ -76,7 +76,7 @@ fn main() {
 
     console!(log, "App::new");
     yew::App::<Budget<Euro>>::new()
-        .mount(mount_point)
+        .mount_as_body()
         .send_message(frontend::Msg::Init);
     console!(log, "run_loop");
     yew::run_loop();
