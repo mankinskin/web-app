@@ -78,7 +78,7 @@ impl yew::Component for Budget<Euro> {
 impl yew::Renderable<Self> for Budget<Euro> {
     fn view(&self) -> yew::Html<Self> {
         html!{
-            <div>
+            <body>
                 <h1 align="center">{self.name()}</h1>
                 <style>{
                     "
@@ -117,7 +117,7 @@ impl yew::Renderable<Self> for Budget<Euro> {
                     for self.transactions.iter().map(yew::Renderable::view)
                 }</table>
                 <canvas id="MyCanvas"></canvas>
-            </div>
+            </body>
         }
     }
 }
