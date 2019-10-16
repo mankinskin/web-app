@@ -37,14 +37,16 @@ impl yew::Component for Budget<Euro> {
                     .expect("Could not find MyCanvas")
                     .try_into()
                     .expect("Unable to convert Element to CanvasElement");
-                canvas.set_width(200);
-                canvas.set_height(200);
+                let width = window().inner_width() as u32;
+                let height = window().inner_height() as u32;
+                canvas.set_width(width);
+                canvas.set_height(height);
                 let ctx: CanvasRenderingContext2d =
                     canvas
                     .get_context()
                     .expect("Cannot get CanvasContext");
-                ctx.set_fill_style_color("#000000");
-                ctx.fill_rect(0.0, 0.0, 200.0, 200.0);
+                ctx.set_fill_style_color("#222222");
+                ctx.fill_rect(0.0, 0.0, width.into(), height.into());
 
                 true
             },
