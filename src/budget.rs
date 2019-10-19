@@ -19,21 +19,44 @@ use ::chrono::{
 };
 use crate::query::*;
 
+#[derive(Clone)]
+pub struct Transactions<C: Currency>(Vec<Transaction<C>>);
+
+
+impl<C: Currency> From<Vec<Transaction<C>>> for Transactions<C> {
+    fn from(v: Vec<Transaction<C>>) -> Self {
+        Transactions(v)
+    }
+}
+use std::ops::{Deref, DerefMut};
+impl<C: Currency> Deref for Transactions<C> {
+    type Target = Vec<Transaction<C>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<C: Currency> DerefMut for Transactions<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[allow(unused)]
 #[derive(Clone)]
 pub struct Budget<C: Currency> {
     pub name: String,
     pub balance: C,
-    pub transactions: Vec<Transaction<C>>,
+    pub transactions: Transactions<C>,
     //purposes: PurposeGraph,
 }
+
 
 impl<C: Currency> Budget<C> {
     pub fn create<N: Into<String>, Amt: Into<C>>(name: N, balance: Amt) -> Budget<C> {
         Budget::<C> {
             name: name.into(),
             balance: balance.into(),
-            transactions: Vec::new(),
+            transactions: Vec::new().into(),
             //purposes: PurposeGraph::new(),
         }
     }
@@ -72,7 +95,7 @@ impl<C: Currency> fmt::Display for Budget<C> {
         let mut table =
             table!("{:<}\t|\t{:>}|{:<}\t|{:<}",
                     row!("Date", "Amount", "Partner", "Purposes"));
-        for t in &self.transactions {
+        for t in &self.transactions.0 {
             table.add_row((*t).clone().into());
         }
         write!(f, "{}\n{}",
