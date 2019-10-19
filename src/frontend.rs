@@ -14,7 +14,33 @@ pub enum Msg {
     Click,
     Init,
 }
+impl yew::Component for Transactions<Euro> {
+    type Message = Msg;
+    type Properties = ();
 
+    fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
+        Vec::new().into()
+    }
+    fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
+        true
+    }
+}
+impl yew::Renderable<Budget<Euro>> for crate::budget::Transactions<Euro> {
+    fn view(&self) -> yew::Html<Budget<Euro>> {
+        html!{
+                <table align="center">
+                <caption onclick=|_| Msg::Click>{"Your Transactions"}</caption>
+                <tr>
+                    <td>{"Date"}</td>
+                    <td>{"Amount"}</td>
+                    <td>{"Partner"}</td>
+                    <td>{"Purposes"}</td>
+                </tr>{
+                    for self.iter().map(yew::Renderable::view)
+                }</table>
+        }
+    }
+}
 impl yew::Component for Budget<Euro> {
     type Message = Msg;
     type Properties = ();

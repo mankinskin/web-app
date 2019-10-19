@@ -23,7 +23,7 @@ use crate::budget::{Budget};
 // - Serialize budget to .bud file
 // - Deserialize budget from .bud file
 // - test budget file reading and writing
-// - implement transaction queries
+// x implement transaction queries
 //  x with single partner
 //  x with single purpose
 //  x with any of multiple partners
@@ -40,6 +40,7 @@ use crate::budget::{Budget};
 //  x A implies B
 //  x use acyclic graph (with transitivity)
 // -
+
 use stdweb::{
     *,
     unstable::{
