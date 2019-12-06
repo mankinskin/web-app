@@ -46,7 +46,7 @@ impl yew::Component for Budget<Euro> {
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
-        console!(log, "Create Budget");
+        //console!(log, "Create Budget");
         let mut b = Budget::create("My Budget", 0);
         b.get(100).set_purpose("Money");
         b.get(100).set_purpose("Money");
@@ -56,24 +56,23 @@ impl yew::Component for Budget<Euro> {
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
         match msg {
             Msg::Init => {
-                console!(log, "Init");
-                let canvas: CanvasElement =
-                    document()
-                    .get_element_by_id("MyCanvas")
-                    .expect("Could not find MyCanvas")
-                    .try_into()
-                    .expect("Unable to convert Element to CanvasElement");
-                let width = window().inner_width() as u32;
-                let height = window().inner_height() as u32;
-                canvas.set_width(width);
-                canvas.set_height(height);
-                let ctx: CanvasRenderingContext2d =
-                    canvas
-                    .get_context()
-                    .expect("Cannot get CanvasContext");
-                ctx.set_fill_style_color("#222222");
-                ctx.fill_rect(0.0, 0.0, width.into(), height.into());
-
+                //console!(log, "Init");
+                //let canvas: CanvasElement =
+                //    document()
+                //    .get_element_by_id("MyCanvas")
+                //    .expect("Could not find MyCanvas")
+                //    .try_into()
+                //    .expect("Unable to convert Element to CanvasElement");
+                //let width = window().inner_width() as u32;
+                //let height = window().inner_height() as u32;
+                //canvas.set_width(width);
+                //canvas.set_height(height);
+                //let ctx: CanvasRenderingContext2d =
+                //    canvas
+                //    .get_context()
+                //    .expect("Cannot get CanvasContext");
+                //ctx.set_fill_style_color("#222222");
+                //ctx.fill_rect(0.0, 0.0, width.into(), height.into());
                 true
             },
             Msg::Click => {
@@ -104,46 +103,12 @@ impl yew::Component for Budget<Euro> {
 impl yew::Renderable<Self> for Budget<Euro> {
     fn view(&self) -> yew::Html<Self> {
         html!{
-            <body>
+            <div>
                 <h1 align="center">{self.name()}</h1>
-                <style>{
-                    "
-                    body {
-                        background-color: rgb(20, 20, 20);
-                    }
-                    h1, table, td, caption {
-                        font-family: Impact, Charcoal, sans-serif;
-                        color: lightblue;
-                    }
-                    .transaction {
-                        color: blue;
-                    }
-                    .flex-container {
-                        display: flex;
-                        flex-direction: row;
-                    }
-                    table, th, td {
-                        border-bottom: 1px solid lightgray;
-                        border-collapse: collapse;
-                        padding: 10px;
-                    }
-                    caption {
-                        font-weight: bold;
-                    }
-                    "
-                }</style>
-                <table align="center">
-                <caption onclick=|_| Msg::Click>{"Your Transactions"}</caption>
-                <tr>
-                    <td>{"Date"}</td>
-                    <td>{"Amount"}</td>
-                    <td>{"Partner"}</td>
-                    <td>{"Purposes"}</td>
-                </tr>{
-                    for self.transactions.iter().map(yew::Renderable::view)
-                }</table>
+                {self.transactions.view()}
                 <canvas id="MyCanvas"></canvas>
-            </body>
+                //<div id="terminal"></div>
+            </div>
         }
     }
 }
