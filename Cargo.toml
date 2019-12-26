@@ -15,6 +15,8 @@ nom = "5.0.1"
 yew = "0.9.2"
 stdweb = "0.4.2"
 wasm-bindgen = "0.2"
+lazy_static = "1.4"
+
 
 [dependencies.web-sys]
 version = "0.3.27"
