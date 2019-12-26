@@ -1,12 +1,15 @@
-build:
-	wasm-pack build --target web
-	rollup ./main.js --format iife --file ./pkg/bundle.js
+build: src
+	cargo watch -w src -s "\
+		wasm-pack build --target web && \
+		rollup ./main.js --format iife --file ./pkg/bundle.js" &
 
 test: build
 	cargo test
 
-serve: target
-	simple-http-server
+serve: build
+	cargo watch -w styles/ -w index.html -w main.js -s "\
+	./run_server.sh\
+	"
 
 clean:
 	rm -rf pkg/
