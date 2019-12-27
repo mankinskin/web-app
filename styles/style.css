@@ -1,0 +1,47 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  display: grid;
+}
+
+.hbox {
+  display: flex;
+  flex-direction: row;
+  align-content: flex-start;
+  background: darkgrey;
+  color: black;
+  visibility: visible;
+}
+
+.flex {
+  flex: 1;
+}
+
+.transaction-table {
+  border: 1px solid;
+  align: left;
+}
+.transaction-header {
+  min-width: 30px;
+  border: 1px solid;
+  align: center;
+}
+
+h1 {
+  color: white;
+  background: black;
+}
+
+img {
+  border-radius: 10%;
+}
+
+.image-navigation-button {
+  background: gray;
+  transition: all 0.5s ease-in-out;
+}
+
+.image-navigation-button:hover {
+  background: white;
+  transition: all 0.5s ease-in-out;
+}
