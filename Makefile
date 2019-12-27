@@ -7,9 +7,7 @@ test: build
 	cargo test
 
 serve: build
-	cargo watch -w styles/ -w index.html -w main.js -s "\
-	./run_server.sh\
-	"
+	cargo watch -w styles/ -w index.html -w main.js -s "./run_server.sh"
 
 clean:
 	rm -rf pkg/
