@@ -10,7 +10,22 @@ use daggy::{
     Dag,
 };
 
-pub type Purpose = String;
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Purpose {
+    name: String,
+}
+impl ToString for Purpose {
+    fn to_string(&self) -> String {
+        self.name.clone()
+    }
+}
+impl From<&str> for Purpose {
+    fn from(name: &str) -> Self {
+        Self {
+            name: name.into(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum GraphError {
@@ -29,15 +44,15 @@ impl PurposeGraph {
             purposes: HashMap::new(),
         }
     }
-    pub fn add_purpose<P: ToString>(&mut self, p: P) -> NodeIndex {
-        let p = p.to_string();
+    pub fn add_purpose<P: Into<Purpose>>(&mut self, p: P) -> NodeIndex {
+        let p = p.into();
         let id = self.graph.add_node(p.clone());
         self.purposes.insert(p, id);
         id
     }
-    pub fn is_related_to<P: ToString>(&self, a: P, b: P) -> Result<bool, GraphError> {
-        let a = a.to_string();
-        let b = b.to_string();
+    pub fn is_related_to<P: Into<Purpose>, B: Into<Purpose>>(&self, a: P, b: B) -> Result<bool, GraphError> {
+        let a = a.into();
+        let b = b.into();
         let a = self.purposes.get(&a).ok_or(GraphError::PurposeDoesNotExist(a))?;
         let b = self.purposes.get(&b).ok_or(GraphError::PurposeDoesNotExist(b))?;
         match astar(self.graph.graph(),
@@ -51,15 +66,25 @@ impl PurposeGraph {
         }
     }
 
-    pub fn link<P: ToString>(&mut self, a: P, b: P) -> Result<(), GraphError> {
-        let a = a.to_string();
-        let b = b.to_string();
+    pub fn link<P: Into<Purpose>, B: Into<Purpose>>(&mut self, a: P, b: B) -> Result<(), GraphError> {
+        let a = a.into();
+        let b = b.into();
         let a = self.purposes.get(&a).ok_or(GraphError::PurposeDoesNotExist(a))?;
         let b = self.purposes.get(&b).ok_or(GraphError::PurposeDoesNotExist(b))?;
         self.graph.add_edge(*a, *b, 0).map_err(|_e| GraphError::WouldCycle).map(|_| ())
     }
 }
 
+use crate::interpreter::parse::*;
+impl<'a> Parse<'a> for Purpose {
+    named!(
+        parse(&'a str) -> Self,
+            map!(
+                alpha1,
+                |s| Self::from(s)
+                )
+        );
+}
 
 
 mod tests {

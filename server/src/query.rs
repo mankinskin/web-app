@@ -103,6 +103,7 @@ impl<'a, C: Currency> Query<'a, C> {
                          .unwrap_or(false))
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::currency::{
