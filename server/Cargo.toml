@@ -1,0 +1,14 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+edition = "2018"
+
+[dependencies]
+chrono = "^0.4"
+tabular = "0.1.2"
+daggy = "0.6.0"
+nom = "5.0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+stdweb = "0.4.2"

@@ -12,3 +12,6 @@ serve: build
 clean:
 	rm -rf pkg/
 	cargo clean
+
+run:
+	cargo run
