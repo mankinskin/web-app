@@ -57,7 +57,7 @@ impl<'a> Parse<'a> for Date<Utc> {
 impl<'a> Parse<'a> for NaiveTime {
     // parse <u32>:<u32>(:<u32>)
     named!(parse(&'a str) -> Self,
-    map_res!(
+    map!(
         alt!(
             complete!(separated_pair!(
                     Units::parse,
@@ -75,7 +75,7 @@ impl<'a> Parse<'a> for NaiveTime {
                 ) => {|(h,m)| (h,m,0)}
             ),
             |(h, m, s)| {
-                Ok(NaiveTime::from_hms(h as u32, m as u32, s as u32)) as Result<NaiveTime, (&[u8], ErrorKind)>
+                NaiveTime::from_hms(h as u32, m as u32, s as u32)
             })
     );
 }
@@ -236,6 +236,18 @@ mod tests {
                         amount: Euro::from(-5),
                         date: parsed.date,
                         partner: None,
+                        purposes: None,
+                    }
+                   );
+        }
+        #[test]
+        fn with_recipient() {
+            let parsed = Transaction::parse("Today I gave 5€ to Recipient").unwrap().1;
+            assert!(parsed  ==
+                    Transaction {
+                        amount: Euro::from(-5),
+                        date: parsed.date,
+                        partner: Some(Person::from("Recipient")),
                         purposes: None,
                     }
                    );

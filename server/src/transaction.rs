@@ -106,7 +106,7 @@ impl<C: Currency> Transaction<C> {
         self.purposes.clone()
              .map(|ps| format!("{}",
                                ps.iter().fold(String::new(),
-                                |acc, x| format!("{}{}, ", acc, x))))
+                                |acc, x| format!("{}{}, ", acc, x.to_string()))))
                   .unwrap_or("None".into())
     }
 }
@@ -120,4 +120,80 @@ impl<C: Currency> Into<Row> for Transaction<C> {
              self.get_purpose_string()
              )
     }
+}
+use crate::interpreter::parse::*;
+use crate::currency::*;
+use crate::person::*;
+
+impl<'a> Parse<'a> for Transaction<Euro> {
+    named!(parse(&'a str) -> Self,
+    map!(
+        tuple!(
+            // (Date)
+            opt!(
+                preceded!(
+                    space0,
+                    DateTime::<Utc>::parse
+                    )
+                ),
+            // Sender
+            preceded!(
+                space0,
+                Subject::parse
+                ),
+            // Action
+            preceded!(
+                space1,
+                Action::parse
+                ),
+            // Currency
+            preceded!(
+                space1,
+                Euro::parse
+                ),
+            // (Recipient)
+            opt!(
+                preceded!(
+                    delimited!(
+                        space1,
+                        tag!("to"),
+                        space1
+                    ),
+                    Subject::parse
+                    )
+                ),
+            // (Purpose)
+            opt!(
+                preceded!(
+                    delimited!(
+                        space1,
+                        tag!("for"),
+                        space1
+                    ),
+                    Purpose::parse
+                    )
+                )
+            ),
+        |(date, sender, action, amount, recipient, purpose)| {
+                    let mut t = Transaction::default();
+                    match date {
+                        Some(d) => {t.set_date(d);},
+                        None => {},
+                    };
+                    t.set_amount(match action {
+                        Action::Get => amount,
+                        Action::Give => -amount
+                    });
+                    match recipient {
+                        Some(Subject::Person(p)) => {t.set_partner(p);},
+                        Some(Subject::Me) => {},
+                        None => {}
+                    };
+                    match purpose {
+                        Some(p) => {t.set_purpose(p);},
+                        None => {}
+                    };
+                    t
+        })
+        );
 }
