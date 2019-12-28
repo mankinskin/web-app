@@ -19,14 +19,22 @@ pub struct Transaction<C: Currency> {
     pub partner: Option<Person>,
     pub date: Option<DateTime<Utc>>,
 }
-use stdweb::*;
+#[cfg(target_arch="wasm32")]
+fn get_time_now() -> DateTime<Utc> {
+    use stdweb::*;
+    let timestamp = stdweb::web::Date::now();
+    let secs: i64 = (timestamp/1000.0).floor() as i64;
+    let nanoes: u32 = (timestamp as u32%1000)*1_000_000;
+    let naivetime = chrono::NaiveDateTime::from_timestamp(secs, nanoes);
+    chrono::DateTime::<Utc>::from_utc(naivetime, Utc)
+}
+#[cfg(not(target_arch="wasm32"))]
+fn get_time_now() -> DateTime<Utc> {
+    chrono::Utc::now()
+}
 impl<C: Currency> Default for Transaction<C> {
     fn default() -> Self {
-        let timestamp = stdweb::web::Date::now();
-        let secs: i64 = (timestamp/1000.0).floor() as i64;
-        let nanoes: u32 = (timestamp as u32%1000)*1_000_000;
-        let naivetime = chrono::NaiveDateTime::from_timestamp(secs, nanoes);
-        let datetime = chrono::DateTime::<Utc>::from_utc(naivetime, Utc);
+        let datetime = get_time_now();
         Transaction {
             amount: C::from(0),
             partner: None,

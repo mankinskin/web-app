@@ -4,6 +4,7 @@ use crate::transaction::*;
 use crate::person::*;
 use crate::purpose::*;
 use ::chrono::*;
+
 pub use nom::{
     *,
     character::{
@@ -133,31 +134,6 @@ impl<'a> Parse<'a> for Euro {
             |u| Euro::from(u)
         )
     );
-}
-impl<'a> Parse<'a> for Person {
-    named!(
-        parse(&'a str) -> Self,
-        map!(
-            alphanumeric1,
-            |a| Person::from(a)
-            )
-        );
-}
-
-pub enum Subject {
-    Me,
-    Person(Person),
-}
-impl<'a> Parse<'a> for Subject {
-    named!(
-        parse(&'a str) -> Self,
-        alt!(
-            tag!("I") => { |_| Self::Me } |
-            tag!("me") => { |_| Self::Me } |
-            preceded!(space0,
-                      Person::parse) => { |a| Self::Person(a) }
-            )
-        );
 }
 pub enum Action {
     Give,

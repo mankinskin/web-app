@@ -1,5 +1,5 @@
-use crate::budget::*;
-use crate::currency::*;
+use server::budget::*;
+use server::currency::*;
 use yew::*;
 use stdweb::web::*;
 
@@ -9,7 +9,18 @@ pub enum Msg {
     NextImage,
     Init,
 }
-impl yew::Component for Budget<Euro> {
+
+pub struct BudgetView<C: Currency> {
+    model: Budget<C>,
+}
+impl<C: Currency> BudgetView<C> {
+    pub fn new(b: Budget<C>) -> Self {
+        Self {
+            model: b,
+        }
+    }
+}
+impl yew::Component for BudgetView<Euro> {
     type Message = Msg;
     type Properties = ();
 
@@ -18,7 +29,7 @@ impl yew::Component for Budget<Euro> {
         b.get(100).set_purpose("Money");
         b.get(100).set_purpose("Money");
         b.get(100).set_purpose("Money");
-        b
+        BudgetView::new(b)
     }
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
         use std::sync::{Mutex};
@@ -63,11 +74,11 @@ fn get_img_src(index: u32) -> String {
         SIZE.1)
 }
 
-impl yew::Renderable<Self> for Budget<Euro> {
+impl yew::Renderable<Self> for BudgetView<Euro> {
     fn view(&self) -> yew::Html<Self> {
         html!{
             <div>
-                <h1>{self.name()}</h1>
+                <h1>{self.model.name()}</h1>
                 //{self.transactions.view()}
                 <img id="image" src={get_img_src(0)}/>
                 <br/>
@@ -87,20 +98,24 @@ impl yew::Renderable<Self> for Budget<Euro> {
         }
     }
 }
-
-impl yew::Component for Transactions<Euro> {
+struct TransactionsView<C: Currency> {
+    model: Transactions<C>,
+}
+impl yew::Component for TransactionsView<Euro> {
     type Message = Msg;
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
-        Vec::new().into()
+        Self {
+            model: Vec::new().into()
+        }
     }
     fn update(&mut self, _msg: Self::Message) -> yew::ShouldRender {
         true
     }
 }
-impl yew::Renderable<Budget<Euro>> for crate::budget::Transactions<Euro> {
-    fn view(&self) -> yew::Html<Budget<Euro>> {
+impl yew::Renderable<BudgetView<Euro>> for TransactionsView<Euro> {
+    fn view(&self) -> yew::Html<BudgetView<Euro>> {
         html!{
             <div>
                 <table class="transaction-table">
@@ -111,32 +126,42 @@ impl yew::Renderable<Budget<Euro>> for crate::budget::Transactions<Euro> {
                 <th>{"Partner"}</th>
                 <th>{"Purposes"}</th>
                 </tr>
-                {for self.iter().map(yew::Renderable::view)}
+                {for self.model.iter().map(|t| TransactionView::from(t.clone()).view())}
             </table>
                 </div>
         }
     }
 }
-use crate::transaction::Transaction;
-impl yew::Component for Transaction<Euro> {
+use server::transaction::Transaction;
+struct TransactionView<C: Currency> {
+    model: Transaction<C>,
+}
+impl From<Transaction<Euro>> for TransactionView<Euro> {
+    fn from(transaction: Transaction<Euro>) -> Self {
+        Self {
+            model: transaction,
+        }
+    }
+}
+impl yew::Component for TransactionView<Euro> {
     type Message = ();
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
-        Transaction::default()
+        Self::from(Transaction::default())
     }
     fn update(&mut self, _msg: Self::Message) -> yew::ShouldRender {
         true
     }
 }
-impl yew::Renderable<Budget<Euro>> for Transaction<Euro> {
-    fn view(&self) -> yew::Html<Budget<Euro>> {
+impl yew::Renderable<BudgetView<Euro>> for TransactionView<Euro> {
+    fn view(&self) -> yew::Html<BudgetView<Euro>> {
         html!{
             <tr>
-                <td>{self.get_date_string()}</td>
-                <td>{self.get_amount_string()}</td>
-                <td>{self.get_partner_string()}</td>
-                <td>{self.get_purpose_string()}</td>
+                <td>{self.model.get_date_string()}</td>
+                <td>{self.model.get_amount_string()}</td>
+                <td>{self.model.get_partner_string()}</td>
+                <td>{self.model.get_purpose_string()}</td>
                 </tr>
         }
     }
