@@ -174,7 +174,7 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                     )
                 )
             ),
-        |(date, sender, action, amount, recipient, purpose)| {
+        |(date, _sender, action, amount, recipient, purpose)| {
                     let mut t = Transaction::default();
                     match date {
                         Some(d) => {t.set_date(d);},

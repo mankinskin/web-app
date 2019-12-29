@@ -13,7 +13,23 @@ use std::io::{
     Read,
     Write,
 };
+fn trim_newline(s: &mut String) {
+    if s.ends_with('\n') {
+        s.pop();
+        if s.ends_with('\r') {
+            s.pop();
+        }
+    }
+}
 
+fn print_help() {
+    println!("\
+    Natural language interpreter
+
+    q[uit] | exit | :q\tQuit interpreter.
+    h[elp] | ?\t\tShow help.
+    ");
+}
 pub fn run() -> io::Result<()> {
     println!("Running interpreter ");
     loop {
@@ -21,8 +37,10 @@ pub fn run() -> io::Result<()> {
         io::stdout().flush()?;
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        match input.as_str() {
+        trim_newline(&mut input); // remove newline
+        match &input as &str {
             "q" | "quit" | "exit" | ":q" => break,
+            "h" | "help" | "?" => print_help(),
             _ => println!("{:?}", Transaction::<Euro>::parse(&input)),
         };
     }
