@@ -1,5 +1,4 @@
 #![allow(unused)]
-mod error;
 pub mod parse;
 
 use crate::currency::*;
