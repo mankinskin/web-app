@@ -130,17 +130,13 @@ impl<'a> Parse<'a> for Transaction<Euro> {
     map!(
         tuple!(
             // (Date)
-            opt!(
-                preceded!(
-                    space0,
-                    DateTime::<Utc>::parse
-                    )
+            opt!(terminated!(
+                    DateTime::<Utc>::parse,
+                    space1
+            )
                 ),
             // Sender
-            preceded!(
-                space0,
-                Subject::parse
-                ),
+            Subject::parse,
             // Action
             preceded!(
                 space1,
@@ -156,7 +152,7 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                 preceded!(
                     delimited!(
                         space1,
-                        tag!("to"),
+                        tag_no_case!("to"),
                         space1
                     ),
                     Subject::parse
@@ -167,7 +163,7 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                 preceded!(
                     delimited!(
                         space1,
-                        tag!("for"),
+                        tag_no_case!("for"),
                         space1
                     ),
                     Purpose::parse
@@ -196,4 +192,41 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                     t
         })
         );
+}
+mod tests {
+    #[allow(unused)]
+    use super::*;
+
+    // TODO
+    // - Accept transaction declarations
+    //  - <Time><Kind><Currency>(Purpose*)(Person)
+    //  - (<Date>) (at <Time>) I got/gave <Currency> for <Purpose>* from/to <Person>.
+    //    where
+    //     Date <- { Today, On <Date>, },
+    //     Time <- { at , On <Date>, },
+
+    #[test]
+    fn basic() {
+        let parsed = Transaction::parse("Today I gave 5€").unwrap().1;
+        assert!(parsed  ==
+            Transaction {
+                amount: Euro::from(-5),
+                date: parsed.date,
+                partner: None,
+                purposes: None,
+            }
+        );
+    }
+    #[test]
+    fn with_recipient() {
+        let parsed = Transaction::parse("Today I gave 5€ to Recipient").unwrap().1;
+        assert!(parsed  ==
+            Transaction {
+                amount: Euro::from(-5),
+                date: parsed.date,
+                partner: Some(Person::from("Recipient")),
+                purposes: None,
+            }
+        );
+    }
 }

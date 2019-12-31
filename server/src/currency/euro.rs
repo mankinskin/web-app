@@ -13,6 +13,7 @@ use std::ops::{
     SubAssign,
     Neg,
 };
+
 #[derive(Clone, Debug)]
 pub struct Euro(pub Units);
 
@@ -116,5 +117,52 @@ impl Sub for Euro {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
         Euro(self.0 - rhs.0)
+    }
+}
+
+use crate::interpreter::parse::*;
+
+impl<'a> Parse<'a> for Euro {
+    named!(parse(&'a str) -> Self,
+    map!(
+        alt!(
+            preceded!(
+                tag!("€"),
+                Units::parse
+                ) |
+            terminated!(
+                Units::parse,
+                tag!("€")
+                ) |
+            complete!(terminated!(
+                Units::parse,
+                tag_no_case!(" Euros")
+                )) |
+            terminated!(
+                Units::parse,
+                tag_no_case!(" Euro")
+                )
+            ),
+            |u| Euro::from(u)
+        )
+    );
+}
+
+mod tests {
+    #[allow(unused)]
+    use super::*;
+
+    #[test]
+    fn parse_euro() {
+        crate::cartesian!{
+            ["{}€", "{} Euro", "€{}", "{} Euros"],
+            [{1}, {32}, {1823}, {99999999}]
+            ($fmt:tt {$u:expr}) => {
+                assert_eq!(
+                    Euro::parse(&format!($fmt, $u)).unwrap().1,
+                    Euro::from($u)
+                    );
+            }
+        }
     }
 }

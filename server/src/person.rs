@@ -27,7 +27,7 @@ impl<'a> Parse<'a> for Person {
     named!(
         parse(&'a str) -> Self,
         map!(
-            alphanumeric1,
+            alpha1,
             |a| Person::new(a)
             )
         );
@@ -41,10 +41,9 @@ impl<'a> Parse<'a> for Subject {
     named!(
         parse(&'a str) -> Self,
         alt!(
-            tag!("I") => { |_| Self::Me } |
-            tag!("me") => { |_| Self::Me } |
-            preceded!(space0,
-                      Person::parse) => { |a| Self::Person(a) }
+            tag_no_case!("I") => { |_| Self::Me } |
+            tag_no_case!("me") => { |_| Self::Me } |
+            Person::parse => { |a| Self::Person(a) }
             )
         );
 }

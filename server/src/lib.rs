@@ -3,6 +3,7 @@ extern crate chrono;
 extern crate tabular;
 extern crate daggy;
 extern crate nom;
+#[macro_use] extern crate itertools;
 
 pub mod currency;
 pub mod budget;
