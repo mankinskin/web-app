@@ -4,6 +4,8 @@ extern crate tabular;
 extern crate daggy;
 extern crate nom;
 #[macro_use] extern crate itertools;
+extern crate linefeed;
+extern crate termion;
 
 pub mod currency;
 pub mod budget;

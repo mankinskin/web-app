@@ -24,6 +24,5 @@
 // - given a state, compute the implied state
 
 fn main() {
-    println!("hello world");
     server::interpreter::run().unwrap();
 }
