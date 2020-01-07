@@ -16,7 +16,7 @@ use ::chrono::{
 #[derive(Clone, Debug, PartialEq)]
 pub struct Transaction<C: Currency> {
     pub amount: C,
-    pub purposes: Option<Vec<Purpose>>,
+    pub purposes: Option<Purposes>,
     pub sender: Subject,
     pub recipient: Option<Subject>,
     pub date: Option<DateTime<Utc>>,
@@ -205,7 +205,7 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                         None => {}
                     };
                     match purpose {
-                        Some(p) => {t.set_purpose(p);},
+                        Some(p) => {t.add_purpose(p);},
                         None => {}
                     };
                     t

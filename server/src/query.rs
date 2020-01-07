@@ -48,14 +48,16 @@ impl<'a, C: Currency> Query<'a, C> {
         self.filter(move |t|
                     t.purposes
                     .clone()
-                    .map(|ps| ps.contains(&purp.clone().into())).unwrap_or(false))
+                    .map(|ps| ps.into())
+                    .map(|ps: Vec<Purpose>| ps.contains(&purp.clone().into())).unwrap_or(false))
     }
     pub fn with_any_purposes<P: Into<Purpose> + Clone>(self, purps: Vec<P>) -> Self {
         let purps: Vec<Purpose> = purps.iter().map(|p| p.clone().into()).collect();
         self.filter(|t|
                     t.purposes
                     .clone()
-                    .map(|ps| ps.iter()
+                    .map(|ps| ps.into())
+                    .map(|ps: Vec<Purpose>| ps.iter()
                          .map(|p| purps.contains(&p))
                          .fold(false,
                                |acc, x| acc || x))
@@ -66,7 +68,8 @@ impl<'a, C: Currency> Query<'a, C> {
         self.filter(|t|
                     t.purposes
                     .clone()
-                    .map(|ps| ps.iter()
+                    .map(|ps| ps.into())
+                    .map(|ps: Vec<Purpose>| ps.iter()
                          .map(|p| purps.contains(&p))
                          .fold(true,
                                |acc, x| acc && x))
@@ -132,7 +135,7 @@ mod tests {
         assert!(budget.find().with_any_recipient(vec!["Papa", "Schölermann"]).len() == 1);
         assert!(budget.find().with_any_recipient(vec!["Jonas", "Leon", "Schölermann"]).len() == 0);
 
-        budget.give(Euro(49)).set_purpose("Fahrstunde").set_partner("Schölermann");
+        budget.give(Euro(49)).add_purpose("Fahrstunde").set_recipient("Schölermann");
         assert!(budget.balance == Euro((140+19)-49));
         assert!(budget.find().earnings().len() == 1);
         assert!(budget.find().expenses().len() == 1);
