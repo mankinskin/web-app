@@ -14,9 +14,9 @@ use daggy::{
 pub struct Purpose {
     name: String,
 }
-impl ToString for Purpose {
-    fn to_string(&self) -> String {
-        self.name.clone()
+impl std::fmt::Display for Purpose {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 impl From<&str> for Purpose {
@@ -86,6 +86,31 @@ impl<'a> Parse<'a> for Purpose {
         );
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Purposes(Vec<Purpose>);
+impl Purposes {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+    pub fn push<P: Into<Purpose>>(&mut self, p: P) {
+        self.0.push(p.into());
+    }
+}
+impl From<Vec<Purpose>> for Purposes {
+    fn from(ps: Vec<Purpose>) -> Self {
+        Self(ps)
+    }
+}
+impl Into<Vec<Purpose>> for Purposes {
+    fn into(self) -> Vec<Purpose> {
+        self.0
+    }
+}
+impl std::fmt::Display for Purposes {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0.iter().fold(String::new(), |acc, x| acc + ", " + &x.to_string()))
+    }
+}
 
 mod tests {
     #[test]
