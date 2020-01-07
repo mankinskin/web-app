@@ -147,10 +147,16 @@ impl<'a> Parse<'a> for Transaction<Euro> {
         tuple!(
             // (Date): Today, 3rd of November, ..
             opt!(
-                DateTime::<Utc>::parse
+                terminated!(
+                    DateTime::<Utc>::parse,
+                    space1
+                )
             ),
             // <Subject>: I | Name
-            Subject::parse,
+            preceded!(
+                space0,
+                Subject::parse
+            ),
             // <Action>: got, gave, get, give, ...
             preceded!(
                 space1,

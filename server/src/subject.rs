@@ -24,7 +24,7 @@ impl<S: Into<String>> From<S> for Subject {
 impl std::fmt::Display for Subject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", match self {
-            Me => "Me".to_string(),
+            Self::Me => "Me".to_string(),
             Self::Person(p) => p.to_string(),
         })
     }
