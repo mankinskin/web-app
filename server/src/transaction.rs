@@ -1,8 +1,9 @@
 use crate::purpose::{
     Purpose,
+    Purposes,
 };
-use crate::person::{
-    Person,
+use crate::subject::{
+    Subject,
 };
 use crate::currency::{
     Currency,
@@ -16,9 +17,11 @@ use ::chrono::{
 pub struct Transaction<C: Currency> {
     pub amount: C,
     pub purposes: Option<Vec<Purpose>>,
-    pub partner: Option<Person>,
+    pub sender: Subject,
+    pub recipient: Option<Subject>,
     pub date: Option<DateTime<Utc>>,
 }
+
 #[cfg(target_arch="wasm32")]
 fn get_time_now() -> DateTime<Utc> {
     use stdweb::*;
@@ -37,7 +40,8 @@ impl<C: Currency> Default for Transaction<C> {
         let datetime = get_time_now();
         Transaction {
             amount: C::from(0),
-            partner: None,
+            sender: Subject::Me,
+            recipient: None,
             purposes: None,
             date: Some(datetime),
         }
@@ -61,104 +65,119 @@ impl<C: Currency> Transaction<C> {
             ..Self::default()
         }
     }
+    pub fn get_amount(&self)
+        -> C  {
+            self.amount.clone()
+    }
     pub fn set_amount<Amt: Into<C>>(&mut self, amt: Amt)
         -> &mut Self {
             self.amount = amt.into();
             self
         }
+    pub fn get_date(&self)
+        -> Option<DateTime<Utc>> {
+            self.date.clone()
+    }
     pub fn set_date(&mut self, date: DateTime<Utc>)
         -> &mut Self {
             self.date = Some(date);
             self
         }
-    pub fn set_partner<P: Into<Person>>(&mut self, partner: P)
+    pub fn get_sender(&self)
+        -> Subject {
+            self.sender.clone()
+    }
+    pub fn set_sender<S: Into<Subject>>(&mut self, subject: S)
         -> &mut Self {
-            self.partner = Some(partner.into());
+            self.sender = subject.into();
             self
         }
+    pub fn get_recipient(&self)
+        -> Option<Subject> {
+        self.recipient.clone()
+    }
+    pub fn set_recipient<S: Into<Subject>>(&mut self, subject: S)
+        -> &mut Self {
+            self.recipient = Some(subject.into());
+            self
+        }
+    pub fn get_purposes(&self)
+        -> Option<Purposes> {
+        self.purposes.clone()
+    }
     pub fn set_purposes<P: Into<Purpose> + Clone>(&mut self, purposes: Vec<P>)
         -> &mut Self {
-            let ps: Vec<Purpose> = purposes.iter()
-                .map(|p| p.clone().into()).collect();
+            let ps = Purposes::from(
+                purposes.iter()
+                        .map(|p| p.clone().into())
+                        .collect::<Vec<Purpose>>()
+                        );
             self.purposes = Some(ps);
             self
         }
-    pub fn set_purpose<P: Into<Purpose>>(&mut self, purpose: P)
+    pub fn add_purpose<P: Into<Purpose>>(&mut self, purpose: P)
         -> &mut Self {
-            let mut ps = self.purposes.clone().unwrap_or(Vec::new());
-            ps.push(purpose.into());
-            self.purposes = Some(ps);
+            if let Some(ps) = &mut self.purposes {
+                ps.push(purpose.into());
+            } else {
+                self.purposes = Some(Purposes::from(vec![purpose.into()]));
+            }
             self
         }
-    pub fn get_date_string(&self) -> String {
-        match self.date {
-            Some(d) => d.format("%d.%m.%Y %H:%M").to_string(),
-            None => "unknown".into(),
-        }
-    }
-    pub fn get_amount_string(&self) -> String {
-        format!("{}", self.amount)
-    }
-    pub fn get_partner_string(&self) -> String {
-        self.partner.clone().map(|a| format!("{}", a)).unwrap_or("None".into())
-    }
-    pub fn get_purpose_string(&self) -> String {
-        self.purposes.clone()
-             .map(|ps| format!("{}",
-                               ps.iter().fold(String::new(),
-                                |acc, x| format!("{}{}, ", acc, x.to_string()))))
-                  .unwrap_or("None".into())
-    }
 }
 
 use tabular::{row, Row};
 impl<C: Currency> Into<Row> for Transaction<C> {
     fn into(self) -> Row {
-        row!(self.get_date_string(),
-             self.get_amount_string(),
-             self.get_partner_string(),
-             self.get_purpose_string()
-             )
+        row!(
+            self.get_date().map(|d| d.to_string()).unwrap_or("None".into()),
+            self.get_amount().to_string(),
+            self.get_sender().to_string(),
+            self.get_recipient().map(|s| s.to_string()).unwrap_or("None".into()),
+            self.get_purposes().map(|ps| ps.to_string()).unwrap_or("None".into())
+            )
     }
 }
 use crate::interpreter::parse::*;
 use crate::currency::*;
-use crate::person::*;
 
 impl<'a> Parse<'a> for Transaction<Euro> {
     named!(parse(&'a str) -> Self,
     map!(
         tuple!(
-            // (Date)
-            opt!(terminated!(
-                    DateTime::<Utc>::parse,
-                    space1
-            )
-                ),
-            // Sender
+            // (Date): Today, 3rd of November, ..
+            opt!(
+                DateTime::<Utc>::parse
+            ),
+            // <Subject>: I | Name
             Subject::parse,
-            // Action
+            // <Action>: got, gave, get, give, ...
             preceded!(
                 space1,
                 Action::parse
                 ),
-            // Currency
+            // <Object>: 10 euros, 1€,
             preceded!(
                 space1,
                 Euro::parse
                 ),
-            // (Recipient)
+            // (to <Recipient>): Me | Name
             opt!(
                 preceded!(
-                    delimited!(
-                        space1,
-                        tag_no_case!("to"),
-                        space1
-                    ),
-                    Subject::parse
-                    )
+                    space1,
+                    preceded!(
+                        terminated!(
+                            alt!(
+                            tag_no_case!("to") |
+                            tag_no_case!("from")
+                            ),
+                            space1
+                        ),
+                        Subject::parse
+                        )
+                )
                 ),
-            // (Purpose)
+            // (for <Purpose>)
             opt!(
                 preceded!(
                     delimited!(
@@ -170,7 +189,7 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                     )
                 )
             ),
-        |(date, _sender, action, amount, recipient, purpose)| {
+        |(date, sender, action, amount, recipient, purpose)| {
                     let mut t = Transaction::default();
                     match date {
                         Some(d) => {t.set_date(d);},
@@ -180,9 +199,9 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                         Action::Get => amount,
                         Action::Give => -amount
                     });
+                    t.set_sender(sender);
                     match recipient {
-                        Some(Subject::Person(p)) => {t.set_partner(p);},
-                        Some(Subject::Me) => {},
+                        Some(subject) => {t.set_recipient(subject);},
                         None => {}
                     };
                     match purpose {
@@ -196,6 +215,8 @@ impl<'a> Parse<'a> for Transaction<Euro> {
 mod tests {
     #[allow(unused)]
     use super::*;
+    #[allow(unused)]
+    use crate::subject::*;
 
     // TODO
     // - Accept transaction declarations
@@ -212,7 +233,8 @@ mod tests {
             Transaction {
                 amount: Euro::from(-5),
                 date: parsed.date,
-                partner: None,
+                sender: Subject::Me,
+                recipient: None,
                 purposes: None,
             }
         );
@@ -224,7 +246,8 @@ mod tests {
             Transaction {
                 amount: Euro::from(-5),
                 date: parsed.date,
-                partner: Some(Person::from("Recipient")),
+                sender: Subject::Me,
+                recipient: Some(Subject::from("Recipient")),
                 purposes: None,
             }
         );

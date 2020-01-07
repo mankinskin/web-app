@@ -10,7 +10,7 @@ pub mod budget;
 pub mod interpreter;
 pub mod transaction;
 pub mod purpose;
-pub mod person;
+pub mod subject;
 pub mod query;
 #[macro_use] pub mod cartesian;
 

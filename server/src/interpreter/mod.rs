@@ -5,7 +5,6 @@ use crate::currency::*;
 use crate::transaction::*;
 use parse::*;
 use ::chrono::*;
-use crate::person::*;
 
 use std::io::{
     self,
