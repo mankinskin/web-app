@@ -6,8 +6,8 @@ use crate::currency::{
 use crate::transaction::{
     Transaction,
 };
-use crate::person::{
-    Person,
+use crate::subject::{
+    Subject,
 };
 use crate::purpose::{
     Purpose,

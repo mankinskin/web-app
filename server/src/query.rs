@@ -1,6 +1,6 @@
 use crate::transaction::*;
 use crate::currency::*;
-use crate::person::*;
+use crate::subject::*;
 use crate::purpose::{
     Purpose,
 };
@@ -30,18 +30,19 @@ impl<'a, C: Currency> Query<'a, C> {
             .collect()
             )
     }
-    pub fn with_partner<P: Into<Person> + Clone>(self, partner: P) -> Self {
-        self.filter(move |t|
-                    if let Some(p) = &t.partner {
-                        p.clone() == partner.clone().into()
-                    } else { false })
+    pub fn with_sender<S: Into<Subject> + Clone>(self, sender: S) -> Self {
+        self.filter(move |t| t.sender == sender.clone().into())
     }
-    pub fn with_any_partners<P: Into<Person> + Clone>(self, parts: Vec<P>) -> Self {
-        let parts: Vec<Person> = parts.iter().map(|p| p.clone().into()).collect();
-        self.filter(move |t|
-                    if let Some(p) = &t.partner {
-                        parts.contains(p)
-                    } else { false })
+    pub fn with_any_senders<S: Into<Subject> + Clone>(self, subs: Vec<S>) -> Self {
+        let subs: Vec<Subject> = subs.iter().map(|p| p.clone().into()).collect();
+        self.filter(move |t| subs.contains(&t.sender))
+    }
+    pub fn with_recipient<S: Into<Subject> + Clone>(self, recipient: S) -> Self {
+        self.filter(move |t| t.recipient == Some(recipient.clone().into()))
+    }
+    pub fn with_any_recipient<S: Into<Subject> + Clone>(self, subs: Vec<S>) -> Self {
+        let subs: Vec<Subject> = subs.iter().map(|p| p.clone().into()).collect();
+        self.filter(move |t| t.recipient.clone().map(|r| subs.contains(&r)).unwrap_or(false))
     }
     pub fn with_purpose<P: Into<Purpose> + Clone>(self, purp: P) -> Self {
         self.filter(move |t|
@@ -117,59 +118,59 @@ mod tests {
         assert!(budget.balance == Euro(140));
         assert!(budget.find().earnings().len() == 0);
         assert!(budget.find().expenses().len() == 0);
-        assert!(budget.find().with_partner("Papa").len() == 0);
+        assert!(budget.find().with_recipient("Papa").len() == 0);
         assert!(budget.find().with_purpose("Fahrstunde").len() == 0);
         assert!(budget.find().with_purpose("Arbeit").len() == 0);
 
-        budget.get(Euro(19)).set_partner("Papa");
+        budget.get(Euro(19)).set_recipient("Papa");
         assert!(budget.balance == Euro(140+19));
         assert!(budget.find().earnings().len() == 1);
         assert!(budget.find().expenses().len() == 0);
-        assert!(budget.find().with_partner("Papa").len() == 1);
+        assert!(budget.find().with_recipient("Papa").len() == 1);
         assert!(budget.find().with_purpose("Fahrstunde").len() == 0);
         assert!(budget.find().with_purpose("Arbeit").len() == 0);
-        assert!(budget.find().with_any_partners(vec!["Papa", "Schölermann"]).len() == 1);
-        assert!(budget.find().with_any_partners(vec!["Jonas", "Leon", "Schölermann"]).len() == 0);
+        assert!(budget.find().with_any_recipient(vec!["Papa", "Schölermann"]).len() == 1);
+        assert!(budget.find().with_any_recipient(vec!["Jonas", "Leon", "Schölermann"]).len() == 0);
 
         budget.give(Euro(49)).set_purpose("Fahrstunde").set_partner("Schölermann");
         assert!(budget.balance == Euro((140+19)-49));
         assert!(budget.find().earnings().len() == 1);
         assert!(budget.find().expenses().len() == 1);
-        assert!(budget.find().with_partner("Papa").len() == 1);
+        assert!(budget.find().with_recipient("Papa").len() == 1);
         assert!(budget.find().with_purpose("Fahrstunde").len() == 1);
         assert!(budget.find().with_purpose("Arbeit").len() == 0);
-        assert!(budget.find().with_any_partners(vec!["Papa", "Schölermann"]).len() == 2);
-        assert!(budget.find().with_any_partners(vec!["Jonas", "Leon", "Schölermann"]).len() == 1);
+        assert!(budget.find().with_any_recipient(vec!["Papa", "Schölermann"]).len() == 2);
+        assert!(budget.find().with_any_recipient(vec!["Jonas", "Leon", "Schölermann"]).len() == 1);
 
         budget.get(Euro(72)).set_purposes(vec!["Arbeit", "Programmieren"]);
         assert!(budget.balance == Euro(((140+19)-49)+72));
         assert!(budget.find().earnings().len() == 2);
         assert!(budget.find().expenses().len() == 1);
-        assert!(budget.find().with_partner("Papa").len() == 1);
+        assert!(budget.find().with_recipient("Papa").len() == 1);
         assert!(budget.find().with_purpose("Fahrstunde").len() == 1);
         assert!(budget.find().with_purpose("Arbeit").len() == 1);
         assert!(budget.find().with_any_purposes(vec!["Programmieren", "Essen"]).len() == 1);
         assert!(budget.find().with_all_purposes(vec!["Programmieren", "Essen"]).len() == 0);
-        assert!(budget.find().with_any_partners(vec!["Papa", "Schölermann"]).len() == 2);
-        assert!(budget.find().with_any_partners(vec!["Jonas", "Leon", "Schölermann"]).len() == 1);
+        assert!(budget.find().with_any_recipient(vec!["Papa", "Schölermann"]).len() == 2);
+        assert!(budget.find().with_any_recipient(vec!["Jonas", "Leon", "Schölermann"]).len() == 1);
 
         budget.give(Euro(19))
               .set_purposes(vec!["Programmieren", "Essen"])
-              .set_partner("Jonas");
+              .set_recipient("Jonas");
         assert!(budget.balance == Euro((((140+19)-49)+72)-19));
         assert!(budget.find().earnings().len() == 2);
         assert!(budget.find().expenses().len() == 2);
-        assert!(budget.find().with_partner("Papa").len() == 1);
+        assert!(budget.find().with_recipient("Papa").len() == 1);
         assert!(budget.find().with_purpose("Arbeit").len() == 1);
         assert!(budget.find().with_any_purposes(vec!["Programmieren", "Essen"]).len() == 2);
         assert!(budget.find().with_all_purposes(vec!["Programmieren", "Essen"]).len() == 1);
-        assert!(budget.find().with_any_partners(vec!["Papa", "Schölermann"]).len() == 2);
-        assert!(budget.find().with_any_partners(vec!["Jonas", "Leon", "Schölermann"]).len() == 2);
+        assert!(budget.find().with_any_recipient(vec!["Papa", "Schölermann"]).len() == 2);
+        assert!(budget.find().with_any_recipient(vec!["Jonas", "Leon", "Schölermann"]).len() == 2);
 
         budget
     }
     #[test]
-    fn find_partner() {
+    fn find_recipient() {
         create_test_budget();
     }
 }
