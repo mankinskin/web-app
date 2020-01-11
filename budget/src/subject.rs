@@ -1,4 +1,4 @@
-use crate::interpreter::parse::*;
+use interpreter::parse::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Subject {
