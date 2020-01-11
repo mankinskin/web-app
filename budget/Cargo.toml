@@ -1,17 +1,20 @@
 [package]
-name = "server"
+name = "budget"
 version = "0.1.0"
 authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 edition = "2018"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
 [dependencies]
-chrono = "^0.4"
 tabular = "0.1.2"
 daggy = "0.6.0"
-nom = "5.0.1"
-itertools = "0.8"
-linefeed = "0.6"
-termion = "1.5"
+chrono = "^0.4"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 stdweb = "0.4.2"
+
+[dependencies.interpreter]
+path = "../interpreter"

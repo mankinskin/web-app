@@ -11,7 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 chrono = "^0.4"
 tabular = "0.1.2"
-nom = "5.0.1"
+nom = "^5.1"
 yew = "0.9.2"
 stdweb = "0.4.2"
 wasm-bindgen = "0.2"
@@ -27,6 +27,5 @@ features = [
   "HtmlElement"
 ]
 
-[dependencies.server]
-version = "*"
-path = "../server"
+[dependencies.budget]
+path = "../budget"

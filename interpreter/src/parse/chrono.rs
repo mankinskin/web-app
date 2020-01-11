@@ -1,6 +1,5 @@
-use ::chrono::*;
-use crate::interpreter::parse::*;
-
+use crate::parse::*;
+use crate::chrono::*;
 
 impl<'a> Parse<'a> for Date<Utc> {
     named!(
@@ -244,7 +243,7 @@ mod tests {
         });
 
         for (fmt, (hrange, mrange, srange), (h, m, s)) in test_data {
-            println!("Testing \"{}\" == ({},{},{})", fmt, h, m, s);
+            //println!("Testing \"{}\" == ({},{},{})", fmt, h, m, s);
             let result = NaiveTime::parse(&fmt).map(|t| t.1);
             if hrange.contains(&h) && mrange.contains(&m) && srange.contains(&s) {
                 let expected =

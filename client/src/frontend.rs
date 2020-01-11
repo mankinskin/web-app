@@ -1,10 +1,9 @@
-use server::budget::*;
-use server::currency::*;
+use budget::*;
+use budget::currency::*;
 use yew::*;
 use stdweb::web::*;
 
 pub enum Msg {
-    Click,
     PrevImage,
     NextImage,
     Init,
@@ -26,9 +25,9 @@ impl yew::Component for BudgetView<Euro> {
 
     fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
         let mut b = Budget::create("My Budget", 0);
-        b.get(100).set_purpose("Money");
-        b.get(100).set_purpose("Money");
-        b.get(100).set_purpose("Money");
+        b.get(100).add_purpose("Money");
+        b.get(100).add_purpose("Money");
+        b.get(100).add_purpose("Money");
         BudgetView::new(b)
     }
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
@@ -132,7 +131,7 @@ impl yew::Renderable<BudgetView<Euro>> for TransactionsView<Euro> {
         }
     }
 }
-use server::transaction::Transaction;
+use budget::transaction::Transaction;
 struct TransactionView<C: Currency> {
     model: Transaction<C>,
 }
@@ -158,10 +157,10 @@ impl yew::Renderable<BudgetView<Euro>> for TransactionView<Euro> {
     fn view(&self) -> yew::Html<BudgetView<Euro>> {
         html!{
             <tr>
-                <td>{self.model.get_date_string()}</td>
-                <td>{self.model.get_amount_string()}</td>
-                <td>{self.model.get_partner_string()}</td>
-                <td>{self.model.get_purpose_string()}</td>
+                <td>{format!("{:#?}", self.model.get_date())}</td>
+                <td>{self.model.get_amount().to_string()}</td>
+                <td>{self.model.get_recipient().map(|s| s.to_string()).unwrap_or("None".into())}</td>
+                <td>{self.model.get_purposes().map(|ps| ps.to_string()).unwrap_or("None".into())}</td>
                 </tr>
         }
     }
