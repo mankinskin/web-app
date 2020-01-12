@@ -34,3 +34,23 @@ impl Debug for Word {
         write!(f, "{}", self.chars)
     }
 }
+mod tests {
+    #[allow(unused)]
+    use super::*;
+    #[test]
+    fn parse_word() {
+        let words = vec![
+            "hello",
+            "Hello",
+            "Hi",
+            "yes",
+            "aha",
+            "Mathematik",
+            "mathmatical",
+            "erfuellen"
+        ];
+        for word in words {
+            assert_eq!(Word::parse(word).unwrap().1, Word::from(word));
+        }
+    }
+}

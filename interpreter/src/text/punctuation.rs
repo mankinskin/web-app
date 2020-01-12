@@ -47,3 +47,16 @@ impl<'a> Parse<'a> for Punctuation {
                 )
     );
 }
+mod tests {
+    #[allow(unused)]
+    use super::*;
+    #[test]
+    fn parse_punctuation() {
+        assert_eq!(Punctuation::parse(",").unwrap().1, Punctuation::Comma);
+        assert_eq!(Punctuation::parse(".").unwrap().1, Punctuation::Dot);
+        assert_eq!(Punctuation::parse(":").unwrap().1, Punctuation::Colon);
+        assert_eq!(Punctuation::parse(";").unwrap().1, Punctuation::Semicolon);
+        assert_eq!(Punctuation::parse("\'").unwrap().1, Punctuation::Quote);
+        assert_eq!(Punctuation::parse("\"").unwrap().1, Punctuation::DoubleQuote);
+    }
+}
