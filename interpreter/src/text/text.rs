@@ -8,16 +8,15 @@ impl<'a> Parse<'a> for Text {
     named!(
         parse(&'a str) -> Self,
         map!(
-            preceded!(
-                space0,
-                    many1!(
-                        terminated!(
-                            TextElement::parse,
-                            space0
-                            )
-                    )
+            many1!(
+                delimited!(
+                    space0,
+                    complete!(TextElement::parse),
+                    space0
+                )
             ),
-            |es| Self { elements: es })
+            |es| Self { elements: es }
+        )
     );
 }
 use std::collections::HashMap;
