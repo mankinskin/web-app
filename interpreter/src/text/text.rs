@@ -48,6 +48,7 @@ impl Text {
         occurrences
     }
 }
+
 impl From<Vec<TextElement>> for Text {
     fn from(elements: Vec<TextElement>) -> Self {
         Self {
@@ -55,6 +56,7 @@ impl From<Vec<TextElement>> for Text {
         }
     }
 }
+
 use std::fmt::{Debug, Display, self};
 impl Display for Text {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -68,5 +70,50 @@ impl IntoIterator for Text {
     type IntoIter = ::std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.elements.into_iter()
+    }
+}
+
+mod tests {
+    #[allow(unused)]
+    use super::*;
+    #[test]
+    fn parse_text() {
+        let text = "Als Klasse gilt in der Mathematik, Klassenlogik und \
+                    Mengenlehre eine Zusammenfassung beliebiger Objekte, \
+                    definiert durch eine logische Eigenschaft, die alle \
+                    Objekte der Klasse erfuellen.";
+
+        assert_eq!(Text::parse(text).unwrap().1,
+                   Text::from(vec![
+                           TextElement::Word(Word::from("Als")),
+                           TextElement::Word(Word::from("Klasse")),
+                           TextElement::Word(Word::from("gilt")),
+                           TextElement::Word(Word::from("in")),
+                           TextElement::Word(Word::from("der")),
+                           TextElement::Word(Word::from("Mathematik")),
+                           TextElement::Punctuation(Punctuation::Comma),
+                           TextElement::Word(Word::from("Klassenlogik")),
+                           TextElement::Word(Word::from("und")),
+                           TextElement::Word(Word::from("Mengenlehre")),
+                           TextElement::Word(Word::from("eine")),
+                           TextElement::Word(Word::from("Zusammenfassung")),
+                           TextElement::Word(Word::from("beliebiger")),
+                           TextElement::Word(Word::from("Objekte")),
+                           TextElement::Punctuation(Punctuation::Comma),
+                           TextElement::Word(Word::from("definiert")),
+                           TextElement::Word(Word::from("durch")),
+                           TextElement::Word(Word::from("eine")),
+                           TextElement::Word(Word::from("logische")),
+                           TextElement::Word(Word::from("Eigenschaft")),
+                           TextElement::Punctuation(Punctuation::Comma),
+                           TextElement::Word(Word::from("die")),
+                           TextElement::Word(Word::from("alle")),
+                           TextElement::Word(Word::from("Objekte")),
+                           TextElement::Word(Word::from("der")),
+                           TextElement::Word(Word::from("Klasse")),
+                           TextElement::Word(Word::from("erfuellen")),
+                           TextElement::Punctuation(Punctuation::Dot)
+                               ]
+                   ))
     }
 }

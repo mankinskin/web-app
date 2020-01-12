@@ -37,3 +37,28 @@ impl<'a> Parse<'a> for TextElement {
         )
     );
 }
+
+mod tests {
+    #[allow(unused)]
+    use super::*;
+    #[test]
+    fn parse_textelement() {
+        assert_eq!(TextElement::parse(",").unwrap().1, TextElement::Punctuation(Punctuation::Comma));
+        assert_eq!(TextElement::parse(".").unwrap().1, TextElement::Punctuation(Punctuation::Dot));
+        assert_eq!(TextElement::parse(":").unwrap().1, TextElement::Punctuation(Punctuation::Colon));
+        assert_eq!(TextElement::parse(";").unwrap().1, TextElement::Punctuation(Punctuation::Semicolon));
+        assert_eq!(TextElement::parse("\'").unwrap().1, TextElement::Punctuation(Punctuation::Quote));
+        assert_eq!(TextElement::parse("\"").unwrap().1, TextElement::Punctuation(Punctuation::DoubleQuote));
+        let words = vec![
+            "Hello",
+            "Hi",
+            "yes",
+            "aha",
+            "Mathematik",
+            "mathmatical"
+        ];
+        for word in words {
+            assert_eq!(TextElement::parse(word).unwrap().1, TextElement::Word(Word::from(word)));
+        }
+    }
+}
