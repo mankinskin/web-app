@@ -7,6 +7,11 @@ pub enum Punctuation {
     Semicolon,
     Quote,
     DoubleQuote,
+    QuestionMark,
+    ExclamationMark,
+    Equals,
+    Greater,
+    Less,
 }
 use std::fmt::{Debug, Display, self};
 impl Display for Punctuation {
@@ -18,6 +23,11 @@ impl Display for Punctuation {
             Self::Semicolon => ";",
             Self::Quote => "\'",
             Self::DoubleQuote => "\"",
+            Self::QuestionMark => "?",
+            Self::ExclamationMark => "!",
+            Self::Equals => "=",
+            Self::Greater => ">",
+            Self::Less => "<",
         })
     }
 }
@@ -26,25 +36,19 @@ use crate::parse::*;
 impl<'a> Parse<'a> for Punctuation {
     named!(
         parse(&'a str) -> Self,
-                map!(
-                    alt!(
-                        tag!(".") |
-                        tag!(",") |
-                        tag!(":") |
-                        tag!(";") |
-                        tag!("\'") |
-                        tag!("\"")
-                    ),
-                    |s| match s {
-                        "." => Self::Dot,
-                        "," => Self::Comma,
-                        ":" => Self::Colon,
-                        ";" => Self::Semicolon,
-                        "\'" => Self::Quote,
-                        "\"" => Self::DoubleQuote,
-                        _ => panic!("Unknown Punctuation"),
-                    }
-                )
+        alt!(
+            map!(tag!(".") , |_| Self::Dot) |
+            map!(tag!("=") , |_| Self::Equals) |
+            map!(tag!(">") , |_| Self::Greater) |
+            map!(tag!("<") , |_| Self::Less) |
+            map!(tag!("!") , |_| Self::ExclamationMark) |
+            map!(tag!("?") , |_| Self::QuestionMark) |
+            map!(tag!(",") , |_| Self::Comma) |
+            map!(tag!(":") , |_| Self::Colon) |
+            map!(tag!(";") , |_| Self::Semicolon) |
+            map!(tag!("\'"), |_| Self::Quote) |
+            map!(tag!("\""), |_| Self::DoubleQuote)
+        )
     );
 }
 mod tests {
@@ -58,5 +62,10 @@ mod tests {
         assert_eq!(Punctuation::parse(";").unwrap().1, Punctuation::Semicolon);
         assert_eq!(Punctuation::parse("\'").unwrap().1, Punctuation::Quote);
         assert_eq!(Punctuation::parse("\"").unwrap().1, Punctuation::DoubleQuote);
+        assert_eq!(Punctuation::parse("!").unwrap().1, Punctuation::ExclamationMark);
+        assert_eq!(Punctuation::parse("?").unwrap().1, Punctuation::QuestionMark);
+        assert_eq!(Punctuation::parse("=").unwrap().1, Punctuation::Equals);
+        assert_eq!(Punctuation::parse("<").unwrap().1, Punctuation::Less);
+        assert_eq!(Punctuation::parse(">").unwrap().1, Punctuation::Greater);
     }
 }
