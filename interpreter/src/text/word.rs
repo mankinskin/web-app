@@ -16,16 +16,13 @@ use nom::character::complete::*;
 use nom::*;
 use nom::combinator::*;
 use nom::multi::*;
+use nom_unicode::complete::{alpha1};
 
 impl<'a> Parse<'a> for Word {
     named!(
         parse(&'a str) -> Self,
         map!(
-            recognize(
-                many1_count(
-                    none_of(" \t\n,;:\'\"-_%$/\\0123456789#<>^°§&{}[]()?.|\r")
-                    )
-                ),
+            alpha1,
             |w| Self { chars: w.to_string() }
             )
     );
