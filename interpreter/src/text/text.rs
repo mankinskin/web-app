@@ -1,5 +1,5 @@
 use super::*;
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Text {
     elements: Vec<TextElement>,
 }
@@ -69,6 +69,19 @@ impl IntoIterator for Text {
     type IntoIter = ::std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.elements.into_iter()
+    }
+}
+use std::ops::{Index, Range, RangeFull};
+impl Index<Range<usize>> for Text {
+    type Output = <Vec<TextElement> as Index<Range<usize>>>::Output;
+    fn index(&self, idx: Range<usize>) -> &Self::Output {
+        &self.elements[idx]
+    }
+}
+impl Index<RangeFull> for Text {
+    type Output = <Vec<TextElement> as Index<RangeFull>>::Output;
+    fn index(&self, idx: RangeFull) -> &Self::Output {
+        &self.elements[idx]
     }
 }
 

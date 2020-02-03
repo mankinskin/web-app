@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, PartialEq, Eq, Clone, Ord, PartialOrd, Hash)]
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Hash)]
 pub enum TextElement {
     Word(Word),
     Punctuation(Punctuation)
@@ -16,9 +16,17 @@ impl From<Punctuation> for TextElement {
     }
 }
 use std::fmt::{Debug, Display, self};
-impl Display for TextElement {
+impl Debug for TextElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+impl Display for TextElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Word(w) => write!(f, "{}", w),
+            Self::Punctuation(p) => write!(f, "{}", p),
+        }
     }
 }
 use crate::parse::*;

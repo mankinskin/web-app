@@ -12,6 +12,11 @@ impl From<&str> for Word {
         }
     }
 }
+impl AsRef<[u8]> for Word {
+    fn as_ref(&self) -> &[u8] {
+        self.chars.as_ref()
+    }
+}
 use nom::character::complete::*;
 use nom::*;
 use nom::combinator::*;
@@ -35,7 +40,7 @@ impl Display for Word {
 }
 impl Debug for Word {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.chars)
+        write!(f, "{}", self)
     }
 }
 mod tests {
