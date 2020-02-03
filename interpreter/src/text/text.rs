@@ -12,7 +12,7 @@ impl<'a> Parse<'a> for Text {
                 delimited!(
                     space0,
                     complete!(TextElement::parse),
-                    space0
+                    multispace0
                 )
             ),
             |es| Self { elements: es }
@@ -92,6 +92,24 @@ mod tests {
     #[allow(unused)]
     use super::*;
     #[test]
+    fn parse_multiline() {
+        let text = "Als \
+                    Klasse
+                    gilt
+                    in
+
+                    .";
+
+        assert_eq!(Text::parse(text).unwrap().1,
+                   Text::from(vec![
+                           TextElement::Word(Word::from("Als")),
+                           TextElement::Word(Word::from("Klasse")),
+                           TextElement::Word(Word::from("gilt")),
+                           TextElement::Word(Word::from("in")),
+                           TextElement::Punctuation(Punctuation::Dot),
+                               ]
+                   ))
+    }
     fn parse_text() {
         let text = "Als Klasse gilt in der Mathematik, Klassenlogik und \
                     Mengenlehre eine Zusammenfassung beliebiger Objekte, \
