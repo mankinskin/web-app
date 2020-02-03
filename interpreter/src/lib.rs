@@ -4,6 +4,7 @@ extern crate nom;
 #[macro_use] extern crate itertools;
 extern crate nom_unicode;
 extern crate chrono;
+extern crate petgraph;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate linefeed;
