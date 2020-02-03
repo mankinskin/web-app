@@ -11,52 +11,62 @@ use std::slice::Windows;
 #[derive(Debug)]
 struct Dictionary {
     name: String,
-    entries: HashMap<TextElement, NodeIndex>,
-    graph: DiGraph<TextElement, ()>,
+    graph: DiGraph<TextElement, usize>,
 }
 
 impl Dictionary {
     pub fn new<S: ToString>(name: S) -> Self {
         Self {
             name: name.to_string(),
-            entries: HashMap::new(),
             graph: DiGraph::new(),
         }
     }
     pub fn contains(&self, element: &TextElement) -> bool {
-        self.entries.iter().find(|(e, i)| *e == element).is_some()
+        self.get_node_index(element).is_some()
     }
     fn get_node_index(&self, element: &TextElement) -> Option<NodeIndex> {
-        self.entries
-            .iter()
-            .find(|(e, i)| *e == element)
-            .map(|(e, i)| i.clone())
+        self.graph.node_indices()
+            .find(|i| self.graph[*i] == *element)
+            .map(|i| i.clone())
     }
     pub fn add(&mut self, element: &TextElement) -> NodeIndex {
         match self.get_node_index(element) {
             Some(i) => i,
             None => {
-                let i = self.graph.add_node(element.clone());
-                self.entries.insert(element.clone(), i.clone());
-                i
+                self.graph.add_node(element.clone())
             }
         }
     }
-    pub fn add_elements(&mut self, l: &TextElement, r: &TextElement) {
+    pub fn add_elements(&mut self, l: &TextElement, r: &TextElement, distance: usize) {
         let li = self.add(l);
         let ri = self.add(r);
-        let _old_edge = self.graph.add_edge(li, ri, ());
+        let old_edge = self.graph.find_edge(li, ri);
+        match old_edge {
+            Some(i) => {
+                *self.graph.edge_weight_mut(i).unwrap() += 1;
+            },
+            None => {
+                self.graph.update_edge(li, ri, distance);
+            }
+        }
     }
     pub fn insert_text(&mut self, text: Text) {
+        let len = text.len();
+        for i in 0..len-1 {
+            let left = &text[i];
+            //for j in (i+1)..len {
+                let right = &text[i+1];
+                self.add_elements(left, right, 1);
+            //}
+        }
         for elements in (text[..]).windows(2) {
             let (l, r) = (elements[0].clone(), elements[1].clone());
-            self.add_elements(&l, &r);
         }
     }
     pub fn write_to_file(&self) -> std::io::Result<()> {
         std::fs::write(
             self.name.clone() + ".dot",
-            format!("{:?}", Dot::with_config(&self.graph, &[Config::EdgeNoLabel])))
+            format!("{:?}", Dot::new(&self.graph)))
     }
 }
 
@@ -114,8 +124,7 @@ impl Dictionary {
 //            before,
 //            after,
 //        }
-//    }
-//}
+//    } }
 //
 //#[derive(Hash, Eq, PartialEq)]
 //struct ElementEntry {
@@ -137,7 +146,7 @@ mod tests {
                     automatisch auch Mengen, weil Mengen zusätzliche \
                     Bedingungen erfüllen müssen. Mengen sind aber stets \
                     Klassen und werden daher auch in der Praxis in \
-                    Klassenschreibweise notiert.
+                    Klassenschreibweise notiert. \
                     In der Mathematik des 19. Jahrhunderts wurden die Begriffe\
                      „Klasse“ und „Menge“ weitgehend synonym verwendet und \
                     waren ungenügend festgelegt, so dass widersprüchliche \
@@ -159,15 +168,15 @@ mod tests {
                     (s. u.) aufgefasst werden. Sie gelten auch bei der \
                     Verwendung von Klassentermen (s. u.) im Rahmen einer \
                     Klassenlogik; dort besagt aber ein Klassenterm gar nichts \
-                    über die Existenz einer Klasse! Die Klassenlogik ist daher\
-                     nur ein syntaktisch reichhaltiger logischer Rahmen, der \
-                     eine bequemere optimierte Darstellung erlaubt und es \
-                     gestattet, beliebige Klassen ohne die Gefahr eines \
-                     Widerspruchs in jeden Kontext einzusetzen. \
-                     Klassenvariablen sind hier freie Variablen; in gebundene \
-                     Variablen können dagegen nur Elemente eingesetzt werden, \
-                     speziell auch alle Mengen, die das Kriterium im \
-                     Komprehensionsprinzip erfüllen müssen.".to_string();
+                    über die Existenz einer Klasse! Die Klassenlogik ist daher \
+                    nur ein syntaktisch reichhaltiger logischer Rahmen, der \
+                    eine bequemere optimierte Darstellung erlaubt und es \
+                    gestattet, beliebige Klassen ohne die Gefahr eines \
+                    Widerspruchs in jeden Kontext einzusetzen. \
+                    Klassenvariablen sind hier freie Variablen; in gebundene \
+                    Variablen können dagegen nur Elemente eingesetzt werden, \
+                    speziell auch alle Mengen, die das Kriterium im \
+                    Komprehensionsprinzip erfüllen müssen.".to_string();
         let text: Text = Text::parse(&text).unwrap().1;
         //let mut occurrences = text.element_occurrences().into_iter().collect::<Vec<_>>();
         //occurrences.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
