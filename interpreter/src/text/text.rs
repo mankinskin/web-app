@@ -49,6 +49,9 @@ impl Text {
     pub fn iter(self) -> <Self as IntoIterator>::IntoIter {
         self.into_iter()
     }
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
 }
 
 impl From<Vec<TextElement>> for Text {
@@ -74,7 +77,25 @@ impl IntoIterator for Text {
         self.elements.into_iter()
     }
 }
-use std::ops::{Index, Range, RangeFull};
+use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo};
+impl Index<usize> for Text {
+    type Output = <Vec<TextElement> as Index<usize>>::Output;
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.elements[idx]
+    }
+}
+impl Index<RangeTo<usize>> for Text {
+    type Output = <Vec<TextElement> as Index<RangeTo<usize>>>::Output;
+    fn index(&self, idx: RangeTo<usize>) -> &Self::Output {
+        &self.elements[idx]
+    }
+}
+impl Index<RangeFrom<usize>> for Text {
+    type Output = <Vec<TextElement> as Index<RangeFrom<usize>>>::Output;
+    fn index(&self, idx: RangeFrom<usize>) -> &Self::Output {
+        &self.elements[idx]
+    }
+}
 impl Index<Range<usize>> for Text {
     type Output = <Vec<TextElement> as Index<Range<usize>>>::Output;
     fn index(&self, idx: Range<usize>) -> &Self::Output {
