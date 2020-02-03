@@ -46,6 +46,9 @@ impl Text {
         }
         occurrences
     }
+    pub fn iter(self) -> <Self as IntoIterator>::IntoIter {
+        self.into_iter()
+    }
 }
 
 impl From<Vec<TextElement>> for Text {
