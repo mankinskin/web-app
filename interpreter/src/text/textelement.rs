@@ -3,7 +3,16 @@ use super::*;
 #[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Hash)]
 pub enum TextElement {
     Word(Word),
-    Punctuation(Punctuation)
+    Punctuation(Punctuation),
+    Empty,
+}
+impl TextElement {
+    pub fn is_stop(&self) -> bool {
+        match self {
+            TextElement::Punctuation(Punctuation::Dot) => true,
+            _ => false
+        }
+    }
 }
 impl From<Word> for TextElement {
     fn from(w: Word) -> Self {
@@ -26,6 +35,7 @@ impl Display for TextElement {
         match self {
             Self::Word(w) => write!(f, "{}", w),
             Self::Punctuation(p) => write!(f, "{}", p),
+            Self::Empty => write!(f, ""),
         }
     }
 }

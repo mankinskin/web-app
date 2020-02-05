@@ -65,7 +65,8 @@ mod tests {
             "aha",
             "Mathematik",
             "mathmatical",
-            "erfuellen"
+            "erfuellen",
+            "erfüllen"
         ];
         for word in words {
             assert_eq!(Word::parse(word).unwrap().1, Word::from(word));
