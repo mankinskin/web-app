@@ -46,9 +46,6 @@ impl Text {
         }
         occurrences
     }
-    pub fn iter(self) -> <Self as IntoIterator>::IntoIter {
-        self.into_iter()
-    }
     pub fn len(&self) -> usize {
         self.elements.len()
     }
@@ -69,15 +66,13 @@ impl Display for Text {
     }
 }
 
-use std::iter::{Iterator, IntoIterator};
-impl IntoIterator for Text {
-    type Item = TextElement;
-    type IntoIter = ::std::vec::IntoIter<Self::Item>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.elements.into_iter()
+use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo, Deref};
+impl Deref for Text {
+    type Target = [TextElement];
+    fn deref(&self) -> &Self::Target {
+        self.elements.deref()
     }
 }
-use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo};
 impl Index<usize> for Text {
     type Output = <Vec<TextElement> as Index<usize>>::Output;
     fn index(&self, idx: usize) -> &Self::Output {
