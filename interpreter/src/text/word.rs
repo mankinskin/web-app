@@ -5,11 +5,22 @@ pub struct Word {
     chars: String,
 }
 
+impl Word {
+    fn new(s: &str) -> Self {
+        Self {
+            chars: s.to_lowercase()
+        }
+    }
+}
+
+impl From<String> for Word {
+    fn from(s: String) -> Self {
+        Self::new(&s)
+    }
+}
 impl From<&str> for Word {
     fn from(s: &str) -> Self {
-        Self {
-            chars: s.into(),
-        }
+        Self::new(s)
     }
 }
 impl AsRef<[u8]> for Word {
@@ -27,7 +38,7 @@ impl<'a> Parse<'a> for Word {
         parse(&'a str) -> Self,
         map!(
             alphanumeric1,
-            |w| Self { chars: w.to_string() }
+            |w| Self::new(w)
             )
     );
 }
