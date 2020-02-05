@@ -10,6 +10,10 @@ impl TextElement {
     pub fn is_stop(&self) -> bool {
         match self {
             TextElement::Punctuation(Punctuation::Dot) => true,
+            TextElement::Punctuation(Punctuation::QuestionMark) => true,
+            TextElement::Punctuation(Punctuation::ExclamationMark) => true,
+            TextElement::Punctuation(Punctuation::DoubleQuote) => true,
+            TextElement::Punctuation(Punctuation::Quote) => true,
             _ => false
         }
     }
