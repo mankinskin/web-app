@@ -17,17 +17,16 @@ impl AsRef<[u8]> for Word {
         self.chars.as_ref()
     }
 }
-use nom::character::complete::*;
 use nom::*;
 use nom::combinator::*;
 use nom::multi::*;
-use nom_unicode::complete::{alpha1};
+use nom_unicode::complete::{alpha1, alphanumeric1};
 
 impl<'a> Parse<'a> for Word {
     named!(
         parse(&'a str) -> Self,
         map!(
-            alpha1,
+            alphanumeric1,
             |w| Self { chars: w.to_string() }
             )
     );
@@ -47,6 +46,16 @@ mod tests {
     #[allow(unused)]
     use super::*;
     #[test]
+    fn parse_number() {
+        let words = vec![
+            "19",
+            "20",
+            "01012",
+        ];
+        for word in words {
+            assert_eq!(Word::parse(word).unwrap().1, Word::from(word));
+        }
+    }
     fn parse_word() {
         let words = vec![
             "hello",
