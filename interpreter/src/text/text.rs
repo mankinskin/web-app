@@ -49,6 +49,14 @@ impl Text {
     pub fn len(&self) -> usize {
         self.elements.len()
     }
+    pub fn extend(&mut self, other: Self) {
+        self.elements.extend(other.elements)
+    }
+    pub fn prepend(&mut self, other: Self) {
+        let mut tmp = other.elements;
+        tmp.extend(self.elements.clone());
+        self.elements = tmp;
+    }
 }
 
 impl From<Vec<TextElement>> for Text {
