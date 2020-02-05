@@ -10,7 +10,7 @@ impl<'a> Parse<'a> for Text {
         map!(
             many1!(
                 delimited!(
-                    space0,
+                    multispace0,
                     complete!(TextElement::parse),
                     multispace0
                 )
