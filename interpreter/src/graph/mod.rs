@@ -8,6 +8,9 @@ use petgraph::{
 use std::collections::{HashSet, HashMap};
 
 use crate::text::*;
+
+mod edge;
+use crate::graph::edge::*;
 mod edges;
 use crate::graph::edges::*;
 mod node;

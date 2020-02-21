@@ -9,35 +9,7 @@ use petgraph::{
 use std::collections::{HashSet, HashMap};
 
 use crate::graph::node::*;
-
-pub type Edge<'a> = EdgeReference<'a, HashSet<usize>>;
-pub type Edges<'a> = Vec<Edge<'a>>;
-
-#[derive(Clone, Debug)]
-pub struct GraphEdge<'a>  {
-    edge: EdgeReference<'a, HashSet<usize>>,
-}
-impl<'a> std::ops::Deref for GraphEdge<'a> {
-    type Target = Edge<'a>;
-    fn deref(&self) -> &Self::Target {
-        &self.edge
-    }
-}
-impl<'a> From<Edge<'a>> for GraphEdge<'a>  {
-    fn from(edge: Edge<'a>) -> Self {
-        Self {
-            edge
-        }
-    }
-}
-impl<'a> GraphEdge<'a>  {
-    fn contains_weight(&self, w: &usize) -> bool {
-        self.weight().contains(w)
-    }
-    fn max_weight(&self) -> Option<&'a usize> {
-        self.weight().iter().max()
-    }
-}
+use crate::graph::edge::{*, EdgeRef};
 
 #[derive(Clone, Debug)]
 pub struct GraphEdges<'a>  {
@@ -56,8 +28,8 @@ impl<'a> From<Vec<GraphEdge<'a>>> for GraphEdges<'a>  {
         }
     }
 }
-impl<'a> From<Vec<Edge<'a>>> for GraphEdges<'a>  {
-    fn from(edges: Vec<Edge<'a>>) -> Self {
+impl<'a> From<Vec<EdgeRef<'a>>> for GraphEdges<'a>  {
+    fn from(edges: Vec<EdgeRef<'a>>) -> Self {
         Self {
             edges: edges.iter().map(|e|GraphEdge::from(e.clone())).collect()
         }
