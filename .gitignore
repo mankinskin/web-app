@@ -6,3 +6,6 @@
 /Cargo.lock
 */Cargo.lock
 */*.dot
+*/*.graphml
+*/*.gml
+*/*.gv
