@@ -36,7 +36,7 @@ use crate::parse::*;
 impl<'a> Parse<'a> for Punctuation {
     named!(
         parse(&'a str) -> Self,
-        alt!(
+        complete!(alt!(
             map!(tag!(".") , |_| Self::Dot) |
             map!(tag!("=") , |_| Self::Equals) |
             map!(tag!(">") , |_| Self::Greater) |
@@ -48,7 +48,7 @@ impl<'a> Parse<'a> for Punctuation {
             map!(tag!(";") , |_| Self::Semicolon) |
             map!(tag!("\'"), |_| Self::Quote) |
             map!(tag!("\""), |_| Self::DoubleQuote)
-        )
+        ))
     );
 }
 mod tests {

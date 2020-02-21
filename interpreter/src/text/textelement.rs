@@ -39,7 +39,7 @@ impl Display for TextElement {
         match self {
             Self::Word(w) => write!(f, "{}", w),
             Self::Punctuation(p) => write!(f, "{}", p),
-            Self::Empty => write!(f, ""),
+            Self::Empty => write!(f, "<>"),
         }
     }
 }
