@@ -2,3 +2,6 @@
 **/*.rs.bk
 **/target
 */*.dot
+*/*.graphml
+*/*.gml
+*/*.gv
