@@ -30,7 +30,51 @@ impl<'a> Into<NodeIndex> for GraphNode<'a> {
         self.index
     }
 }
+use std::fmt::{self, Display, Formatter};
+impl<'a> Display for GraphNode<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let node_weight = self.weight();
+        writeln!(f, "## {}", node_weight);
 
+        /// Incoming
+        let incoming_edges = self.incoming_edges();
+        let max_incoming_distance = incoming_edges.max_weight().unwrap_or(0);
+        let incoming_weight_groups = incoming_edges.clone().group_by_weight();
+        let incoming_groups_counts: Vec<usize> = incoming_weight_groups.iter().map(|group|
+            group.clone().count()
+        ).collect();
+        let incoming_node_groups: Vec<Vec<_>> = incoming_weight_groups.iter().map(|group|
+            group.clone().map(|edge| self.graph.get_node(edge.source())).collect::<Vec<_>>()
+        ).collect();
+        writeln!(f, "Incoming edges:\n\
+            \tcount: {},\n\
+            \tmax distance: {},\n\
+            \tgroup counts: {:?}",
+            incoming_edges.count(),
+            max_incoming_distance,
+            incoming_groups_counts);
+
+
+        /// Outgoing
+        let outgoing_edges = self.outgoing_edges();
+        let max_outgoing_distance = outgoing_edges.max_weight().unwrap_or(0);
+
+        let outgoing_weight_groups = outgoing_edges.clone().group_by_weight();
+        let outgoing_groups_counts: Vec<usize> = outgoing_weight_groups.iter().map(|group|
+            group.clone().count()
+        ).collect();
+        let outgoing_node_groups: Vec<Vec<_>> = outgoing_weight_groups.iter().map(|group|
+            group.clone().map(|edge| self.graph.get_node(edge.target())).collect()
+        ).collect();
+        writeln!(f, "Outgoing edges:\n\
+            \tcount: {},\n\
+            \tmax distance: {},\n\
+            \tgroup counts: {:?}",
+            outgoing_edges.count(),
+            max_outgoing_distance,
+            outgoing_groups_counts)
+    }
+}
 
 impl<'a> GraphNode<'a> {
     pub fn new(graph: &'a TextGraph, index: NodeIndex) -> Self {
@@ -39,44 +83,9 @@ impl<'a> GraphNode<'a> {
             index,
         }
     }
-    pub fn info(&'a self) {
-        let mut nodes = GraphNodes::new(self.graph);
-        nodes.add(self.index);
-
-        let mut incoming_edges = self.incoming_edges();
-        incoming_edges.sort_by_weight();
-        let max_distance = incoming_edges.max_weight().unwrap_or(0);
-        let node_weight = self.weight();
-        println!("Node: {}", node_weight);
-        println!("max_distance: {}", max_distance);
-
-        let weight_groups = incoming_edges.group_by_weight();
-        let node_groups: Vec<Vec<GraphNode<'a>>> = weight_groups.iter().map(|group|
-            group.iter().map(|edge| self.graph.get_node(edge.source())).collect()
-        ).collect();
-
-        println!("---");
-        for (distance, group) in node_groups.iter().enumerate() {
-            // for each distance group 1..max
-
-            println!("Distance {}, {} Nodes.", distance + 1, group.len());
-
-            for node in group.iter() {
-                // for each node at distance
-                let mut nincoming_edges = node.incoming_edges();
-                nincoming_edges.sort_by_weight();
-                let nnode_weight = node.weight();
-
-                let nweight_groups = nincoming_edges.group_by_weight();
-                let mut nnode_groups: Vec<Vec<GraphNode<'a>>> = nweight_groups.iter().map(|group|
-                    group.iter().map(|edge| self.graph.get_node(edge.source())).collect()
-                ).collect();
-            }
-
-        }
-        println!("---");
+    pub fn weight(&'a self) -> &'a TextElement {
+        <&TextElement>::from(self)
     }
-
     pub fn is_at_distance(&'a self, other: GraphNode<'a>, distance: usize) -> bool {
         self.graph
             .find_edge(self.index, other.into())

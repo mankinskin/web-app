@@ -127,7 +127,7 @@ impl TextGraph {
     }
     pub fn element_info(&self, element: &TextElement) {
         match self.find_node(element) {
-            Some(n) => n.info(),
+            Some(n) => println!("{}", n),
             None => {}
         }
     }

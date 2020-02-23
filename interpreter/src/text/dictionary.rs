@@ -42,13 +42,13 @@ impl<'a> Dictionary {
     }
     pub fn write_to_file(&self) -> std::io::Result<()> {
         std::fs::write(
-            self.name.clone() + ".dot",
-            format!("{:?}", Dot::new(&self.graph.clone().into() as &DiGraph<TextElement, HashSet<usize>>)))
+            self.name.clone() + "_sub.dot",
+            format!("{:?}", Dot::new(&self.get_subgraph(self.find_node(&TextElement::Punctuation(Punctuation::Comma)).unwrap().into()).clone().into() as &DiGraph<TextElement, HashSet<usize>>)))
     }
     pub fn print_element_infos(&self) {
         // all nodes
         for node_index in self.graph.node_indices() {
-            self.get_node(node_index).info();
+            println!("{}", self.get_node(node_index));
         }
     }
 } // impl Dictionary
