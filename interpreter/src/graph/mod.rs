@@ -17,6 +17,8 @@ mod node;
 use crate::graph::node::*;
 mod nodes;
 use crate::graph::nodes::*;
+mod sentences;
+use crate::graph::sentences::*;
 
 #[derive(Debug)]
 pub struct TextGraph  {
