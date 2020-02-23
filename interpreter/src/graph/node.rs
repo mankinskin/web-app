@@ -93,16 +93,55 @@ impl<'a> GraphNode<'a> {
             .unwrap_or(false)
     }
 
-    pub fn weight(&'a self) -> &'a TextElement {
-        <&TextElement>::from(self)
+    pub fn edges(&'a self) -> GraphEdges<'a> {
+        GraphEdges::from(self.graph.edges(self.index))
     }
-    pub fn edges_directed(&self, d: Direction) -> GraphEdges<'a> {
-        self.graph.edges_directed(self.index, d).into()
+    pub fn edges_directed(&'a self, d: Direction) -> GraphEdges<'a> {
+        GraphEdges::from(self.graph.edges_directed(self.index, d))
     }
-    pub fn incoming_edges(&self) -> GraphEdges<'a> {
+    pub fn incoming_edges(&'a self) -> GraphEdges<'a> {
         self.edges_directed(Direction::Incoming)
     }
-    pub fn outgoing_edges(&self) -> GraphEdges<'a> {
+    pub fn outgoing_edges(&'a self) -> GraphEdges<'a> {
         self.edges_directed(Direction::Outgoing)
+    }
+    pub fn edges_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.edges().filter(move |e| e.weight().contains(distance))
+    }
+    pub fn edges_with_distance_directed(&'a self, distance: &'a usize, direction: Direction)
+        -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.edges_directed(direction)
+            .filter(move |e| e.weight().contains(distance))
+    }
+    pub fn incoming_edges_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.edges_with_distance_directed(distance, Direction::Incoming)
+    }
+    pub fn outgoing_edges_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.edges_with_distance_directed(distance, Direction::Outgoing)
+    }
+
+    pub fn neighbors(&'a self) -> Vec<NodeIndex> {
+        self.graph.neighbors(self.index).collect()
+    }
+    pub fn neighbors_directed(&'a self, direction: Direction) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.graph.neighbors_directed(self.index, direction)
+    }
+    pub fn neighbors_incoming(&'a self) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.neighbors_directed(Direction::Incoming)
+    }
+    pub fn neighbors_outgoing(&'a self) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.neighbors_directed(Direction::Outgoing)
+    }
+    pub fn neighbors_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.neighbors_incoming_with_distance(distance)
+            .chain(self.neighbors_outgoing_with_distance(distance))
+    }
+    pub fn neighbors_incoming_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.incoming_edges_with_distance(distance)
+            .map(|e| e.source())
+    }
+    pub fn neighbors_outgoing_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.incoming_edges_with_distance(distance)
+            .map(|e| e.source())
     }
 }
