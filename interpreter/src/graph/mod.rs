@@ -66,6 +66,26 @@ impl TextGraph {
             index
         )
     }
+    pub fn get_subgraph(&self, node: NodeIndex) -> TextGraph {
+        let mut sub = TextGraph::new();
+        let node = self.get_node(node);
+        sub.add(node.weight());
+        let neighbors = node.neighbors();
+        let edges: Vec<_> = node.edges_directed(Direction::Incoming)
+                                .chain(node.edges_directed(Direction::Outgoing))
+                                .collect();
+        let edges: Vec<_> = edges.iter()
+            .map(|e| (self.get_node(e.source()).weight().clone(),
+                    e.weight().clone(),
+                    self.get_node(e.target()).weight().clone()))
+            .map(|(source, weight, target)|
+                for distance in weight {
+                    sub.add_edge(&source, &target, distance)
+                })
+            .collect();
+        let neighbors: Vec<_> = neighbors.iter().map(|n| sub.add(self.get_node(*n).weight())).collect();
+        sub
+    }
     pub fn find_node(&self, element: &TextElement) -> Option<GraphNode> {
         self.get_node_index(element).map(|i|
             self.get_node(i)
