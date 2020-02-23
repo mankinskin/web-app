@@ -11,87 +11,68 @@ use std::collections::{HashSet, HashMap};
 use crate::graph::node::*;
 use crate::graph::edge::{*, EdgeRef};
 
-#[derive(Clone, Debug)]
+pub type EdgeIter<'a> = petgraph::graph::Edges<'a, HashSet<usize>, Directed>;
+
+#[derive(Clone)]
 pub struct GraphEdges<'a>  {
-    edges: Vec<GraphEdge<'a>>,
+    iter: EdgeIter<'a>,
 }
-impl<'a> std::ops::Deref for GraphEdges<'a> {
-    type Target = Vec<GraphEdge<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.edges
+impl<'a> std::iter::Iterator for GraphEdges<'a> {
+    type Item = GraphEdge<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(GraphEdge::from)
     }
 }
-impl<'a> From<Vec<GraphEdge<'a>>> for GraphEdges<'a>  {
-    fn from(edges: Vec<GraphEdge<'a>>) -> Self {
+impl<'a> From<EdgeIter<'a>> for GraphEdges<'a> {
+    fn from(iter: EdgeIter<'a>) -> Self {
         Self {
-            edges
-        }
-    }
-}
-impl<'a> From<Vec<EdgeRef<'a>>> for GraphEdges<'a>  {
-    fn from(edges: Vec<EdgeRef<'a>>) -> Self {
-        Self {
-            edges: edges.iter().map(|e|GraphEdge::from(e.clone())).collect()
-        }
-    }
-}
-use std::iter::Iterator;
-impl<'a> From<petgraph::graph::Edges<'a, HashSet<usize>, petgraph::Directed>> for GraphEdges<'a>  {
-    fn from(edges: petgraph::graph::Edges<'a, HashSet<usize>, petgraph::Directed>) -> Self {
-        Self {
-            edges: edges.map(|e| GraphEdge::from(e.clone())).collect()
+            iter
         }
     }
 }
 
 impl<'a> GraphEdges<'a>  {
-    pub fn max_edge(&self) -> Option<&GraphEdge<'a>> {
-        self.edges.iter().fold(None,
-            |res: Option<(&GraphEdge<'a>, usize)>, edge: &GraphEdge<'a>| {
-                res.map(|(e, max)| {
-                        let w = edge.max_weight().unwrap();
-                        if *w > max {
-                            Some((edge, w.clone()))
+    pub fn max_edge(&'a self) -> Option<<Self as Iterator>::Item> {
+        self.clone().fold(None,
+            |res: Option<(GraphEdge<'a>, usize)>, edge: GraphEdge<'a>| {
+                Some(res.map(|(e, max)| {
+                        let w = edge.max_weight().unwrap().clone();
+                        if w > max {
+                            (edge.clone(), w.clone())
                         } else {
-                            res
+                            (e, max)
                         }
                     })
-                .unwrap_or(Some((edge, edge.max_weight().unwrap().clone())))
+                    .unwrap_or((edge.clone(), *edge.max_weight().unwrap()))
+                )
             }
         )
-        .map(|(e, max)| e)
+        .map(|(e, _)| e)
     }
-    pub fn max_weight(&self) -> Option<usize> {
+    pub fn max_weight(&'a self) -> Option<usize> {
         self.max_edge()
-            .map(|e| e.max_weight())
+            .map(|e| e.max_weight().map(Clone::clone))
             .flatten()
-            .map(Clone::clone)
     }
-    pub fn group_by_weight(&self) -> Vec<Vec<GraphEdge<'a>>> {
+    pub fn group_by_weight(self) -> Vec<impl Iterator<Item=GraphEdge<'a>> + Clone> {
         let max = self.max_weight().unwrap_or(0);
-        let mut r: Vec<Vec<GraphEdge<'a>>> = vec![Vec::new(); max];
-        for edge in self.iter() {
-            let w = edge.max_weight();
-            match w {
-                Some(i) => r[i-1].push(edge.clone()),
-                None => {}
-            }
+        let mut r: Vec<_> = Vec::new();
+        for i in 1..=max {
+            r.push(
+                self.clone()
+                    .filter(move |e| e.weight().contains(&i))
+                    )
         }
         r
     }
-    pub fn sort_by_weight(&mut self) {
-        let mut edge_max_weights: Vec<&usize> = self.iter().flat_map(GraphEdge::max_weight).collect();
-        edge_max_weights.sort_by(|b, a| {
+    pub fn sort_by_weight(&mut self) -> Vec<usize> {
+        let mut v: Vec<_> = self.map(|e| *e.max_weight().unwrap()).collect();
+        v.sort_by(|b, a| {
             a.cmp(&b)
         });
+        v
     }
-    pub fn filter_by<P: FnMut(&&GraphEdge<'a>) -> bool>(&mut self, p: P) {
-        self.edges = self.edges.iter()
-            .filter(p)
-            .map(|e| e.clone())
-            .collect();
-    }
-    pub fn filter_by_weight(&mut self, w: &usize) {
-        self.filter_by(|e| e.contains_weight(w));
+    pub fn filter_by_weight(self, w: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.filter(move |e| e.contains_weight(w))
     }
 }
