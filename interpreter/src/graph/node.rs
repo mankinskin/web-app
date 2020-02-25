@@ -144,4 +144,10 @@ impl<'a> GraphNode<'a> {
         self.outgoing_edges_with_distance(distance)
             .map(|e| e.target())
     }
+    pub fn predecessors(&'a self) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.neighbors_incoming_with_distance(&1)
+    }
+    pub fn successors(&'a self) -> impl Iterator<Item=NodeIndex> + 'a {
+        self.neighbors_outgoing_with_distance(&1)
+    }
 }
