@@ -30,6 +30,11 @@ impl Text {
     pub fn push<E: Into<TextElement>>(&mut self, e: E) {
         self.elements.push(e.into())
     }
+    pub fn push_front<E: Into<TextElement>>(&mut self, e: E) {
+        let mut tmp = vec![e.into()];
+        tmp.extend(self.elements.clone());
+        self.elements = tmp;
+    }
     pub fn clear(&mut self) {
         self.elements.clear()
     }
