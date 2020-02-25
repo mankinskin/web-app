@@ -152,4 +152,9 @@ impl TextGraph {
             None => {}
         }
     }
+    pub fn write_to_file<S: Into<String>>(&self, name: S) -> std::io::Result<()> {
+        std::fs::write(
+            name.into() + ".dot",
+            format!("{:?}", Dot::new(&self.graph)))
+    }
 }
