@@ -41,9 +41,7 @@ impl<'a> Dictionary {
         }
     }
     pub fn write_to_file(&self) -> std::io::Result<()> {
-        std::fs::write(
-            self.name.clone() + "_sub.dot",
-            format!("{:?}", Dot::new(&self.get_subgraph(self.find_node(&TextElement::Punctuation(Punctuation::Comma)).unwrap().into()).clone().into() as &DiGraph<TextElement, HashSet<usize>>)))
+        self.graph.write_to_file(self.name.clone())
     }
     pub fn print_element_infos(&self) {
         // all nodes
