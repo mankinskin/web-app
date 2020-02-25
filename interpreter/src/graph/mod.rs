@@ -17,8 +17,8 @@ mod node;
 use crate::graph::node::*;
 mod nodes;
 use crate::graph::nodes::*;
-mod sentences;
-use crate::graph::sentences::*;
+pub mod sentences;
+pub use crate::graph::sentences::*;
 
 #[derive(Debug)]
 pub struct TextGraph  {
@@ -90,6 +90,10 @@ impl TextGraph {
             .collect();
         sub
     }
+    pub fn get_sentence<'a>(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
+        Sentence::new(self, nodes)
+    }
+
     pub fn find_node(&self, element: &TextElement) -> Option<GraphNode> {
         self.get_node_index(element).map(|i|
             self.get_node(i)
