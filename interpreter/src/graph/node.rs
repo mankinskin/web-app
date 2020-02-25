@@ -141,7 +141,7 @@ impl<'a> GraphNode<'a> {
             .map(|e| e.source())
     }
     pub fn neighbors_outgoing_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=NodeIndex> + 'a {
-        self.incoming_edges_with_distance(distance)
-            .map(|e| e.source())
+        self.outgoing_edges_with_distance(distance)
+            .map(|e| e.target())
     }
 }
