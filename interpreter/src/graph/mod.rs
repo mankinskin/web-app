@@ -40,7 +40,7 @@ impl Into<DiGraph<TextElement, HashSet<usize>>> for TextGraph {
         self.graph
     }
 }
-impl TextGraph {
+impl<'a> TextGraph {
     pub fn new() -> Self {
         let mut n = Self {
             graph: DiGraph::new(),
@@ -62,7 +62,7 @@ impl TextGraph {
             .find(|i| self.graph[*i] == *element)
             .map(|i| i.clone())
     }
-    pub fn get_node(&self, index: NodeIndex) -> GraphNode {
+    pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
         GraphNode::new(
             &self,
             index
@@ -90,11 +90,11 @@ impl TextGraph {
             .collect();
         sub
     }
-    pub fn get_sentence<'a>(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
+    pub fn get_sentence(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
         Sentence::new(self, nodes)
     }
 
-    pub fn find_node(&self, element: &TextElement) -> Option<GraphNode> {
+    pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
         self.get_node_index(element).map(|i|
             self.get_node(i)
         )
@@ -121,7 +121,6 @@ impl TextGraph {
                     next_stop < len && !text[next_stop].is_stop()
                 }
                 { }
-                //continue;
             }
             for j in (i+1)..=next_stop {
                 let left = &text[i];
