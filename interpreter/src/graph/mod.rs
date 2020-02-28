@@ -8,17 +8,16 @@ use petgraph::{
 use std::collections::{HashSet, HashMap};
 
 use crate::text::*;
+use crate::sentence::*;
 
 mod edge;
-use crate::graph::edge::*;
+pub use crate::graph::edge::*;
 mod edges;
-use crate::graph::edges::*;
+pub use crate::graph::edges::*;
 mod node;
-use crate::graph::node::*;
+pub use crate::graph::node::*;
 mod nodes;
-use crate::graph::nodes::*;
-pub mod sentences;
-pub use crate::graph::sentences::*;
+pub use crate::graph::nodes::*;
 
 #[derive(Debug)]
 pub struct TextGraph  {
@@ -61,6 +60,18 @@ impl<'a> TextGraph {
         self.graph.node_indices()
             .find(|i| self.graph[*i] == *element)
             .map(|i| i.clone())
+    }
+    pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
+        GraphEdges::from(self.graph.edges_directed(index, d))
+    }
+    pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        self.get_edges_directed(index, Direction::Incoming)
+    }
+    pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        self.get_edges_directed(index, Direction::Outgoing)
+    }
+    pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        GraphEdges::from(self.graph.edges(index))
     }
     pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
         GraphNode::new(

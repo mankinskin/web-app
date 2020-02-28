@@ -15,14 +15,20 @@ pub struct GraphEdge<'a>  {
     edge: EdgeRef<'a>,
 }
 
-use std::fmt::{self, Display, Formatter};
-use petgraph::visit::{EdgeRef as PetgraphEdgeRef};
 impl<'a> Display for GraphEdge<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:?} --{:?}--> {:?}",
                self.edge.source(),
                self.edge.weight(),
                self.edge.target())
+    }
+}
+use std::fmt::{self, Display, Formatter};
+use petgraph::visit::{EdgeRef as PetgraphEdgeRef};
+use std::hash::{self, Hash, Hasher};
+impl<'a> Hash for GraphEdge<'a> {
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        self.id().hash(h);
     }
 }
 impl<'a> petgraph::visit::EdgeRef for GraphEdge<'a> {
@@ -65,3 +71,4 @@ impl<'a> GraphEdge<'a>  {
         self.weight().iter().max()
     }
 }
+

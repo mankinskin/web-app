@@ -10,6 +10,7 @@ use std::slice::Windows;
 
 use crate::text::*;
 use crate::graph::*;
+use crate::sentence::*;
 
 #[derive(Debug)]
 struct Dictionary {
