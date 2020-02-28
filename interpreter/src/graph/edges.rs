@@ -54,13 +54,14 @@ impl<'a> GraphEdges<'a>  {
             .map(|e| e.max_weight().map(Clone::clone))
             .flatten()
     }
-    pub fn group_by_weight(self) -> Vec<impl Iterator<Item=GraphEdge<'a>> + Clone> {
+    pub fn group_by_weight(self) -> Vec<HashSet<GraphEdge<'a>>> {
         let max = self.max_weight().unwrap_or(0);
-        let mut r: Vec<_> = Vec::new();
+        let mut r: Vec<HashSet<_>> = Vec::new();
         for i in 1..=max {
             r.push(
                 self.clone()
                     .filter(move |e| e.weight().contains(&i))
+                    .collect()
                     )
         }
         r

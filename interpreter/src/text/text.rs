@@ -71,6 +71,11 @@ impl From<Vec<TextElement>> for Text {
         }
     }
 }
+impl From<&str> for Text {
+    fn from(s: &str) -> Self {
+        Self::parse(s).unwrap().1
+    }
+}
 
 use std::fmt::{Debug, Display, self};
 impl Display for Text {

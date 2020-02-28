@@ -16,6 +16,7 @@ pub mod shell;
 
 pub mod parse;
 pub mod text;
+pub mod sentence;
 pub mod graph;
 
 use std::collections::{HashSet};
