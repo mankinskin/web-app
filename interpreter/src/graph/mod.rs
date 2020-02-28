@@ -107,9 +107,10 @@ impl TextGraph {
         }
     }
     pub fn insert_text(&mut self, text: Text) {
-        let len = text.len();
         let mut text = text;
         text.push_front(TextElement::Empty);
+        text.push(TextElement::Empty);
+        let len = text.len();
         let mut next_stop = 0;
         for i in 0..len-1 {
             if i == next_stop {

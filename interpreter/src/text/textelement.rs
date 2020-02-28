@@ -14,6 +14,7 @@ impl TextElement {
             TextElement::Punctuation(Punctuation::ExclamationMark) => true,
             TextElement::Punctuation(Punctuation::DoubleQuote) => true,
             TextElement::Punctuation(Punctuation::Quote) => true,
+            TextElement::Empty => true,
             _ => false
         }
     }
