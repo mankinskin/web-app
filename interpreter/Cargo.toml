@@ -13,6 +13,7 @@ itertools = "0.8"
 chrono = "^0.4"
 petgraph = "^0.5"
 pretty_assertions = "^0.6"
+lazy_static = "^1.4"
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 termion = "1.5"
