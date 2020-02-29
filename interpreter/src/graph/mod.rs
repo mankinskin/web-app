@@ -111,7 +111,7 @@ impl<'a> TextGraph {
         )
     }
     pub fn insert_elements(&mut self, l: &TextElement, r: &TextElement, distance: usize) {
-        if l.is_stop() {
+        if l.is_stop() && *r != TextElement::Empty {
             self.add_edge(&TextElement::Empty, r, distance);
         } else {
             self.add_edge(l, r, distance);
