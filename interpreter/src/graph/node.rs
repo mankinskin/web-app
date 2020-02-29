@@ -9,7 +9,7 @@ use petgraph::{
 use crate::graph::edges::*;
 use crate::graph::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GraphNode<'a>  {
     graph: &'a TextGraph,
     index: NodeIndex,
@@ -46,6 +46,11 @@ impl<'a> Into<NodeIndex> for GraphNode<'a> {
     }
 }
 use std::fmt::{self, Debug, Display, Formatter};
+impl<'a> Debug for GraphNode<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "GraphNode {{ {:?} }}", self.index)
+    }
+}
 impl<'a> Display for GraphNode<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let node_weight = self.weight();
