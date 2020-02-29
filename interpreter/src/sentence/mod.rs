@@ -11,16 +11,23 @@ use petgraph::{
 use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Debug, Display, Formatter};
 
+use crate::*;
 use crate::text::*;
 use crate::graph::*;
 use std::collections::{HashMap, HashSet};
+use std::iter::{FromIterator};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Sentence<'a> {
     stack: Vec<GraphNode<'a>>,
     graph: &'a TextGraph
 }
 
+impl<'a> Debug for Sentence<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 impl<'a> Display for Sentence<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}",
@@ -28,7 +35,8 @@ impl<'a> Display for Sentence<'a> {
                 .stack
                 .iter()
                 .fold(String::new(),
-                |acc, n| acc + " " + &n.weight().to_string())
+                |acc, n| acc + &n.weight().to_string() + " ")
+                .trim_end()
                )
     }
 }
