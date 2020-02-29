@@ -80,67 +80,60 @@ impl<'a> Sentence<'a> {
     }
     pub fn edges_incoming(&'a self) -> HashMap<GraphEdge<'a>, HashSet<usize>> {
         let mut iter = self.stack.iter();
-        if iter.len() < 1 {
+        let len = iter.len();
+        if len < 1 {
             return HashMap::new();
         }
+        //println!("edges_outgoing(sentence: \"{}\")", self);
         // iterator over each grouping in the stack
         // a grouping contains all of the edges of a node, grouped
         // by weight
-        let mut groupings = iter
+        let mut element_groupings = iter
             .map(|node| self.graph.get_edges_incoming(node.index()))
-            .map(|edges| edges.group_by_weight());
+            .map(|edges| edges.group_by_weight())
+            .collect::<Vec<_>>();
 
+        //println!("element_groupings: {:#?}", element_groupings);
         let root: Vec<Vec<GraphEdge<'a>>> =
-            groupings
+            element_groupings
+                .iter()
                 .next()
                 .unwrap()
                 // grouping of first element
                 .iter()
-                .map(|edges| {
-                    edges.iter().map(|edge| {
-                        edge.clone()
-                        //(edge.clone(), edge.weight().clone())
-                    }).collect()
-                })
+                // skipped to distance behind sentence
+                .map(|edges| Vec::from_iter(edges.clone()))
                 .collect();
 
-        groupings
+        //println!("root: {:#?}", root);
+
+        let result = element_groupings
+            .iter()
+            .skip(1)
             .enumerate()
-            // i is the index of the element
-            .fold(root, |acc_groupings, (i, groups)| {
+            // i is the index of elements after the first element
+            .fold(root, |acc_grouping, (i, grouping)| {
                 // fold all groupings into one grouping
-                acc_groupings
+                //println!("folding element {}: {:#?}", i, grouping);
+                let distance_offset = i + 1;
+
+                acc_grouping // accumulated groupings 1..n
                     .iter()
-                    .zip(groups.iter().skip(i + 1))
+                    .zip(grouping.iter().skip(distance_offset))
                     .map(move |(acc_group, elem_group)| {
-                        // acc_group is of distance i
-                        // elem_group is of distance i + 1
-                        acc_group
+                        //println!("merging group {:#?} into {:#?}", elem_group, acc_group);
+                        let res = acc_group
                             .iter()
-                            .filter_map(|acc_edge| {
+                            .filter(move |edge| {
                                 elem_group
                                     .iter()
-                                    .find(|elem_edge| {
-                                        elem_edge.source() ==
-                                            acc_edge.source()
-                                    })
-                                    //.map(|elem_edge| {
-                                    //    acc_edge.1
-                                    //        .intersection(elem_edge.weight())
-                                    //        .map(Clone::clone)
-                                    //        .collect::<HashSet<_>>()
-                                    //})
-                                    //.map(|weights| {
-                                    //    if weights.len() > 0 {
-                                    //        Some((acc_edge.0.clone(), weights))
-                                    //    } else {
-                                    //        None
-                                    //    }
-                                    //})
-                                    //.flatten()
+                                    .find(move |e| e.source() == edge.source())
+                                    .is_some()
                             })
-                            .map(Clone::clone)
-                            .collect()
+                            .map(|e| e.clone())
+                            .collect();
+                        //println!("resulting group {:#?}", res);
+                        res
                     }).collect()
             })
             .iter()
@@ -150,10 +143,12 @@ impl<'a> Sentence<'a> {
                 for edge in edges {
                     acc.entry(edge)
                         .or_insert(HashSet::new())
-                        .insert(d);
+                        .insert(d+1);
                 }
                 acc
-            })
+            });
+        //println!("result: {:#?}", result);
+        result
     }
     pub fn neighbors_incoming(&'a self) -> HashSet<GraphNode<'a>> {
         self.edges_incoming()
@@ -183,61 +178,58 @@ impl<'a> Sentence<'a> {
         if len < 1 {
             return HashMap::new();
         }
+        //println!("edges_outgoing(sentence: \"{}\")", self);
         // iterator over each grouping in the stack
         // a grouping contains all of the edges of a node, grouped
         // by weight
         let mut element_groupings = iter
             .map(|node| self.graph.get_edges_outgoing(node.index()))
-            .map(|edges| edges.group_by_weight());
+            .map(|edges| edges.group_by_weight())
+            .collect::<Vec<_>>();
 
+        //println!("element_groupings: {:#?}", element_groupings);
         let root: Vec<Vec<GraphEdge<'a>>> =
             element_groupings
+                .iter()
                 .next()
                 .unwrap()
                 // grouping of first element
                 .iter()
                 .skip(len - 1)
-                .map(|edges| {
-                    edges.iter().map(|edge| {
-                        edge.clone()
-                    }).collect()
-                })
+                // skipped to distance behind sentence
+                .map(|edges| Vec::from_iter(edges.clone()))
                 .collect();
 
-        element_groupings
+        //println!("root: {:#?}", root);
+
+        let result = element_groupings
+            .iter()
+            .skip(1)
             .enumerate()
-            // i is the index of the element
-            .fold(root, |acc_groupings, (i, groups)| {
+            // i is the index of elements after the first element
+            .fold(root, |acc_grouping, (i, grouping)| {
                 // fold all groupings into one grouping
-                acc_groupings
+                //println!("folding element {}: {:#?}", i, grouping);
+                let element_position = i + 2;
+                let distance_offset = len - element_position;
+
+                acc_grouping // accumulated groupings 1..n
                     .iter()
-                    .zip(groups.iter().skip((len - 2) - i))
+                    .zip(grouping.iter().skip(distance_offset))
                     .map(move |(acc_group, elem_group)| {
-                        // j is the distance of the group
-                        // acc_group is of distance i
-                        // elem_group is of distance i + 1
-                        acc_group
+                        //println!("merging group {:#?} into {:#?}", elem_group, acc_group);
+                        let res = acc_group
                             .iter()
-                            .filter_map(|acc_edge| {
+                            .filter(move |edge| {
                                 elem_group
                                     .iter()
-                                    .find(|elem_edge| {
-                                        elem_edge.target() ==
-                                            acc_edge.target()
-                                    })
-                                    //.map(|elem_edge| {
-                                    //    acc_edge.1
-                                    //        .intersection(elem_edge.weight())
-                                    //        .map(Clone::clone)
-                                    //        .collect::<HashSet<_>>()
-                                    //})
-                                    .map(|weights| {
-                                        acc_edge.clone()
-                                    })
-                                    //.flatten()
+                                    .find(move |e| e.target() == edge.target())
+                                    .is_some()
                             })
-                            //.map(Clone::clone)
-                            .collect()
+                            .map(|e| e.clone())
+                            .collect();
+                        //println!("resulting group {:#?}", res);
+                        res
                     }).collect()
             })
             .iter()
@@ -247,10 +239,12 @@ impl<'a> Sentence<'a> {
                 for edge in edges {
                     acc.entry(edge)
                         .or_insert(HashSet::new())
-                        .insert(d);
+                        .insert(d+1);
                 }
                 acc
-            })
+            });
+        //println!("result: {:#?}", result);
+        result
     }
     pub fn neighbors_outgoing(&'a self) -> HashSet<GraphNode<'a>> {
         self.edges_outgoing()
@@ -258,17 +252,17 @@ impl<'a> Sentence<'a> {
             .map(|(e, w)| GraphNode::new(self.graph, e.target().clone()))
             .collect()
     }
-    pub fn edges_outgoing_with_distance(&'a self, d: usize) -> HashMap<GraphEdge<'a>, HashSet<usize>> {
+    pub fn edges_outgoing_with_distance(&'a self, d: usize) -> HashSet<GraphEdge<'a>> {
         self.edges_outgoing()
             .iter()
             .filter(|(e, w)| w.contains(&d))
-            .map(|(e, w)| (e.clone(), w.clone()))
+            .map(|(e, w)| e.clone())
             .collect()
     }
     pub fn neighbors_outgoing_with_distance(&'a self, d: usize) -> HashSet<GraphNode<'a>> {
         self.edges_outgoing_with_distance(d)
             .iter()
-            .map(|(e, w)| GraphNode::new(self.graph, e.target().clone()))
+            .map(|e| GraphNode::new(self.graph, e.target().clone()))
             .collect()
     }
     pub fn successors(&'a self) -> HashSet<GraphNode<'a>> {
@@ -283,7 +277,7 @@ mod tests {
     use crate::text::*;
     use pretty_assertions::{assert_eq};
     #[test]
-    fn test_sentence() {
+    fn test_direct_neighbors() {
         let mut tg = TextGraph::new();
         tg.insert_text(Text::from("\
                 A B C D E.\
@@ -299,6 +293,127 @@ mod tests {
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
         let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
+        let empty_a_sentence = tg.get_sentence(vec![
+            TextElement::Empty,
+            Word::from("A").into(),
+        ]).unwrap();
+        let empty_a_preds = empty_a_sentence.predecessors();
+        let empty_a_succs = empty_a_sentence.successors();
+        //println!("{:#?}", empty_a_succs);
+        assert_eq!(empty_a_preds, set![]);
+        assert_eq!(empty_a_succs, set![
+            b.clone(),
+            a.clone()
+        ]);
+        let a_sentence = tg.get_sentence(vec![
+            Word::from("A").into(),
+        ]).unwrap();
+        let a_preds = a_sentence.predecessors();
+        let a_succs = a_sentence.successors();
+        assert_eq!(a_preds, set![
+            empty.clone(),
+            d.clone(),
+            a.clone()
+        ]);
+        assert_eq!(a_succs, set![
+            a.clone(),
+            b.clone(),
+            c.clone(),
+            dot.clone()
+        ]);
+
+        let b_sentence = tg.get_sentence(vec![
+            Word::from("B").into(),
+        ]).unwrap();
+        let b_preds = b_sentence.predecessors();
+        let b_succs = b_sentence.successors();
+        assert_eq!(b_preds, set![
+            a.clone()
+        ]);
+        assert_eq!(b_succs, set![
+            c.clone(),
+            d.clone()
+        ]);
+
+        let ab = tg.get_sentence(vec![
+            Word::from("A").into(),
+            Word::from("B").into()
+        ]).unwrap();
+        let ab_preds = ab.predecessors();
+        let ab_succs = ab.successors();
+        assert_eq!(ab_preds, set![
+            empty.clone()
+        ]);
+        assert_eq!(ab_succs, set![
+            c.clone(),
+            d.clone()
+        ]);
+
+        let bc = tg.get_sentence(vec![
+            Word::from("B").into(),
+            Word::from("C").into()
+        ]).unwrap();
+        let bc_preds = bc.predecessors();
+        let bc_succs = bc.successors();
+        assert_eq!(bc_preds, set![
+            a.clone()
+        ]);
+        assert_eq!(bc_succs, set![
+            d.clone()
+        ]);
+
+        let bcd = tg.get_sentence(
+            vec![
+            Word::from("B").into(),
+            Word::from("C").into(),
+            Word::from("D").into()
+        ]).unwrap();
+        let bcd_preds = bcd.predecessors();
+        let bcd_succs = bcd.successors();
+        assert_eq!(bcd_preds, set![
+            a.clone()
+        ]);
+        assert_eq!(bcd_succs, set![
+            e.clone()
+        ]);
+
+        let aa = tg.get_sentence(vec![
+            Word::from("A").into(),
+            Word::from("A").into()
+        ]).unwrap();
+        let aa_preds = aa.predecessors();
+        let aa_succs = aa.successors();
+        assert_eq!(aa_preds, set![
+            empty.clone(),
+            a.clone()
+        ]);
+        assert_eq!(aa_succs, set![
+            a.clone(),
+            c.clone(),
+            dot.clone()
+        ]);
+    }
+    #[test]
+    fn test_neighbors() {
+        let mut tg = TextGraph::new();
+        tg.insert_text(Text::from("\
+                A B C D E.\
+                A B D A C.\
+                A A A A A."));
+        tg.write_to_file("test_graph");
+
+        let empty = tg.find_node(&TextElement::Empty).unwrap();
+        let a = tg.find_node(&(Word::from("A").into())).unwrap();
+        let b = tg.find_node(&(Word::from("B").into())).unwrap();
+        let c = tg.find_node(&(Word::from("C").into())).unwrap();
+        let d = tg.find_node(&(Word::from("D").into())).unwrap();
+        let e = tg.find_node(&(Word::from("E").into())).unwrap();
+        let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
+
+        let empty_a_sentence = tg.get_sentence(vec![
+            TextElement::Empty,
+            Word::from("A").into(),
+        ]).unwrap();
         let a_sentence = tg.get_sentence(vec![
             Word::from("A").into(),
         ]).unwrap();
@@ -320,6 +435,17 @@ mod tests {
             Word::from("D").into()
         ]).unwrap();
 
+        let mut empty_a_preds = empty_a_sentence.neighbors_incoming();
+        let mut empty_a_succs = empty_a_sentence.neighbors_outgoing();
+        assert_eq!(empty_a_preds, set![]);
+        assert_eq!(empty_a_succs, set![
+            b.clone(),
+            c.clone(),
+            d.clone(),
+            e.clone(),
+            a.clone(),
+            dot.clone()
+        ]);
         let mut a_preds = a_sentence.neighbors_incoming();
         let mut a_succs = a_sentence.neighbors_outgoing();
         assert_eq!(a_preds, set![
