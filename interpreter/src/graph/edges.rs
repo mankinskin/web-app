@@ -73,7 +73,16 @@ impl<'a> GraphEdges<'a>  {
         });
         v
     }
+    pub fn contains(&self, edge: &GraphEdge<'a>) -> bool {
+        self.clone().find(move |e| e == edge).is_some()
+    }
     pub fn filter_by_weight(self, w: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
         self.filter(move |e| e.contains_weight(w))
+    }
+    pub fn intersection(self, other: &'a Self) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
+        self.filter(move |edge| {
+                other.contains(edge)
+            })
+            .map(|e| e.clone())
     }
 }
