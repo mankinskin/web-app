@@ -22,7 +22,7 @@ pub struct SentenceGraph<'a> {
     graph: InternalSentenceGraph<'a>,
     root: NodeIndex,
 }
-
+use std::path::PathBuf;
 impl<'a> SentenceGraph<'a> {
     pub fn from_sentence(sentence: Sentence<'a>) -> Self {
         let mut graph = DiGraph::new();
@@ -71,10 +71,14 @@ impl<'a> SentenceGraph<'a> {
             return root;
         }
     }
-    pub fn write_to_file<S: Into<String>>(&self, name: S) -> std::io::Result<()> {
-        std::fs::write(
-            name.into() + ".dot",
-            format!("{:?}", Dot::new(&self.graph)))
+    pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
+        let mut path: PathBuf = name.into();
+        path.set_extension("dot");
+        path.canonicalize();
+        path.parent().map(|p|
+            std::fs::create_dir_all(p.clone())
+        );
+        std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
     }
 }
 
@@ -141,6 +145,6 @@ mod tests {
         ]).unwrap();
 
         let a_graph = SentenceGraph::from(a_sentence);
-        a_graph.write_to_file("a_graph");
+        a_graph.write_to_file("graphs/a_graph");
     }
 }

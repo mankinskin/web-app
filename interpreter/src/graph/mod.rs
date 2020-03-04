@@ -19,6 +19,8 @@ pub use crate::graph::node::*;
 mod nodes;
 pub use crate::graph::nodes::*;
 
+use std::path::PathBuf;
+
 #[derive(Debug)]
 pub struct TextGraph  {
     graph: DiGraph<TextElement, HashSet<usize>>,
@@ -169,10 +171,14 @@ impl<'a> TextGraph {
             None => {}
         }
     }
-    pub fn write_to_file<S: Into<String>>(&self, name: S) -> std::io::Result<()> {
-        std::fs::write(
-            name.into() + ".dot",
-            format!("{:?}", Dot::new(&self.graph)))
+    pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
+        let mut path: PathBuf = name.into();
+        path.set_extension("dot");
+        path.canonicalize();
+        path.parent().map(|p|
+            std::fs::create_dir_all(p.clone())
+        );
+        std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
     }
 }
 
@@ -225,13 +231,13 @@ mod tests {
     fn test_insert_text() {
         //println!("{:#?}", text);
         let mut tg = TextGraph::new();
-        tg.insert_text(dornroeschen_text.clone());
+        tg.insert_text(gehen_text.clone());
         //tg.write_to_file("gehen_graph");
         let sentence = tg
             .get_sentence(vec![TextElement::Empty])
             .unwrap();
         let sentence_graph = SentenceGraph::from(sentence);
-        sentence_graph.write_to_file("sentence_empty");
+        sentence_graph.write_to_file("graphs/sentence_empty");
 
         //dictionary.print_element_infos();
     }
