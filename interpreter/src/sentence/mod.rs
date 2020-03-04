@@ -283,7 +283,7 @@ mod tests {
                 A B C D E.\
                 A B D A C.\
                 A A A A A."));
-        tg.write_to_file("test_graph");
+        tg.write_to_file("graphs/test_graph");
 
         let empty = tg.find_node(&TextElement::Empty).unwrap();
         let a = tg.find_node(&(Word::from("A").into())).unwrap();
@@ -400,7 +400,7 @@ mod tests {
                 A B C D E.\
                 A B D A C.\
                 A A A A A."));
-        tg.write_to_file("test_graph");
+        tg.write_to_file("graphs/test_graph");
 
         let empty = tg.find_node(&TextElement::Empty).unwrap();
         let a = tg.find_node(&(Word::from("A").into())).unwrap();
