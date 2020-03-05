@@ -50,7 +50,29 @@ impl TextGraphEdgeWeight {
         }
     }
 }
-type InternalTextGraph = DiGraph<TextElement, TextGraphEdgeWeight>;
+#[derive(Debug, PartialEq)]
+pub struct TextGraphNodeWeight  {
+    text_element: TextElement,
+}
+impl std::ops::Deref for TextGraphNodeWeight {
+    type Target = TextElement;
+    fn deref(&self) -> &Self::Target {
+        &self.text_element
+    }
+}
+impl std::ops::DerefMut for TextGraphNodeWeight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.text_element
+    }
+}
+impl From<TextElement> for TextGraphNodeWeight {
+    fn from(text_element: TextElement) -> Self {
+        Self {
+            text_element,
+        }
+    }
+}
+type InternalTextGraph = DiGraph<TextGraphNodeWeight, TextGraphEdgeWeight>;
 #[derive(Debug)]
 pub struct TextGraph  {
     graph: InternalTextGraph,
@@ -90,7 +112,7 @@ impl<'a> TextGraph {
     }
     pub fn get_node_index(&self, element: &TextElement) -> Option<NodeIndex> {
         self.graph.node_indices()
-            .find(|i| self.graph[*i] == *element)
+            .find(|i| self.graph[*i].text_element == *element)
             .map(|i| i.clone())
     }
     pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
@@ -154,7 +176,7 @@ impl<'a> TextGraph {
         match self.get_node_index(element) {
             Some(i) => i,
             None => {
-                self.graph.add_node(element.clone())
+                self.graph.add_node(TextGraphNodeWeight::from(element.clone()))
             }
         }
     }
