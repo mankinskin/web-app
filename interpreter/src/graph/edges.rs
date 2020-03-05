@@ -8,10 +8,11 @@ use petgraph::{
 
 use std::collections::{HashSet, HashMap};
 
+use crate::graph::*;
 use crate::graph::node::*;
 use crate::graph::edge::{*, EdgeRef};
 
-pub type EdgeIter<'a> = petgraph::graph::Edges<'a, HashSet<usize>, Directed>;
+pub type EdgeIter<'a> = petgraph::graph::Edges<'a, TextGraphEdgeWeight, Directed>;
 
 #[derive(Clone)]
 pub struct GraphEdges<'a>  {
