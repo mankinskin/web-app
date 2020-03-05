@@ -21,12 +21,42 @@ pub use crate::graph::nodes::*;
 
 use std::path::PathBuf;
 
+#[derive(Debug, PartialEq)]
+pub struct TextGraphEdgeWeight  {
+    distances: HashSet<usize>,
+}
+impl std::ops::Deref for TextGraphEdgeWeight {
+    type Target = HashSet<usize>;
+    fn deref(&self) -> &Self::Target {
+        &self.distances
+    }
+}
+impl std::ops::DerefMut for TextGraphEdgeWeight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.distances
+    }
+}
+impl std::iter::IntoIterator for TextGraphEdgeWeight {
+    type Item = <HashSet<usize> as IntoIterator>::Item;
+    type IntoIter = <HashSet<usize> as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.distances.into_iter()
+    }
+}
+impl TextGraphEdgeWeight {
+    pub fn new() -> Self {
+        Self {
+            distances: HashSet::new(),
+        }
+    }
+}
+type InternalTextGraph = DiGraph<TextElement, TextGraphEdgeWeight>;
 #[derive(Debug)]
 pub struct TextGraph  {
-    graph: DiGraph<TextElement, HashSet<usize>>,
+    graph: InternalTextGraph,
 }
 impl std::ops::Deref for TextGraph {
-    type Target = DiGraph<TextElement, HashSet<usize>>;
+    type Target = InternalTextGraph;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
@@ -36,8 +66,8 @@ impl std::ops::DerefMut for TextGraph {
         &mut self.graph
     }
 }
-impl Into<DiGraph<TextElement, HashSet<usize>>> for TextGraph {
-    fn into(self) -> DiGraph<TextElement, HashSet<usize>> {
+impl Into<InternalTextGraph> for TextGraph {
+    fn into(self) -> InternalTextGraph {
         self.graph
     }
 }
@@ -80,28 +110,6 @@ impl<'a> TextGraph {
             &self,
             index
         )
-    }
-    pub fn get_subgraph(&self, node: NodeIndex) -> Self {
-        let mut sub = Self::new();
-        let node = self.get_node(node);
-        sub.add(node.weight());
-        let neighbors = node.neighbors();
-        let edges: Vec<_> = node.edges_directed(Direction::Incoming)
-                                .chain(node.edges_directed(Direction::Outgoing))
-                                .collect();
-        let edges: Vec<_> = edges.iter()
-            .map(|e| (self.get_node(e.source()).weight().clone(),
-                    e.weight().clone(),
-                    self.get_node(e.target()).weight().clone()))
-            .map(|(source, weight, target)|
-                for distance in weight {
-                    sub.add_edge(&source, &target, distance)
-                })
-            .collect();
-        let neighbors: Vec<_> = neighbors.iter()
-            .map(|n| sub.add(self.get_node(*n).weight()))
-            .collect();
-        sub
     }
     pub fn get_sentence(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
         Sentence::new(self, nodes)
@@ -159,7 +167,7 @@ impl<'a> TextGraph {
                 self.graph.edge_weight_mut(i).unwrap().insert(distance);
             },
             None => {
-                let mut new = HashSet::new();
+                let mut new = TextGraphEdgeWeight::new();
                 new.insert(distance);
                 self.graph.update_edge(li, ri, new);
             }

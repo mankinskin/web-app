@@ -10,9 +10,10 @@ use std::collections::{HashSet, HashMap};
 use std::fmt::{self, Debug, Display, Formatter};
 use petgraph::visit::{EdgeRef as PetgraphEdgeRef};
 use std::hash::{self, Hash, Hasher};
+use crate::graph::*;
 
 
-pub type EdgeRef<'a> = EdgeReference<'a, HashSet<usize>>;
+pub type EdgeRef<'a> = EdgeReference<'a, TextGraphEdgeWeight>;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct GraphEdge<'a>  {
