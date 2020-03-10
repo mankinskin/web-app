@@ -54,7 +54,7 @@ impl<'a> GraphEdges<'a>  {
             .map(|e| e.max_weight().map(Clone::clone))
             .flatten()
     }
-    pub fn group_by_weight(self) -> Vec<HashSet<GraphEdge<'a>>> {
+    pub fn group_by_distance(self) -> Vec<HashSet<GraphEdge<'a>>> {
         //println!("group_by_weight...");
         let max = self.max_weight().unwrap_or(0);
         let mut r: Vec<HashSet<_>> = Vec::new();
@@ -69,7 +69,7 @@ impl<'a> GraphEdges<'a>  {
         //println!("done");
         r
     }
-    pub fn sort_by_weight(&mut self) -> Vec<usize> {
+    pub fn sort_by_distance(&mut self) -> Vec<usize> {
         let mut v: Vec<_> = self.clone()
             .into_iter()
             .map(|e| *e.max_weight().unwrap()).collect();
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn iter() {
         let mut tg = TextGraph::new();
-        tg.insert_text(Text::from("a b c d"));
+        tg.read_text(Text::from("a b c d"));
         tg.write_to_file("graphs/iter_graph");
         let empty = tg.find_node(&TextElement::Empty).unwrap();
         let a = tg.find_node(&TextElement::Word(Word::from("a"))).unwrap();
