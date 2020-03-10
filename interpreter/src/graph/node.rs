@@ -59,7 +59,7 @@ impl<'a> Display for GraphNode<'a> {
         /// Incoming
         let incoming_edges = self.edges_incoming();
         let max_incoming_distance = incoming_edges.max_weight().unwrap_or(0);
-        let incoming_weight_groups = incoming_edges.clone().group_by_weight();
+        let incoming_weight_groups = incoming_edges.clone().group_by_distance();
         let incoming_groups_counts: Vec<usize> = incoming_weight_groups.iter().map(|group|
             group.iter().count()
         ).collect();
@@ -79,7 +79,7 @@ impl<'a> Display for GraphNode<'a> {
         let outgoing_edges = self.edges_outgoing();
         let max_outgoing_distance = outgoing_edges.max_weight().unwrap_or(0);
 
-        let outgoing_weight_groups = outgoing_edges.clone().group_by_weight();
+        let outgoing_weight_groups = outgoing_edges.clone().group_by_distance();
         let outgoing_groups_counts: Vec<usize> = outgoing_weight_groups.iter().map(|group|
             group.iter().count()
         ).collect();
@@ -195,9 +195,9 @@ mod tests {
         };
     }
     #[test]
-    fn test_node() {
+    fn node() {
         let mut tg = TextGraph::new();
-        tg.insert_text(Text::from("A B C D"));
+        tg.read_text(Text::from("A B C D"));
 
         let empty = tg.find_node(&TextElement::Empty).unwrap();
         let a = tg.find_node(&(Word::from("A").into())).unwrap();

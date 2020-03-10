@@ -1,4 +1,5 @@
 use super::*;
+use crate::sentence::*;
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Text {
     elements: Vec<TextElement>,
@@ -62,6 +63,9 @@ impl Text {
         tmp.extend(self.elements.clone());
         self.elements = tmp;
     }
+    pub fn to_sentences(self) -> Vec<Text> {
+        self.elements.split(|e| e.is_stop()).map(|s| Text::from(s)).filter(|t| t.len() > 0).collect()
+    }
 }
 
 impl From<Vec<TextElement>> for Text {
@@ -69,6 +73,13 @@ impl From<Vec<TextElement>> for Text {
         Self {
             elements,
         }
+    }
+}
+impl From<&[TextElement]> for Text {
+    fn from(slice: &[TextElement]) -> Self {
+        Self::from(
+            slice.iter().cloned().collect::<Vec<_>>()
+        )
     }
 }
 impl From<&str> for Text {
@@ -144,6 +155,7 @@ mod tests {
                                ]
                    ))
     }
+    #[test]
     fn parse_text() {
         let text = "Als Klasse gilt in der Mathematik, Klassenlogik und \
                     Mengenlehre eine Zusammenfassung beliebiger Objekte, \
@@ -182,5 +194,19 @@ mod tests {
                            TextElement::Punctuation(Punctuation::Dot)
                                ]
                    ))
+    }
+    #[test]
+    fn to_sentences() {
+        let text = Text::from("A B C. A C D. C B A");
+        let sentences = text.to_sentences();
+        let a = TextElement::Word(Word::from("A"));
+        let b = TextElement::Word(Word::from("B"));
+        let c = TextElement::Word(Word::from("C"));
+        let d = TextElement::Word(Word::from("D"));
+        assert_eq!(sentences, vec![
+            Text::from(vec![a.clone(), b.clone(), c.clone()]),
+            Text::from(vec![a.clone(), c.clone(), d]),
+            Text::from(vec![c, b, a])
+        ]);
     }
 }
