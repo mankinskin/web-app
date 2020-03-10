@@ -70,7 +70,7 @@ impl<'a> Display for GraphNode<'a> {
             \tcount: {},\n\
             \tmax distance: {},\n\
             \tgroup counts: {:?}",
-            incoming_edges.count(),
+            incoming_edges.into_iter().count(),
             max_incoming_distance,
             incoming_groups_counts);
 
@@ -90,7 +90,7 @@ impl<'a> Display for GraphNode<'a> {
             \tcount: {},\n\
             \tmax distance: {},\n\
             \tgroup counts: {:?}",
-            outgoing_edges.count(),
+            outgoing_edges.into_iter().count(),
             max_outgoing_distance,
             outgoing_groups_counts)
     }
@@ -129,11 +129,12 @@ impl<'a> GraphNode<'a> {
         self.edges_directed(Direction::Outgoing)
     }
     pub fn edges_with_distance(&'a self, distance: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
-        self.edges().filter(move |e| e.weight().contains(distance))
+        self.edges().into_iter().filter(move |e| e.weight().contains(distance))
     }
     pub fn edges_with_distance_directed(&'a self, distance: usize, direction: Direction)
         -> impl Iterator<Item=GraphEdge<'a>> + 'a {
         self.edges_directed(direction)
+            .into_iter()
             .filter(move |e| e.weight().contains(&distance))
     }
     pub fn edges_incoming_with_distance(&'a self, distance: usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {

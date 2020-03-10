@@ -115,26 +115,10 @@ impl<'a> TextGraph {
             .find(|i| self.graph[*i].text_element == *element)
             .map(|i| i.clone())
     }
-    pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
-        GraphEdges::from(self.graph.edges_directed(index, d))
     }
-    pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        self.get_edges_directed(index, Direction::Incoming)
     }
-    pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        self.get_edges_directed(index, Direction::Outgoing)
     }
-    pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        GraphEdges::from(self.graph.edges(index))
     }
-    pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
-        GraphNode::new(
-            &self,
-            index
-        )
-    }
-    pub fn get_sentence(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
-        Sentence::new(self, nodes)
     }
 
     pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
@@ -194,7 +178,41 @@ impl<'a> TextGraph {
                 self.graph.update_edge(li, ri, new);
             }
         }
+    pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
+        GraphEdges::new(
+            self.graph
+                .edges_directed(index, d)
+                .map(|e| self.get_edge(e.id()))
+                .collect::<HashSet<_>>().iter().cloned()
+        )
     }
+    pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        self.get_edges_directed(index, Direction::Incoming)
+    }
+    pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        self.get_edges_directed(index, Direction::Outgoing)
+    }
+    pub fn get_edge(&'a self, index: EdgeIndex) -> GraphEdge<'a> {
+        GraphEdge::new(
+            self,
+            index
+        )
+    }
+    pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+        let edges = self.get_edges_incoming(index).into_iter()
+            .chain(self.get_edges_outgoing(index));
+        GraphEdges::new(edges)
+    }
+    pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
+        GraphNode::new(
+            self,
+            index
+        )
+    }
+    pub fn get_sentence(&'a self, nodes: Vec<TextElement>) -> Option<Sentence<'a>> {
+        Sentence::new(self, nodes)
+    }
+
     pub fn element_info(&self, element: &TextElement) {
         match self.find_node(element) {
             Some(n) => println!("{}", n),
