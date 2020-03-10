@@ -30,14 +30,14 @@ impl<'a> std::hash::Hash for GraphNode<'a> {
 }
 
 impl<'a> std::ops::Deref for GraphNode<'a> {
-    type Target = TextElement;
+    type Target = TextGraphNodeWeight;
     fn deref(&self) -> &Self::Target {
         &self.graph[self.index]
     }
 }
 impl<'a> From<&'a GraphNode<'a>> for &'a TextElement {
     fn from(n: &'a GraphNode<'a>) -> Self {
-        &n
+        n.element()
     }
 }
 impl<'a> Into<NodeIndex> for GraphNode<'a> {
@@ -54,7 +54,7 @@ impl<'a> Debug for GraphNode<'a> {
 impl<'a> Display for GraphNode<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let node_weight = self.weight();
-        writeln!(f, "## {}", node_weight);
+        writeln!(f, "## {}", node_weight.element());
 
         /// Incoming
         let incoming_edges = self.edges_incoming();
@@ -103,16 +103,16 @@ impl<'a> GraphNode<'a> {
             index,
         }
     }
-    pub fn weight(&'a self) -> &'a TextElement {
-        <&TextElement>::from(self)
+    pub fn weight(&'a self) -> &'a TextGraphNodeWeight {
+        <&TextGraphNodeWeight>::from(self)
     }
     pub fn index(&'a self) -> NodeIndex {
         self.index
     }
-    pub fn is_at_distance(&'a self, other: GraphNode<'a>, distance: usize) -> bool {
+    pub fn is_at_distance(&'a self, other: &GraphNode<'a>, distance: usize) -> bool {
         self.graph
-            .find_edge(self.index, other.into())
-            .map(|e| self.graph.edge_weight(e).map(|w| w.contains(&distance)).unwrap())
+            .find_edge(self, other)
+            .map(|e| self.graph.edge_weight(*e.index()).map(|w| w.contains(&distance)).unwrap())
             .unwrap_or(false)
     }
 

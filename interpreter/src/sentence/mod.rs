@@ -35,7 +35,7 @@ impl<'a> Display for Sentence<'a> {
                 .stack
                 .iter()
                 .fold(String::new(),
-                |acc, n| acc + &n.weight().to_string() + " ")
+                |acc, n| acc + &n.weight().element().to_string() + " ")
                 .trim_end()
                )
     }
@@ -84,7 +84,7 @@ impl<'a> Sentence<'a> {
         if len < 1 {
             return HashMap::new();
         }
-        //println!("edges_outgoing(sentence: \"{}\")", self);
+        //println!("edges_incoming(sentence: \"{}\")", self);
         // iterator over each grouping in the stack
         // a grouping contains all of the edges of a node, grouped
         // by weight
@@ -277,7 +277,7 @@ mod tests {
     use crate::text::*;
     use pretty_assertions::{assert_eq};
     #[test]
-    fn test_direct_neighbors() {
+    fn direct_neighbors() {
         let mut tg = TextGraph::new();
         tg.insert_text(Text::from("\
                 A B C D E.\
@@ -394,7 +394,7 @@ mod tests {
         ]);
     }
     #[test]
-    fn test_neighbors() {
+    fn neighbors() {
         let mut tg = TextGraph::new();
         tg.insert_text(Text::from("\
                 A B C D E.\
@@ -410,59 +410,10 @@ mod tests {
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
         let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
-        let empty_a_sentence = tg.get_sentence(vec![
-            TextElement::Empty,
-            Word::from("A").into(),
-        ]).unwrap();
-        let a_sentence = tg.get_sentence(vec![
-            Word::from("A").into(),
-        ]).unwrap();
+
         let b_sentence = tg.get_sentence(vec![
             Word::from("B").into(),
         ]).unwrap();
-        let ab = tg.get_sentence(vec![
-            Word::from("A").into(),
-            Word::from("B").into()
-        ]).unwrap();
-        let bc = tg.get_sentence(vec![
-            Word::from("B").into(),
-            Word::from("C").into()
-        ]).unwrap();
-        let bcd = tg.get_sentence(
-            vec![
-            Word::from("B").into(),
-            Word::from("C").into(),
-            Word::from("D").into()
-        ]).unwrap();
-
-        let mut empty_a_preds = empty_a_sentence.neighbors_incoming();
-        let mut empty_a_succs = empty_a_sentence.neighbors_outgoing();
-        assert_eq!(empty_a_preds, set![]);
-        assert_eq!(empty_a_succs, set![
-            b.clone(),
-            c.clone(),
-            d.clone(),
-            e.clone(),
-            a.clone(),
-            dot.clone()
-        ]);
-        let mut a_preds = a_sentence.neighbors_incoming();
-        let mut a_succs = a_sentence.neighbors_outgoing();
-        assert_eq!(a_preds, set![
-            empty.clone(),
-            b.clone(),
-            d.clone(),
-            a.clone()
-        ]);
-        assert_eq!(a_succs, set![
-            b.clone(),
-            c.clone(),
-            d.clone(),
-            e.clone(),
-            a.clone(),
-            dot.clone()
-        ]);
-
         let mut b_preds = b_sentence.neighbors_incoming();
         let mut b_succs = b_sentence.neighbors_outgoing();
         assert_eq!(b_preds, set![
@@ -477,6 +428,45 @@ mod tests {
             dot.clone()
         ]);
 
+        let a_sentence = tg.get_sentence(vec![
+            Word::from("A").into(),
+        ]).unwrap();
+        let mut a_preds = a_sentence.neighbors_incoming();
+        let mut a_succs = a_sentence.neighbors_outgoing();
+        assert_eq!(a_preds, set![
+            empty.clone(),
+            b.clone(),
+            d.clone(),
+            a.clone()
+        ]);
+
+        let empty_a_sentence = tg.get_sentence(vec![
+            TextElement::Empty,
+            Word::from("A").into(),
+        ]).unwrap();
+        let mut empty_a_preds = empty_a_sentence.neighbors_incoming();
+        let mut empty_a_succs = empty_a_sentence.neighbors_outgoing();
+        assert_eq!(empty_a_preds, set![]);
+        assert_eq!(empty_a_succs, set![
+            b.clone(),
+            c.clone(),
+            d.clone(),
+            e.clone(),
+            a.clone(),
+            dot.clone()
+        ]);
+        assert_eq!(a_succs, set![
+            b.clone(),
+            c.clone(),
+            d.clone(),
+            e.clone(),
+            a.clone(),
+            dot.clone()
+        ]);
+        let ab = tg.get_sentence(vec![
+            Word::from("A").into(),
+            Word::from("B").into()
+        ]).unwrap();
         let mut ab_preds = ab.neighbors_incoming();
         let mut ab_succs = ab.neighbors_outgoing();
         assert_eq!(ab_preds, set![
@@ -490,6 +480,10 @@ mod tests {
             dot.clone()
         ]);
 
+        let bc = tg.get_sentence(vec![
+            Word::from("B").into(),
+            Word::from("C").into()
+        ]).unwrap();
         let mut bc_preds = bc.neighbors_incoming();
         let mut bc_succs = bc.neighbors_outgoing();
         assert_eq!(bc_preds, set![
@@ -502,6 +496,12 @@ mod tests {
             dot.clone()
         ]);
 
+        let bcd = tg.get_sentence(
+            vec![
+            Word::from("B").into(),
+            Word::from("C").into(),
+            Word::from("D").into()
+        ]).unwrap();
         let mut bcd_preds = bcd.neighbors_incoming();
         let mut bcd_succs = bcd.neighbors_outgoing();
         assert_eq!(bcd_preds, set![

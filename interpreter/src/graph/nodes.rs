@@ -44,8 +44,7 @@ impl<'a> GraphNodes<'a> {
                 })
             ).unwrap_or(HashSet::new())
             .iter()
-            .flat_map(move |id| self.graph.edge_references().nth(id.index()))
-            .map(GraphEdge::from)
+            .map(|i| GraphEdge::new(self.graph, *i))
             .collect()
     }
     pub fn edges(&'a self) -> Vec<GraphEdge<'a>> {
