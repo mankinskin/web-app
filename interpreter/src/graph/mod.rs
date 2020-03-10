@@ -107,77 +107,87 @@ impl<'a> TextGraph {
         //);
         n
     }
-    pub fn contains(&self, element: &TextElement) -> bool {
-        self.get_node_index(element).is_some()
-    }
-    pub fn get_node_index(&self, element: &TextElement) -> Option<NodeIndex> {
+    fn find_node_index(&'a self, element: &TextElement) -> Option<NodeIndex> {
         self.graph.node_indices()
             .find(|i| self.graph[*i].text_element == *element)
             .map(|i| i.clone())
     }
+    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>) -> Option<EdgeIndex> {
+        self.graph.find_edge(a.index(), b.index())
     }
-    }
-    }
-    }
-    }
-
     pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
-        self.get_node_index(element).map(|i|
-            self.get_node(i)
-        )
+        self.find_node_index(element).map(|n| self.get_node(n))
     }
-    pub fn insert_elements(&mut self, l: &TextElement, r: &TextElement, distance: usize) {
-        if l.is_stop() && *r != TextElement::Empty {
-            self.add_edge(&TextElement::Empty, r, distance);
+    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>) -> Option<GraphEdge<'a>> {
+        self.graph
+            .find_edge(a.index(), b.index())
+            .map(|i| GraphEdge::new(self, i))
+    }
+    pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
+        if let Some(i) = self.find_node_index(element) {
+            i
         } else {
-            self.add_edge(l, r, distance);
+            self.graph.add_node(
+                TextGraphNodeWeight::from(element.clone())
+            )
         }
     }
-    pub fn insert_text(&mut self, text: Text) {
+    pub fn add_edge_for_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) {
+        //println!("inserting \"{}\" and \"{}\"", left, right);
+        let li = self.add_node(left);
+        let ri = self.add_node(right);
+        self.add_edge(li, ri, distance);
+    }
+    pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) {
+        let l = self.get_node(left);
+        let r = self.get_node(right);
+        let edge = self.find_edge_index(&l, &r);
+        let edge_index = if let Some(i) = edge {
+            i
+        } else {
+            self.graph.add_edge(left, right, TextGraphEdgeWeight::new())
+        };
+        self.edge_weight_mut(edge_index).unwrap().insert(distance);
+        self.node_weight_mut(left).unwrap().push_outgoing_edge(edge_index, distance);
+        self.node_weight_mut(right).unwrap().push_incoming_edge(edge_index, distance);
+    }
+    pub fn insert_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) {
+        //println!("Inserting \"{}\" and \"{}\"", left, right);
+        if left.is_stop() && *right != TextElement::Empty {
+            self.add_edge_for_elements(&TextElement::Empty, right, distance);
+        } else {
+            self.add_edge_for_elements(left, right, distance);
+        }
+    }
+    pub fn insert_text(&'a mut self, text: Text) {
         let mut text = text;
         text.push_front(TextElement::Empty);
         text.push(TextElement::Empty);
         let len = text.len();
         let mut next_stop = 0;
         for i in 0..len-1 {
+            //println!("i = {}, len = {}, next_stop = {}", i, len, next_stop);
+            let left = &text[i];
             if i == next_stop {
                 // search for next stop symbol
                 // to stop counting distance between elements
                 while {
                     next_stop += 1;
+                    //println!("next_stop = {}", next_stop);
                     next_stop < len && !text[next_stop].is_stop()
                 }
                 { }
             }
             for j in (i+1)..=next_stop {
-                let left = &text[i];
+                //println!("j = {}", j);
                 let right = &text[j];
                 self.insert_elements(left, right, j-i);
             }
         }
     }
-    pub fn add(&mut self, element: &TextElement) -> NodeIndex {
-        match self.get_node_index(element) {
-            Some(i) => i,
-            None => {
-                self.graph.add_node(TextGraphNodeWeight::from(element.clone()))
-            }
-        }
+    pub fn contains(&self, element: &TextElement) -> bool {
+        self.find_node(element).is_some()
     }
-    pub fn add_edge(&mut self, l: &TextElement, r: &TextElement, distance: usize) {
-        let li = self.add(l);
-        let ri = self.add(r);
-        let old_edge = self.graph.find_edge(li, ri);
-        match old_edge {
-            Some(i) => {
-                self.graph.edge_weight_mut(i).unwrap().insert(distance);
-            },
-            None => {
-                let mut new = TextGraphEdgeWeight::new();
-                new.insert(distance);
-                self.graph.update_edge(li, ri, new);
-            }
-        }
     pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
         GraphEdges::new(
             self.graph
@@ -230,13 +240,13 @@ impl<'a> TextGraph {
     }
 }
 
-mod tests {
+pub(crate) mod tests {
     #![allow(non_upper_case_globals)]
     use super::*;
     use crate::text::*;
     use crate::parse::*;
     lazy_static! {
-        static ref gehen_text: Text = Text::parse(
+        pub static ref gehen_text: Text = Text::parse(
         "Ich gehe.
         Du gehst.
         Er geht.
@@ -267,7 +277,7 @@ mod tests {
     }
 
     lazy_static! {
-        static ref dornroeschen_text: Text = Text::parse("
+        pub static ref dornroeschen_text: Text = Text::parse("
         Vor Zeiten war ein König und eine Königin, die sprachen jeden Tag 'ach, wenn wir doch ein Kind hätten!' und kriegten immer keins. Da trug sich zu, als die Königin einmal im Bade saß, daß ein Frosch aus dem Wasser ans Land kroch und zu ihr sprach, 'dein Wunsch wird erfüllt werden, ehe ein Jahr vergeht, wirst du eine Tochter zur Welt bringen.' Was der Frosch gesagt hatte, das geschah, und die Königin gebar ein Mädchen, das war so schön, daß der König vor Freude sich nicht zu lassen wußte und ein großes Fest anstellte. Er ladete nicht blos seine Verwandte, Freunde und Bekannte, sondern auch die weisen Frauen dazu ein, damit sie dem Kind hold und gewogen wären. Es waren ihrer dreizehn in seinem Reiche, weil er aber nur zwölf goldene Teller hatte, von welchen sie essen sollten, so mußte eine von ihnen daheim bleiben. Das Fest ward mit aller Pracht gefeiert, und als es zu Ende war, beschenkten die weisen Frauen das Kind mit ihren Wundergaben: die eine mit Tugend, die andere mit Schönheit, die dritte mit Reichthum, und so mit allem, was auf der Welt zu wünschen ist. Als elfe ihre Sprüche eben gethan hatten, trat plötzlich die dreizehnte herein. Sie wollte sich dafür rächen daß sie nicht eingeladen war, und ohne jemand zu grüßen oder nur anzusehen, rief sie mit lauter Stimme 'die Königstochter soll sich in ihrem fünfzehnten Jahr an einer Spindel stechen und todt hinfallen.' Und ohne ein Wort weiter zu sprechen kehrte sie sich um und verließ den Saal.
         Alle waren erschrocken, da trat die zwölfte hervor, die ihren Wunsch noch übrig hatte und weil sie den bösen Spruch nicht aufheben, sondern nur ihn mildern konnte, so sagte sie 'es soll aber kein Tod sein, sondern ein hundertjähriger tiefer Schlaf, in welchen die Königstochter fällt.' Der König, der sein liebes Kind vor dem Unglück gern bewahren wollte, ließ den Befehl ausgehen, daß alle Spindeln im ganzen Königreiche sollten verbrannt werden. An dem Mädchen aber wurden die Gaben der weisen Frauen sämmtlich erfüllt, denn es war so schön, sittsam, freundlich und verständig, daß es jedermann, der es ansah, lieb haben mußte. Es geschah, daß an dem Tage, wo es gerade fünfzehn Jahr alt ward, der König und die Königin nicht zu Haus waren, und das Mädchen ganz allein im Schloß zurückblieb. Da gieng es aller Orten herum, besah Stuben und Kammern, wie es Lust hatte, und kam endlich auch an einen alten Thurm. Es stieg die enge Wendeltreppe hinauf, und gelangte zu einer kleinen Thüre. In dem Schloß steckte ein verrosteter Schlüssel, und als es umdrehte, sprang die Thüre auf, und saß da in einem kleinen Stübchen eine alte Frau mit einer Spindel und spann emsig ihren Flachs. 'Guten Tag, du altes Mütterchen,' sprach die Königstochter, 'was machst du da?' 'Ich spinne,' sagte die Alte und nickte mit dem Kopf. 'Was ist das für ein Ding, das so lustig herumspringt?' sprach das Mädchen, nahm die Spindel und wollte auch spinnen. Kaum hatte sie aber die Spindel angerührt, so gieng der Zauberspruch in Erfüllung, und sie stach sich damit, in den Finger.
         In dem Augenblick aber, wo sie den Stich empfand, fiel sie auf das Bett nieder, das da stand, und lag in einem tiefen Schlaf. Und dieser Schlaf verbreitete sich über das ganze Schloß: der König und die Königin, die eben heim gekommen waren und in den Saal getreten waren, fiengen an einzuschlafen, und der ganze Hofstaat mit ihnen. Da schliefen auch die Pferde m Stall, die Hunde im Hofe, die Tauben auf dem Dache, die Fliegen an der Wand, ja, das Feuer, das auf dem Herde flackerte, ward still und schlief ein, und der Braten hörte auf zu brutzeln, und der Koch, der den Küchenjungen, weil er etwas versehen hatte, in den Haaren ziehen wollte, ließ ihn los und schlief. Und der Wind legte sich, und auf den Bäumen vor dem Schloß regte sich kein Blättchen mehr.
@@ -276,16 +286,15 @@ mod tests {
         ").unwrap().1;
     }
     #[test]
-    fn test_insert_text() {
+    fn insert_text() {
         //println!("{:#?}", text);
         let mut tg = TextGraph::new();
         tg.insert_text(gehen_text.clone());
         //tg.write_to_file("gehen_graph");
+
         let sentence = tg
             .get_sentence(vec![TextElement::Empty])
             .unwrap();
-        let sentence_graph = SentenceGraph::from(sentence);
-        sentence_graph.write_to_file("graphs/sentence_empty");
 
         //dictionary.print_element_infos();
     }
