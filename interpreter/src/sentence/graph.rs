@@ -107,7 +107,7 @@ mod tests {
     use crate::text::*;
     use pretty_assertions::{assert_eq};
     #[test]
-    fn test_successors() {
+    fn successors() {
         let mut tg = TextGraph::new();
         tg.insert_text(Text::from("\
                 A B C D E.\
@@ -146,5 +146,18 @@ mod tests {
 
         let a_graph = SentenceGraph::from(a_sentence);
         a_graph.write_to_file("graphs/a_graph");
+    }
+
+    #[test]
+    fn text() {
+        let mut tg = TextGraph::new();
+        tg.insert_text(crate::graph::tests::gehen_text.clone());
+        //tg.write_to_file("gehen_graph");
+
+        let sentence = tg
+            .get_sentence(vec![TextElement::Empty])
+            .unwrap();
+        //let sentence_graph = SentenceGraph::from(sentence);
+        //sentence_graph.write_to_file("graphs/sentence_empty");
     }
 }

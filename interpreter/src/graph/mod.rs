@@ -21,9 +21,73 @@ pub use crate::graph::nodes::*;
 
 use std::path::PathBuf;
 
+type EdgeMappingMatrix = nalgebra::Matrix<bool,
+    nalgebra::Dynamic,
+    nalgebra::Dynamic,
+    nalgebra::VecStorage<bool, nalgebra::Dynamic, nalgebra::Dynamic>>;
+
 #[derive(Debug, PartialEq)]
+struct EdgeMapping {
+    matrix: EdgeMappingMatrix,
+    outgoing_ordering: Vec<(EdgeIndex, usize)>,
+    incoming_ordering: Vec<(EdgeIndex, usize)>,
+}
+
+impl<'a> EdgeMapping {
+    pub fn new() -> Self {
+        Self {
+            matrix: EdgeMappingMatrix::from_element(0, 0, true),
+            outgoing_ordering: Vec::new(),
+            incoming_ordering: Vec::new(),
+        }
+    }
+    pub fn push_incoming_edge(&'a mut self, edge: EdgeIndex, distance: usize) {
+        self.incoming_ordering.push((edge, distance));
+    }
+    pub fn push_outgoing_edge(&'a mut self, edge: EdgeIndex, distance: usize) {
+        self.outgoing_ordering.push((edge, distance));
+    }
+}
+#[derive(PartialEq)]
+pub struct TextGraphNodeWeight  {
+    text_element: TextElement,
+    mapping: EdgeMapping,
+}
+
+use std::fmt::{self, Debug, Formatter};
+impl Debug for TextGraphNodeWeight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.text_element)
+    }
+}
+impl<'a> TextGraphNodeWeight  {
+    pub fn element(&'a self) -> &TextElement {
+        &self.text_element
+    }
+    pub fn push_incoming_edge(&'a mut self, edge: EdgeIndex, distance: usize) {
+        self.mapping.push_incoming_edge(edge, distance);
+    }
+    pub fn push_outgoing_edge(&'a mut self, edge: EdgeIndex, distance: usize) {
+        self.mapping.push_outgoing_edge(edge, distance);
+    }
+}
+impl From<TextElement> for TextGraphNodeWeight {
+    fn from(text_element: TextElement) -> Self {
+        Self {
+            text_element,
+            mapping: EdgeMapping::new(),
+        }
+    }
+}
+
+#[derive(PartialEq)]
 pub struct TextGraphEdgeWeight  {
     distances: HashSet<usize>,
+}
+impl Debug for TextGraphEdgeWeight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.distances)
+    }
 }
 impl std::ops::Deref for TextGraphEdgeWeight {
     type Target = HashSet<usize>;
@@ -50,31 +114,9 @@ impl TextGraphEdgeWeight {
         }
     }
 }
-#[derive(Debug, PartialEq)]
-pub struct TextGraphNodeWeight  {
-    text_element: TextElement,
-}
-impl std::ops::Deref for TextGraphNodeWeight {
-    type Target = TextElement;
-    fn deref(&self) -> &Self::Target {
-        &self.text_element
-    }
-}
-impl std::ops::DerefMut for TextGraphNodeWeight {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.text_element
-    }
-}
-impl From<TextElement> for TextGraphNodeWeight {
-    fn from(text_element: TextElement) -> Self {
-        Self {
-            text_element,
-        }
-    }
-}
 type InternalTextGraph = DiGraph<TextGraphNodeWeight, TextGraphEdgeWeight>;
 #[derive(Debug)]
-pub struct TextGraph  {
+pub struct TextGraph {
     graph: InternalTextGraph,
 }
 impl std::ops::Deref for TextGraph {
@@ -295,6 +337,8 @@ pub(crate) mod tests {
         let sentence = tg
             .get_sentence(vec![TextElement::Empty])
             .unwrap();
+        //let sentence_graph = SentenceGraph::from(sentence);
+        //sentence_graph.write_to_file("graphs/sentence_empty");
 
         //dictionary.print_element_infos();
     }
