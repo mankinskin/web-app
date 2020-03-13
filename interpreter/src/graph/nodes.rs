@@ -68,12 +68,12 @@ impl<'a> GraphNodes<'a> {
         self.edges_directed(Direction::Outgoing)
     }
     pub fn edges_with_distance(&'a self, distance: &'a usize) -> Vec<GraphEdge<'a>> {
-        self.edges().iter().filter(move |e| e.weight().contains(distance)).map(Clone::clone).collect()
+        self.edges().iter().filter(move |e| e.weight().distance() == *distance).map(Clone::clone).collect()
     }
     pub fn edges_with_distance_directed(&'a self, distance: &'a usize, direction: Direction)
         -> Vec<GraphEdge<'a>> {
         self.edges_directed(direction).iter()
-            .filter(move |e| e.weight().contains(distance))
+            .filter(move |e| e.weight().distance() == *distance)
             .map(Clone::clone)
             .collect()
     }

@@ -36,14 +36,14 @@ impl<'a> GraphEdges<'a>  {
         self.clone().into_iter().fold(None,
             |res: Option<(GraphEdge<'a>, usize)>, edge: GraphEdge<'a>| {
                 Some(res.map(|(e, max)| {
-                        let w = edge.max_weight().unwrap().clone();
+                        let w: usize = edge.weight().distance().clone();
                         if w > max {
-                            (edge.clone(), w.clone())
+                            (edge.clone(), w)
                         } else {
                             (e, max)
                         }
                     })
-                    .unwrap_or((edge.clone(), *edge.max_weight().unwrap()))
+                    .unwrap_or((edge.clone(), edge.weight().distance().clone()))
                 )
             }
         )
@@ -51,8 +51,7 @@ impl<'a> GraphEdges<'a>  {
     }
     pub fn max_weight(&'a self) -> Option<usize> {
         self.max_edge()
-            .map(|e| e.max_weight().map(Clone::clone))
-            .flatten()
+            .map(|e| e.weight().distance().clone())
     }
     pub fn group_by_distance(self) -> Vec<HashSet<GraphEdge<'a>>> {
         //println!("group_by_weight...");
@@ -62,7 +61,7 @@ impl<'a> GraphEdges<'a>  {
             r.push(
                 self.clone()
                     .into_iter()
-                    .filter(move |e| e.weight().contains(&i))
+                    .filter(|e| *e.weight() == i)
                     .collect()
                     )
         }
@@ -72,7 +71,7 @@ impl<'a> GraphEdges<'a>  {
     pub fn sort_by_distance(&mut self) -> Vec<usize> {
         let mut v: Vec<_> = self.clone()
             .into_iter()
-            .map(|e| *e.max_weight().unwrap()).collect();
+            .map(|e| e.weight().distance().clone()).collect();
         v.sort_by(|b, a| {
             a.cmp(&b)
         });
@@ -82,7 +81,7 @@ impl<'a> GraphEdges<'a>  {
         self.clone().into_iter().find(move |e| e == edge).is_some()
     }
     pub fn filter_by_weight(self, w: &'a usize) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
-        self.into_iter().filter(move |e| e.contains_weight(w))
+        self.into_iter().filter(move |e| e.weight() == w)
     }
     pub fn intersection(self, other: &'a Self) -> impl Iterator<Item=GraphEdge<'a>> + 'a {
         self.into_iter()
@@ -106,11 +105,11 @@ mod tests {
         let b = tg.find_node(&TextElement::Word(Word::from("b"))).unwrap();
         let c = tg.find_node(&TextElement::Word(Word::from("c"))).unwrap();
         let d = tg.find_node(&TextElement::Word(Word::from("d"))).unwrap();
-        let empty_a_edge = tg.find_edge(&empty, &a).unwrap();
-        let a_empty_edge = tg.find_edge(&a, &empty).unwrap();
-        let ab_edge = tg.find_edge(&a, &b).unwrap();
-        let ac_edge = tg.find_edge(&a, &c).unwrap();
-        let ad_edge = tg.find_edge(&a, &d).unwrap();
+        let empty_a_edge = tg.find_edge(&empty, &a, 1).unwrap();
+        let a_empty_edge = tg.find_edge(&a, &empty, 1).unwrap();
+        let ab_edge = tg.find_edge(&a, &b, 1).unwrap();
+        let ac_edge = tg.find_edge(&a, &c, 2).unwrap();
+        let ad_edge = tg.find_edge(&a, &d, 3).unwrap();
         let a_edges = tg.get_edges(a.index());
         assert_eq!(a_edges, GraphEdges::new(set![
                 empty_a_edge,

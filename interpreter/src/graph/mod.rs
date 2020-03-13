@@ -98,35 +98,44 @@ impl From<TextElement> for TextGraphNodeWeight {
 
 #[derive(PartialEq)]
 pub struct TextGraphEdgeWeight  {
-    distances: HashSet<usize>,
+    distance: usize,
+}
+impl TextGraphEdgeWeight {
+    fn distance(&self) -> usize {
+        self.distance
+    }
+}
+use std::cmp::{Ord, PartialOrd, Ordering};
+impl PartialOrd<usize> for TextGraphEdgeWeight {
+    fn partial_cmp(&self, distance: &usize) -> Option<Ordering> {
+        self.distance.partial_cmp(distance)
+    }
+}
+impl PartialEq<usize> for TextGraphEdgeWeight {
+    fn eq(&self, distance: &usize) -> bool {
+        self.distance == *distance
+    }
 }
 impl Debug for TextGraphEdgeWeight {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.distances)
+        write!(f, "{:?}", self.distance)
     }
 }
 impl std::ops::Deref for TextGraphEdgeWeight {
-    type Target = HashSet<usize>;
+    type Target = usize;
     fn deref(&self) -> &Self::Target {
-        &self.distances
+        &self.distance
     }
 }
 impl std::ops::DerefMut for TextGraphEdgeWeight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.distances
-    }
-}
-impl std::iter::IntoIterator for TextGraphEdgeWeight {
-    type Item = <HashSet<usize> as IntoIterator>::Item;
-    type IntoIter = <HashSet<usize> as IntoIterator>::IntoIter;
-    fn into_iter(self) -> Self::IntoIter {
-        self.distances.into_iter()
+        &mut self.distance
     }
 }
 impl TextGraphEdgeWeight {
-    pub fn new() -> Self {
+    pub fn new(distance: usize) -> Self {
         Self {
-            distances: HashSet::new(),
+            distance,
         }
     }
 }
@@ -170,15 +179,17 @@ impl<'a> TextGraph {
             .find(|i| self.graph[*i].text_element == *element)
             .map(|i| i.clone())
     }
-    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>) -> Option<EdgeIndex> {
-        self.graph.find_edge(a.index(), b.index())
+    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<EdgeIndex> {
+        self.graph
+            .edges_connecting(a.index(), b.index())
+            .find(|e| *e.weight() == distance)
+            .map(|e| e.id())
     }
     pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
         self.find_node_index(element).map(|n| self.get_node(n))
     }
-    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>) -> Option<GraphEdge<'a>> {
-        self.graph
-            .find_edge(a.index(), b.index())
+    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
+        self.find_edge_index(a, b, distance)
             .map(|i| GraphEdge::new(self, i))
     }
     pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
@@ -199,13 +210,12 @@ impl<'a> TextGraph {
     pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) -> EdgeIndex {
         let l = self.get_node(left);
         let r = self.get_node(right);
-        let edge = self.find_edge_index(&l, &r);
+        let edge = self.find_edge_index(&l, &r, distance);
         let edge_index = if let Some(i) = edge {
             i
         } else {
-            self.graph.add_edge(left, right, TextGraphEdgeWeight::new())
+            self.graph.add_edge(left, right, TextGraphEdgeWeight::new(distance))
         };
-        self.edge_weight_mut(edge_index).unwrap().insert(distance);
         edge_index
     }
     pub fn insert_sequence(&'a mut self,

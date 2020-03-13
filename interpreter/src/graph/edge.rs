@@ -32,12 +32,6 @@ impl<'a> GraphEdge<'a>  {
     pub fn index(&'a self) -> &'a EdgeIndex {
         &self.index
     }
-    pub fn contains_weight(&self, w: &usize) -> bool {
-        self.weight().contains(w)
-    }
-    pub fn max_weight(&'a self) -> Option<&'a usize> {
-        self.weight().iter().max()
-    }
     pub fn edge_ref(&'a self) -> EdgeRef<'a> {
         self.graph
             .edge_references()
