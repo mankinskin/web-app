@@ -15,18 +15,18 @@ use petgraph::{
 };
 
 #[derive(Clone)]
-pub struct NodeStack<'a> {
+pub struct TextPath<'a> {
     stack: Vec<GraphNode<'a>>,
     graph: &'a TextGraph,
     mapping: EdgeMapping,
 }
 
-impl<'a> Debug for NodeStack<'a> {
+impl<'a> Debug for TextPath<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
-impl<'a> Display for NodeStack<'a> {
+impl<'a> Display for TextPath<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}",
                self
@@ -38,18 +38,18 @@ impl<'a> Display for NodeStack<'a> {
                )
     }
 }
-impl<'a> Deref for NodeStack<'a> {
+impl<'a> Deref for TextPath<'a> {
     type Target = Vec<GraphNode<'a>>;
     fn deref(&self) -> &Self::Target {
         &self.stack
     }
 }
-impl<'a> DerefMut for NodeStack<'a> {
+impl<'a> DerefMut for TextPath<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stack
     }
 }
-impl<'a> NodeStack<'a> {
+impl<'a> TextPath<'a> {
     pub fn new(graph: &'a TextGraph, v: Vec<TextElement>) -> Option<Self> {
         let mut stack = Vec::new();
         stack.reserve(v.len());
@@ -294,7 +294,7 @@ mod tests {
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
         let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
-        let empty_a_stack = tg.get_node_stack(vec![
+        let empty_a_stack = tg.get_text_path(vec![
             TextElement::Empty,
             Word::from("A").into(),
         ]).unwrap();
@@ -306,7 +306,7 @@ mod tests {
             b.clone(),
             a.clone()
         ]);
-        let a_stack = tg.get_node_stack(vec![
+        let a_stack = tg.get_text_path(vec![
             Word::from("A").into(),
         ]).unwrap();
         let a_preds = a_stack.predecessors();
@@ -323,7 +323,7 @@ mod tests {
             dot.clone()
         ]);
 
-        let b_stack = tg.get_node_stack(vec![
+        let b_stack = tg.get_text_path(vec![
             Word::from("B").into(),
         ]).unwrap();
         let b_preds = b_stack.predecessors();
@@ -336,7 +336,7 @@ mod tests {
             d.clone()
         ]);
 
-        let ab = tg.get_node_stack(vec![
+        let ab = tg.get_text_path(vec![
             Word::from("A").into(),
             Word::from("B").into()
         ]).unwrap();
@@ -350,7 +350,7 @@ mod tests {
             d.clone()
         ]);
 
-        let bc = tg.get_node_stack(vec![
+        let bc = tg.get_text_path(vec![
             Word::from("B").into(),
             Word::from("C").into()
         ]).unwrap();
@@ -363,7 +363,7 @@ mod tests {
             d.clone()
         ]);
 
-        let bcd = tg.get_node_stack(
+        let bcd = tg.get_text_path(
             vec![
             Word::from("B").into(),
             Word::from("C").into(),
@@ -378,7 +378,7 @@ mod tests {
             e.clone()
         ]);
 
-        let aa = tg.get_node_stack(vec![
+        let aa = tg.get_text_path(vec![
             Word::from("A").into(),
             Word::from("A").into()
         ]).unwrap();
@@ -414,7 +414,7 @@ mod tests {
         println!("1");
 
 
-        let b_stack = tg.get_node_stack(vec![
+        let b_stack = tg.get_text_path(vec![
             Word::from("B").into(),
         ]).unwrap();
         let mut b_preds = b_stack.neighbors_incoming();
@@ -432,7 +432,7 @@ mod tests {
         ]);
 
         println!("2");
-        let a_stack = tg.get_node_stack(vec![
+        let a_stack = tg.get_text_path(vec![
             Word::from("A").into(),
         ]).unwrap();
         let mut a_preds = a_stack.neighbors_incoming();
@@ -453,7 +453,7 @@ mod tests {
         ]);
 
         println!("3");
-        let empty_a_stack = tg.get_node_stack(vec![
+        let empty_a_stack = tg.get_text_path(vec![
             TextElement::Empty,
             Word::from("A").into(),
         ]).unwrap();
@@ -470,7 +470,7 @@ mod tests {
         ]);
 
         println!("4");
-        let ab = tg.get_node_stack(vec![
+        let ab = tg.get_text_path(vec![
             Word::from("A").into(),
             Word::from("B").into()
         ]).unwrap();
@@ -488,7 +488,7 @@ mod tests {
         ]);
 
         println!("5");
-        let bc = tg.get_node_stack(vec![
+        let bc = tg.get_text_path(vec![
             Word::from("B").into(),
             Word::from("C").into()
         ]).unwrap();
@@ -505,7 +505,7 @@ mod tests {
         ]);
 
         println!("6");
-        let bcd = tg.get_node_stack(
+        let bcd = tg.get_text_path(
             vec![
             Word::from("B").into(),
             Word::from("C").into(),

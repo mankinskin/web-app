@@ -18,6 +18,8 @@ mod node;
 pub use crate::graph::node::*;
 mod nodes;
 pub use crate::graph::nodes::*;
+mod path;
+pub use crate::graph::path::*;
 
 use std::path::PathBuf;
 
@@ -296,8 +298,8 @@ impl<'a> TextGraph {
             index
         )
     }
-    pub fn get_node_stack(&'a self, nodes: Vec<TextElement>) -> Option<NodeStack<'a>> {
-        NodeStack::new(self, nodes)
+    pub fn get_text_path(&'a self, nodes: Vec<TextElement>) -> Option<TextPath<'a>> {
+        TextPath::new(self, nodes)
     }
 
     pub fn element_info(&self, element: &TextElement) {

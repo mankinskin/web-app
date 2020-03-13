@@ -7,6 +7,7 @@ use petgraph::{
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use crate::sentence::*;
+use crate::graph::*;
 
 #[derive(PartialEq)]
 pub enum SentenceGraphEdgeWeight {
@@ -17,14 +18,14 @@ impl<'a> Debug for SentenceGraphEdgeWeight {
         write!(f, "")
     }
 }
-pub type InternalSentenceGraph<'a> = DiGraph<NodeStack<'a>, SentenceGraphEdgeWeight>;
+pub type InternalSentenceGraph<'a> = DiGraph<TextPath<'a>, SentenceGraphEdgeWeight>;
 pub struct SentenceGraph<'a> {
     graph: InternalSentenceGraph<'a>,
     root: NodeIndex,
 }
 use std::path::PathBuf;
 impl<'a> SentenceGraph<'a> {
-    pub fn from_sentence(sentence: NodeStack<'a>) -> Self {
+    pub fn from_sentence(sentence: TextPath<'a>) -> Self {
         let mut graph = DiGraph::new();
         let root = Self::build_succ_graph(&mut graph, sentence);
         Self {
@@ -51,7 +52,7 @@ impl<'a> SentenceGraph<'a> {
     //        root
     //    }
     //}
-    fn build_succ_graph(g: &mut InternalSentenceGraph<'a>, stack: NodeStack<'a>) -> NodeIndex {
+    fn build_succ_graph(g: &mut InternalSentenceGraph<'a>, stack: TextPath<'a>) -> NodeIndex {
         let succs = stack.successors();
         if succs.len() == 1 {
             let mut new_sentence = stack.clone();
@@ -82,8 +83,8 @@ impl<'a> SentenceGraph<'a> {
     }
 }
 
-impl<'a> From<NodeStack<'a>> for SentenceGraph<'a> {
-    fn from(s: NodeStack<'a>) -> Self {
+impl<'a> From<TextPath<'a>> for SentenceGraph<'a> {
+    fn from(s: TextPath<'a>) -> Self {
         Self::from_sentence(s)
     }
 }
@@ -122,22 +123,22 @@ mod tests {
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
         let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
-        let a_stack = tg.get_node_stack(vec![
+        let a_stack = tg.get_text_path(vec![
             TextElement::Empty,
             Word::from("A").into(),
         ]).unwrap();
-        let b_stack = tg.get_node_stack(vec![
+        let b_stack = tg.get_text_path(vec![
             Word::from("B").into(),
         ]).unwrap();
-        let ab = tg.get_node_stack(vec![
+        let ab = tg.get_text_path(vec![
             Word::from("A").into(),
             Word::from("B").into()
         ]).unwrap();
-        let bc = tg.get_node_stack(vec![
+        let bc = tg.get_text_path(vec![
             Word::from("B").into(),
             Word::from("C").into()
         ]).unwrap();
-        let bcd = tg.get_node_stack(
+        let bcd = tg.get_text_path(
             vec![
             Word::from("B").into(),
             Word::from("C").into(),
@@ -155,7 +156,7 @@ mod tests {
         //tg.write_to_file("gehen_graph");
 
         let stack = tg
-            .get_node_stack(vec![TextElement::Empty])
+            .get_text_path(vec![TextElement::Empty])
             .unwrap();
         //let stack_graph = SentenceGraph::from(stack);
         //stack_graph.write_to_file("graphs/sentence_empty");
