@@ -7,5 +7,3 @@ mod punctuation;
 pub use punctuation::*;
 mod textelement;
 pub use textelement::*;
-mod dictionary;
-pub use textelement::*;
