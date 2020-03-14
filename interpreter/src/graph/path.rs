@@ -93,7 +93,7 @@ impl<'a> TextPath<'a> {
             .map(|edges| edges.group_by_distance())
             .collect::<Vec<_>>();
 
-        println!("element_groupings: {:#?}", element_groupings);
+        //println!("element_groupings: {:#?}", element_groupings);
         let root: Vec<Vec<GraphEdge<'a>>> =
             element_groupings
                 .iter()
@@ -105,7 +105,7 @@ impl<'a> TextPath<'a> {
                 .map(|edges| Vec::from_iter(edges.clone()))
                 .collect();
 
-        println!("root: {:#?}", root);
+        //println!("root: {:#?}", root);
 
         let result = element_groupings
             .iter()
@@ -114,14 +114,14 @@ impl<'a> TextPath<'a> {
             // i is the index of elements after the first element
             .fold(root, |acc_grouping, (i, grouping)| {
                 // fold all groupings into one grouping
-                println!("folding element {}: {:#?}", i, grouping);
+                //println!("folding element {}: {:#?}", i, grouping);
                 let distance_offset = i + 1;
 
                 acc_grouping // accumulated groupings 1..n
                     .iter()
                     .zip(grouping.iter().skip(distance_offset))
                     .map(move |(acc_group, elem_group)| {
-                        println!("merging group {:#?} into {:#?}", elem_group, acc_group);
+                        //println!("merging group {:#?} into {:#?}", elem_group, acc_group);
                         let res = acc_group
                             .iter()
                             .filter(move |edge| {
@@ -132,7 +132,7 @@ impl<'a> TextPath<'a> {
                             })
                             .map(|e| e.clone())
                             .collect();
-                        println!("resulting group {:#?}", res);
+                        //println!("resulting group {:#?}", res);
                         res
                     }).collect()
             })
@@ -148,7 +148,7 @@ impl<'a> TextPath<'a> {
                 }
                 acc
             });
-        println!("result: {:#?}", result);
+        //println!("result: {:#?}", result);
         result
     }
     pub fn neighbors_incoming(&'a self) -> HashSet<GraphNode<'a>> {
@@ -292,7 +292,7 @@ mod tests {
         let c = tg.find_node(&(Word::from("C").into())).unwrap();
         let d = tg.find_node(&(Word::from("D").into())).unwrap();
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
-        let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
+        //let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
         let empty_a_stack = tg.get_text_path(vec![
             TextElement::Empty,
@@ -301,7 +301,9 @@ mod tests {
         let empty_a_preds = empty_a_stack.predecessors();
         let empty_a_succs = empty_a_stack.successors();
         //println!("{:#?}", empty_a_succs);
-        assert_eq!(empty_a_preds, set![]);
+        assert_eq!(empty_a_preds, set![
+            a.clone()
+        ]);
         assert_eq!(empty_a_succs, set![
             b.clone(),
             a.clone()
@@ -320,7 +322,7 @@ mod tests {
             a.clone(),
             b.clone(),
             c.clone(),
-            dot.clone()
+            empty.clone()
         ]);
 
         let b_stack = tg.get_text_path(vec![
@@ -391,7 +393,7 @@ mod tests {
         assert_eq!(aa_succs, set![
             a.clone(),
             c.clone(),
-            dot.clone()
+            empty.clone()
         ]);
     }
     #[test]
@@ -403,7 +405,6 @@ mod tests {
                 A A A A A."));
         tg.write_to_file("graphs/test_graph");
 
-        println!("0");
         let empty = tg.find_node(&TextElement::Empty).unwrap();
         let a = tg.find_node(&(Word::from("A").into())).unwrap();
         let b = tg.find_node(&(Word::from("B").into())).unwrap();
@@ -411,7 +412,6 @@ mod tests {
         let d = tg.find_node(&(Word::from("D").into())).unwrap();
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
         //let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
-        println!("1");
 
 
         let b_stack = tg.get_text_path(vec![
@@ -431,7 +431,6 @@ mod tests {
             empty.clone()
         ]);
 
-        println!("2");
         let a_stack = tg.get_text_path(vec![
             Word::from("A").into(),
         ]).unwrap();
@@ -452,24 +451,23 @@ mod tests {
             empty.clone()
         ]);
 
-        println!("3");
         let empty_a_stack = tg.get_text_path(vec![
             TextElement::Empty,
             Word::from("A").into(),
         ]).unwrap();
         let mut empty_a_preds = empty_a_stack.neighbors_incoming();
         let mut empty_a_succs = empty_a_stack.neighbors_outgoing();
-        assert_eq!(empty_a_preds, set![]);
+        assert_eq!(empty_a_preds, set![
+            a.clone()
+        ]);
         assert_eq!(empty_a_succs, set![
             b.clone(),
             c.clone(),
             d.clone(),
             e.clone(),
-            a.clone(),
-            empty.clone()
+            a.clone()
         ]);
 
-        println!("4");
         let ab = tg.get_text_path(vec![
             Word::from("A").into(),
             Word::from("B").into()
@@ -487,7 +485,6 @@ mod tests {
             empty.clone()
         ]);
 
-        println!("5");
         let bc = tg.get_text_path(vec![
             Word::from("B").into(),
             Word::from("C").into()
@@ -504,7 +501,6 @@ mod tests {
             empty.clone()
         ]);
 
-        println!("6");
         let bcd = tg.get_text_path(
             vec![
             Word::from("B").into(),
@@ -523,4 +519,3 @@ mod tests {
         ]);
     }
 }
-

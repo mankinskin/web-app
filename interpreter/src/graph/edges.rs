@@ -106,7 +106,7 @@ mod tests {
         let c = tg.find_node(&TextElement::Word(Word::from("c"))).unwrap();
         let d = tg.find_node(&TextElement::Word(Word::from("d"))).unwrap();
         let empty_a_edge = tg.find_edge(&empty, &a, 1).unwrap();
-        let a_empty_edge = tg.find_edge(&a, &empty, 1).unwrap();
+        let a_empty_edge = tg.find_edge(&a, &empty, 4).unwrap();
         let ab_edge = tg.find_edge(&a, &b, 1).unwrap();
         let ac_edge = tg.find_edge(&a, &c, 2).unwrap();
         let ad_edge = tg.find_edge(&a, &d, 3).unwrap();
