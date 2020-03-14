@@ -59,7 +59,7 @@ impl<'a> SentenceGraph<'a> {
             new_sentence.push(succs.iter().next().unwrap().clone().into());
             return Self::build_succ_graph(g, new_sentence); // skip node
         } else {
-            println!("{}", stack);
+            //println!("{}", stack);
             // if 0 or more than 1 successor
             let root = g.add_node(stack.clone());
             for s in succs {
@@ -121,7 +121,6 @@ mod tests {
         let c = tg.find_node(&(Word::from("C").into())).unwrap();
         let d = tg.find_node(&(Word::from("D").into())).unwrap();
         let e = tg.find_node(&(Word::from("E").into())).unwrap();
-        let dot = tg.find_node(&(Punctuation::Dot.into())).unwrap();
 
         let a_stack = tg.get_text_path(vec![
             TextElement::Empty,
