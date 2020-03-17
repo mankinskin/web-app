@@ -20,125 +20,12 @@ mod nodes;
 pub use crate::graph::nodes::*;
 mod path;
 pub use crate::graph::path::*;
+mod edge_mapping;
+pub use crate::graph::edge_mapping::*;
 
 use std::path::PathBuf;
 
-type EdgeMappingMatrix = nalgebra::Matrix<u8,
-    nalgebra::Dynamic,
-    nalgebra::Dynamic,
-    nalgebra::VecStorage<u8, nalgebra::Dynamic, nalgebra::Dynamic>>;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct EdgeMapping {
-    matrix: EdgeMappingMatrix,
-    outgoing_ordering: Vec<(EdgeIndex, usize)>,
-    incoming_ordering: Vec<(EdgeIndex, usize)>,
-}
-
-impl<'a> EdgeMapping {
-    pub fn new() -> Self {
-        Self {
-            matrix: EdgeMappingMatrix::from_element(0, 0, 0),
-            outgoing_ordering: Vec::new(),
-            incoming_ordering: Vec::new(),
-        }
-    }
-    pub fn add_incoming_edge(&'a mut self, edge: EdgeIndex, distance: usize) -> usize {
-        if let Some(i) = self.incoming_ordering.iter().position(|e| *e == (edge, distance)) {
-            i
-        } else {
-            self.incoming_ordering.push((edge, distance));
-            self.matrix = self.matrix.clone().insert_column(self.matrix.ncols(), 0);
-            self.incoming_ordering.len() - 1
-        }
-    }
-    pub fn add_outgoing_edge(&'a mut self, edge: EdgeIndex, distance: usize) -> usize {
-        if let Some(i) = self.outgoing_ordering.iter().position(|e| *e == (edge, distance)) {
-            i
-        } else {
-            self.outgoing_ordering.push((edge, distance));
-            self.matrix = self.matrix.clone().insert_row(self.matrix.nrows(), 0);
-            self.outgoing_ordering.len() - 1
-        }
-    }
-    pub fn add_transition(&'a mut self, left_edge: EdgeIndex, left_distance: usize, right_edge: EdgeIndex, right_distance: usize) {
-        let left_index = self.add_incoming_edge(left_edge, left_distance);
-        let right_index = self.add_outgoing_edge(right_edge, right_distance);
-        self.matrix[(right_index, left_index)] = 1;
-    }
-}
-#[derive(PartialEq)]
-pub struct TextGraphNodeWeight  {
-    text_element: TextElement,
-    mapping: EdgeMapping,
-}
-
-use std::fmt::{self, Debug, Formatter};
-impl Debug for TextGraphNodeWeight {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?} matrix: {}", self.text_element, self.mapping.matrix)
-    }
-}
-impl<'a> TextGraphNodeWeight  {
-    pub fn element(&'a self) -> &TextElement {
-        &self.text_element
-    }
-    pub fn add_transition(&'a mut self, left_edge: EdgeIndex, left_distance: usize, right_edge: EdgeIndex, right_distance: usize) {
-        self.mapping.add_transition(left_edge, left_distance, right_edge, right_distance);
-    }
-}
-impl From<TextElement> for TextGraphNodeWeight {
-    fn from(text_element: TextElement) -> Self {
-        Self {
-            text_element,
-            mapping: EdgeMapping::new(),
-        }
-    }
-}
-
-#[derive(PartialEq)]
-pub struct TextGraphEdgeWeight  {
-    distance: usize,
-}
-impl TextGraphEdgeWeight {
-    fn distance(&self) -> usize {
-        self.distance
-    }
-}
-use std::cmp::{Ord, PartialOrd, Ordering};
-impl PartialOrd<usize> for TextGraphEdgeWeight {
-    fn partial_cmp(&self, distance: &usize) -> Option<Ordering> {
-        self.distance.partial_cmp(distance)
-    }
-}
-impl PartialEq<usize> for TextGraphEdgeWeight {
-    fn eq(&self, distance: &usize) -> bool {
-        self.distance == *distance
-    }
-}
-impl Debug for TextGraphEdgeWeight {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.distance)
-    }
-}
-impl std::ops::Deref for TextGraphEdgeWeight {
-    type Target = usize;
-    fn deref(&self) -> &Self::Target {
-        &self.distance
-    }
-}
-impl std::ops::DerefMut for TextGraphEdgeWeight {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.distance
-    }
-}
-impl TextGraphEdgeWeight {
-    pub fn new(distance: usize) -> Self {
-        Self {
-            distance,
-        }
-    }
-}
 type InternalTextGraph = DiGraph<TextGraphNodeWeight, TextGraphEdgeWeight>;
 #[derive(Debug)]
 pub struct TextGraph {
@@ -173,67 +60,6 @@ impl<'a> TextGraph {
         //    1
         //);
         n
-    }
-    fn find_node_index(&'a self, element: &TextElement) -> Option<NodeIndex> {
-        self.graph.node_indices()
-            .find(|i| self.graph[*i].text_element == *element)
-            .map(|i| i.clone())
-    }
-    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<EdgeIndex> {
-        self.graph
-            .edges_connecting(a.index(), b.index())
-            .find(|e| *e.weight() == distance)
-            .map(|e| e.id())
-    }
-    pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
-        self.find_node_index(element).map(|n| self.get_node(n))
-    }
-    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
-        self.find_edge_index(a, b, distance)
-            .map(|i| GraphEdge::new(self, i))
-    }
-    pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
-        if let Some(i) = self.find_node_index(element) {
-            i
-        } else {
-            self.graph.add_node(
-                TextGraphNodeWeight::from(element.clone())
-            )
-        }
-    }
-    pub fn add_edge_for_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) -> EdgeIndex {
-        //println!("inserting \"{}\" and \"{}\"", left, right);
-        let li = self.add_node(left);
-        let ri = self.add_node(right);
-        self.add_edge(li, ri, distance)
-    }
-    pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) -> EdgeIndex {
-        let l = self.get_node(left);
-        let r = self.get_node(right);
-        let edge = self.find_edge_index(&l, &r, distance);
-        let edge_index = if let Some(i) = edge {
-            i
-        } else {
-            self.graph.add_edge(left, right, TextGraphEdgeWeight::new(distance))
-        };
-        edge_index
-    }
-    pub fn insert_sequence(&'a mut self,
-        left: &TextElement,
-        left_distance: usize,
-        word: &TextElement,
-        right_distance: usize,
-        right: &TextElement) {
-        //println!("Inserting \"{}\" \"{}\" \"{}\"", left, word, right);
-        let li = self.add_node(left);
-        let wordi = self.add_node(word);
-        let ri = self.add_node(right);
-        let left_edge = self.add_edge(li, wordi, left_distance);
-        let right_edge = self.add_edge(wordi, ri, right_distance);
-        self.node_weight_mut(wordi)
-            .unwrap()
-            .add_transition(left_edge, left_distance,
-                            right_edge, right_distance);
     }
     pub fn read_text(&'a mut self, text: Text) {
         let mut text = text;
@@ -272,6 +98,66 @@ impl<'a> TextGraph {
                 let right_distance = succ-word_index;
                 self.insert_sequence(left, left_distance, word, right_distance, right);
             }
+        }
+    }
+    pub fn insert_sequence(&'a mut self,
+        left: &TextElement,
+        left_distance: usize,
+        word: &TextElement,
+        right_distance: usize,
+        right: &TextElement) {
+        //println!("Inserting \"{}\" \"{}\" \"{}\"", left, word, right);
+        let li = self.add_node(left);
+        let wordi = self.add_node(word);
+        let ri = self.add_node(right);
+        let left_edge = self.add_edge(li, wordi, left_distance);
+        let right_edge = self.add_edge(wordi, ri, right_distance);
+        self.node_weight_mut(wordi)
+            .unwrap()
+            .add_transition(left_edge, right_edge);
+    }
+    pub fn add_edge_for_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) -> EdgeIndex {
+        //println!("inserting \"{}\" and \"{}\"", left, right);
+        let li = self.add_node(left);
+        let ri = self.add_node(right);
+        self.add_edge(li, ri, distance)
+    }
+    pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) -> EdgeIndex {
+        let l = self.get_node(left);
+        let r = self.get_node(right);
+        let edge = self.find_edge_index(&l, &r, distance);
+        let edge_index = if let Some(i) = edge {
+            i
+        } else {
+            self.graph.add_edge(left, right, TextGraphEdgeWeight::new(distance))
+        };
+        edge_index
+    }
+    fn find_node_index(&'a self, element: &TextElement) -> Option<NodeIndex> {
+        self.graph.node_indices()
+            .find(|i| self.graph[*i].element() == element)
+            .map(|i| i.clone())
+    }
+    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<EdgeIndex> {
+        self.graph
+            .edges_connecting(a.index(), b.index())
+            .find(|e| *e.weight() == distance)
+            .map(|e| e.id())
+    }
+    pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
+        self.find_node_index(element).map(|n| self.get_node(n))
+    }
+    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
+        self.find_edge_index(a, b, distance)
+            .map(|i| GraphEdge::new(self, i))
+    }
+    pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
+        if let Some(i) = self.find_node_index(element) {
+            i
+        } else {
+            self.graph.add_node(
+                TextGraphNodeWeight::new(element.clone())
+            )
         }
     }
     pub fn contains(&self, element: &TextElement) -> bool {
