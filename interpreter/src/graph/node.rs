@@ -5,97 +5,56 @@ use petgraph::{
     dot::*,
     visit::*,
 };
+use std::fmt::{self, Debug, Display, Formatter};
+use std::ops::{Deref, DerefMut};
 
 use crate::graph::edges::*;
 use crate::graph::*;
+
+#[derive(PartialEq)]
+pub struct TextGraphNodeWeight  {
+    text_element: TextElement,
+    mapping: EdgeMapping,
+}
+impl TextGraphNodeWeight  {
+    pub fn element(&self) -> &TextElement {
+        &self.text_element
+    }
+    pub fn mapping(&self) -> &EdgeMapping {
+        &self.mapping
+    }
+}
+
+impl Debug for TextGraphNodeWeight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?} mapping: {:?}", self.text_element, self.mapping)
+    }
+}
+impl<'a> TextGraphNodeWeight {
+    pub fn new(text_element: TextElement) -> Self {
+        Self {
+            text_element,
+            mapping: EdgeMapping::new(),
+        }
+    }
+}
+impl Deref for TextGraphNodeWeight {
+    type Target = EdgeMapping;
+    fn deref(&self) -> &Self::Target {
+        &self.mapping
+    }
+}
+impl DerefMut for TextGraphNodeWeight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.mapping
+    }
+}
 
 #[derive(Clone)]
 pub struct GraphNode<'a>  {
     graph: &'a TextGraph,
     index: NodeIndex,
 }
-impl<'a> PartialEq for GraphNode<'a> {
-    fn eq(&self, other: &GraphNode<'a>) -> bool {
-        self.index == other.index &&
-            self.graph as *const _ == other.graph
-    }
-}
-impl<'a> Eq for GraphNode<'a> {}
-
-impl<'a> std::hash::Hash for GraphNode<'a> {
-    fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
-        self.index.hash(h);
-        (self.graph as *const TextGraph).hash(h);
-    }
-}
-
-impl<'a> std::ops::Deref for GraphNode<'a> {
-    type Target = TextGraphNodeWeight;
-    fn deref(&self) -> &Self::Target {
-        &self.graph[self.index]
-    }
-}
-impl<'a> From<&'a GraphNode<'a>> for &'a TextElement {
-    fn from(n: &'a GraphNode<'a>) -> Self {
-        n.element()
-    }
-}
-impl<'a> Into<NodeIndex> for GraphNode<'a> {
-    fn into(self) -> NodeIndex {
-        self.index
-    }
-}
-use std::fmt::{self, Debug, Display, Formatter};
-impl<'a> Debug for GraphNode<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "GraphNode {{ {:?} }}", self.index)
-    }
-}
-impl<'a> Display for GraphNode<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let node_weight = self.weight();
-        writeln!(f, "## {}", node_weight.element());
-
-        /// Incoming
-        let incoming_edges = self.edges_incoming();
-        let max_incoming_distance = incoming_edges.max_weight().unwrap_or(0);
-        let incoming_weight_groups = incoming_edges.clone().group_by_distance();
-        let incoming_groups_counts: Vec<usize> = incoming_weight_groups.iter().map(|group|
-            group.iter().count()
-        ).collect();
-        let incoming_node_groups: Vec<Vec<_>> = incoming_weight_groups.iter().map(|group|
-            group.iter().map(|edge| self.graph.get_node(edge.source())).collect::<Vec<_>>()
-        ).collect();
-        writeln!(f, "Incoming edges:\n\
-            \tcount: {},\n\
-            \tmax distance: {},\n\
-            \tgroup counts: {:?}",
-            incoming_edges.into_iter().count(),
-            max_incoming_distance,
-            incoming_groups_counts);
-
-
-        /// Outgoing
-        let outgoing_edges = self.edges_outgoing();
-        let max_outgoing_distance = outgoing_edges.max_weight().unwrap_or(0);
-
-        let outgoing_weight_groups = outgoing_edges.clone().group_by_distance();
-        let outgoing_groups_counts: Vec<usize> = outgoing_weight_groups.iter().map(|group|
-            group.iter().count()
-        ).collect();
-        let outgoing_node_groups: Vec<Vec<_>> = outgoing_weight_groups.iter().map(|group|
-            group.iter().map(|edge| self.graph.get_node(edge.target())).collect()
-        ).collect();
-        writeln!(f, "Outgoing edges:\n\
-            \tcount: {},\n\
-            \tmax distance: {},\n\
-            \tgroup counts: {:?}",
-            outgoing_edges.into_iter().count(),
-            max_outgoing_distance,
-            outgoing_groups_counts)
-    }
-}
-
 impl<'a> GraphNode<'a> {
     pub fn new(graph: &'a TextGraph, index: NodeIndex) -> Self {
         GraphNode {
@@ -103,7 +62,10 @@ impl<'a> GraphNode<'a> {
             index,
         }
     }
-    pub fn weight(&'a self) -> &'a TextGraphNodeWeight {
+    pub fn graph(&'a self) -> &'a TextGraph {
+        self.graph
+    }
+    pub fn weight(&self) -> &TextGraphNodeWeight {
         <&TextGraphNodeWeight>::from(self)
     }
     pub fn index(&'a self) -> NodeIndex {
@@ -114,7 +76,6 @@ impl<'a> GraphNode<'a> {
             .find_edge(self, other, distance)
             .is_some()
     }
-
     pub fn edges(&'a self) -> GraphEdges<'a> {
         self.graph.get_edges(self.index)
     }
@@ -178,6 +139,84 @@ impl<'a> GraphNode<'a> {
     }
 }
 
+impl<'a> PartialEq for GraphNode<'a> {
+    fn eq(&self, other: &GraphNode<'a>) -> bool {
+        self.index == other.index &&
+            self.graph as *const _ == other.graph
+    }
+}
+impl<'a> Eq for GraphNode<'a> {}
+
+impl<'a> std::hash::Hash for GraphNode<'a> {
+    fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
+        self.index.hash(h);
+        (self.graph as *const TextGraph).hash(h);
+    }
+}
+impl<'a> std::ops::Deref for GraphNode<'a> {
+    type Target = TextGraphNodeWeight;
+    fn deref(&self) -> &Self::Target {
+        &self.graph[self.index]
+    }
+}
+impl<'a> From<&'a GraphNode<'a>> for &'a TextElement {
+    fn from(n: &'a GraphNode<'a>) -> Self {
+        n.weight().element()
+    }
+}
+impl<'a> Into<NodeIndex> for GraphNode<'a> {
+    fn into(self) -> NodeIndex {
+        self.index
+    }
+}
+impl<'a> Debug for GraphNode<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "GraphNode {{ {:?} }}", self.index)
+    }
+}
+impl<'a> Display for GraphNode<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let node_weight = self.weight();
+        writeln!(f, "## {}", node_weight.element());
+
+        /// Incoming
+        let incoming_edges = self.edges_incoming();
+        let max_incoming_distance = incoming_edges.max_weight().unwrap_or(0);
+        let incoming_weight_groups = incoming_edges.clone().group_by_distance();
+        let incoming_groups_counts: Vec<usize> = incoming_weight_groups.iter().map(|group|
+            group.iter().count()
+        ).collect();
+        let incoming_node_groups: Vec<Vec<_>> = incoming_weight_groups.iter().map(|group|
+            group.iter().map(|edge| self.graph.get_node(edge.source())).collect::<Vec<_>>()
+        ).collect();
+        writeln!(f, "Incoming edges:\n\
+            \tcount: {},\n\
+            \tmax distance: {},\n\
+            \tgroup counts: {:?}",
+            incoming_edges.into_iter().count(),
+            max_incoming_distance,
+            incoming_groups_counts);
+
+        /// Outgoing
+        let outgoing_edges = self.edges_outgoing();
+        let max_outgoing_distance = outgoing_edges.max_weight().unwrap_or(0);
+
+        let outgoing_weight_groups = outgoing_edges.clone().group_by_distance();
+        let outgoing_groups_counts: Vec<usize> = outgoing_weight_groups.iter().map(|group|
+            group.iter().count()
+        ).collect();
+        let outgoing_node_groups: Vec<Vec<_>> = outgoing_weight_groups.iter().map(|group|
+            group.iter().map(|edge| self.graph.get_node(edge.target())).collect()
+        ).collect();
+        writeln!(f, "Outgoing edges:\n\
+            \tcount: {},\n\
+            \tmax distance: {},\n\
+            \tgroup counts: {:?}",
+            outgoing_edges.into_iter().count(),
+            max_outgoing_distance,
+            outgoing_groups_counts)
+    }
+}
 mod tests {
     use crate::graph::*;
     use crate::text::*;

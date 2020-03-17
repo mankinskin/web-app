@@ -13,6 +13,49 @@ use std::hash::{self, Hash, Hasher};
 use crate::graph::*;
 
 
+#[derive(PartialEq)]
+pub struct TextGraphEdgeWeight  {
+    distance: usize,
+}
+impl TextGraphEdgeWeight {
+    pub fn new(distance: usize) -> Self {
+        Self {
+            distance,
+        }
+    }
+
+    pub fn distance(&self) -> usize {
+        self.distance
+    }
+}
+use std::cmp::{Ord, PartialOrd, Ordering};
+impl PartialOrd<usize> for TextGraphEdgeWeight {
+    fn partial_cmp(&self, distance: &usize) -> Option<Ordering> {
+        self.distance.partial_cmp(distance)
+    }
+}
+impl PartialEq<usize> for TextGraphEdgeWeight {
+    fn eq(&self, distance: &usize) -> bool {
+        self.distance == *distance
+    }
+}
+impl Debug for TextGraphEdgeWeight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.distance)
+    }
+}
+impl std::ops::Deref for TextGraphEdgeWeight {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target {
+        &self.distance
+    }
+}
+impl std::ops::DerefMut for TextGraphEdgeWeight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.distance
+    }
+}
+
 pub type EdgeRef<'a> = EdgeReference<'a, TextGraphEdgeWeight>;
 
 #[derive(Clone, Copy)]
