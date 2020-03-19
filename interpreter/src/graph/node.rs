@@ -62,7 +62,7 @@ impl<'a> GraphNode<'a> {
             index,
         }
     }
-    pub fn graph(&'a self) -> &'a TextGraph {
+    pub fn graph(&self) -> &'a TextGraph {
         self.graph
     }
     pub fn weight(&self) -> &TextGraphNodeWeight {
