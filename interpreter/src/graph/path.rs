@@ -234,7 +234,7 @@ impl<'a> TextPath<'a> {
         //println!("final outgoing:\n{:#?}\n", new_outgoing);
         //println!("new right matrix:\n{}\n", new_right_matrix);
         // multiply matricies together to get a new matrix applying both matricies
-        let new_matrix = matrix_mul(&new_right_matrix, &new_left_matrix);
+        let new_matrix = &new_right_matrix * &new_left_matrix;
 
         //println!("final matrix: {}", new_matrix);
         self.nodes.push(node.index());
@@ -336,9 +336,6 @@ fn filter_allowed_incoming_edges(left: &Vec<MergingEdge>, right: &Vec<MergingEdg
 }
 fn filter_allowed_outgoing_edges(left: &Vec<MergingEdge>, right: &Vec<MergingEdge>, distance: usize) -> Vec<MergingEdge> {
     filter_allowed_directed_edges(right, left, distance, Direction::Outgoing)
-}
-fn matrix_mul(left: &EdgeMappingMatrix, right: &EdgeMappingMatrix) -> EdgeMappingMatrix {
-    EdgeMappingMatrix::from_fn(left.nrows(), right.ncols(), |i,j| left[i]*right[j])
 }
 fn load_edges_directed(graph: &TextGraph, edges: &Vec<EdgeIndex>, direction: Direction) -> Vec<MergingEdge> {
         edges.iter()
