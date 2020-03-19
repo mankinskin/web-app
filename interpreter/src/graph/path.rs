@@ -66,9 +66,20 @@ impl<'a> TextPath<'a> {
         };
         res.nodes.reserve(v.len());
         for e in &v {
-            res.push(&graph.find_node(e)?);
+            res = Self::try_merge(res, Self::from_element(graph, e)?)?;
         }
         Some(res)
+    }
+    pub fn from_element(graph: &'a TextGraph, element: &TextElement) -> Option<Self> {
+        let node = graph.find_node(element)?;
+        Self::from_node(&node)
+    }
+    pub fn from_node(node: &GraphNode<'a>) -> Option<Self> {
+        Some(Self {
+            graph: node.graph(),
+            nodes: vec![node.index()],
+            mapping: node.mapping().clone(),
+        })
     }
     pub fn new_empty(graph: &'a TextGraph) -> Self {
         Self {
@@ -77,33 +88,31 @@ impl<'a> TextPath<'a> {
             nodes: Vec::new(),
         }
     }
-    pub fn push_index(&mut self, node: NodeIndex) {
-        self.push(&self.graph.get_node(node));
-    }
-    pub fn push(&mut self, node: &GraphNode<'a>) {
+
+    pub fn try_merge(mut left: Self, mut right: Self) -> Option<Self> {
         //println!("EdgeMapping::push: {}", node.weight().element());
-        let left_length = self.nodes.len();
-        let right_mapping = node.weight().mapping();
+        if left.graph as *const _ != right.graph as *const _ {
+            return None;
+        }
+        let graph = left.graph;
+        let left_length = left.nodes.len();
 
         if left_length < 1 {
-            self.mapping = right_mapping.clone();
-            self.nodes.push(node.index().clone());
-            return;
+            return Some(right);
         }
-        let graph = node.graph();
 
-        let incoming_left = load_edges_incoming(graph, &self.mapping.incoming_edges);
-        let outgoing_left = load_edges_outgoing(graph, &self.mapping.outgoing_edges);
-        let mut left_matrix = &mut self.mapping.matrix;
+        let incoming_left = load_edges_incoming(graph, &left.mapping.incoming_edges);
+        let outgoing_left = load_edges_outgoing(graph, &left.mapping.outgoing_edges);
+        let mut left_matrix = &mut left.mapping.matrix;
 
         //println!("incoming left:\n{:#?}\n", incoming_left);
         //println!("outgoing left:\n{:#?}\n", outgoing_left);
         //println!("left matrix:\n{}\n", left_matrix);
 
 
-        let incoming_right = load_edges_incoming(graph, &right_mapping.incoming_edges);
-        let outgoing_right = load_edges_outgoing(graph, &right_mapping.outgoing_edges);
-        let mut right_matrix = &right_mapping.matrix;
+        let incoming_right = load_edges_incoming(graph, &right.mapping.incoming_edges);
+        let outgoing_right = load_edges_outgoing(graph, &right.mapping.outgoing_edges);
+        let mut right_matrix = &right.mapping.matrix;
 
         //println!("incoming right:\n{:#?}\n", incoming_right);
         //println!("outgoing right:\n{:#?}\n", outgoing_right);
@@ -237,20 +246,21 @@ impl<'a> TextPath<'a> {
         let new_matrix = &new_right_matrix * &new_left_matrix;
 
         //println!("final matrix: {}", new_matrix);
-        self.nodes.push(node.index());
-        self.mapping.incoming_edges =
+        left.nodes.append(&mut right.nodes);
+        left.mapping.incoming_edges =
             new_incoming
             .iter()
             .map(|e| e.edge)
             .collect();
 
-        self.mapping.outgoing_edges =
+        left.mapping.outgoing_edges =
             new_outgoing
             .iter()
             .map(|e| e.edge)
             .collect();
 
-        self.mapping.matrix = new_matrix;
+        left.mapping.matrix = new_matrix;
+        Some(left)
     }
     //pub fn push_front(&mut self, node: NodeIndex) {
     //    let node = self.graph.get_node(node);
@@ -258,26 +268,26 @@ impl<'a> TextPath<'a> {
     //    tmp.extend(self.stack.clone());
     //    self.stack = tmp;
     //}
-    pub fn edges_incoming(&'a self) -> HashSet<GraphEdge<'a>> {
+    pub fn edges_incoming(&self) -> HashSet<GraphEdge<'a>> {
         self.mapping.incoming_edges
             .iter()
             .map(|i| GraphEdge::new(self.graph, i.clone()))
             .collect()
     }
-    pub fn neighbors_incoming(&'a self) -> HashSet<GraphNode<'a>> {
+    pub fn neighbors_incoming(&self) -> HashSet<GraphNode<'a>> {
         self.edges_incoming()
             .iter()
             .map(|e| GraphNode::new(self.graph, e.source().clone()))
             .collect()
     }
-    pub fn edges_incoming_with_distance(&'a self, d: usize) -> HashSet<GraphEdge<'a>> {
+    pub fn edges_incoming_with_distance(&self, d: usize) -> HashSet<GraphEdge<'a>> {
         self.edges_incoming()
             .iter()
             .filter(|e| e.weight().distance() == d)
             .cloned()
             .collect()
     }
-    pub fn neighbors_incoming_with_distance(&'a self, d: usize) -> HashSet<GraphNode<'a>> {
+    pub fn neighbors_incoming_with_distance(&self, d: usize) -> HashSet<GraphNode<'a>> {
         self.edges_incoming_with_distance(d)
             .iter()
             .map(|e| GraphNode::new(self.graph, e.source().clone()))
@@ -286,32 +296,32 @@ impl<'a> TextPath<'a> {
     pub fn predecessors(&'a self) -> HashSet<GraphNode<'a>> {
         self.neighbors_incoming_with_distance(1)
     }
-    pub fn edges_outgoing(&'a self) -> HashSet<GraphEdge<'a>> {
+    pub fn edges_outgoing(&self) -> HashSet<GraphEdge<'a>> {
         self.mapping.outgoing_edges
             .iter()
             .map(|i| GraphEdge::new(self.graph, i.clone()))
             .collect()
     }
-    pub fn neighbors_outgoing(&'a self) -> HashSet<GraphNode<'a>> {
+    pub fn neighbors_outgoing(&self) -> HashSet<GraphNode<'a>> {
         self.edges_outgoing()
             .iter()
             .map(|e| GraphNode::new(self.graph, e.target().clone()))
             .collect()
     }
-    pub fn edges_outgoing_with_distance(&'a self, d: usize) -> HashSet<GraphEdge<'a>> {
+    pub fn edges_outgoing_with_distance(&self, d: usize) -> HashSet<GraphEdge<'a>> {
         self.edges_outgoing()
             .iter()
             .filter(|e| e.weight().distance() == d)
             .cloned()
             .collect()
     }
-    pub fn neighbors_outgoing_with_distance(&'a self, d: usize) -> HashSet<GraphNode<'a>> {
+    pub fn neighbors_outgoing_with_distance(&self, d: usize) -> HashSet<GraphNode<'a>> {
         self.edges_outgoing_with_distance(d)
             .iter()
             .map(|e| GraphNode::new(self.graph, e.target().clone()))
             .collect()
     }
-    pub fn successors(&'a self) -> HashSet<GraphNode<'a>> {
+    pub fn successors(&self) -> HashSet<GraphNode<'a>> {
         self.neighbors_outgoing_with_distance(1)
     }
 }
