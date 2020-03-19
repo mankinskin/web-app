@@ -42,7 +42,7 @@ pub struct TextPath<'a> {
 
 impl<'a> Debug for TextPath<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "TextPath(\n\tnodes: {:#?},\n\tmapping: {:#?}\n)", self.nodes, self.mapping)
     }
 }
 impl<'a> Display for TextPath<'a> {
