@@ -64,7 +64,11 @@ impl Text {
         self.elements = tmp;
     }
     pub fn to_sentences(self) -> Vec<Text> {
-        self.elements.split(|e| e.is_stop()).map(|s| Text::from(s)).filter(|t| t.len() > 0).collect()
+        self.elements
+            .split(|e| e.is_stop())
+            .map(|s| Text::from(s))
+            .filter(|t| t.len() > 0)
+            .collect()
     }
 }
 
