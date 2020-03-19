@@ -4,7 +4,7 @@ use petgraph::{
     },
 };
 use std::fmt::{self, Debug, Display, Formatter};
-use std::ops::{Mul, Add};
+use std::ops::{Mul, Add, MulAssign, AddAssign};
 use crate::graph::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -56,6 +56,16 @@ impl Add for EdgeMappingMatrixValue {
     type Output = Self;
     fn add(self, o: Self) -> Self::Output {
         Self::from(self.val || o.val)
+    }
+}
+impl AddAssign for EdgeMappingMatrixValue {
+    fn add_assign(&mut self, o: Self) {
+        *self = *self + o;
+    }
+}
+impl MulAssign for EdgeMappingMatrixValue {
+    fn mul_assign(&mut self, o: Self) {
+        *self = *self * o;
     }
 }
 
