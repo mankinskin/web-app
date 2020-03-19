@@ -74,7 +74,7 @@ pub type EdgeMappingMatrix = nalgebra::Matrix<EdgeMappingMatrixValue,
     nalgebra::Dynamic,
     nalgebra::VecStorage<EdgeMappingMatrixValue, nalgebra::Dynamic, nalgebra::Dynamic>>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct EdgeMapping {
     pub matrix: EdgeMappingMatrix,
     pub outgoing_edges: Vec<EdgeIndex>,
@@ -111,6 +111,12 @@ impl<'a> EdgeMapping {
         let left_index = self.add_incoming_edge(left_edge);
         let right_index = self.add_outgoing_edge(right_edge);
         self.matrix[(right_index, left_index)] = true.into();
+    }
+}
+impl Debug for EdgeMapping {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "EdgeMapping(\nincoming_edges: {:#?},\noutgoing_edges: {:#?},\nmatrix: {}",
+            self.incoming_edges, self.outgoing_edges, self.matrix)
     }
 }
 impl Display for EdgeMapping {
