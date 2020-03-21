@@ -217,50 +217,126 @@ impl<'a> Display for GraphNode<'a> {
             outgoing_groups_counts)
     }
 }
-mod tests {
-    use crate::graph::*;
-    use crate::text::*;
-    use pretty_assertions::{assert_eq};
-    macro_rules! set {
-        ( $( $x:expr ),* ) => {  // Match zero or more comma delimited items
-            {
-                let mut temp_set = HashSet::new();  // Create a mutable HashSet
-                $(
-                    temp_set.insert($x); // Insert each item matched into the HashSet
-                )*
-                temp_set // Return the populated HashSet
-            }
+pub mod tests {
+    pub use super::*;
+    pub use crate::{
+        *,
+        graph::{
+            *,
+        },
+        text::{
+            *,
+        },
+    };
+    lazy_static! {
+        pub static ref TG: TextGraph = {
+            let mut graph = TextGraph::new();
+            graph.read_text(Text::from("\
+                    A B C D.\
+                    B B C C.
+                    E A C F.\
+                    E B D F.
+                    A A F A"));
+            graph
         };
+        pub static ref EMPTY: GraphNode<'static> = TG.find_node(&TextElement::Empty).unwrap();
+        pub static ref A: GraphNode<'static>= TG.find_node(&(Word::from("A").into())).unwrap();
+        pub static ref B: GraphNode<'static>= TG.find_node(&(Word::from("B").into())).unwrap();
+        pub static ref C: GraphNode<'static>= TG.find_node(&(Word::from("C").into())).unwrap();
+        pub static ref D: GraphNode<'static>= TG.find_node(&(Word::from("D").into())).unwrap();
+        pub static ref E: GraphNode<'static>= TG.find_node(&(Word::from("E").into())).unwrap();
+        pub static ref F: GraphNode<'static>= TG.find_node(&(Word::from("F").into())).unwrap();
+
+        static ref A_PREDS: HashSet<GraphNode<'static>> = A.neighbors_incoming().collect::<HashSet<_>>();
+        static ref B_PREDS: HashSet<GraphNode<'static>> = B.neighbors_incoming().collect::<HashSet<_>>();
+        static ref C_PREDS: HashSet<GraphNode<'static>> = C.neighbors_incoming().collect::<HashSet<_>>();
+        static ref D_PREDS: HashSet<GraphNode<'static>> = D.neighbors_incoming().collect::<HashSet<_>>();
+
+        static ref A_SUCCS: HashSet<GraphNode<'static>> = A.neighbors_outgoing().collect::<HashSet<_>>();
+        static ref B_SUCCS: HashSet<GraphNode<'static>> = B.neighbors_outgoing().collect::<HashSet<_>>();
+        static ref C_SUCCS: HashSet<GraphNode<'static>> = C.neighbors_outgoing().collect::<HashSet<_>>();
+        static ref D_SUCCS: HashSet<GraphNode<'static>> = D.neighbors_outgoing().collect::<HashSet<_>>();
     }
-    #[test]
-    fn node() {
-        let mut tg = TextGraph::new();
-        tg.read_text(Text::from("A B C D"));
+    mod neighbors {
+        pub use pretty_assertions::{assert_eq};
+        pub use super::*;
+        #[test]
+        fn a_preds() {
+            assert_eq!(*A_PREDS, set![
+                EMPTY.clone(),
+                E.clone(),
+                A.clone(),
+                F.clone(),
+            ]);
+        }
+        #[test]
+        fn a_succs() {
+            assert_eq!(*A_SUCCS, set![
+                EMPTY.clone(),
+                A.clone(),
+                B.clone(),
+                C.clone(),
+                D.clone(),
+                F.clone(),
+            ]);
 
-        let empty = tg.find_node(&TextElement::Empty).unwrap();
-        let a = tg.find_node(&(Word::from("A").into())).unwrap();
-        let b = tg.find_node(&(Word::from("B").into())).unwrap();
-        let c = tg.find_node(&(Word::from("C").into())).unwrap();
-        let d = tg.find_node(&(Word::from("D").into())).unwrap();
+        }
+        #[test]
+        fn b_preds() {
+            assert_eq!(*B_PREDS, set![
+                EMPTY.clone(),
+                A.clone(),
+                B.clone(),
+                E.clone(),
+            ]);
+        }
+        #[test]
+        fn b_succs() {
+            assert_eq!(*B_SUCCS, set![
+                EMPTY.clone(),
+                B.clone(),
+                C.clone(),
+                D.clone(),
+                F.clone(),
+            ]);
 
-        let mut a_preds = a.neighbors_incoming().collect::<HashSet<_>>();
-        let mut a_succs = a.neighbors_outgoing().collect::<HashSet<_>>();
-        assert_eq!(a_preds, set![empty.clone()]);
-        assert_eq!(a_succs, set![b.clone(), c.clone(), d.clone(), empty.clone()]);
+        }
+        #[test]
+        fn c_preds() {
+            assert_eq!(*C_PREDS, set![
+                EMPTY.clone(),
+                A.clone(),
+                C.clone(),
+                B.clone(),
+                E.clone(),
+            ]);
+        }
+        #[test]
+        fn c_succs() {
+            assert_eq!(*C_SUCCS, set![
+                EMPTY.clone(),
+                C.clone(),
+                D.clone(),
+                F.clone(),
+            ]);
+        }
+        #[test]
+        fn d_preds() {
 
-        let mut b_preds = b.neighbors_incoming().collect::<HashSet<_>>();
-        let mut b_succs = b.neighbors_outgoing().collect::<HashSet<_>>();
-        assert_eq!(b_preds, set![empty.clone(), a.clone()]);
-        assert_eq!(b_succs, set![c.clone(), d.clone(), empty.clone()]);
-
-        let mut c_preds = c.neighbors_incoming().collect::<HashSet<_>>();
-        let mut c_succs = c.neighbors_outgoing().collect::<HashSet<_>>();
-        assert_eq!(c_preds, set![empty.clone(), a.clone(), b.clone()]);
-        assert_eq!(c_succs, set![d.clone(), empty.clone()]);
-
-        let mut d_preds = d.neighbors_incoming().collect::<HashSet<_>>();
-        let mut d_succs = d.neighbors_outgoing().collect::<HashSet<_>>();
-        assert_eq!(d_preds, set![empty.clone(), a.clone(), b.clone(), c.clone()]);
-        assert_eq!(d_succs, set![empty.clone()]);
+            assert_eq!(*D_PREDS, set![
+                EMPTY.clone(),
+                A.clone(),
+                B.clone(),
+                C.clone(),
+                E.clone(),
+            ]);
+        }
+        #[test]
+        fn d_succs() {
+            assert_eq!(*D_SUCCS, set![
+                EMPTY.clone(),
+                F.clone(),
+            ]);
+        }
     }
 }
