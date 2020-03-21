@@ -88,7 +88,6 @@ impl<'a> TextPath<'a> {
             nodes: Vec::new(),
         }
     }
-
     pub fn try_merge(mut left: Self, mut right: Self) -> Option<Self> {
         //println!("EdgeMapping::push: {}", node.weight().element());
         if left.graph as *const _ != right.graph as *const _ {
