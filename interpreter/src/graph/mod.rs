@@ -201,8 +201,11 @@ impl<'a> TextGraph {
             index
         )
     }
-    pub fn get_text_path(&'a self, nodes: Vec<TextElement>) -> Option<TextPath<'a>> {
-        TextPath::new(self, nodes)
+    pub fn get_text_path(&'a self, nodes: Vec<GraphNode<'a>>) -> Option<TextPath<'a>> {
+        TextPath::from_nodes(nodes)
+    }
+    pub fn find_text_path(&'a self, nodes: Vec<TextElement>) -> Option<TextPath<'a>> {
+        TextPath::from_elements(self, nodes)
     }
 
     pub fn element_info(&self, element: &TextElement) {
