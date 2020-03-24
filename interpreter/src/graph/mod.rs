@@ -79,7 +79,9 @@ impl<'a> TextGraph {
     }
     pub fn read_sentence(&'a mut self, sentence: Text) {
         let mut sentence = sentence;
+        sentence.push_front(TextElement::Start);
         sentence.push_front(TextElement::Empty);
+        sentence.push(TextElement::Stop);
         sentence.push(TextElement::Empty);
         let len = sentence.len();
         //println!("reading: {}", sentence);

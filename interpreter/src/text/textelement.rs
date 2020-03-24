@@ -4,6 +4,8 @@ use super::*;
 pub enum TextElement {
     Word(Word),
     Punctuation(Punctuation),
+    Start,
+    Stop,
     Empty,
 }
 impl TextElement {
@@ -14,6 +16,8 @@ impl TextElement {
             TextElement::Punctuation(Punctuation::ExclamationMark) => true,
             TextElement::Punctuation(Punctuation::DoubleQuote) => true,
             TextElement::Punctuation(Punctuation::Quote) => true,
+            TextElement::Start => false,
+            TextElement::Stop => true,
             TextElement::Empty => true,
             _ => false
         }
@@ -41,6 +45,8 @@ impl Display for TextElement {
             Self::Word(w) => write!(f, "{}", w),
             Self::Punctuation(p) => write!(f, "{}", p),
             Self::Empty => write!(f, "*"),
+            Self::Start => write!(f, ">>"),
+            Self::Stop => write!(f, ";"),
         }
     }
 }
