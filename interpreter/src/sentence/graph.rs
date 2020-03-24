@@ -53,25 +53,37 @@ impl<'a> SentenceGraph<'a> {
     //    }
     //}
     fn build_succ_graph(g: &mut InternalSentenceGraph<'a>, path: TextPath<'a>) -> NodeIndex {
-        println!("{:#?}", path);
+        println!("{}", path);
         let succs = path.successors();
         println!("Successors {:#?}", succs);
         if succs.len() == 1 {
+
             let succ = succs.iter().next().unwrap().clone();
             println!("Successor {:#?}", succ);
+
+            if (succ.weight().element() == &TextElement::Empty) {
+                // stop here
+                return g.add_node(path.clone());
+            }
             let next_node = TextPath::from_node(&succ);
             let new_sentence = TextPath::try_merge(path.clone(), next_node).unwrap();
+
             return Self::build_succ_graph(g, new_sentence); // skip node
+
         } else {
             // if 0 or more than 1 successor
+            // add path as node
             let root = g.add_node(path.clone());
             for s in succs {
                 println!("Successor {:#?}", s);
-                let next_node = TextPath::from_node(&s);
-                let new_sentence = TextPath::try_merge(path.clone(), next_node).unwrap();
 
-                let index = Self::build_succ_graph(g, new_sentence);
-                g.add_edge(root, index, SentenceGraphEdgeWeight::Empty);
+                if (s.weight().element() != &TextElement::Empty) {
+                    let next_node = TextPath::from_node(&s);
+                    let new_sentence = TextPath::try_merge(path.clone(), next_node).unwrap();
+
+                    let index = Self::build_succ_graph(g, new_sentence);
+                    g.add_edge(root, index, SentenceGraphEdgeWeight::Empty);
+                }
             }
             return root;
         }
@@ -114,8 +126,8 @@ mod tests {
     use pretty_assertions::{assert_eq};
     #[test]
     fn from_path() {
-        let a_graph = SentenceGraph::from(A_PATH.clone());
-        a_graph.write_to_file("graphs/a_graph");
+        let start_a_graph = SentenceGraph::from(START_A_PATH.clone());
+        start_a_graph.write_to_file("graphs/start_a_graph");
     }
 
     #[test]
@@ -127,7 +139,7 @@ mod tests {
         let stack = tg
             .get_text_path(vec![EMPTY.clone()])
             .unwrap();
-        //let stack_graph = SentenceGraph::from(stack);
+        let stack_graph = SentenceGraph::from(stack);
         //stack_graph.write_to_file("graphs/sentence_empty");
     }
 }

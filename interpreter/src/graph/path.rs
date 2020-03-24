@@ -42,7 +42,7 @@ pub struct TextPath<'a> {
 
 impl<'a> Debug for TextPath<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "TextPath(\n\tnodes: {:#?},\n\tmapping: {:#?}\n)", self.nodes, self.mapping)
+        write!(f, "{}", self)
     }
 }
 impl<'a> Display for TextPath<'a> {
@@ -110,7 +110,7 @@ impl<'a> TextPath<'a> {
             return Some(right);
         }
 
-        println!("Loading left mapping...");
+        //println!("Loading left mapping...");
         let incoming_left = load_edges_incoming(graph, &left.mapping.incoming_edges);
         let outgoing_left = load_edges_outgoing(graph, &left.mapping.outgoing_edges);
         let mut left_matrix = &mut left.mapping.matrix;
@@ -120,7 +120,7 @@ impl<'a> TextPath<'a> {
         //println!("left matrix:\n{}\n", left_matrix);
 
 
-        println!("Loading right mapping...");
+        //println!("Loading right mapping...");
         let incoming_right = load_edges_incoming(graph, &right.mapping.incoming_edges);
         let outgoing_right = load_edges_outgoing(graph, &right.mapping.outgoing_edges);
         let mut right_matrix = &right.mapping.matrix;
@@ -131,19 +131,19 @@ impl<'a> TextPath<'a> {
 
         // incoming stores the allowed incoming edges (based on distances only)
         // with matrix_index referencing the reduced_left_matrix columns
-        println!("Filter incoming by distance...");
+        //println!("Filter incoming by distance...");
         let mut incoming = filter_allowed_incoming_edges(&incoming_left, &incoming_right, left_length);
 
         // outgoing stores the allowed outgoing edges (based on distances only)
         // with matrix_index referencing the reduced_right_matrix rows
-        println!("Filter outgoing by distance...");
+        //println!("Filter outgoing by distance...");
         let mut outgoing = filter_allowed_outgoing_edges(&outgoing_left, &outgoing_right, right_length);
 
         //println!("filtered incoming:\n{:#?}\n", incoming);
         //println!("filtered outgoing:\n{:#?}\n", outgoing);
 
 
-        println!("Reducing left matrix...");
+        //println!("Reducing left matrix...");
         let mut reduced_left_matrix =
             EdgeMappingMatrix::from_element(
                 outgoing_left.len(),
@@ -154,7 +154,7 @@ impl<'a> TextPath<'a> {
             reduced_left_matrix.set_column(i, &left_matrix.column(edge.matrix_index));
             edge.matrix_index = i; // change index to reference reduced matrix
         }
-        println!("Reducing right matrix...");
+        //println!("Reducing right matrix...");
         let mut reduced_right_matrix =
             EdgeMappingMatrix::from_element(
                 outgoing.len(),
@@ -168,7 +168,7 @@ impl<'a> TextPath<'a> {
         let mut left_matrix = reduced_left_matrix;
         let mut right_matrix = reduced_right_matrix;
 
-        println!("Finding connecting edges...");
+        //println!("Finding connecting edges...");
         // now find the connecting edges between the two nodes
         // and store their matrix row/column indicies
         let inner_distance = 1;
@@ -194,7 +194,7 @@ impl<'a> TextPath<'a> {
         }
         //println!("connecting edges:\n{:#?}\n", connecting_edges);
 
-        println!("Loading connection matrices...");
+        //println!("Loading connection matrices...");
         let mut connecting_left_matrix =
             EdgeMappingMatrix::from_element(
                 connecting_edges.len(),
@@ -449,8 +449,8 @@ pub mod tests {
         pub static ref C_PATH: TextPath<'static> = TG.get_text_path(vec![
             C.clone(),
         ]).unwrap();
-        pub static ref EMPTY_A_PATH: TextPath<'static> = TG.get_text_path(vec![
-            EMPTY.clone(),
+        pub static ref START_A_PATH: TextPath<'static> = TG.get_text_path(vec![
+            START.clone(),
             A.clone(),
         ]).unwrap();
         pub static ref AA_PATH: TextPath<'static> = TG.get_text_path(vec![
@@ -476,8 +476,8 @@ pub mod tests {
         static ref A_SUCCS: HashSet<GraphNode<'static>> = A_PATH.neighbors_outgoing();
         static ref B_PREDS: HashSet<GraphNode<'static>> = B_PATH.neighbors_incoming();
         static ref B_SUCCS: HashSet<GraphNode<'static>> = B_PATH.neighbors_outgoing();
-        static ref EMPTY_A_PREDS: HashSet<GraphNode<'static>> = EMPTY_A_PATH.neighbors_incoming();
-        static ref EMPTY_A_SUCCS: HashSet<GraphNode<'static>> = EMPTY_A_PATH.neighbors_outgoing();
+        static ref START_A_PREDS: HashSet<GraphNode<'static>> = START_A_PATH.neighbors_incoming();
+        static ref START_A_SUCCS: HashSet<GraphNode<'static>> = START_A_PATH.neighbors_outgoing();
         static ref AA_PREDS: HashSet<GraphNode<'static>> = AA_PATH.neighbors_incoming();
         static ref AA_SUCCS: HashSet<GraphNode<'static>> = AA_PATH.neighbors_outgoing();
         static ref AB_PREDS: HashSet<GraphNode<'static>> = AB_PATH.neighbors_incoming();
@@ -506,7 +506,8 @@ pub mod tests {
                             .iter()
                             .filter(|edge|
                                 set![
-                                    (EMPTY.clone(), 2),
+                                    (EMPTY.clone(), 3),
+                                    (START.clone(), 2),
                                     (A.clone(), 1),
                                     (B.clone(), 1),
                                     (E.clone(), 1),
@@ -529,7 +530,9 @@ pub mod tests {
                     .filter(|edge| {
                         let edge = TG.get_edge(**edge);
                         set![
-                            (EMPTY.clone(), 2),
+                            (EMPTY.clone(), 3),
+                            (START.clone(), 2),
+                            (STOP.clone(), 2),
                             (A.clone(), 1),
                             (B.clone(), 1),
                         ].contains(&(TG.get_node(edge.source()), edge.weight().distance()))
@@ -552,7 +555,8 @@ pub mod tests {
                             .iter()
                             .filter(|edge|
                                 set![
-                                    (EMPTY.clone(), 2),
+                                    (EMPTY.clone(), 3),
+                                    (STOP.clone(), 2),
                                     (D.clone(), 1),
                                     (C.clone(), 1),
                                     (F.clone(), 1),
@@ -577,7 +581,8 @@ pub mod tests {
                     .filter(|edge| {
                         let edge = TG.get_edge(**edge);
                         set![
-                            (EMPTY.clone(), 2),
+                            (EMPTY.clone(), 3),
+                            (STOP.clone(), 2),
                             (C.clone(), 1),
                             (D.clone(), 1)
                         ].contains(&(TG.get_node(edge.target()), edge.weight().distance()))
@@ -591,23 +596,28 @@ pub mod tests {
         pub use super::*;
         pub use pretty_assertions::{assert_eq};
         #[test]
-        fn empty_a_preds() {
-            assert_eq!(*EMPTY_A_PREDS, set![
+        fn start_a_preds() {
+            assert_eq!(*START_A_PREDS, set![
+                EMPTY.clone()
             ]);
         }
         #[test]
-        fn empty_a_succs() {
-            assert_eq!(*EMPTY_A_SUCCS, set![
+        fn start_a_succs() {
+            assert_eq!(*START_A_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
+                A.clone(),
                 B.clone(),
                 C.clone(),
                 D.clone(),
+                F.clone(),
             ]);
         }
         #[test]
         fn a_preds() {
             assert_eq!(*A_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 E.clone(),
                 A.clone(),
                 F.clone(),
@@ -617,6 +627,7 @@ pub mod tests {
         fn a_succs() {
             assert_eq!(*A_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 A.clone(),
                 B.clone(),
                 C.clone(),
@@ -629,12 +640,14 @@ pub mod tests {
         fn aa_preds() {
             assert_eq!(*AA_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
             ]);
         }
         #[test]
         fn aa_succs() {
             assert_eq!(*AA_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 A.clone(),
                 F.clone(),
             ]);
@@ -643,12 +656,14 @@ pub mod tests {
         fn ab_preds() {
             assert_eq!(*AB_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
             ]);
         }
         #[test]
         fn ab_succs() {
             assert_eq!(*AB_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 C.clone(),
                 D.clone(),
             ]);
@@ -657,6 +672,7 @@ pub mod tests {
         fn b_preds() {
             assert_eq!(*B_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
                 B.clone(),
                 E.clone(),
@@ -666,6 +682,7 @@ pub mod tests {
         fn b_succs() {
             assert_eq!(*B_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 B.clone(),
                 C.clone(),
                 D.clone(),
@@ -676,6 +693,7 @@ pub mod tests {
         fn bc_preds() {
             assert_eq!(*BC_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
                 B.clone(),
             ]);
@@ -684,6 +702,7 @@ pub mod tests {
         fn bc_succs() {
             assert_eq!(*BC_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 D.clone(),
                 C.clone(),
             ]);
@@ -692,6 +711,7 @@ pub mod tests {
         fn bcd_preds() {
             assert_eq!(*BCD_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
             ]);
         }
@@ -699,6 +719,7 @@ pub mod tests {
         fn bcd_succs() {
             assert_eq!(*BCD_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
             ]);
         }
     }

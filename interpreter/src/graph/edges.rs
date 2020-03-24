@@ -92,31 +92,53 @@ impl<'a> GraphEdges<'a>  {
     }
 }
 
-mod tests {
+pub mod tests {
     use crate::*;
     use crate::graph::*;
-    #[test]
-    fn iter() {
-        let mut tg = TextGraph::new();
-        tg.read_text(Text::from("a b c d"));
-        tg.write_to_file("graphs/iter_graph");
-        let empty = tg.find_node(&TextElement::Empty).unwrap();
-        let a = tg.find_node(&TextElement::Word(Word::from("a"))).unwrap();
-        let b = tg.find_node(&TextElement::Word(Word::from("b"))).unwrap();
-        let c = tg.find_node(&TextElement::Word(Word::from("c"))).unwrap();
-        let d = tg.find_node(&TextElement::Word(Word::from("d"))).unwrap();
-        let empty_a_edge = tg.find_edge(&empty, &a, 1).unwrap();
-        let a_empty_edge = tg.find_edge(&a, &empty, 4).unwrap();
-        let ab_edge = tg.find_edge(&a, &b, 1).unwrap();
-        let ac_edge = tg.find_edge(&a, &c, 2).unwrap();
-        let ad_edge = tg.find_edge(&a, &d, 3).unwrap();
-        let a_edges = tg.get_edges(a.index());
-        assert_eq!(a_edges, GraphEdges::new(set![
-                empty_a_edge,
-                a_empty_edge,
-                ab_edge,
-                ac_edge,
-                ad_edge
-                ].iter().cloned()));
+    use crate::graph::node::tests::*;
+    pub use pretty_assertions::{assert_eq};
+    lazy_static!{
+        static ref START_A1_EDGE: GraphEdge<'static> = TG.find_edge(&START, &A, 1).unwrap();
+        static ref START_A2_EDGE: GraphEdge<'static> = TG.find_edge(&START, &A, 2).unwrap();
+        static ref START_A4_EDGE: GraphEdge<'static> = TG.find_edge(&START, &A, 4).unwrap();
+        static ref A_STOP1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &STOP, 1).unwrap();
+        static ref A_STOP3_EDGE: GraphEdge<'static> = TG.find_edge(&A, &STOP, 3).unwrap();
+        static ref A_STOP4_EDGE: GraphEdge<'static> = TG.find_edge(&A, &STOP, 4).unwrap();
+        static ref AB1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &B, 1).unwrap();
+        static ref AC1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &B, 1).unwrap();
+        static ref AC2_EDGE: GraphEdge<'static> = TG.find_edge(&A, &C, 2).unwrap();
+        static ref AD3_EDGE: GraphEdge<'static> = TG.find_edge(&A, &D, 3).unwrap();
+        static ref EA1_EDGE: GraphEdge<'static> = TG.find_edge(&E, &A, 1).unwrap();
+        static ref AA1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &A, 1).unwrap();
+        static ref AA2_EDGE: GraphEdge<'static> = TG.find_edge(&A, &A, 2).unwrap();
+        static ref AA3_EDGE: GraphEdge<'static> = TG.find_edge(&A, &A, 3).unwrap();
+        static ref AF1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &F, 1).unwrap();
+        static ref AF2_EDGE: GraphEdge<'static> = TG.find_edge(&A, &F, 2).unwrap();
+        static ref FA1_EDGE: GraphEdge<'static> = TG.find_edge(&A, &F, 1).unwrap();
+        static ref A_EDGES: GraphEdges<'static> = TG.get_edges(A.index());
     }
+    //#[test]
+    //fn iter() {
+    //    assert_eq!(
+    //        A_EDGES.clone(),
+    //        GraphEdges::new(set![
+    //                START_A1_EDGE.clone(),
+    //                A_STOP4_EDGE.clone(),
+    //                AB1_EDGE.clone(),
+    //                AC1_EDGE.clone(),
+    //                AC2_EDGE.clone(),
+    //                AD3_EDGE.clone(),
+    //                EA1_EDGE.clone(),
+    //                AA1_EDGE.clone(),
+    //                AA2_EDGE.clone(),
+    //                AA3_EDGE.clone(),
+    //                AF1_EDGE.clone(),
+    //                AF2_EDGE.clone(),
+    //                FA1_EDGE.clone(),
+    //            ]
+    //            .iter()
+    //            .cloned()
+    //        )
+    //    );
+    //}
 }

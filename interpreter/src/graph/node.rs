@@ -27,7 +27,8 @@ impl TextGraphNodeWeight  {
 
 impl Debug for TextGraphNodeWeight {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?} mapping: {:?}", self.text_element, self.mapping)
+        //write!(f, "{:?} mapping: {:?}", self.text_element, self.mapping)
+        write!(f, "{:?}", self.text_element)
     }
 }
 impl<'a> TextGraphNodeWeight {
@@ -240,6 +241,8 @@ pub mod tests {
             graph
         };
         pub static ref EMPTY: GraphNode<'static> = TG.find_node(&TextElement::Empty).unwrap();
+        pub static ref START: GraphNode<'static> = TG.find_node(&TextElement::Start).unwrap();
+        pub static ref STOP: GraphNode<'static> = TG.find_node(&TextElement::Stop).unwrap();
         pub static ref A: GraphNode<'static>= TG.find_node(&(Word::from("A").into())).unwrap();
         pub static ref B: GraphNode<'static>= TG.find_node(&(Word::from("B").into())).unwrap();
         pub static ref C: GraphNode<'static>= TG.find_node(&(Word::from("C").into())).unwrap();
@@ -264,6 +267,7 @@ pub mod tests {
         fn a_preds() {
             assert_eq!(*A_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 E.clone(),
                 A.clone(),
                 F.clone(),
@@ -273,6 +277,7 @@ pub mod tests {
         fn a_succs() {
             assert_eq!(*A_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 A.clone(),
                 B.clone(),
                 C.clone(),
@@ -285,6 +290,7 @@ pub mod tests {
         fn b_preds() {
             assert_eq!(*B_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
                 B.clone(),
                 E.clone(),
@@ -294,6 +300,7 @@ pub mod tests {
         fn b_succs() {
             assert_eq!(*B_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 B.clone(),
                 C.clone(),
                 D.clone(),
@@ -305,6 +312,7 @@ pub mod tests {
         fn c_preds() {
             assert_eq!(*C_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
                 C.clone(),
                 B.clone(),
@@ -315,6 +323,7 @@ pub mod tests {
         fn c_succs() {
             assert_eq!(*C_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 C.clone(),
                 D.clone(),
                 F.clone(),
@@ -325,6 +334,7 @@ pub mod tests {
 
             assert_eq!(*D_PREDS, set![
                 EMPTY.clone(),
+                START.clone(),
                 A.clone(),
                 B.clone(),
                 C.clone(),
@@ -335,6 +345,7 @@ pub mod tests {
         fn d_succs() {
             assert_eq!(*D_SUCCS, set![
                 EMPTY.clone(),
+                STOP.clone(),
                 F.clone(),
             ]);
         }
