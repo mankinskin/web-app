@@ -1,5 +1,8 @@
-use budget::*;
-use budget::currency::*;
+use plans::{
+    *,
+    currency::*,
+    transaction::Transaction,
+};
 use yew::*;
 use stdweb::web::*;
 
@@ -131,7 +134,6 @@ impl yew::Renderable<BudgetView<Euro>> for TransactionsView<Euro> {
         }
     }
 }
-use budget::transaction::Transaction;
 struct TransactionView<C: Currency> {
     model: Transaction<C>,
 }
