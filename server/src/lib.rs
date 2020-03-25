@@ -3,12 +3,12 @@ extern crate stdweb;
 extern crate web_sys;
 extern crate wasm_bindgen;
 #[macro_use] extern crate lazy_static;
-extern crate budget;
+extern crate plans;
 
 mod frontend;
 
 use wasm_bindgen::prelude::*;
-use budget::currency::{Euro};
+use plans::currency::{Euro};
 
 use yew::*;
 

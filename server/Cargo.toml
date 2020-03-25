@@ -27,5 +27,5 @@ features = [
   "HtmlElement"
 ]
 
-[dependencies.budget]
-path = "../budget"
+[dependencies.plans]
+path = "../plans"

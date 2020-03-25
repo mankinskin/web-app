@@ -8,4 +8,4 @@ pub mod subject;
 pub mod transaction;
 
 mod budget;
-pub use crate::budget::*;
+pub use budget::*;
