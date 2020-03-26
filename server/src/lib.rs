@@ -4,13 +4,20 @@ extern crate wasm_bindgen;
 #[macro_use] extern crate lazy_static;
 extern crate plans;
 
-mod frontend;
+mod transaction;
+mod transactions;
+mod budget;
 
 use wasm_bindgen::prelude::*;
-use plans::currency::{Euro};
+use plans::{
+    currency::*,
+};
 
-use yew::*;
-
+pub enum Msg {
+    PrevImage,
+    NextImage,
+    Init,
+}
 #[wasm_bindgen]
 pub fn run_app() -> Result<(), JsValue> {
     //let mut budget = Budget::create("My Budget", Euro(140));
@@ -56,9 +63,9 @@ pub fn run_app() -> Result<(), JsValue> {
     //</head>");
 
     //console!(log, "App::new");
-    yew::App::<frontend::BudgetView<Euro>>::new()
+    yew::App::<budget::BudgetView<Euro>>::new()
         .mount_to_body()
-        .send_message(frontend::Msg::Init);
+        .send_message(Msg::Init);
     //console!(log, "run_loop");
     yew::run_loop();
     Ok(())
