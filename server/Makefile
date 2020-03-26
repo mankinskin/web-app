@@ -15,3 +15,5 @@ clean:
 
 run:
 	cargo run
+
+.PHONY: build serve test clean run
