@@ -12,6 +12,9 @@ use ::chrono::{
     DateTime,
     Utc,
 };
+use tabular::{row, Row};
+use crate::interpreter::parse::*;
+use crate::currency::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Transaction<C: Currency> {
@@ -24,7 +27,6 @@ pub struct Transaction<C: Currency> {
 
 #[cfg(target_arch="wasm32")]
 fn get_time_now() -> DateTime<Utc> {
-    use stdweb::*;
     let timestamp = stdweb::web::Date::now();
     let secs: i64 = (timestamp/1000.0).floor() as i64;
     let nanoes: u32 = (timestamp as u32%1000)*1_000_000;
@@ -126,7 +128,6 @@ impl<C: Currency> Transaction<C> {
         }
 }
 
-use tabular::{row, Row};
 impl<C: Currency> Into<Row> for Transaction<C> {
     fn into(self) -> Row {
         row!(
@@ -138,9 +139,6 @@ impl<C: Currency> Into<Row> for Transaction<C> {
             )
     }
 }
-use crate::interpreter::parse::*;
-use crate::currency::*;
-
 impl<'a> Parse<'a> for Transaction<Euro> {
     named!(parse(&'a str) -> Self,
     map!(
