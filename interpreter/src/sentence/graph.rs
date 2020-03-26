@@ -53,16 +53,16 @@ impl<'a> SentenceGraph<'a> {
     //    }
     //}
     fn build_succ_graph(g: &mut InternalSentenceGraph<'a>, path: TextPath<'a>) -> NodeIndex {
-        println!("{}", path);
         let succs = path.successors();
-        println!("Successors {:#?}", succs);
+        //println!("Successors {:#?}", succs);
         if succs.len() == 1 {
 
             let succ = succs.iter().next().unwrap().clone();
-            println!("Successor {:#?}", succ);
+            //println!("Successor {:#?}", succ);
 
             if (succ.weight().element() == &TextElement::Empty) {
                 // stop here
+                println!("{}", path);
                 return g.add_node(path.clone());
             }
             let next_node = TextPath::from_node(&succ);
@@ -75,7 +75,7 @@ impl<'a> SentenceGraph<'a> {
             // add path as node
             let root = g.add_node(path.clone());
             for s in succs {
-                println!("Successor {:#?}", s);
+                //println!("Successor {:#?}", s);
 
                 if (s.weight().element() != &TextElement::Empty) {
                     let next_node = TextPath::from_node(&s);
@@ -133,13 +133,13 @@ mod tests {
     #[test]
     fn text() {
         let mut tg = TextGraph::new();
-        tg.read_text(crate::graph::tests::gehen_text.clone());
-        tg.write_to_file("gehen_graph");
+        tg.read_text(crate::graph::tests::dornroeschen_text.clone());
+        tg.write_to_file("graphs/dornroeschen_graph");
 
-        let stack = tg
-            .get_text_path(vec![EMPTY.clone()])
+        let start_path = tg
+            .find_text_path(vec![TextElement::Word(Word::from("König"))])
             .unwrap();
-        let stack_graph = SentenceGraph::from(stack);
-        //stack_graph.write_to_file("graphs/sentence_empty");
+        let start_graph = SentenceGraph::from(start_path);
+        start_graph.write_to_file("graphs/start_graph");
     }
 }
