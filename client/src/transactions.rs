@@ -22,7 +22,7 @@ impl<C: 'static + Currency> From<Transactions<C>> for TransactionsView<C> {
     }
 }
 impl<C: 'static + Currency> Component for TransactionsView<C> {
-    type Message = Msg;
+    type Message = ();
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
