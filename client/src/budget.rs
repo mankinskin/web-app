@@ -11,6 +11,9 @@ use crate::{
     transactions::*,
 };
 
+pub enum Msg {
+    Update,
+}
 pub struct BudgetView<C: 'static + Currency> {
     link: ComponentLink<Self>,
     model: Budget<C>,
@@ -45,7 +48,7 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
         }
 
         match msg {
-            crate::Msg::Init => {
+            Msg::Update => {
                 true
             },
             _ => false
