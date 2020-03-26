@@ -3,7 +3,9 @@ use plans::{
     currency::*,
     transaction::Transaction,
 };
-use yew::*;
+use yew::{
+    *,
+};
 use stdweb::web::*;
 
 pub enum Msg {
@@ -12,28 +14,34 @@ pub enum Msg {
     Init,
 }
 
-pub struct BudgetView<C: Currency> {
+pub struct BudgetView<C: 'static + Currency> {
+    link: ComponentLink<Self>,
     model: Budget<C>,
 }
-impl<C: Currency> BudgetView<C> {
-    pub fn new(b: Budget<C>) -> Self {
-        Self {
-            model: b,
-        }
-    }
-}
-impl yew::Component for BudgetView<Euro> {
+
+impl<C: 'static + Currency> Component for BudgetView<C> {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
+    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let mut b = Budget::create("My Budget", 0);
         b.get(100).add_purpose("Money");
         b.get(100).add_purpose("Money");
         b.get(100).add_purpose("Money");
-        BudgetView::new(b)
+        Self {
+            link,
+            model: b,
+        }
     }
-    fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
+    fn view(&self) -> Html {
+        html!{
+            <div>
+                <h1>{self.model.name()}</h1>
+                {TransactionsView::from(self.model.transactions.clone()).view()}
+            </div>
+        }
+    }
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
         use std::sync::{Mutex};
         lazy_static!{
             static ref INDEX: Mutex<u32> = Mutex::new(0);
@@ -43,108 +51,60 @@ impl yew::Component for BudgetView<Euro> {
             Msg::Init => {
                 true
             },
-            Msg::PrevImage => {
-                let mut i = INDEX.lock().unwrap();
-                *i = ((100+*i) - 1)%100;
-                document().get_element_by_id("image")
-                    .unwrap()
-                    .set_attribute("src",
-                        &get_img_src(*i))
-                    .unwrap();
-                true
-            },
-            Msg::NextImage => {
-                let mut i = INDEX.lock().unwrap();
-                *i = ((100+*i) + 1)%100;
-                document().get_element_by_id("image")
-                    .unwrap()
-                    .set_attribute("src",
-                        &get_img_src(*i))
-                    .unwrap();
-                true
-            },
             _ => false
         }
     }
 }
-
-fn get_img_src(index: u32) -> String {
-    const SIZE: (u32, u32) = (1000, 1000);
-    format!("https://i.picsum.photos/id/{}/{}/{}.jpg",
-        index%100,
-        SIZE.0,
-        SIZE.1)
+struct TransactionsView<C: 'static + Currency> {
+    model: Transactions<C>,
 }
-
-impl yew::Renderable<Self> for BudgetView<Euro> {
-    fn view(&self) -> yew::Html<Self> {
-        html!{
-            <div>
-                <h1>{self.model.name()}</h1>
-                //{self.transactions.view()}
-                <img id="image" src={get_img_src(0)}/>
-                <br/>
-                <button type="button"
-                        id="prev-image-button"
-                        class="image-navigation-button"
-                        onclick=|_| Msg::PrevImage>
-                    {"<"}
-                </button>
-                    <button type="button"
-                    id="next-image-button"
-                    class="image-navigation-button"
-                    onclick=|_| Msg::NextImage>
-                    {">"}
-                    </button>
-                    </div>
+impl<C: 'static + Currency> From<Transactions<C>> for TransactionsView<C> {
+    fn from(transactions: Transactions<C>) -> Self {
+        Self {
+            model: transactions,
         }
     }
 }
-struct TransactionsView<C: Currency> {
-    model: Transactions<C>,
-}
-impl yew::Component for TransactionsView<Euro> {
+impl<C: 'static + Currency> Component for TransactionsView<C> {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
+    fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
         Self {
             model: Vec::new().into()
         }
     }
-    fn update(&mut self, _msg: Self::Message) -> yew::ShouldRender {
+    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
         true
     }
-}
-impl yew::Renderable<BudgetView<Euro>> for TransactionsView<Euro> {
-    fn view(&self) -> yew::Html<BudgetView<Euro>> {
+    fn view(&self) -> Html {
         html!{
             <div>
                 <table class="transaction-table">
-                <caption>{"Your Transactions"}</caption>
-                <tr class="transaction-header">
-                <th>{"Date"}</th>
-                <th>{"Amount"}</th>
-                <th>{"Partner"}</th>
-                <th>{"Purposes"}</th>
-                </tr>
-                {for self.model.iter().map(|t| TransactionView::from(t.clone()).view())}
-            </table>
-                </div>
+                    <caption>{"Your Transactions"}</caption>
+                    <tr class="transaction-header">
+                    <th>{"Date"}</th>
+                    <th>{"Amount"}</th>
+                    <th>{"Partner"}</th>
+                    <th>{"Purposes"}</th>
+                    </tr>
+                    {for self.model.iter().map(|t| TransactionView::from(t.clone()).view())}
+                </table>
+            </div>
         }
     }
 }
-struct TransactionView<C: Currency> {
+struct TransactionView<C: 'static + Currency> {
     model: Transaction<C>,
 }
-impl From<Transaction<Euro>> for TransactionView<Euro> {
-    fn from(transaction: Transaction<Euro>) -> Self {
+impl<C: 'static + Currency> From<Transaction<C>> for TransactionView<C> {
+    fn from(transaction: Transaction<C>) -> Self {
         Self {
             model: transaction,
         }
     }
 }
-impl yew::Component for TransactionView<Euro> {
+impl<C: 'static + Currency> yew::Component for TransactionView<C> {
     type Message = ();
     type Properties = ();
 
@@ -154,12 +114,10 @@ impl yew::Component for TransactionView<Euro> {
     fn update(&mut self, _msg: Self::Message) -> yew::ShouldRender {
         true
     }
-}
-impl yew::Renderable<BudgetView<Euro>> for TransactionView<Euro> {
-    fn view(&self) -> yew::Html<BudgetView<Euro>> {
+    fn view(&self) -> yew::Html {
         html!{
             <tr>
-                <td>{format!("{:#?}", self.model.get_date())}</td>
+                <td>{self.model.get_date().map(|d| format!("{}", d)).unwrap_or("unknown".into())}</td>
                 <td>{self.model.get_amount().to_string()}</td>
                 <td>{self.model.get_recipient().map(|s| s.to_string()).unwrap_or("None".into())}</td>
                 <td>{self.model.get_purposes().map(|ps| ps.to_string()).unwrap_or("None".into())}</td>

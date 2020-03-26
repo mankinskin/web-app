@@ -1,6 +1,5 @@
 extern crate yew;
 extern crate stdweb;
-extern crate web_sys;
 extern crate wasm_bindgen;
 #[macro_use] extern crate lazy_static;
 extern crate plans;
