@@ -71,8 +71,8 @@ impl Component for ClientRouter {
         html! {
             <div>
                 <nav class="menu">
-                    <button onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
-                    <button onclick=&self.change_route(ClientRoute::Budget) > {"Budget"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Budget) > {"Budget"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {

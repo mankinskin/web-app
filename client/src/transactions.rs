@@ -35,18 +35,16 @@ impl<C: 'static + Currency> Component for TransactionsView<C> {
     }
     fn view(&self) -> Html {
         html!{
-            <div>
-                <table class="transaction-table">
-                    <caption>{"Your Transactions"}</caption>
-                    <tr class="transaction-header">
-                    <th>{"Date"}</th>
-                    <th>{"Amount"}</th>
-                    <th>{"Partner"}</th>
-                    <th>{"Purposes"}</th>
-                    </tr>
-                    {for self.model.iter().map(|t| TransactionView::from(t.clone()).view())}
-                </table>
-            </div>
+            <table class="transaction-table">
+                <caption class="transaction-caption">{"Your Transactions"}</caption>
+                <tr class="transaction-row">
+                    <th class="transaction-header">{"Date"}</th>
+                    <th class="transaction-header">{"Amount"}</th>
+                    <th class="transaction-header">{"Partner"}</th>
+                    <th class="transaction-header">{"Purposes"}</th>
+                </tr>
+                {for self.model.iter().map(|t| TransactionView::from(t.clone()).view())}
+            </table>
         }
     }
 }

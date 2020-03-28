@@ -4,44 +4,60 @@ html, body {
   display: grid;
 }
 
-.hbox {
+.budget-container {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-content: flex-start;
-  background: darkgrey;
-  color: black;
+  align-items: center;
+  justify-content: center;
   visibility: visible;
+}
+
+.budget-heading {
+  width: 100%;
+  color: white;
+  background: darkred;
+  text-align: center;
 }
 
 .flex {
   flex: 1;
 }
 
+.transaction-table, .transaction-row, .transaction-header, .transaction-cell {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
 .transaction-table {
-  border: 1px solid;
-  align: left;
+  width: 80%;
+  align: center;
+}
+.transaction-caption {
+  color: white;
+  background: black;
+  align: center;
 }
 .transaction-header {
-  min-width: 30px;
-  border: 1px solid;
+  min-width: 100px;
   align: center;
 }
 
-h1 {
-  color: white;
-  background: black;
-}
-
-img {
-  border-radius: 10%;
-}
-
-.image-navigation-button {
-  background: gray;
-  transition: all 0.5s ease-in-out;
-}
-
-.image-navigation-button:hover {
+.router-navigation-button {
   background: white;
+  color: #202020;
+  border: none;
+  outline: none;
   transition: all 0.5s ease-in-out;
+}
+
+.router-navigation-button:hover {
+  background: gray;
+  color: black;
+  border: none;
+  outline: none;
+  transition: all 0.5s ease-in-out;
+}
+.router-navigation-button:focus {
+  border: none;
+  outline: none;
 }

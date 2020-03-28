@@ -35,8 +35,8 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
     }
     fn view(&self) -> Html {
         html!{
-            <div>
-                <h1>{self.model.name()}</h1>
+            <div class="budget-container">
+                <h1 class="budget-heading">{self.model.name()}</h1>
                 {TransactionsView::from(self.model.transactions.clone()).view()}
             </div>
         }
