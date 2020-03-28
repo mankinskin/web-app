@@ -17,6 +17,9 @@ use std::{
     fs::{
         File,
     },
+    path::{
+        Path,
+    },
 };
 use colored::*;
 
@@ -35,14 +38,21 @@ fn log_response(r: &Response) {
         s.green()
     })(r.status_code.to_string()));
 }
+fn get_file<P: AsRef<Path>>(path: P) -> Response {
+    match File::open(path) {
+        Ok(file) => Response::from_file("text/html", file),
+        Err(e) => Response::text(e.to_string()),
+    }
+}
+
 fn handle_request(request: &Request) -> Response {
     log_request(request);
     let response = router!(request,
         (GET) (/) => {
-            match File::open("./index.html") {
-                Ok(file) => Response::from_file("text/html", file),
-                Err(e) => Response::text(e.to_string()),
-            }
+            get_file("./index.html")
+        },
+        (GET) (/budget) => {
+            get_file("./index.html")
         },
         _ => rouille::match_assets(request, "./")
     );
