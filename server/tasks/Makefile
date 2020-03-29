@@ -9,6 +9,7 @@ build:
 					" &\
 
 clean:
-	rm pkg/ -r
+	rm -rf pkg/
+	cargo clean
 	
 .PHONY: build clean
