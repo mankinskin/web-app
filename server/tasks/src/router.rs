@@ -11,22 +11,22 @@ use yew_router::{
     Switch,
 };
 use crate::{
-    budget::*,
+    task::*,
 };
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
-    #[to = "/budget"]
-    Budget,
-    #[to = "/"]
+    #[to = "/tasks"]
     Index,
+    #[to = "/tasks/tools"]
+    Tools,
 }
 
 impl ToString for ClientRoute {
     fn to_string(&self) -> String {
         match self {
-            ClientRoute::Index => format!("/"),
-            ClientRoute::Budget => format!("/budget"),
+            ClientRoute::Index => format!("/tasks"),
+            ClientRoute::Tools => format!("/tasks/tools"),
         }
     }
 }
@@ -72,12 +72,12 @@ impl Component for ClientRouter {
             <div>
                 <nav class="menu">
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Budget) > {"Budget"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Tools) > {"Tools"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
-                        Some(ClientRoute::Index) => html!{ <p>{"Index"}</p> },
-                        Some(ClientRoute::Budget) => html!{ <BudgetView<Euro> /> },
+                        Some(ClientRoute::Index) => html!{ <TaskView /> },
+                        Some(ClientRoute::Tools) => html!{ <p>{"Tools"}</p> },
                         None => html!{ <p>{"404"}</p> },
                     }
                 }</div>

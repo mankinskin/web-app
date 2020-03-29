@@ -48,11 +48,14 @@ fn get_file<P: AsRef<Path>>(path: P) -> Response {
 fn handle_request(request: &Request) -> Response {
     log_request(request);
     let response = router!(request,
-        (GET) (/) => {
-            get_file("./index.html")
+        (GET) (/tasks) => {
+            get_file("./tasks/index.html")
         },
-        (GET) (/budget) => {
-            get_file("./index.html")
+        (GET) (/tasks/tools) => {
+            get_file("./tasks/index.html")
+        },
+        (GET) (/) => {
+            get_file("./home/index.html")
         },
         _ => rouille::match_assets(request, "./")
     );

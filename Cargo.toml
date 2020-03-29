@@ -3,5 +3,6 @@ members = [
   "plans",
   "interpreter",
   "server",
-  "client"
+  "server/home",
+  "server/tasks",
 ]

@@ -6,6 +6,7 @@ pub mod purpose;
 pub mod query;
 pub mod subject;
 pub mod transaction;
+pub mod task;
 
 mod budget;
 pub use budget::*;

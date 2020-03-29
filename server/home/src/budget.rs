@@ -42,11 +42,6 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
         }
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        use std::sync::{Mutex};
-        lazy_static!{
-            static ref INDEX: Mutex<u32> = Mutex::new(0);
-        }
-
         match msg {
             Msg::Update => {
                 true
