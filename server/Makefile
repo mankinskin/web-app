@@ -11,6 +11,9 @@ serve: build
 		-x run 
 	
 clean:
+	for app in $(APPS); do\
+		make -C $$app clean ;\
+	done
 	cargo clean
 
 .PHONY: build serve test clean run
