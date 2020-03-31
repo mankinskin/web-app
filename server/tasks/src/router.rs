@@ -73,8 +73,47 @@ impl Component for ClientRouter {
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
-                        Some(ClientRoute::Index) => html!{ <TaskView /> },
-                        Some(ClientRoute::Tools) => html!{ <p>{"Tools"}</p> },
+                        Some(ClientRoute::Index) => html!{
+                            <div>
+                                <TreeView
+                                text={"Root".to_string()}
+                                message_parent={None}
+                                children={vec![
+                                    TreeData {
+                                        text: "First Item".to_string(),
+                                        expanded: false,
+                                        children: vec![
+                                            TreeData {
+                                                text: "Hello".to_string(),
+                                                expanded: false,
+                                                children: Vec::new(),
+                                                message_parent: None,
+                                            }
+                                        ],
+                                        message_parent: None,
+                                    },
+                                    TreeData {
+                                        text: "Second Item".to_string(),
+                                        expanded: false,
+                                        message_parent: None,
+                                        children: vec![
+                                            TreeData {
+                                                text: "World".to_string(),
+                                                expanded: false,
+                                                children: Vec::new(),
+                                                message_parent: None,
+                                            }
+                                        ],
+                                    }
+                                ]}
+                                expanded={false}
+                                />
+                                <a href="/">{"Home"}</a>
+                            </div>
+                        },
+                        Some(ClientRoute::Tools) => html!{
+                            <p>{"Tools"}</p>
+                        },
                         None => html!{ <p>{"404"}</p> },
                     }
                 }</div>
