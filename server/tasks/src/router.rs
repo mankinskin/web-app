@@ -1,13 +1,10 @@
 use yew::{
     *,
-    virtual_dom::*,
 };
 use yew_router::{
     *,
     route::Route,
-    router::Router,
     service::RouteService,
-    components::RouterButton,
     Switch,
 };
 use crate::{
@@ -16,10 +13,10 @@ use crate::{
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
-    #[to = "/tasks"]
-    Index,
     #[to = "/tasks/tools"]
     Tools,
+    #[to = "/tasks"]
+    Index,
 }
 
 impl ToString for ClientRoute {

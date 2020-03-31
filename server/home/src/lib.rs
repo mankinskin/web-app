@@ -12,9 +12,6 @@ mod budget;
 mod router;
 
 use wasm_bindgen::prelude::*;
-use plans::{
-    currency::*,
-};
 
 #[wasm_bindgen]
 pub fn run_app() -> Result<(), JsValue> {
