@@ -1,13 +1,10 @@
 use yew::{
     *,
-    virtual_dom::*,
 };
 use yew_router::{
     *,
     route::Route,
-    router::Router,
     service::RouteService,
-    components::RouterButton,
     Switch,
 };
 use crate::{
