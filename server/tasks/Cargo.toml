@@ -17,12 +17,15 @@ lazy_static = "1.4"
 stdweb = "^0.4"
 
 [dependencies.yew]
-version = "^0.14"
+#version = "^0.14"
+path = "../../../yew/"
 features = [
   "std_web"
 ]
+
 [dependencies.yew-router]
-version = "^0.11"
+#version = "^0.11"
+path = "../../../yew_router/"
 features = [
   "std_web"
 ]
