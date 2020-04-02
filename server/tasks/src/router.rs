@@ -8,7 +8,7 @@ use yew_router::{
     Switch,
 };
 use crate::{
-    task::*,
+    tree::*,
 };
 
 #[derive(Switch, Clone, Debug)]
@@ -75,16 +75,17 @@ impl Component for ClientRouter {
                     match ClientRoute::switch(self.route.clone()) {
                         Some(ClientRoute::Index) => html!{
                             <div>
-                                <TreeView
-                                text={"Root".to_string()}
+                                <TreeView<StringComponent>
+                                element={StringProperty::from("Root")}
+                                expanded={false}
                                 message_parent={None}
                                 children={vec![
                                     TreeData {
-                                        text: "First Item".to_string(),
+                                        element: StringProperty::from("First Item"),
                                         expanded: false,
                                         children: vec![
                                             TreeData {
-                                                text: "Hello".to_string(),
+                                                element: StringProperty::from("Hello"),
                                                 expanded: false,
                                                 children: Vec::new(),
                                                 message_parent: None,
@@ -93,12 +94,12 @@ impl Component for ClientRouter {
                                         message_parent: None,
                                     },
                                     TreeData {
-                                        text: "Second Item".to_string(),
+                                        element: StringProperty::from("Second Item"),
                                         expanded: false,
                                         message_parent: None,
                                         children: vec![
                                             TreeData {
-                                                text: "World".to_string(),
+                                                element: StringProperty::from("World"),
                                                 expanded: false,
                                                 children: Vec::new(),
                                                 message_parent: None,
@@ -106,7 +107,6 @@ impl Component for ClientRouter {
                                         ],
                                     }
                                 ]}
-                                expanded={false}
                                 />
                                 <a href="/">{"Home"}</a>
                             </div>
