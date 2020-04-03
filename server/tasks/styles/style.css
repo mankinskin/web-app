@@ -1,45 +1,13 @@
+@import './router.css';
+@import './tree.css';
+@import './task.css';
+
 html, body {
   margin: 0;
   height: 100%;
-  display: grid;
-}
-
-.task-container {
-  display: flex;
-  flex-direction: column;
-  align-content: flex-start;
-  align-items: center;
-  justify-content: center;
-  visibility: visible;
-}
-
-.task-description {
-  width: 100%;
-  color: white;
-  background: darkred;
-  text-align: center;
 }
 
 .flex {
   flex: 1;
 }
 
-.router-navigation-button {
-  background: white;
-  color: #202020;
-  border: none;
-  outline: none;
-  transition: all 0.5s ease-in-out;
-}
-
-.router-navigation-button:hover {
-  background: gray;
-  color: black;
-  border: none;
-  outline: none;
-  transition: all 0.5s ease-in-out;
-}
-.router-navigation-button:focus {
-  border: none;
-  outline: none;
-}
