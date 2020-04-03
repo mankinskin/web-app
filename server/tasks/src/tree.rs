@@ -72,19 +72,21 @@ impl<C> Component for TreeView<C>
     fn view(&self) -> Html {
         let props = self.props.element.clone();
         html!{
-            <div class="tree-node" style="margin-left: 20px" >
-                <div onclick=&self.toggle_expand()>
-                    <span>{if self.props.expanded {
-                        "V"
-                    } else {
-                        ">"
-                    }}</span>
+            <div class="tree-node">
+                <div class="tree-element" onclick=&self.toggle_expand()>
+                    <ion-icon name={
+                        if self.props.expanded {
+                            "caret-down-outline"
+                        } else {
+                            "caret-forward-outline"
+                        }
+                    }></ion-icon>
                     <C with props/>
                 </div>
                 {
                     if self.props.expanded {
                         html!{
-                            <div>{
+                            <div class="tree-children">{
                                 for self.props
                                         .children
                                         .iter()
