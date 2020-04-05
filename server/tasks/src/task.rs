@@ -50,8 +50,8 @@ impl Component for TaskPreview {
     }
     fn view(&self) -> Html {
         html! {
-            <div class="task">
-                <h1 class="task-title">{
+            <div class="task task-preview">
+                <h1>{
                     self.props.task.title()
                 }</h1>
             </div>
@@ -79,13 +79,13 @@ impl Component for TaskView {
     }
     fn view(&self) -> Html {
         html! {
-            <div class="task">
-                <p>{
+            <div class="task task-content">
+                <div>{
                     "Descripion:"
-                }</p>
-                <p>{
+                }</div>
+                <div>{
                     self.props.task.description()
-                }</p>
+                }</div>
             </div>
         }
     }

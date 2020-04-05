@@ -15,7 +15,7 @@
 }
 .tree-header th {
   padding: 0;
-  height: 16px;
+  height: 12px;
   font-weight: normal;
 }
 .tree-element {
@@ -30,7 +30,9 @@
   color: white;
   padding: 0;
   margin: 0;
+  display: flex;
   float: left;
+  vertical-align: baseline;
 }
 .tree-header {
   background-color: rgba(60, 60, 60, 1.0);
