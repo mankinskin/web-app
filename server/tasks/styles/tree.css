@@ -1,8 +1,46 @@
+.tree-container {
+  width: fit-content;
+  height: fit-content;
+}
 .tree-node {
-  background-color: rgba(0, 0, 1, 0.3);
-  text-align: center;
+  width: 100%;
+  height: fit-content;
+  padding: 0;
+  border: none;
+  border-spacing: 0;
+  table-layout: fixed;
 }
-.tree-children {
-  padding: 5px;
+.tree-node tr td {
+  padding: 0;
 }
-
+.tree-header th {
+  padding: 0;
+  height: 16px;
+  font-weight: normal;
+}
+.tree-element {
+  padding: 0;
+}
+.tree-icon-column {
+  padding: 0;
+  margin: 0;
+  width: 16px;
+}
+.tree-icon {
+  color: white;
+  padding: 0;
+  margin: 0;
+  float: left;
+}
+.tree-header {
+  background-color: rgba(60, 60, 60, 1.0);
+}
+.tree-line-cell {
+}
+.tree-line {
+  height: 100%;
+  width: 1px;
+  background: rgba(60, 60, 60, 1.0);
+  display: block;
+  margin: 0 auto;
+}

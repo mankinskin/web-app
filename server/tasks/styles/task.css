@@ -1,4 +1,25 @@
-
+.task-tree {
+  background: rgba(10, 50, 230, 0.2);
+  padding: 0;
+  margin: 0;
+}
 .task {
-  background-color: green;
+  color: white;
+  background: black;
+  font-family: monospace;
+  user-select: none;
+  text-align: left;
+  padding: 0;
+  height: 100%;
+  padding-left: 4px;
+}
+.task h1 {
+  font-size: 10pt;
+  padding: 0;
+  margin: 0;
+}
+.task p {
+  font-size: 9pt;
+  padding: 0;
+  margin: 0;
 }

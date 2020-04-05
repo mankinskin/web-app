@@ -1,16 +1,40 @@
-
 #[derive(Clone, Debug)]
 pub struct Task {
-    description: String,
+    pub title: String,
+    pub description: String,
 }
 
 impl Task {
-    pub fn new<S: ToString>(description: S) -> Self {
+    pub fn new<S: ToString>(title: S) -> Self {
         Self {
-            description: description.to_string(),
+            title: title.to_string(),
+            description: String::new(),
         }
     }
     pub fn description(&self) -> &String {
         &self.description
+    }
+    pub fn title(&self) -> &String {
+        &self.title
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TaskTree {
+    task: Task,
+    children: Vec<TaskTree>,
+}
+impl TaskTree {
+    pub fn new(task: Task, children: Vec<Self>) -> Self {
+        Self {
+            task,
+            children,
+        }
+    }
+    pub fn task(&self) -> &Task {
+        &self.task
+    }
+    pub fn children(&self) -> &Vec<Self> {
+        &self.children
     }
 }

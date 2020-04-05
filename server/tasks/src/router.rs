@@ -9,6 +9,7 @@ use yew_router::{
 };
 use crate::{
     tree::*,
+    task::*,
 };
 
 #[derive(Switch, Clone, Debug)]
@@ -68,42 +69,66 @@ impl Component for ClientRouter {
         html! {
             <div>
                 <nav class="menu">
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Tools) > {"Tools"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index)>{
+                        "Index"
+                    }</button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Tools)>{
+                        "Tools"
+                    }</button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
-                        Some(ClientRoute::Index) => html!{
+                        Some(ClientRoute::Index) => html! {
                             <div>
-                                <TreeView<StringComponent>
-                                element={StringProperty::from("Root")}
-                                expanded={false}
-                                message_parent={None}
+                                <TaskTreeView
+                                task={TaskData::from(Task {
+                                    title: "Root".into(),
+                                    description: "This is the top level task.".into(),
+                                })}
                                 children={vec![
-                                    TreeData {
-                                        element: StringProperty::from("First Item"),
-                                        expanded: false,
+                                    TaskTreeData {
+                                        task: Task {
+                                            title: "First Item".into(),
+                                            description: "This is the first sub task.".into(),
+                                        }.into(),
                                         children: vec![
-                                            TreeData {
-                                                element: StringProperty::from("Hello"),
-                                                expanded: false,
+                                            TaskTreeData {
+                                                task: Task {
+                                                    title: "Second Level".into(),
+                                                    description: "This is a sub task of a sub task.".into(),
+                                                }.into(),
                                                 children: Vec::new(),
-                                                message_parent: None,
                                             }
                                         ],
-                                        message_parent: None,
                                     },
-                                    TreeData {
-                                        element: StringProperty::from("Second Item"),
-                                        expanded: false,
-                                        message_parent: None,
+                                    TaskTreeData {
+                                        task: Task {
+                                            title: "Another Sub Task".into(),
+                                            description: "This sub task has many children.".into(),
+                                        }.into(),
                                         children: vec![
-                                            TreeData {
-                                                element: StringProperty::from("World"),
-                                                expanded: false,
+                                            TaskTreeData {
+                                                task: Task {
+                                                    title: "Task 1.2.1".into(),
+                                                    description: "Child 1.".into(),
+                                                }.into(),
                                                 children: Vec::new(),
-                                                message_parent: None,
+                                            },
+                                            TaskTreeData {
+                                                task: Task {
+                                                    title: "Task 1.2.2".into(),
+                                                    description: "Child 2.".into(),
+                                                }.into(),
+                                                children: Vec::new(),
+                                            },
+                                            TaskTreeData {
+                                                task: Task {
+                                                    title: "Task 1.2.3".into(),
+                                                    description: "Child 3.".into(),
+                                                }.into(),
+                                                children: Vec::new(),
                                             }
+
                                         ],
                                     }
                                 ]}
@@ -111,10 +136,13 @@ impl Component for ClientRouter {
                                 <a href="/">{"Home"}</a>
                             </div>
                         },
-                        Some(ClientRoute::Tools) => html!{
-                            <p>{"Tools"}</p>
+                        Some(ClientRoute::Tools) => html! {
+                            <p>{
+                                "Tools"
+                            }</p>
                         },
-                        None => html!{ <p>{"404"}</p> },
+                        None => html! {
+                            <p>{"404"}</p> },
                     }
                 }</div>
             </div>
