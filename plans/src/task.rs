@@ -2,6 +2,7 @@
 pub struct Task {
     pub title: String,
     pub description: String,
+    pub assignees: Vec<String>,
 }
 
 impl Task {
@@ -9,6 +10,7 @@ impl Task {
         Self {
             title: title.to_string(),
             description: String::new(),
+            assignees: Vec::new(),
         }
     }
     pub fn description(&self) -> &String {
@@ -16,6 +18,9 @@ impl Task {
     }
     pub fn title(&self) -> &String {
         &self.title
+    }
+    pub fn assignees(&self) -> &Vec<String> {
+        &self.assignees
     }
 }
 

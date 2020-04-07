@@ -80,12 +80,29 @@ impl Component for TaskView {
     fn view(&self) -> Html {
         html! {
             <div class="task task-content">
-                <div>{
-                    "Descripion:"
-                }</div>
-                <div>{
-                    self.props.task.description()
-                }</div>
+                <div class="task-description-container">
+                    <div>{
+                        "Descripion:"
+                    }</div>
+                    <div>{
+                        self.props.task.description()
+                    }</div>
+                </div>
+                <div class="task-assignees-container">
+                    <div>{
+                        "Assignees:"
+                    }</div>
+                    <div>{
+                        for self.props.task
+                            .assignees()
+                            .iter()
+                            .map(|assignee| html!{
+                                <div>{
+                                    assignee
+                                }</div>
+                            })
+                    }</div>
+                </div>
             </div>
         }
     }

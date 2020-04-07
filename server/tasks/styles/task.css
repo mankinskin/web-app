@@ -26,6 +26,17 @@
   height: 100%;
   min-height: 100px;
 }
+.task-description-container {
+  grid-column: 1;
+  height: 100%;
+  min-height: 100px;
+}
+.task-assignees-container {
+  grid-column: 2;
+  height: 100%;
+  min-height: 100px;
+  margin-left: auto;
+}
 .task p {
   font-size: 9pt;
   padding: 0;

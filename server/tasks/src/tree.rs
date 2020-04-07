@@ -124,11 +124,11 @@ impl<C> Component for TreeView<C>
                         html!{
                             <tr>
                                 {
-                                        html!{
-                                            <td class="tree-line-cell">
-                                                <div class="tree-line"/>
-                                            </td>
-                                        }
+                                    html!{
+                                        <td class="tree-line-cell">
+                                            <div class="tree-line"/>
+                                        </td>
+                                    }
                                 }
                                 <td class="tree-element">
                                     <C with props/>
