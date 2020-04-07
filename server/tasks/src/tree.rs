@@ -97,67 +97,56 @@ impl<C> Component for TreeView<C>
         console!(log, format!("{:#?}\n-------------------\n", self.props));
         let props = self.props.element.clone();
         html!{
-            <table class="tree-node">
-                <col class="tree-icon-column"/>
-                <col/>
-                <tr class="tree-header" onclick=&self.toggle_expand()>
+            <div class="tree-node">
+                <div class="tree-header" onclick=&self.toggle_expand()>
                     { // icon
-                            html!{
-                                <th class="tree-icon">
+                        html!{
+                            <div class="tree-icon">
                                 <ion-icon
                                     name={
-                                    if self.props.expanded {
-                                        "caret-down-outline"
-                                    } else {
-                                        "caret-forward-outline"
+                                        if self.props.expanded {
+                                            "caret-down-outline"
+                                        } else {
+                                            "caret-forward-outline"
+                                        }
                                     }
-                                }></ion-icon>
-                                </th>
-                            }
+                                ></ion-icon>
+                            </div>
+                        }
                     }
-                    <th class="tree-element">{
+                    <div class="tree-preview">{
                         C::preview(props.clone())
-                    }</th>
-                </tr>
-                { // element
+                    }</div>
+                </div>
+                { // item
                     if self.props.expanded {
                         html!{
-                            <tr>
-                                {
-                                    html!{
-                                        <td class="tree-line-cell">
-                                            <div class="tree-line"/>
-                                        </td>
+                            <div class="tree-expanded">
+                                <div class="tree-content">
+                                    <div class="tree-line"/>
+                                    <div class="tree-element">
+                                        <C with props/>
+                                    </div>
+                                </div>
+                                <div class="tree-children">
+                                    { // item
+                                        for self.props
+                                        .children
+                                        .iter()
+                                        .cloned()
+                                        .map(|props| html! {
+                                                <div class="tree-child">
+                                                    <div class="tree-line"/>
+                                                    <TreeView<C> with props/>
+                                                </div>
+                                        })
                                     }
-                                }
-                                <td class="tree-element">
-                                    <C with props/>
-                                </td>
-                            </tr>
+                                </div>
+                            </div>
                         }
                     } else { html!{} }
                 }
-                { // element
-                    if self.props.expanded && self.has_children() {
-                        html!{
-                            for self.props
-                            .children
-                            .iter()
-                            .cloned()
-                            .map(|props| html! {
-                                <tr>
-                                    <td class="tree-line-cell">
-                                        <div class="tree-line"/>
-                                    </td>
-                                    <td>
-                                        <TreeView<C> with props/>
-                                    </td>
-                                </tr>
-                            })
-                        }
-                    } else { html!{} }
-                }
-            </table>
+            </div>
         }
     }
     fn change(&mut self, props: Self::Properties) -> ShouldRender {

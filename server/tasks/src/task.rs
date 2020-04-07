@@ -19,16 +19,6 @@ impl From<Task> for TaskData {
         }
     }
 }
-//impl From<TaskData> for TreeData<TaskData> {
-//    fn from(t: TaskData) -> Self {
-//        Self {
-//            element: t,
-//            expanded: false,
-//            message_parent: None,
-//            children: Vec::new(),
-//        }
-//    }
-//}
 pub trait Preview : Component {
     fn preview(props: <Self as Component>::Properties) -> Html;
 }
