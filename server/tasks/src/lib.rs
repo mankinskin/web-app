@@ -9,6 +9,7 @@ extern crate plans;
 mod router;
 mod task;
 mod tree;
+mod string_component;
 
 use wasm_bindgen::prelude::*;
 
