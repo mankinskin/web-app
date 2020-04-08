@@ -2,8 +2,9 @@ pub use plans::{
     *,
     task::*,
 };
-pub use crate::tree::{
-    *,
+pub use crate::{
+    tree::*,
+    preview::*,
 };
 use yew::{
     *,
@@ -19,10 +20,6 @@ impl From<Task> for TaskData {
         }
     }
 }
-pub trait Preview : Component {
-    fn preview(props: <Self as Component>::Properties) -> Html;
-}
-
 #[derive(Debug)]
 pub struct TaskPreview {
     props: TaskData,

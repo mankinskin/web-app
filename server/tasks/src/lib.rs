@@ -10,6 +10,7 @@ mod router;
 mod task;
 mod tree;
 mod string_component;
+mod preview;
 
 use wasm_bindgen::prelude::*;
 
