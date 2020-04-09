@@ -64,9 +64,6 @@ impl<C> TreeView<C>
             Msg::ChildMessage(child_index, Box::new(msg))
         })
     }
-    pub fn has_children(&self) -> bool {
-        !self.props.children.is_empty()
-    }
 }
 
 impl<C> Component for TreeView<C>
