@@ -1,6 +1,8 @@
 #[macro_use] extern crate rouille;
 extern crate chrono;
 extern crate colored;
+extern crate serde_json;
+extern crate plans;
 
 use rouille::{
     Request,
@@ -22,6 +24,9 @@ use std::{
     },
 };
 use colored::*;
+use plans::{
+    user::*,
+};
 
 
 fn log_request(r: &Request) {
@@ -44,6 +49,10 @@ fn get_file<P: AsRef<Path>>(path: P) -> Response {
         Err(e) => Response::text(e.to_string()),
     }
 }
+fn get_user<S: ToString>(id: S) -> Response {
+    let user = User::new("Server");
+    rouille::Response::json(&user)
+}
 
 fn handle_request(request: &Request) -> Response {
     log_request(request);
@@ -55,6 +64,15 @@ fn handle_request(request: &Request) -> Response {
             get_file("./tasks/index.html")
         },
         (GET) (/budget) => {
+            get_file("./home/index.html")
+        },
+        (GET) (/api/user) => {
+            get_user("")
+        },
+        (GET) (/user) => {
+            get_file("./home/index.html")
+        },
+        (GET) (/profile) => {
             get_file("./home/index.html")
         },
         (GET) (/) => {

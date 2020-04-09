@@ -1,0 +1,19 @@
+.router-navigation-button {
+  background: white;
+  color: #202020;
+  border: none;
+  outline: none;
+  transition: all 0.5s ease-in-out;
+}
+
+.router-navigation-button:hover {
+  background: gray;
+  color: black;
+  border: none;
+  outline: none;
+  transition: all 0.5s ease-in-out;
+}
+.router-navigation-button:focus {
+  border: none;
+  outline: none;
+}

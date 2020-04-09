@@ -1,0 +1,35 @@
+
+.budget-container {
+  display: flex;
+  flex-direction: column;
+  align-content: flex-start;
+  align-items: center;
+  justify-content: center;
+  visibility: visible;
+}
+
+.budget-heading {
+  width: 100%;
+  color: white;
+  background: darkred;
+  text-align: center;
+}
+
+.transaction-table, .transaction-row, .transaction-header, .transaction-cell {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+.transaction-table {
+  width: 80%;
+  align: center;
+}
+.transaction-caption {
+  color: white;
+  background: black;
+  align: center;
+}
+.transaction-header {
+  min-width: 100px;
+  align: center;
+}
+
