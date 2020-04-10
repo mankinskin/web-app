@@ -55,17 +55,9 @@ impl Component for UserProfileView {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
-            link,
-            props: None,
-            fetch_service: FetchService::new(),
-            fetch_task: None,
-        }
-    }
-    fn mounted(&mut self) -> ShouldRender {
         let req = Request::get("/api/user")
             .body(Nothing).unwrap();
-        let callback = self.link.callback(|response: Response<Json<Result<User, Error>>>| {
+        let callback = link.callback(|response: Response<Json<Result<User, Error>>>| {
             console!(log, "Got response");
             let (meta, Json(body)) = response.into_parts();
             if meta.status.is_success() {
@@ -80,32 +72,36 @@ impl Component for UserProfileView {
                 )
             }
         });
-        let task = self.fetch_service.fetch(req, callback);
+        let mut fetch_service = FetchService::new();
+        let task = fetch_service.fetch(req, callback);
+        let mut fetch_task = None;
         match task {
             Ok(task) => {
-                self.fetch_task = Some(task)
+                fetch_task = Some(task)
             },
             Err(err) => {
-                self.link.send_message(Msg::FetchUserError(err.to_string()))
+                link.send_message(Msg::FetchUserError(err.to_string()))
             },
         }
-        false
+        Self {
+            link,
+            props: None,
+            fetch_service,
+            fetch_task,
+        }
     }
     fn view(&self) -> Html {
         if let Some(profile) = self.props.clone() {
             html!{
                 <div class="user-profile">
-                    <p class="user-name">
+                    <div class="user-name">
                         {format!("User Name: {}", profile.user.name())}
-                    </p>
+                    </div>
+                    <img src="/dweeb.jpg"/>
                 </div>
             }
         } else {
-            html!{
-                <div>
-                    {format!("Failed to get user!")}
-                </div>
-            }
+            html!{ }
         }
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
