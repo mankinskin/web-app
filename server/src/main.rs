@@ -7,15 +7,11 @@ extern crate plans;
 use rouille::{
     Request,
     Response,
-    ResponseBody,
 };
 use chrono::{
     Utc,
 };
 use std::{
-    io::{
-        Read,
-    },
     fs::{
         File,
     },
@@ -43,13 +39,13 @@ fn log_response(r: &Response) {
         s.green()
     })(r.status_code.to_string()));
 }
-fn get_file<P: AsRef<Path>>(path: P) -> Response {
+fn get_html<P: AsRef<Path>>(path: P) -> Response {
     match File::open(path) {
         Ok(file) => Response::from_file("text/html", file),
         Err(e) => Response::text(e.to_string()),
     }
 }
-fn get_user<S: ToString>(id: S) -> Response {
+fn get_user<S: ToString>(_: S) -> Response {
     let user = User::new("Server");
     rouille::Response::json(&user)
 }
@@ -58,25 +54,25 @@ fn handle_request(request: &Request) -> Response {
     log_request(request);
     let response = router!(request,
         (GET) (/tasks/tools) => {
-            get_file("./tasks/index.html")
+            get_html("./tasks/index.html")
         },
         (GET) (/tasks) => {
-            get_file("./tasks/index.html")
+            get_html("./tasks/index.html")
         },
         (GET) (/budget) => {
-            get_file("./home/index.html")
+            get_html("./home/index.html")
         },
         (GET) (/api/user) => {
             get_user("")
         },
         (GET) (/user) => {
-            get_file("./home/index.html")
+            get_html("./home/index.html")
         },
         (GET) (/profile) => {
-            get_file("./home/index.html")
+            get_html("./home/index.html")
         },
         (GET) (/) => {
-            get_file("./home/index.html")
+            get_html("./home/index.html")
         },
         _ => rouille::match_assets(request, "./")
     );
