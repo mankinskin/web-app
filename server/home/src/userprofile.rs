@@ -94,10 +94,16 @@ impl Component for UserProfileView {
         if let Some(profile) = self.props.clone() {
             html!{
                 <div class="user-profile">
-                    <div class="user-name">
-                        {format!("User Name: {}", profile.user.name())}
+                    <div class="user-profile-header">
+                        <div class="user-title-container">
+                            <div class="user-name">
+                                {format!("User Name: {}", profile.user.name())}
+                            </div>
+                        </div>
+                        <div class="user-profile-image-container">
+                            <img class="user-profile-image" src="/dweeb.jpg"/>
+                        </div>
                     </div>
-                    <img src="/dweeb.jpg"/>
                 </div>
             }
         } else {
