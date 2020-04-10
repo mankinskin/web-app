@@ -1,5 +1,29 @@
 
 .user-profile {
-  color: white;
-  background-color: rgba(30, 30, 30, 1);
+  background-color: #EEE;
+  margin: 10px;
+  border-radius: 10px;
+}
+.user-profile-header {
+  color: #333;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 10px;
+  height: 200px;
+}
+
+.user-title-container {
+  font-family: monospace;
+}
+.user-name {
+  font-size: 16pt;
+}
+.user-profile-image-container {
+  border-radius: 50%;
+  overflow: hidden;
+}
+.user-profile-image {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: cover;
 }
