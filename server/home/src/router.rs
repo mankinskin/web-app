@@ -7,7 +7,6 @@ use yew_router::{
     Switch,
 };
 use crate::{
-    budget::*,
     userprofile::*,
 };
 
@@ -15,8 +14,6 @@ use crate::{
 pub enum ClientRoute {
     #[to = "/user"]
     User,
-    #[to = "/budget"]
-    Budget,
     #[to = "/"]
     Index,
 }
@@ -25,7 +22,6 @@ impl ToString for ClientRoute {
     fn to_string(&self) -> String {
         match self {
             ClientRoute::Index => format!("/"),
-            ClientRoute::Budget => format!("/budget"),
             ClientRoute::User => format!("/user"),
         }
     }
@@ -72,7 +68,6 @@ impl Component for ClientRouter {
             <div>
                 <nav class="menu">
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Budget) > {"Budget"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::User) > {"User"} </button>
                 </nav>
                 <div>{
@@ -83,7 +78,6 @@ impl Component for ClientRouter {
                                 <a href="/tasks">{"Tasks"}</a>
                             </div>
                         },
-                        Some(ClientRoute::Budget) => html!{ <BudgetView<Euro> /> },
                         Some(ClientRoute::User) => {
                             html!{ <UserProfileView /> }
                         },

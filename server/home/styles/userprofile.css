@@ -13,6 +13,8 @@
 .profile-card {
   padding: 10px;
   border-radius: 5px;
+  background-color: #EEE;
+  color: #333;
 }
 #user-profile-header {
   background-color: #EEE;
@@ -41,6 +43,6 @@
   object-fit: cover;
 }
 #user-profile-posts {
-  background-color: #EEE;
-  color: #333;
+}
+#user-profile-budget {
 }
