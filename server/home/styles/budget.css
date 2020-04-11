@@ -2,7 +2,6 @@
 .budget-container {
   display: grid;
   margin: 0;
-  margin-top: 5%;
   width: 100%;
   overflow-x: auto;
 }

@@ -22,6 +22,7 @@ use http::{
 };
 use crate::{
     *,
+    budget::*,
 };
 use anyhow::Error;
 use std::result::Result;
@@ -105,6 +106,9 @@ impl Component for UserProfileView {
                         </div>
                     </div>
                     <div id="user-profile-posts" class="profile-card">
+                    </div>
+                    <div id="user-profile-budget" class="profile-card">
+                        <BudgetView<Euro> />
                     </div>
                 </div>
             }
