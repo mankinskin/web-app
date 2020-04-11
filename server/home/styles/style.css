@@ -1,9 +1,11 @@
 @import './router.css';
 @import './userprofile.css';
 @import './budget.css';
+
 html, body {
   margin: 0;
-  height: 100%;
-  display: grid;
+  padding: 0;
+  font-size: 24px;
+  font-family: monospace;
 }
 

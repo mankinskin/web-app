@@ -28,20 +28,20 @@ impl<C: 'static + Currency> yew::Component for TransactionView<C> {
     }
     fn view(&self) -> yew::Html {
         html!{
-            <tr class="transaction-row">
-                <td class="transaction-cell">{
+            <div class="transaction-row">
+                <div class="transaction-cell">{
                     self.model.get_date().map(|d| format!("{}", d)).unwrap_or("unknown".into())
-                }</td>
-                <td class="transaction-cell">{
+                }</div>
+                <div class="transaction-cell">{
                     self.model.get_amount().to_string()
-                }</td>
-                <td class="transaction-cell">{
+                }</div>
+                <div class="transaction-cell">{
                     self.model.get_recipient().map(|s| s.to_string()).unwrap_or("None".into())
-                }</td>
-                <td class="transaction-cell">{
+                }</div>
+                <div class="transaction-cell">{
                     self.model.get_purposes().map(|ps| ps.to_string()).unwrap_or("None".into())
-                }</td>
-                </tr>
+                }</div>
+            </div>
         }
     }
 }

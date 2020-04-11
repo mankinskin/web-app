@@ -1,35 +1,65 @@
 
 .budget-container {
-  display: flex;
-  flex-direction: column;
-  align-content: flex-start;
-  align-items: center;
-  justify-content: center;
-  visibility: visible;
-}
-
-.budget-heading {
+  display: grid;
+  margin: 0;
+  margin-top: 5%;
   width: 100%;
-  color: white;
-  background: darkred;
-  text-align: center;
+  overflow-x: auto;
 }
 
-.transaction-table, .transaction-row, .transaction-header, .transaction-cell {
-  border: 1px solid black;
-  border-collapse: collapse;
+.budget-header {
+  color: #333;
+}
+.budget-name {
+  font-size: 2em;
 }
 .transaction-table {
-  width: 80%;
-  align: center;
+  font-size: 1em;
+
+  display: table;
+
+  border: none;
+  border-collapse: collapse;
+
 }
-.transaction-caption {
-  color: white;
-  background: black;
-  align: center;
+.transaction-table-header {
+  display: table-header-group;
+}
+.transaction-table-body {
+  display: table-row-group;
+}
+.transaction-row {
+  display: table-row;
 }
 .transaction-header {
-  min-width: 100px;
-  align: center;
+  display: table-cell;
+  white-space: nowrap;
+  padding: 0px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border: 2px #333 solid;
+  border-top: none;
 }
-
+.transaction-table .transaction-header:first-child {
+    border-left: none;
+}
+.transaction-table .transaction-header:last-child {
+    border-right: none;
+}
+.transaction-cell {
+  display: table-cell;
+  padding: 0px;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  border-left: 2px #333 solid;
+  border-right: 2px #333 solid;
+}
+.transaction-table .transaction-cell:first-child {
+    border-left: none;
+}
+.transaction-table .transaction-cell:last-child {
+    border-right: none;
+}

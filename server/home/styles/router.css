@@ -4,6 +4,8 @@
   border: none;
   outline: none;
   transition: all 0.5s ease-in-out;
+  font-size: 2em;
+  margin: 0;
 }
 
 .router-navigation-button:hover {
