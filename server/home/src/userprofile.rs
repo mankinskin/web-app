@@ -58,7 +58,6 @@ impl Component for UserProfileView {
         let req = Request::get("/api/user")
             .body(Nothing).unwrap();
         let callback = link.callback(|response: Response<Json<Result<User, Error>>>| {
-            console!(log, "Got response");
             let (meta, Json(body)) = response.into_parts();
             if meta.status.is_success() {
                 console!(log, "Got user");
@@ -91,18 +90,21 @@ impl Component for UserProfileView {
         }
     }
     fn view(&self) -> Html {
+        console!(log, "Draw UserProfileView");
         if let Some(profile) = self.props.clone() {
             html!{
-                <div class="user-profile">
-                    <div class="user-profile-header">
-                        <div class="user-title-container">
-                            <div class="user-name">
+                <div id="user-profile">
+                    <div id="user-profile-header" class="profile-card">
+                        <div id="user-title-container">
+                            <div id="user-name">
                                 {format!("User Name: {}", profile.user.name())}
                             </div>
                         </div>
                         <div class="user-profile-image-container">
                             <img class="user-profile-image" src="/dweeb.jpg"/>
                         </div>
+                    </div>
+                    <div id="user-profile-posts" class="profile-card">
                     </div>
                 </div>
             }
