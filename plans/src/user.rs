@@ -1,6 +1,3 @@
-use serde_json::{
-    *,
-};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     id: usize,

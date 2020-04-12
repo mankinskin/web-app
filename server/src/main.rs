@@ -7,6 +7,7 @@ extern crate plans;
 use rouille::{
     Request,
     Response,
+    input::json::*,
 };
 use chrono::{
     Utc,
@@ -22,6 +23,7 @@ use std::{
 use colored::*;
 use plans::{
     user::*,
+    note::*,
 };
 
 
@@ -49,6 +51,11 @@ fn get_user<S: ToString>(_: S) -> Response {
     let user = User::new("Server");
     rouille::Response::json(&user)
 }
+fn post_note(req: &Request) -> Response {
+    let note: Note = try_or_400!(json_input(req));
+    println!("Got note: {:#?}", note);
+    rouille::Response::empty_204()
+}
 
 fn handle_request(request: &Request) -> Response {
     log_request(request);
@@ -65,10 +72,16 @@ fn handle_request(request: &Request) -> Response {
         (GET) (/api/user) => {
             get_user("")
         },
+        (POST) (/api/note) => {
+            post_note(request)
+        },
         (GET) (/user) => {
             get_html("./home/index.html")
         },
         (GET) (/profile) => {
+            get_html("./home/index.html")
+        },
+        (GET) (/note) => {
             get_html("./home/index.html")
         },
         (GET) (/) => {

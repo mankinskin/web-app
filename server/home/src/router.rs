@@ -8,10 +8,13 @@ use yew_router::{
 };
 use crate::{
     userprofile::*,
+    note::*,
 };
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
+    #[to = "/note"]
+    Note,
     #[to = "/user"]
     User,
     #[to = "/"]
@@ -23,6 +26,7 @@ impl ToString for ClientRoute {
         match self {
             ClientRoute::Index => format!("/"),
             ClientRoute::User => format!("/user"),
+            ClientRoute::Note => format!("/note"),
         }
     }
 }
@@ -69,6 +73,7 @@ impl Component for ClientRouter {
                 <nav class="menu">
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::User) > {"User"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Note) > {"Note"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
@@ -80,6 +85,9 @@ impl Component for ClientRouter {
                         },
                         Some(ClientRoute::User) => {
                             html!{ <UserProfileView /> }
+                        },
+                        Some(ClientRoute::Note) => {
+                            html!{ <NoteInput note={None}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }
