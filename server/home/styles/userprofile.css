@@ -1,32 +1,31 @@
 
 #user-profile {
-  font-size: 20px;
   font-family: monospace;
+  font-size: 0.5em;
 
   display: grid;
-  grid-template-rows: repeat(auto-fill, min-content);
-  grid-gap: 10px;
+  grid-gap: 0.7em;
 
-  margin: auto;
-  max-width: 80em;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+  max-width: 230em;
 }
 .profile-card {
-  padding: 10px;
-  border-radius: 5px;
-  background-color: #EEE;
-  color: #333;
+  padding: 2em;
+  border-radius: 0.5em;
+  background-color: #333;
+  max-width: 100%;
 }
 #user-profile-header {
-  background-color: #EEE;
-  color: #333;
-
   display: grid;
-  grid-template-columns: auto max-content;
+  grid-template-columns: repeat(3, max-content);
 }
-#user-title-container {
+#user-info-container {
+  padding-left: 3em;
 }
 #user-name {
-  font-size: 30px;
+  font-size: 3em;
 }
 .user-profile-image-container {
   width: 100%;
@@ -34,7 +33,7 @@
   max-width: 200px;
   max-height: 200px;
 
-  border-radius: 5px;
+  border-radius: 0.5em;
   overflow: hidden;
 }
 .user-profile-image {

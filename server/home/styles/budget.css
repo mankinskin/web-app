@@ -2,24 +2,23 @@
 .budget-container {
   display: grid;
   margin: 0;
-  width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
 }
 
 .budget-header {
-  color: #333;
 }
 .budget-name {
   font-size: 2em;
 }
 .transaction-table {
-  font-size: 1em;
+  font-size: 3em;
 
   display: table;
+  width: 100%;
+  max-width: 100%;
 
   border: none;
   border-collapse: collapse;
-
 }
 .transaction-table-header {
   display: table-header-group;
@@ -29,15 +28,14 @@
 }
 .transaction-row {
   display: table-row;
+  width: max-content;
 }
 .transaction-header {
   display: table-cell;
-  white-space: nowrap;
-  padding: 0px;
-  padding-left: 10px;
-  padding-right: 10px;
-  border: 2px #333 solid;
+  padding: 0.5em;
+  border: 0.1em #555 solid;
   border-top: none;
+  width: max-content;
 }
 .transaction-table .transaction-header:first-child {
     border-left: none;
@@ -47,14 +45,10 @@
 }
 .transaction-cell {
   display: table-cell;
-  padding: 0px;
-  padding-left: 10px;
-  padding-right: 10px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  border-left: 2px #333 solid;
-  border-right: 2px #333 solid;
+  padding: 0.5em;
+  border-left: 0.1em #555 solid;
+  border-right: 0.1em #555 solid;
+  width: max-content;
 }
 .transaction-table .transaction-cell:first-child {
     border-left: none;
