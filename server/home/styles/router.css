@@ -1,6 +1,6 @@
 .router-navigation-button {
-  background: white;
-  color: #202020;
+  background: none;
+  color: white;
   border: none;
   outline: none;
   transition: all 0.5s ease-in-out;

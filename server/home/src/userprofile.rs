@@ -96,13 +96,13 @@ impl Component for UserProfileView {
             html!{
                 <div id="user-profile">
                     <div id="user-profile-header" class="profile-card">
-                        <div id="user-title-container">
-                            <div id="user-name">
-                                {format!("User Name: {}", profile.user.name())}
-                            </div>
-                        </div>
                         <div class="user-profile-image-container">
                             <img class="user-profile-image" src="/dweeb.jpg"/>
+                        </div>
+                        <div id="user-info-container">
+                            <div id="user-name">
+                                {format!("{}", profile.user.name())}
+                            </div>
                         </div>
                     </div>
                     <div id="user-profile-posts" class="profile-card">
