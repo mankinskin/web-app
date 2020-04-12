@@ -11,6 +11,7 @@ pub mod subject;
 pub mod transaction;
 pub mod task;
 pub mod user;
+pub mod note;
 
 mod budget;
 pub use budget::*;
