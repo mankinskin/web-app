@@ -87,7 +87,7 @@ impl Component for ClientRouter {
                             html!{ <UserProfileView /> }
                         },
                         Some(ClientRoute::Note) => {
-                            html!{ <NoteInput note={None}/> }
+                            html!{ <NoteEditor note={None}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }
