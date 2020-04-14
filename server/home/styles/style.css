@@ -1,6 +1,7 @@
 @import './router.css';
 @import './userprofile.css';
 @import './budget.css';
+@import './note.css';
 
 html, body {
   margin: 0;
