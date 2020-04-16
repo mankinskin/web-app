@@ -78,66 +78,53 @@ impl Component for ClientRouter {
                     match ClientRoute::switch(self.route.clone()) {
                         Some(ClientRoute::Index) => html! {
                             <div>
-                                <TaskTreeView
-                                task={TaskData::from(Task {
+                                <TaskView
+                                task={Task {
                                     title: "Root".into(),
                                     description: "This is the top level task.".into(),
                                     assignees: vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()],
-                                })}
-                                children={vec![
-                                    TaskTreeData {
-                                        task: Task {
-                                            title: "First Item".into(),
-                                            description: "This is the first sub task.".into(),
-                                            assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                        }.into(),
-                                        children: vec![
-                                            TaskTreeData {
-                                                task: Task {
-                                                    title: "Second Level".into(),
-                                                    description: "This is a sub task of a sub task.".into(),
-                                                    assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                                }.into(),
-                                                children: Vec::new(),
-                                            }
-                                        ],
-                                    },
-                                    TaskTreeData {
-                                        task: Task {
-                                            title: "Another Sub Task".into(),
-                                            description: "This sub task has many children.".into(),
-                                            assignees: vec!["Günter".into(), "Siegbert".into(), "Manfred".into(), "Georg".into()],
-                                        }.into(),
-                                        children: vec![
-                                            TaskTreeData {
-                                                task: Task {
-                                                    title: "Task 1.2.1".into(),
-                                                    description: "Child 1.".into(),
-                                                    assignees: vec!["Günter".into()],
-                                                }.into(),
-                                                children: Vec::new(),
+                                    children: vec![
+                                            Task {
+                                                title: "First Item".into(),
+                                                description: "This is the first sub task.".into(),
+                                                assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                                children: vec![
+                                                    Task {
+                                                        title: "Second Level".into(),
+                                                        description: "This is a sub task of a sub task.".into(),
+                                                        assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                                        children: Vec::new(),
+                                                    },
+                                                ],
                                             },
-                                            TaskTreeData {
-                                                task: Task {
-                                                    title: "Task 1.2.2".into(),
-                                                    description: "Child 2.".into(),
-                                                    assignees: vec!["Siegbert".into()],
-                                                }.into(),
-                                                children: Vec::new(),
+                                            Task {
+                                                title: "Another Sub Task".into(),
+                                                description: "This sub task has many children.".into(),
+                                                assignees: vec!["Günter".into(), "Siegbert".into(), "Manfred".into(), "Georg".into()],
+                                                children: vec![
+                                                        Task {
+                                                            title: "Task 1.2.1".into(),
+                                                            description: "Child 1.".into(),
+                                                            assignees: vec!["Günter".into()],
+                                                            children: Vec::new(),
+                                                        },
+                                                        Task {
+                                                            title: "Task 1.2.2".into(),
+                                                            description: "Child 2.".into(),
+                                                            assignees: vec!["Siegbert".into()],
+                                                            children: Vec::new(),
+                                                        },
+                                                        Task {
+                                                            title: "Task 1.2.3".into(),
+                                                            description: "Child 3.".into(),
+                                                            assignees: vec!["Manfred".into(), "Georg".into()],
+                                                            children: Vec::new(),
+                                                        },
+                                                ],
                                             },
-                                            TaskTreeData {
-                                                task: Task {
-                                                    title: "Task 1.2.3".into(),
-                                                    description: "Child 3.".into(),
-                                                    assignees: vec!["Manfred".into(), "Georg".into()],
-                                                }.into(),
-                                                children: Vec::new(),
-                                            }
-
                                         ],
                                     }
-                                ]}
-                                />
+                                }/>
                                 <a href="/">{"Home"}</a>
                             </div>
                         },

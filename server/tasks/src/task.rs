@@ -3,23 +3,12 @@ pub use plans::{
     task::*,
 };
 pub use crate::{
-    tree::*,
+    expander::*,
     preview::*,
 };
 use yew::{
     *,
 };
-#[derive(Properties, Clone, Debug)]
-pub struct TaskData {
-    task: Task,
-}
-impl From<Task> for TaskData {
-    fn from(task: Task) -> Self {
-        Self {
-            task,
-        }
-    }
-}
 #[derive(Debug)]
 pub struct TaskPreview {
     props: TaskData,
@@ -38,7 +27,7 @@ impl Component for TaskPreview {
     fn view(&self) -> Html {
         html! {
             <div class="task task-preview">
-                <h1>{
+                <h1 class="task-title">{
                     self.props.task.title()
                 }</h1>
             </div>
@@ -49,6 +38,33 @@ impl Component for TaskPreview {
     }
 }
 
+#[derive(Properties, Clone, Debug)]
+pub struct TaskData {
+    pub task: Task,
+}
+impl From<Task> for TaskData {
+    fn from(task: Task) -> Self {
+        Self {
+            task,
+        }
+    }
+}
+impl From<TaskData> for ExpanderData<TaskData> {
+    fn from(data: TaskData) -> Self {
+        Self {
+            element: data,
+            expanded: false,
+            //message_parent: None,
+        }
+    }
+}
+impl Preview for TaskView {
+    fn preview(props: <Self as Component>::Properties) -> Html {
+        html! {
+            <TaskPreview with props/>
+        }
+    }
+}
 #[derive(Debug)]
 pub struct TaskView {
     props: TaskData,
@@ -66,7 +82,10 @@ impl Component for TaskView {
     }
     fn view(&self) -> Html {
         html! {
-            <div class="task task-content">
+            <div class="task">
+                <h1 class="task-title">{
+                    self.props.task.title()
+                }</h1>
                 <div class="task-description-container">
                     <div>{
                         "Descripion:"
@@ -90,70 +109,24 @@ impl Component for TaskView {
                             })
                     }</div>
                 </div>
+                <div class="task-children">
+                    { // item
+                        for self.props.task.children
+                        .iter()
+                        .cloned()
+                        .map(|task| {
+                            let props = ExpanderData::from(TaskData::from(task));
+                            html! {
+                                <ExpanderView<Self> with props/>
+                            }
+                        })
+                    }
+                </div>
             </div>
         }
     }
     fn update(&mut self, _: Self::Message) -> ShouldRender {
-        false
+        true
     }
 }
 
-impl Preview for TaskView {
-    fn preview(props: <Self as Component>::Properties) -> Html {
-        html! {
-            <TaskPreview with props/>
-        }
-    }
-}
-
-#[derive(Properties, Clone, Debug)]
-pub struct TaskTreeData {
-    pub task: TaskData,
-    pub children: Vec<TaskTreeData>,
-}
-impl From<TaskTreeData> for TreeData<TaskData> {
-    fn from(data: TaskTreeData) -> Self {
-        Self {
-            element: data.task,
-            expanded: false,
-            message_parent: None,
-            children: data.children.iter().map(|c| Self::from(c.clone())).collect(),
-        }
-    }
-}
-#[derive(Debug)]
-pub struct TaskTreeView {
-    props: TaskTreeData,
-    link: ComponentLink<Self>,
-}
-impl Component for TaskTreeView {
-    type Message = ();
-    type Properties = TaskTreeData;
-
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
-            props,
-            link,
-        }
-    }
-    fn view(&self) -> Html {
-        let props = TreeData::from(self.props.clone());
-        html! {
-            <div class="task-tree">
-                <TreeView<TaskView> with props/>
-            </div>
-        }
-    }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        false
-    }
-}
-
-impl Preview for TaskTreeView {
-    fn preview(props: <Self as Component>::Properties) -> Html {
-        let props = props.task;
-        html! {
-            <TaskPreview with props/>
-        }
-    }
-}
