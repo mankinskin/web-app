@@ -1,5 +1,5 @@
 @import './router.css';
-@import './expander.css';
+@import '../../common/styles/expander.css';
 @import './task.css';
 
 html, body {

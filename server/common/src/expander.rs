@@ -1,8 +1,8 @@
 use yew::{
     *,
 };
-use crate::task::{
-    *,
+use crate::{
+    preview::*,
 };
 
 #[derive(Clone, Debug)]
