@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Task {
     pub title: String,
     pub description: String,

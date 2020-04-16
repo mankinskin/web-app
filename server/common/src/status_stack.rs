@@ -44,6 +44,18 @@ pub struct StatusStackData<S, E>
 {
     pub stack: StatusStack<S, E>,
 }
+
+impl<S, E> From<StatusStack<S, E>> for StatusStackData<S, E>
+    where S: Clone,
+          E: Clone + Display,
+{
+    fn from(stack: StatusStack<S, E>) -> Self {
+        Self {
+            stack,
+        }
+    }
+}
+
 pub struct StatusStackView<S, E>
     where S: Clone + 'static,
           E: Clone + Display + 'static,

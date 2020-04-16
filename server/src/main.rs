@@ -24,6 +24,7 @@ use colored::*;
 use plans::{
     user::*,
     note::*,
+    task::*,
 };
 
 
@@ -47,7 +48,7 @@ fn get_html<P: AsRef<Path>>(path: P) -> Response {
         Err(e) => Response::text(e.to_string()),
     }
 }
-fn get_user<S: ToString>(_: S) -> Response {
+fn get_user(req: &Request) -> Response {
     let user = User::new("Server");
     rouille::Response::json(&user)
 }
@@ -55,6 +56,54 @@ fn post_note(req: &Request) -> Response {
     let note: Note = try_or_400!(json_input(req));
     println!("Got note: {:#?}", note);
     rouille::Response::empty_204()
+}
+fn get_task(req: &Request) -> Response {
+    let task = Task {
+                    title: "Server Task".into(),
+                    description: "This is the top level task.".into(),
+                    assignees: vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()],
+                    children: vec![
+                            Task {
+                                title: "First Item".into(),
+                                description: "This is the first sub task.".into(),
+                                assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                children: vec![
+                                    Task {
+                                        title: "Second Level".into(),
+                                        description: "This is a sub task of a sub task.".into(),
+                                        assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                        children: Vec::new(),
+                                    },
+                                ],
+                            },
+                            Task {
+                                title: "Another Sub Task".into(),
+                                description: "This sub task has many children.".into(),
+                                assignees: vec!["Günter".into(), "Siegbert".into(), "Manfred".into(), "Georg".into()],
+                                children: vec![
+                                        Task {
+                                            title: "Task 1.2.1".into(),
+                                            description: "Child 1.".into(),
+                                            assignees: vec!["Günter".into()],
+                                            children: Vec::new(),
+                                        },
+                                        Task {
+                                            title: "Task 1.2.2".into(),
+                                            description: "Child 2.".into(),
+                                            assignees: vec!["Siegbert".into()],
+                                            children: Vec::new(),
+                                        },
+                                        Task {
+                                            title: "Task 1.2.3".into(),
+                                            description: "Child 3.".into(),
+                                            assignees: vec!["Manfred".into(), "Georg".into()],
+                                            children: Vec::new(),
+                                        },
+                                ],
+                            },
+                        ],
+                    };
+    rouille::Response::json(&task)
 }
 
 fn handle_request(request: &Request) -> Response {
@@ -69,8 +118,11 @@ fn handle_request(request: &Request) -> Response {
         (GET) (/budget) => {
             get_html("./home/index.html")
         },
+        (GET) (/api/task) => {
+            get_task(request)
+        },
         (GET) (/api/user) => {
-            get_user("")
+            get_user(request)
         },
         (POST) (/api/note) => {
             post_note(request)
