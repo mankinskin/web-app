@@ -9,6 +9,26 @@ pub use common::{
 use yew::{
     *,
 };
+#[derive(Properties, Clone, Debug)]
+pub struct TaskData {
+    pub task: Task,
+}
+impl From<Task> for TaskData {
+    fn from(task: Task) -> Self {
+        Self {
+            task,
+        }
+    }
+}
+impl From<TaskData> for ExpanderData<TaskData> {
+    fn from(data: TaskData) -> Self {
+        Self {
+            element: data,
+            expanded: false,
+            //message_parent: None,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct TaskPreview {
     props: TaskData,
@@ -38,25 +58,10 @@ impl Component for TaskPreview {
     }
 }
 
-#[derive(Properties, Clone, Debug)]
-pub struct TaskData {
-    pub task: Task,
-}
-impl From<Task> for TaskData {
-    fn from(task: Task) -> Self {
-        Self {
-            task,
-        }
-    }
-}
-impl From<TaskData> for ExpanderData<TaskData> {
-    fn from(data: TaskData) -> Self {
-        Self {
-            element: data,
-            expanded: false,
-            //message_parent: None,
-        }
-    }
+#[derive(Debug)]
+pub struct TaskView {
+    props: TaskData,
+    link: ComponentLink<Self>,
 }
 impl Preview for TaskView {
     fn preview(props: <Self as Component>::Properties) -> Html {
@@ -64,11 +69,6 @@ impl Preview for TaskView {
             <TaskPreview with props/>
         }
     }
-}
-#[derive(Debug)]
-pub struct TaskView {
-    props: TaskData,
-    link: ComponentLink<Self>,
 }
 impl Component for TaskView {
     type Message = ();
