@@ -5,4 +5,5 @@ members = [
   "server",
   "server/home",
   "server/tasks",
+  "server/common",
 ]

@@ -7,6 +7,7 @@ extern crate http;
 extern crate anyhow;
 
 extern crate plans;
+extern crate common;
 
 mod transaction;
 mod transactions;
@@ -14,7 +15,6 @@ mod budget;
 mod router;
 mod userprofile;
 mod note;
-mod status_stack;
 
 use wasm_bindgen::prelude::*;
 
