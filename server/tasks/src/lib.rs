@@ -7,7 +7,7 @@ extern crate plans;
 
 mod router;
 mod task;
-mod tree;
+mod expander;
 mod string_component;
 mod preview;
 

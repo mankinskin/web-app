@@ -1,5 +1,5 @@
 @import './router.css';
-@import './tree.css';
+@import './expander.css';
 @import './task.css';
 
 html, body {
@@ -7,6 +7,12 @@ html, body {
   height: 100%;
   width: 100%;
   background: black;
-  line-height: 1.0
+  line-height: 1em;
+  font-size: 16px;
 }
 
+@media(max-device-width:800px){
+  html, body{
+    font-size: 130%;
+  }
+}

@@ -1,54 +1,39 @@
-.task-tree {
-  background: rgba(10, 50, 230, 0.2);
-  padding: 0;
-  margin: 0;
-  margin-top: 10%;
-  width: 100%;
-}
 .task {
-  text-align: left;
+  display: grid;
+  position relative;
+  height: 100%;
   font-family: monospace;
   user-select: none;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  padding-left: 0.2em;
+  padding-right: 0.2em;
   color: white;
   background: rgba(60, 60, 60, 1.0);
-  padding: 0;
-  margin: 0;
-  padding-left: 10px;
-  padding-right: 10px;
 }
 .task-preview {
-  height: 100%;
-  border: 1px solid rgba(100, 100, 100, 1.0);
-  border-bottom: none;
-  border-top: none;
 }
-.task-preview h1 {
-  font-size: 10pt;
+.task-title {
+  font-size: 1em;
+  line-height: 1em;
   padding: 0;
   margin: 0;
-}
-.task-content {
-  display: grid;
-  height: 100%;
-  min-height: 100px;
-  border: 1px solid rgba(100, 100, 100, 1.0);
-  border-top: none;
-  border-bottom: none;
-  position relative;
 }
 .task-description-container {
   grid-column: 1;
   height: 100%;
-  min-height: 100px;
 }
 .task-assignees-container {
   grid-column: 2;
   height: 100%;
-  min-height: 100px;
   margin-left: auto;
 }
 .task p {
-  font-size: 9pt;
+  font-size: 1em;
   padding: 0;
   margin: 0;
+}
+.task-children {
+  grid-column: 1 / 3;
 }
