@@ -27,7 +27,7 @@ impl<P> ExpanderData<P>
     fn update(&mut self, msg: Msg) {
         match msg.clone() {
             Msg::ToggleExpand => {
-                console!(log, format!("Toggle"));
+                //console!(log, format!("Toggle"));
                 self.expanded = !self.expanded;
             },
             //Msg::SetParentMessenger(callback) => {
@@ -89,7 +89,7 @@ impl<C> Component for ExpanderView<C>
         //    .collect();
     }
     fn view(&self) -> Html {
-        console!(log, format!("{:#?}\n-------------------\n", self.props));
+        //console!(log, format!("{:#?}\n-------------------\n", self.props));
         let props = self.props.element.clone();
         html!{
             <div class="expander-container">
