@@ -1,20 +1,23 @@
 .task {
-  display: grid;
   max-width: 100%;
   font-family: monospace;
   user-select: none;
   text-align: left;
   margin: 0;
   padding: 0;
-  padding-left: 0.2em;
   color: white;
   background: rgba(60, 60, 60, 1.0);
 }
 .task-container {
   right: 0;
 }
+.task-content {
+  display: grid;
+  padding-left: 0.2em;
+}
 .task-preview {
   max-width: 100%;
+  padding-left: 0.2em;
 }
 .task-title {
   font-size: 1em;
@@ -26,6 +29,12 @@
 .task-description-container {
   grid-column: 1;
   height: 100%;
+}
+.task-description-title {
+  font-weight: bold;
+  color: lightgray;
+}
+.task-description-text {
 }
 .task-assignees-container {
   grid-column: 2;

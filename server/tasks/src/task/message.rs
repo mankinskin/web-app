@@ -11,6 +11,7 @@ use yew::{
 #[derive(Clone, Debug)]
 pub enum Msg {
     ExpanderMessage(usize, Box<expander::Msg<TaskView>>),
+    UpdateDescription(String),
     Noop,
 }
 impl ChildMessage<ExpanderView<TaskView>> for Msg {

@@ -55,9 +55,12 @@ impl ChildProps<TaskView> for TaskData {
     fn update(&mut self, msg: Msg) {
         match msg {
             Msg::ExpanderMessage(child_index, msg) => {
-                console!(log, format!("ExpanderMessage {} {:#?}", child_index, msg));
+                //console!(log, format!("ExpanderMessage {} {:#?}", child_index, msg));
                 self.children[child_index].update(*msg);
             },
+            Msg::UpdateDescription(value) => {
+                self.task.description = value.clone();
+            }
             Msg::Noop => {},
         }
     }
