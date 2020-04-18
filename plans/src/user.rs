@@ -3,7 +3,6 @@ pub struct User {
     id: usize,
     name: String,
 }
-
 impl From<String> for User {
     fn from(s: String) -> Self {
         User::new(s)

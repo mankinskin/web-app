@@ -3,7 +3,6 @@ extern crate chrono;
 extern crate colored;
 extern crate serde_json;
 extern crate plans;
-
 use rouille::{
     Request,
     Response,
@@ -26,8 +25,6 @@ use plans::{
     note::*,
     task::*,
 };
-
-
 fn log_request(r: &Request) {
     print!("[{}] {} {} {} ",
         Utc::now().format("%d.%m.%Y %T"),
@@ -58,30 +55,36 @@ fn post_note(req: &Request) -> Response {
     rouille::Response::empty_204()
 }
 fn get_task(req: &Request) -> Response {
-    let task = TaskBuilder::default()
-                .title("Server Task".into())
-                .description("This is the top level task.".into())
-                .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
-                .children(vec![
-                            TaskBuilder::default()
-                                .title("First Item".into())
-                                .description("This is the first sub task.".into())
-                                .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-                                .children(vec![
-                                    TaskBuilder::default()
-                                        .title("Second Level".into())
-                                        .description("This is a sub sub task.".into())
-                                        .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-                                        .children(vec![ ])
-                                        .build()
-                                        .unwrap(),
-                                ])
-                                .build()
-                                .unwrap(),
-                        ])
-                .build()
-                .unwrap();
+    let task =
+        TaskBuilder::default()
+            .title("Server Task".into())
+            .description("This is the top level task.".into())
+            .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
+            .children(vec![
+                        TaskBuilder::default()
+                            .title("First Item".into())
+                            .description("This is the first sub task.".into())
+                            .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+                            .children(vec![
+                                TaskBuilder::default()
+                                    .title("Second Level".into())
+                                    .description("This is a sub sub task.".into())
+                                    .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+                                    .children(vec![ ])
+                                    .build()
+                                    .unwrap(),
+                            ])
+                            .build()
+                            .unwrap(),
+                    ])
+            .build()
+            .unwrap();
     rouille::Response::json(&task)
+}
+fn post_task(req: &Request) -> Response {
+    let task: Task = try_or_400!(json_input(req));
+    println!("Got task: {:#?}", task);
+    rouille::Response::empty_204()
 }
 
 fn handle_request(request: &Request) -> Response {
@@ -98,6 +101,9 @@ fn handle_request(request: &Request) -> Response {
         },
         (GET) (/api/task) => {
             get_task(request)
+        },
+        (POST) (/api/task) => {
+            post_task(request)
         },
         (GET) (/api/user) => {
             get_user(request)

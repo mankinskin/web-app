@@ -24,12 +24,9 @@ use common::{
 use std::fmt::{Debug};
 use stdweb::web::{
     *,
-    Element,
-    HtmlElement,
-    html_element::TextAreaElement,
+    html_element::{TextAreaElement},
 };
 use stdweb::unstable::TryInto;
-use std::convert::{TryFrom};
 
 pub enum Msg {
     SetText(String),

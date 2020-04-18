@@ -16,17 +16,13 @@ use yew::{
         Nothing,
     },
 };
-use http::{
-    *,
-    request::*,
-};
 use crate::{
     *,
     budget::*,
 };
 use anyhow::Error;
 use std::result::Result;
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug};
 
 pub enum Msg {
     GotUser(User),
@@ -45,7 +41,6 @@ impl From<User> for UserProfile {
     }
 }
 pub struct UserProfileView {
-    link: ComponentLink<Self>,
     props: Option<UserProfile>,
     fetch_task: Option<FetchTask>,
     fetch_service: FetchService,
@@ -84,7 +79,6 @@ impl Component for UserProfileView {
             },
         }
         Self {
-            link,
             props: None,
             fetch_service,
             fetch_task,
