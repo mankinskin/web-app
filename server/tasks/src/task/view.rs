@@ -1,9 +1,10 @@
-pub use plans::{
-    *,
-    task::*,
+use super::{
+    TaskData,
+    message::Msg,
+    TaskPreview,
 };
-pub use common::{
-    expander::{self, *},
+use common::{
+    expander::{ExpanderView},
     preview::*,
     parent_child::*,
 };
@@ -23,109 +24,13 @@ use stdweb::{
         IHtmlElement,
     }
 };
-#[derive(Clone, Debug)]
-pub enum Msg {
-    ExpanderMessage(usize, Box<expander::Msg<TaskView>>),
-    Noop,
-}
-impl ChildMessage<ExpanderView<TaskView>> for Msg {
-    fn child_message(child_index: usize, msg: <ExpanderView<TaskView> as Component>::Message) -> Self {
-        Msg::ExpanderMessage(child_index, Box::new(msg))
-    }
-}
-
-#[derive(Properties, Clone, Debug)]
-pub struct TaskData {
-    pub task: Task,
-    pub message_parent: Option<Callback<<TaskView as Component>::Message>>,
-    pub children: Vec<ExpanderData<TaskView>>,
-}
-impl TaskData {
-    pub fn from_task(task: Task) -> Self {
-        let children = task.children
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(_, child)|
-                ExpanderData::<TaskView> {
-                    element: TaskData::from_task(child),
-                    expanded: false,
-                    message_parent: Callback::noop(),
-                }
-            )
-            .collect();
-        Self {
-            task,
-            message_parent: None,
-            children,
-        }
-    }
-    pub fn set_callbacks(&mut self, link: &ComponentLink<TaskView>) {
-        for (child_index, child_expander) in self.children.iter_mut().enumerate() {
-            child_expander.set_parent_callback(<TaskView as Parent<ExpanderView<TaskView>>>::child_callback(link, child_index));
-        }
-    }
-
-}
-impl ChildProps<TaskView> for TaskData {
-    fn set_parent_callback(&mut self, callback: Callback<<TaskView as Component>::Message>) {
-        self.message_parent = Some(callback);
-    }
-    fn get_parent_callback(&self)-> Callback<<TaskView as Component>::Message> {
-        self.message_parent.clone().unwrap_or(Callback::noop())
-    }
-    fn update(&mut self, msg: Msg) {
-        match msg {
-            Msg::ExpanderMessage(child_index, msg) => {
-                console!(log, format!("ExpanderMessage {} {:#?}", child_index, msg));
-                self.children[child_index].update(*msg);
-            },
-            Msg::Noop => {},
-        }
-    }
-}
-impl Child for TaskView {
-}
-#[derive(Debug)]
-pub struct TaskPreview {
-    props: TaskData,
-    link: ComponentLink<Self>,
-}
-impl Component for TaskPreview {
-    type Message = ();
-    type Properties = TaskData;
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
-            props,
-            link,
-        }
-    }
-    fn view(&self) -> Html {
-        html! {
-            <div class="task task-preview">
-                <h1 class="task-title">{
-                    self.props.task.title()
-                }</h1>
-            </div>
-        }
-    }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        false
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TaskView {
     props: TaskData,
     link: ComponentLink<Self>,
 }
-impl Preview for TaskView {
-    fn preview(props: <Self as Component>::Properties) -> Html {
-        html! {
-            <TaskPreview with props/>
-        }
-    }
-}
+impl Child for TaskView { }
 impl Parent<ExpanderView<TaskView>> for TaskView {
     fn child_callback(link: &ComponentLink<Self>, child_index: usize)  -> Callback<<ExpanderView<TaskView> as Component>::Message>{
         link.callback(move |msg| {
@@ -240,6 +145,13 @@ impl Component for TaskView {
             console!(log, format!("root TaskView"));
             self.props.update(msg.clone());
             true
+        }
+    }
+}
+impl Preview for TaskView {
+    fn preview(props: <Self as Component>::Properties) -> Html {
+        html! {
+            <TaskPreview with props/>
         }
     }
 }
