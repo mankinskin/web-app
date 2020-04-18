@@ -10,3 +10,4 @@ pub mod status_stack;
 pub mod string_component;
 pub mod expander;
 pub mod preview;
+pub mod parent_child;

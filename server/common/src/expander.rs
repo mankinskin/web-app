@@ -3,94 +3,120 @@ use yew::{
 };
 use crate::{
     preview::*,
+    parent_child::*,
 };
-
 #[derive(Clone, Debug)]
-pub enum Msg {
+pub enum Msg<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
+{
     ToggleExpand,
-    //SetParentMessenger(Callback<Self>),
-    //ChildMessage(usize, Box<Msg>),
+    ChildMessage(<C as Component>::Message),
 }
-
+impl<C> ChildMessage<C> for Msg<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
+{
+    fn child_message(_: usize, msg: <C as Component>::Message) -> Self {
+        console!(log, format!("child message {:#?}", msg));
+        Msg::ChildMessage(msg)
+    }
+}
 #[derive(Properties, Clone, Debug)]
-pub struct ExpanderData<P>
-    where P: Properties
+pub struct ExpanderData<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    pub element: P,
+    pub element: <C as Component>::Properties,
     pub expanded: bool,
-    //pub message_parent: Option<Callback<Msg>>,
+    pub message_parent: Callback<<ExpanderView<C> as Component>::Message>,
 }
-
-impl<P> ExpanderData<P>
-    where P: Properties
+impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    fn update(&mut self, msg: Msg) {
+    fn set_parent_callback(&mut self, callback: Callback<<ExpanderView<C> as Component>::Message>) {
+        self.message_parent = callback;
+    }
+    fn get_parent_callback(&self)-> Callback<<ExpanderView<C> as Component>::Message> {
+        self.message_parent.clone()
+    }
+    fn update(&mut self, msg: Msg<C>) {
         match msg.clone() {
             Msg::ToggleExpand => {
-                //console!(log, format!("Toggle"));
+                console!(log, format!("Toggle"));
                 self.expanded = !self.expanded;
             },
-            //Msg::SetParentMessenger(callback) => {
-            //    console!(log, format!("Toggle"));
-            //    self.message_parent = Some(callback);
-            //},
-            //Msg::ChildMessage(child_index, child_msg) => {
-            //    self.children[child_index].update(*child_msg);
-            //},
+            Msg::ChildMessage(msg) => {
+                console!(log, format!("Child Message"));
+                self.element.update(msg)
+            },
         }
     }
 }
-
 pub struct ExpanderView<C>
-    where C: Component + Preview,
-          <C as Component>::Properties: std::fmt::Debug,
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    props: ExpanderData<<C as Component>::Properties>,
+    props: ExpanderData<C>,
     link: ComponentLink<Self>,
 }
-
 impl<C> ExpanderView<C>
-    where C: Component + Preview,
-          <C as Component>::Properties: std::fmt::Debug,
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
 {
     pub fn toggle_expand(&self) -> Callback<ClickEvent> {
         self.link.callback(|_| {
-            Msg::ToggleExpand
+            console!(log, format!("ToggleExpand"));
+            Msg::<C>::ToggleExpand
         })
     }
-    //pub fn child_messenger(&self, child_index: usize)  -> Callback<Msg>{
-    //    self.link.callback(move |msg| {
-    //        Msg::ChildMessage(child_index, Box::new(msg))
-    //    })
-    //}
 }
-
-impl<C> Component for ExpanderView<C>
-    where C: Component + Preview,
-          <C as Component>::Properties: std::fmt::Debug,
+impl<C> Child for ExpanderView<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    type Message = Msg;
-    type Properties = ExpanderData<<C as Component>::Properties>;
+}
+impl<C> Parent<C> for ExpanderView<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug  + ChildProps<C> + Clone,
+          <C as Component>::Message: std::fmt::Debug + Clone,
+{
+    fn child_callback(link: &ComponentLink<Self>, _: usize)  -> Callback<<C as Component>::Message>{
+        console!(log, format!("creating expander callback"));
+        link.callback(move |msg| {
+            <Msg<C> as ChildMessage<C>>::child_message(0, msg)
+        })
+    }
+}
+impl<C> Component for ExpanderView<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + ChildProps<C> + Clone,
+          <C as Component>::Message: std::fmt::Debug + Clone,
+{
+    type Message = Msg<C>;
+    type Properties = ExpanderData<C>;
+
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        console!(log, format!("creating Expander"));
+        //console!(log, format!("setting element.message_parent"));
         Self {
             props,
             link,
         }
-        //s.props.children = s.props.children
-        //    .iter()
-        //    .cloned()
-        //    .enumerate()
-        //    .map(|(child_index, mut child)| {
-        //        let callback = s.child_messenger(child_index);
-        //        child.message_parent = Some(callback.clone());
-        //        callback.emit(Msg::SetParentMessenger(callback.clone()));
-        //        child
-        //    })
-        //    .collect();
     }
     fn view(&self) -> Html {
         //console!(log, format!("{:#?}\n-------------------\n", self.props));
-        let props = self.props.element.clone();
+        console!(log, format!("Rendering ExpanderView"));
+        let mut props = self.props.element.clone();
+        props.set_parent_callback(<Self as Parent<C>>::child_callback(&self.link, 0));
         html!{
             <div class="expander-container">
                 <div class="expander-icon" onclick=&self.toggle_expand()>
@@ -126,18 +152,14 @@ impl<C> Component for ExpanderView<C>
         }
     }
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        console!(log, format!("Changing Expander"));
         self.props = props;
         true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        //if let Some(message_parent) = &self.props.message_parent {
-        //    // self is child
-        //    message_parent.emit(msg.clone());
-        //    false
-        //} else {
-            // self is root
-            self.props.update(msg);
-            true
-        //}
+        console!(log, format!("Updating ExpanderView"));
+        //self.props.update(msg.clone());
+        self.props.message_parent.emit(msg);
+        false
     }
 }
