@@ -85,7 +85,22 @@ fn get_task(req: &Request) -> Response {
                                             title: "Task 1.2.1".into(),
                                             description: "Child 1.".into(),
                                             assignees: vec!["Günter".into()],
-                                            children: Vec::new(),
+                                            children: vec![
+                                                Task {
+                                                    title: "Third Level".into(),
+                                                    description: "This is a sub task of a sub task of a subtask.".into(),
+                                                    assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                                    children: vec![
+                                                        Task {
+                                                            title: "Fourth Level".into(),
+                                                            description: "This is a sub-sub-sub subtask".into(),
+                                                            assignees: vec!["Heinz".into(), "Kunigunde".into()],
+                                                            children: Vec::new(),
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+
                                         },
                                         Task {
                                             title: "Task 1.2.2".into(),
