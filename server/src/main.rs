@@ -58,66 +58,29 @@ fn post_note(req: &Request) -> Response {
     rouille::Response::empty_204()
 }
 fn get_task(req: &Request) -> Response {
-    let task = Task {
-                    title: "Server Task".into(),
-                    description: "This is the top level task.".into(),
-                    assignees: vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()],
-                    children: vec![
-                            Task {
-                                title: "First Item".into(),
-                                description: "This is the first sub task.".into(),
-                                assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                children: vec![
-                                    Task {
-                                        title: "Second Level".into(),
-                                        description: "This is a sub task of a sub task.".into(),
-                                        assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                        children: Vec::new(),
-                                    },
-                                ],
-                            },
-                            Task {
-                                title: "Another Sub Task".into(),
-                                description: "This sub task has many children.".into(),
-                                assignees: vec!["Günter".into(), "Siegbert".into(), "Manfred".into(), "Georg".into()],
-                                children: vec![
-                                        Task {
-                                            title: "Task 1.2.1".into(),
-                                            description: "Child 1.".into(),
-                                            assignees: vec!["Günter".into()],
-                                            children: vec![
-                                                Task {
-                                                    title: "Third Level".into(),
-                                                    description: "This is a sub task of a sub task of a subtask.".into(),
-                                                    assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                                    children: vec![
-                                                        Task {
-                                                            title: "Fourth Level".into(),
-                                                            description: "This is a sub-sub-sub subtask".into(),
-                                                            assignees: vec!["Heinz".into(), "Kunigunde".into()],
-                                                            children: Vec::new(),
-                                                        },
-                                                    ],
-                                                },
-                                            ],
-
-                                        },
-                                        Task {
-                                            title: "Task 1.2.2".into(),
-                                            description: "Child 2.".into(),
-                                            assignees: vec!["Siegbert".into()],
-                                            children: Vec::new(),
-                                        },
-                                        Task {
-                                            title: "Task 1.2.3".into(),
-                                            description: "Child 3.".into(),
-                                            assignees: vec!["Manfred".into(), "Georg".into()],
-                                            children: Vec::new(),
-                                        },
-                                ],
-                            },
-                        ],
-                    };
+    let task = TaskBuilder::default()
+                .title("Server Task".into())
+                .description("This is the top level task.".into())
+                .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
+                .children(vec![
+                            TaskBuilder::default()
+                                .title("First Item".into())
+                                .description("This is the first sub task.".into())
+                                .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+                                .children(vec![
+                                    TaskBuilder::default()
+                                        .title("Second Level".into())
+                                        .description("This is a sub sub task.".into())
+                                        .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+                                        .children(vec![ ])
+                                        .build()
+                                        .unwrap(),
+                                ])
+                                .build()
+                                .unwrap(),
+                        ])
+                .build()
+                .unwrap();
     rouille::Response::json(&task)
 }
 

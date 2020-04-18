@@ -156,7 +156,6 @@ impl Component for TaskView {
         false
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        self.props.update(msg.clone());
         //console!(log, format!("Updating TaskView"));
         if let Some(message_parent) = &self.props.message_parent {
             //console!(log, format!("child TaskView"));
@@ -164,6 +163,7 @@ impl Component for TaskView {
         } else {
             //console!(log, format!("root TaskView"));
         }
+        self.props.update(msg.clone());
         match msg {
             Msg::ExpanderMessage(_, _) => true,
             _ => false,
