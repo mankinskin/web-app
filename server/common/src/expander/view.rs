@@ -40,7 +40,7 @@ impl<C> Parent<C> for ExpanderView<C>
           <C as Component>::Message: std::fmt::Debug + Clone,
 {
     fn child_callback(link: &ComponentLink<Self>, _: usize)  -> Callback<<C as Component>::Message>{
-        console!(log, format!("creating expander callback"));
+        //console!(log, format!("creating expander callback"));
         link.callback(move |msg| {
             <Msg<C> as ChildMessage<C>>::child_message(0, msg)
         })
@@ -55,8 +55,7 @@ impl<C> Component for ExpanderView<C>
     type Properties = ExpanderData<C>;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        console!(log, format!("creating Expander"));
-        //console!(log, format!("setting element.message_parent"));
+        //console!(log, format!("creating Expander"));
         Self {
             props,
             link,
@@ -64,7 +63,7 @@ impl<C> Component for ExpanderView<C>
     }
     fn view(&self) -> Html {
         //console!(log, format!("{:#?}\n-------------------\n", self.props));
-        console!(log, format!("Rendering ExpanderView"));
+        //console!(log, format!("Rendering ExpanderView"));
         let mut props = self.props.element.clone();
         props.set_parent_callback(<Self as Parent<C>>::child_callback(&self.link, 0));
         html!{
@@ -102,12 +101,12 @@ impl<C> Component for ExpanderView<C>
         }
     }
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        console!(log, format!("Changing Expander"));
+        //console!(log, format!("Changing Expander"));
         self.props = props;
         true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        console!(log, format!("Updating ExpanderView"));
+        //console!(log, format!("Updating ExpanderView"));
         //self.props.update(msg.clone());
         self.props.message_parent.emit(msg);
         false
