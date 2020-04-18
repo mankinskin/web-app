@@ -108,7 +108,7 @@ impl<C> Component for ExpanderView<C>
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         //console!(log, format!("Updating ExpanderView"));
         //self.props.update(msg.clone());
-        self.props.message_parent.emit(msg);
+        self.props.parent_callback.emit(msg);
         false
     }
 }

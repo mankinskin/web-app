@@ -90,7 +90,7 @@ impl Component for TaskView {
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         //console!(log, format!("creating TaskView"));
         //console!(log, format!("{} children", props.children.len()));
-        //console!(log, format!("{} callback", props.message_parent.is_some()));
+        //console!(log, format!("{} callback", props.parent_callback.is_some()));
         Self {
             props,
             link,
@@ -157,9 +157,9 @@ impl Component for TaskView {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         //console!(log, format!("Updating TaskView"));
-        if let Some(message_parent) = &self.props.message_parent {
+        if let Some(parent_callback) = &self.props.parent_callback {
             //console!(log, format!("child TaskView"));
-            message_parent.emit(msg.clone());
+            parent_callback.emit(msg.clone());
         } else {
             //console!(log, format!("root TaskView"));
         }

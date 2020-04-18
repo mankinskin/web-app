@@ -20,7 +20,7 @@ impl<C> ChildMessage<C> for Msg<C>
           <C as Component>::Message: std::fmt::Debug + Clone,
 {
     fn child_message(_: usize, msg: <C as Component>::Message) -> Self {
-        console!(log, format!("child message {:#?}", msg));
+        //console!(log, format!("child message {:#?}", msg));
         Msg::ChildMessage(msg)
     }
 }
