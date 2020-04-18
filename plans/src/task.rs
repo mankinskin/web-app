@@ -1,9 +1,12 @@
-#[derive(Clone, Debug, Serialize, Deserialize)]
+use crate::{
+    user::*,
+};
+#[derive(Clone, Debug, Serialize, Deserialize, Builder, Default)]
 pub struct Task {
-    pub title: String,
-    pub description: String,
-    pub assignees: Vec<String>,
-    pub children: Vec<Task>,
+    title: String,
+    description: String,
+    assignees: Vec<User>,
+    children: Vec<Task>,
 }
 
 impl Task {
@@ -26,10 +29,19 @@ impl Task {
     pub fn description(&self) -> &String {
         &self.description
     }
+    pub fn update_description<S: ToString>(&mut self, new_desc: S) {
+        self.description = new_desc.to_string();
+    }
     pub fn title(&self) -> &String {
         &self.title
     }
-    pub fn assignees(&self) -> &Vec<String> {
+    pub fn update_title<S: ToString>(&mut self, new_title: S) {
+        self.title = new_title.to_string();
+    }
+    pub fn assignees(&self) -> &Vec<User> {
+        &self.assignees
+    }
+    pub fn add_assignee(&self, ) -> &Vec<User> {
         &self.assignees
     }
     pub fn children(&self) -> &Vec<Self> {

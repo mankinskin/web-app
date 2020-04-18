@@ -21,7 +21,7 @@ pub struct TaskData {
 }
 impl TaskData {
     pub fn from_task(task: Task) -> Self {
-        let children = task.children
+        let children = task.children()
             .iter()
             .cloned()
             .enumerate()
@@ -59,7 +59,7 @@ impl ChildProps<TaskView> for TaskData {
                 self.children[child_index].update(*msg);
             },
             Msg::UpdateDescription(value) => {
-                self.task.description = value.clone();
+                self.task.update_description(value.clone());
             }
             Msg::Noop => {},
         }
