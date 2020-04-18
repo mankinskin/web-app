@@ -16,7 +16,7 @@ use yew::{
 #[derive(Properties, Clone, Debug)]
 pub struct TaskData {
     pub task: Task,
-    pub message_parent: Option<Callback<<TaskView as Component>::Message>>,
+    pub parent_callback: Option<Callback<<TaskView as Component>::Message>>,
     pub children: Vec<ExpanderData<TaskView>>,
 }
 impl TaskData {
@@ -29,13 +29,13 @@ impl TaskData {
                 ExpanderData::<TaskView> {
                     element: TaskData::from_task(child),
                     expanded: false,
-                    message_parent: Callback::noop(),
+                    parent_callback: Callback::noop(),
                 }
             )
             .collect();
         Self {
             task,
-            message_parent: None,
+            parent_callback: None,
             children,
         }
     }
@@ -47,10 +47,10 @@ impl TaskData {
 }
 impl ChildProps<TaskView> for TaskData {
     fn set_parent_callback(&mut self, callback: Callback<<TaskView as Component>::Message>) {
-        self.message_parent = Some(callback);
+        self.parent_callback = Some(callback);
     }
     fn get_parent_callback(&self)-> Callback<<TaskView as Component>::Message> {
-        self.message_parent.clone().unwrap_or(Callback::noop())
+        self.parent_callback.clone().unwrap_or(Callback::noop())
     }
     fn update(&mut self, msg: Msg) {
         match msg {

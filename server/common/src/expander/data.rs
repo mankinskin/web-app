@@ -18,7 +18,7 @@ pub struct ExpanderData<C>
 {
     pub element: <C as Component>::Properties,
     pub expanded: bool,
-    pub message_parent: Callback<<ExpanderView<C> as Component>::Message>,
+    pub parent_callback: Callback<<ExpanderView<C> as Component>::Message>,
 }
 impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
     where C: Component + Preview + Child + Clone,
@@ -26,10 +26,10 @@ impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
           <C as Component>::Message: std::fmt::Debug + Clone,
 {
     fn set_parent_callback(&mut self, callback: Callback<<ExpanderView<C> as Component>::Message>) {
-        self.message_parent = callback;
+        self.parent_callback = callback;
     }
     fn get_parent_callback(&self)-> Callback<<ExpanderView<C> as Component>::Message> {
-        self.message_parent.clone()
+        self.parent_callback.clone()
     }
     fn update(&mut self, msg: Msg<C>) {
         match msg.clone() {
