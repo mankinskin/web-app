@@ -1,33 +1,32 @@
 use super::{
-    TaskView,
+    TaskNodeView,
     message::Msg,
 };
 use plans::{
     task::*,
 };
 use common::{
-    expander::{ExpanderData, ExpanderView},
+    expander::{ExpanderData},
     parent_child::*,
 };
 use yew::{
     *,
 };
-
 #[derive(Properties, Clone, Debug)]
-pub struct TaskData {
+pub struct TaskNodeData {
     pub task: Task,
-    pub parent_callback: Option<Callback<<TaskView as Component>::Message>>,
-    pub children: Vec<ExpanderData<TaskView>>,
+    pub parent_callback: Option<Callback<<TaskNodeView as Component>::Message>>,
+    pub children: Vec<ExpanderData<TaskNodeView>>,
 }
-impl TaskData {
-    pub fn from_task(task: Task) -> Self {
+impl From<Task> for TaskNodeData {
+    fn from(task: Task) -> Self {
         let children = task.children()
             .iter()
             .cloned()
             .enumerate()
             .map(|(_, child)|
-                ExpanderData::<TaskView> {
-                    element: TaskData::from_task(child),
+                ExpanderData::<TaskNodeView> {
+                    element: TaskNodeData::from(child),
                     expanded: false,
                     parent_callback: Callback::noop(),
                 }
@@ -35,23 +34,20 @@ impl TaskData {
             .collect();
         Self {
             task,
-            parent_callback: None,
             children,
-        }
-    }
-    pub fn set_callbacks(&mut self, link: &ComponentLink<TaskView>) {
-        for (child_index, child_expander) in self.children.iter_mut().enumerate() {
-            child_expander.set_parent_callback(<TaskView as Parent<ExpanderView<TaskView>>>::child_callback(link, child_index));
+            parent_callback: None,
         }
     }
 }
-impl ChildProps<TaskView> for TaskData {
-    fn set_parent_callback(&mut self, callback: Callback<<TaskView as Component>::Message>) {
+impl ChildProps<TaskNodeView> for TaskNodeData {
+    fn set_parent_callback(&mut self, callback: Callback<<TaskNodeView as Component>::Message>) {
         self.parent_callback = Some(callback);
     }
-    fn get_parent_callback(&self)-> Callback<<TaskView as Component>::Message> {
+    fn get_parent_callback(&self)-> Callback<<TaskNodeView as Component>::Message> {
         self.parent_callback.clone().unwrap_or(Callback::noop())
     }
+}
+impl UpdateProp<TaskNodeView> for TaskNodeData {
     fn update(&mut self, msg: Msg) {
         match msg {
             Msg::ExpanderMessage(child_index, msg) => {
@@ -62,6 +58,17 @@ impl ChildProps<TaskView> for TaskData {
                 self.task.update_description(value.clone());
             }
             Msg::Noop => {},
+        }
+    }
+}
+#[derive(Properties, Clone, Debug)]
+pub struct TaskData {
+    pub task: Task,
+}
+impl From<Task> for TaskData {
+    fn from(task: Task) -> Self {
+        Self {
+            task,
         }
     }
 }

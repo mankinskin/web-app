@@ -8,7 +8,6 @@ pub struct Task {
     assignees: Vec<User>,
     children: Vec<Task>,
 }
-
 impl Task {
     pub fn new<S: ToString>(title: S) -> Self {
         Self {

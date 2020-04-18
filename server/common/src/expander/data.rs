@@ -9,7 +9,6 @@ use crate::{
 use yew::{
     *,
 };
-
 #[derive(Properties, Clone, Debug)]
 pub struct ExpanderData<C>
     where C: Component + Preview + Child + Clone,
@@ -20,17 +19,11 @@ pub struct ExpanderData<C>
     pub expanded: bool,
     pub parent_callback: Callback<<ExpanderView<C> as Component>::Message>,
 }
-impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
-    where C: Component + Preview + Child + Clone,
-          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+impl<C> UpdateProp<ExpanderView<C>> for ExpanderData<C>
+    where C: Child + Component + Preview + Sized + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C> + UpdateProp<C>,
           <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    fn set_parent_callback(&mut self, callback: Callback<<ExpanderView<C> as Component>::Message>) {
-        self.parent_callback = callback;
-    }
-    fn get_parent_callback(&self)-> Callback<<ExpanderView<C> as Component>::Message> {
-        self.parent_callback.clone()
-    }
     fn update(&mut self, msg: Msg<C>) {
         match msg.clone() {
             Msg::ToggleExpand => {
@@ -42,5 +35,17 @@ impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
                 self.element.update(msg)
             },
         }
+    }
+}
+impl<C> ChildProps<ExpanderView<C>> for ExpanderData<C>
+    where C: Component + Preview + Child + Clone,
+          <C as Component>::Properties: std::fmt::Debug + Clone + ChildProps<C>,
+          <C as Component>::Message: std::fmt::Debug + Clone,
+{
+    fn set_parent_callback(&mut self, callback: Callback<<ExpanderView<C> as Component>::Message>) {
+        self.parent_callback = callback;
+    }
+    fn get_parent_callback(&self)-> Callback<<ExpanderView<C> as Component>::Message> {
+        self.parent_callback.clone()
     }
 }

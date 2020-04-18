@@ -39,11 +39,14 @@ impl<C> Parent<C> for ExpanderView<C>
           <C as Component>::Properties: std::fmt::Debug  + ChildProps<C> + Clone,
           <C as Component>::Message: std::fmt::Debug + Clone,
 {
-    fn child_callback(link: &ComponentLink<Self>, _: usize)  -> Callback<<C as Component>::Message>{
+    fn child_callback(&self, _: usize)  -> Callback<<C as Component>::Message>{
         //console!(log, format!("creating expander callback"));
-        link.callback(move |msg| {
+        self.link.callback(move |msg| {
             <Msg<C> as ChildMessage<C>>::child_message(0, msg)
         })
+    }
+    fn set_child_callbacks(&mut self) {
+        self.props.element.set_parent_callback(self.child_callback(0));
     }
 }
 impl<C> Component for ExpanderView<C>
@@ -64,8 +67,7 @@ impl<C> Component for ExpanderView<C>
     fn view(&self) -> Html {
         //console!(log, format!("{:#?}\n-------------------\n", self.props));
         //console!(log, format!("Rendering ExpanderView"));
-        let mut props = self.props.element.clone();
-        props.set_parent_callback(<Self as Parent<C>>::child_callback(&self.link, 0));
+        let props = self.props.element.clone();
         html!{
             <div class="expander-container">
                 <div class="expander-icon" onclick=&self.toggle_expand()>

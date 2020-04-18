@@ -61,7 +61,6 @@ pub struct StatusStackView<S, E>
           E: Clone + Display + 'static,
 {
     props: StatusStackData<S, E>,
-    link: ComponentLink<Self>,
 }
 impl<'a, S, E> Component for StatusStackView<S, E>
     where S: Clone + 'static,
@@ -70,9 +69,8 @@ impl<'a, S, E> Component for StatusStackView<S, E>
     type Message = ();
     type Properties = StatusStackData<S, E>;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
         Self {
-            link,
             props,
         }
     }
@@ -104,7 +102,7 @@ impl<'a, S, E> Component for StatusStackView<S, E>
         self.props = props;
         true
     }
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _: Self::Message) -> ShouldRender {
         true
     }
 }

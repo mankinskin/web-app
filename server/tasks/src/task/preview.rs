@@ -1,17 +1,17 @@
 use super::{
-    TaskData,
+    TaskNodeData,
 };
 use yew::{
     *,
 };
 #[derive(Debug)]
 pub struct TaskPreview {
-    props: TaskData,
+    props: TaskNodeData,
     link: ComponentLink<Self>,
 }
 impl Component for TaskPreview {
     type Message = ();
-    type Properties = TaskData;
+    type Properties = TaskNodeData;
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             props,

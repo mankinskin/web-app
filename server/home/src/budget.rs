@@ -11,25 +11,20 @@ use crate::{
     transactions::*,
 };
 
-pub enum Msg {
-    Update,
-}
 pub struct BudgetView<C: 'static + Currency> {
-    link: ComponentLink<Self>,
     model: Budget<C>,
 }
 
 impl<C: 'static + Currency> Component for BudgetView<C> {
-    type Message = Msg;
+    type Message = ();
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
         let mut b = Budget::create("My Budget", 0);
         b.get(100).add_purpose("Money");
         b.get(100).add_purpose("Money");
         b.get(100).add_purpose("Money");
         Self {
-            link,
             model: b,
         }
     }
@@ -45,12 +40,7 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
             </div>
         }
     }
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        match msg {
-            Msg::Update => {
-                true
-            },
-            _ => false
-        }
+    fn update(&mut self, _: Self::Message) -> ShouldRender {
+        true
     }
 }

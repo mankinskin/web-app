@@ -1,15 +1,5 @@
 use yew::{
     *,
-    services::{
-        *,
-        fetch::{
-            *,
-            FetchTask,
-        },
-    },
-    format::{
-        Nothing,
-    },
 };
 use yew_router::{
     route::Route,

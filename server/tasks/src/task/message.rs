@@ -1,5 +1,5 @@
 use super::{
-    TaskView,
+    TaskNodeView,
 };
 use common::{
     expander::{self, *},
@@ -10,12 +10,12 @@ use yew::{
 };
 #[derive(Clone, Debug)]
 pub enum Msg {
-    ExpanderMessage(usize, Box<expander::Msg<TaskView>>),
+    ExpanderMessage(usize, Box<expander::Msg<TaskNodeView>>),
     UpdateDescription(String),
     Noop,
 }
-impl ChildMessage<ExpanderView<TaskView>> for Msg {
-    fn child_message(child_index: usize, msg: <ExpanderView<TaskView> as Component>::Message) -> Self {
+impl ChildMessage<ExpanderView<TaskNodeView>> for Msg {
+    fn child_message(child_index: usize, msg: <ExpanderView<TaskNodeView> as Component>::Message) -> Self {
         Msg::ExpanderMessage(child_index, Box::new(msg))
     }
 }
