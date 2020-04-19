@@ -10,12 +10,18 @@ use yew::{
 };
 #[derive(Clone, Debug)]
 pub enum Msg {
-    ExpanderMessage(usize, Box<expander::Msg<TaskNodeView>>),
+    ChildMessage(usize, Box<Msg>),
+    ExpanderMessage(Box<expander::Msg<TaskNodeView>>),
     UpdateDescription(String),
-    Noop,
+    Focussed,
 }
 impl ChildMessage<ExpanderView<TaskNodeView>> for Msg {
     fn child_message(child_index: usize, msg: <ExpanderView<TaskNodeView> as Component>::Message) -> Self {
-        Msg::ExpanderMessage(child_index, Box::new(msg))
+        Msg::ChildMessage(child_index, Box::new(Msg::ExpanderMessage(Box::new(msg))))
+    }
+}
+impl ChildMessage<TaskNodeView> for Msg {
+    fn child_message(child_index: usize, msg: <TaskNodeView as Component>::Message) -> Self {
+        Msg::ChildMessage(child_index, Box::new(msg))
     }
 }

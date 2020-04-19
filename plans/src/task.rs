@@ -46,4 +46,7 @@ impl Task {
     pub fn children(&self) -> &Vec<Self> {
         &self.children
     }
+    pub fn children_mut(&mut self) -> &mut Vec<Self> {
+        &mut self.children
+    }
 }

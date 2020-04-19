@@ -1,7 +1,9 @@
 use super::{
     TaskData,
     TaskNodeData,
-    message::Msg,
+    message::{
+        Msg,
+    },
     TaskPreview,
 };
 use common::{
@@ -80,7 +82,7 @@ impl Focussable<ClickEvent> for TaskNodeView {
                 //console!(log, "applying {}", cmd.clone());
                 body.set_attribute("style", &cmd).unwrap();
             }
-            Msg::Noop
+            Msg::Focussed
         })
     }
 }
@@ -100,13 +102,14 @@ impl Component for TaskNodeView {
         //console!(log, format!("creating TaskNodeView"));
         //console!(log, format!("{} children", props.children.len()));
         //console!(log, format!("{} callback", props.parent_callback.is_some()));
-        Self {
+        let mut s = Self {
             props,
             link,
-        }
+        };
+        s.set_child_callbacks();
+        s
     }
     fn mounted(&mut self) -> ShouldRender {
-        self.set_child_callbacks();
         true
     }
     fn view(&self) -> Html {
@@ -164,21 +167,15 @@ impl Component for TaskNodeView {
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
         //console!(log, format!("Changing TaskNodeView"));
         self.props = props;
-        false
+        self.set_child_callbacks();
+        true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        //console!(log, format!("Updating TaskNodeView"));
-        if let Some(parent_callback) = &self.props.parent_callback {
-            //console!(log, format!("child TaskNodeView"));
-            parent_callback.emit(msg.clone());
-        } else {
-            //console!(log, format!("root TaskNodeView"));
-        }
-        self.props.update(msg.clone());
-        match msg {
-            Msg::ExpanderMessage(_, _) => true,
-            _ => false,
-        }
+        console!(log, format!("Updating TaskNodeView"));
+        console!(log, format!("{:#?}", msg));
+        //self.props.update(msg.clone());
+        self.props.parent_callback.emit(msg.clone());
+        false
     }
 }
 impl Preview for TaskNodeView {
@@ -191,6 +188,7 @@ impl Preview for TaskNodeView {
 #[derive(Debug, Clone)]
 pub struct TaskView {
     props: TaskData,
+    child: TaskNodeData,
     link: ComponentLink<Self>,
 }
 impl Focussable<ClickEvent> for TaskView {
@@ -214,10 +212,22 @@ impl Focussable<ClickEvent> for TaskView {
                 //console!(log, "applying {}", cmd.clone());
                 body.set_attribute("style", &cmd).unwrap();
             }
-            Msg::Noop
+            Msg::Focussed
         })
     }
 }
+impl Parent<TaskNodeView> for TaskView {
+    fn child_callback(&self, _child_index: usize)  -> Callback<<TaskNodeView as Component>::Message>{
+        self.link.callback(move |msg| {
+            //console!(log, format!("child {} callback", child_index));
+            <Msg as ChildMessage<TaskNodeView>>::child_message(0, msg)
+        })
+    }
+    fn set_child_callbacks(&mut self) {
+        self.child.set_parent_callback(self.child_callback(0));
+    }
+}
+
 impl Component for TaskView {
     type Message = Msg;
     type Properties = TaskData;
@@ -226,10 +236,15 @@ impl Component for TaskView {
         //console!(log, format!("creating TaskNodeView"));
         //console!(log, format!("{} children", props.children.len()));
         //console!(log, format!("{} callback", props.parent_callback.is_some()));
-        Self {
+
+        let child = TaskNodeData::create(props.task.clone(), Callback::noop());
+        let mut s = Self {
             props,
+            child,
             link,
-        }
+        };
+        s.set_child_callbacks();
+        s
     }
     fn mounted(&mut self) -> ShouldRender {
         true
@@ -237,7 +252,7 @@ impl Component for TaskView {
     fn view(&self) -> Html {
         //console!(log, format!("rendering TaskNodeView for {:#?}", self.props));
         //console!(log, format!("Rendering TaskNodeView"));
-        let props = TaskNodeData::from(self.props.task.clone());
+        let props = self.child.clone();
         html! {
             <div class="task-tree-level" tabindex="0" onclick={self.focus()}>
                 <TaskNodeView with props />
@@ -246,11 +261,17 @@ impl Component for TaskView {
     }
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
         //console!(log, format!("Changing TaskNodeView"));
-        self.props = props;
-        false
+        self.child = TaskNodeData::create(props.task.clone(), Callback::noop());
+        self.set_child_callbacks();
+        true
     }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        //console!(log, format!("Updating TaskNodeView"));
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        console!(log, format!("Updating TaskNodeView"));
+        console!(log, format!("{:#?}", msg));
+        self.props.task.update(msg.clone());
+        if let Msg::ChildMessage(_, m) = msg.clone() {
+            self.child.update(*m);
+        }
         true
     }
 }
