@@ -59,10 +59,12 @@ impl<C> Component for ExpanderView<C>
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         //console!(log, format!("creating Expander"));
-        Self {
+        let mut s = Self {
             props,
             link,
-        }
+        };
+        s.set_child_callbacks();
+        s
     }
     fn view(&self) -> Html {
         //console!(log, format!("{:#?}\n-------------------\n", self.props));
@@ -105,6 +107,7 @@ impl<C> Component for ExpanderView<C>
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
         //console!(log, format!("Changing Expander"));
         self.props = props;
+        self.set_child_callbacks();
         true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
