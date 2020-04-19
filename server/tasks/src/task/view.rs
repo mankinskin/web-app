@@ -2,6 +2,7 @@ use super::{
     TaskData,
     TaskNodeData,
     message::{
+        *,
         Msg,
     },
     TaskPreview,
@@ -90,7 +91,7 @@ impl TaskNodeView {
     pub fn update_description(&self) -> Callback<yew::events::InputData> {
         //console!(log, "Creating click callback");
         self.link.callback(|input: yew::events::InputData| {
-            Msg::UpdateDescription(input.value)
+            Msg::TaskMessage(TaskMsg::UpdateDescription(input.value))
         })
     }
 }

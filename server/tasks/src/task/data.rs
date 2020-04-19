@@ -2,6 +2,7 @@ use super::{
     TaskView,
     TaskNodeView,
     message::{
+        *,
         Msg,
     },
 };
@@ -56,20 +57,19 @@ impl UpdateProp<TaskNodeView> for TaskNodeData {
             Msg::ChildMessage(child_index, msg) => {
                 console!(log, format!("ChildMessage {} {:#?}", child_index, msg));
                 match *msg {
-                    Msg::ExpanderMessage(m) => {
-                        console!(log, format!("ExpanderMessage {:#?}", m));
-                        self.children[child_index].update(*m);
+                    Msg::NodeMessage(m) => {
+                        match m {
+                            NodeMsg::ExpanderMessage(m) => {
+                                console!(log, format!("ExpanderMessage {:#?}", m));
+                                self.children[child_index].update(*m);
+                            },
+                            _ => {}
+                        }
                     },
-
                     _ => {}
                 }
             },
-            Msg::ExpanderMessage(msg) => {
-                console!(log, format!("ExpanderMessage {:#?}", msg));
-            },
-            Msg::UpdateDescription(_) => {
-            },
-            Msg::Focussed => {},
+            _ => {},
         }
     }
 }
@@ -87,10 +87,14 @@ impl From<Task> for TaskData {
 impl UpdateProp<TaskView> for Task {
     fn update(&mut self, msg: Msg) {
         match msg {
-            Msg::UpdateDescription(value) => {
-                console!(log, "Updating Task Description");
-                self.update_description(value.clone());
-            },
+            Msg::TaskMessage(m) => {
+                match m {
+                    TaskMsg::UpdateDescription(value) => {
+                        console!(log, "Updating Task Description");
+                        self.update_description(value.clone());
+                    },
+                }
+            }
             Msg::ChildMessage(child_index, msg) => {
                 self.children_mut()[child_index].update(*msg);
             },
