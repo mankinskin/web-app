@@ -15,5 +15,6 @@ clean:
 		make -C $$app clean ;\
 	done
 	cargo clean
+	rm target -r
 
 .PHONY: build serve test clean run

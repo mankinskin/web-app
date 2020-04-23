@@ -4,6 +4,9 @@ pub mod view;
 pub use view::*;
 pub mod message;
 pub use message::*;
-pub mod data;
-pub use data::*;
-
+pub mod props;
+pub use props::*;
+pub mod node_view;
+pub use node_view::*;
+pub mod root_view;
+pub use root_view::*;
