@@ -167,11 +167,11 @@ impl MessageUpdate<NodeMsg> for TaskTreeNodeData {
             NodeMsg::ExpanderMessage(m) => {
                 self.expander_data.update(*m);
             },
-            NodeMsg::Focussed(event) => {
-                set_margin_to_focussed_element_left(event);
-            },
             NodeMsg::Passthrough(m) => {
                 self.tree_data.update(m);
+            },
+            NodeMsg::Focussed(event) => {
+                //set_margin_to_focussed_element_left(event);
             },
         }
     }
