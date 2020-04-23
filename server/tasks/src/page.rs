@@ -96,9 +96,9 @@ impl Component for PageView {
             <div class="page">{
                 match self.props.task.clone() {
                     Some(task) => {
-                        let props = TaskData::from(task);
+                        let props = TaskTreeRootProps::create_root(task);
                         html! {
-                            <TaskView with props />
+                            <TaskRootView with props />
                         }
                     },
                     None => {

@@ -1,17 +1,17 @@
 use super::{
-    TaskNodeData,
+    TaskViewProps,
 };
 use yew::{
     *,
 };
 #[derive(Debug)]
 pub struct TaskPreview {
-    props: TaskNodeData,
+    props: TaskViewProps,
     link: ComponentLink<Self>,
 }
 impl Component for TaskPreview {
     type Message = ();
-    type Properties = TaskNodeData;
+    type Properties = TaskViewProps;
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             props,
@@ -22,7 +22,7 @@ impl Component for TaskPreview {
         html! {
             <div class="task task-preview">
                 <h1 class="task-title">{
-                    self.props.task.title()
+                    self.props.data.task.title()
                 }</h1>
             </div>
         }
