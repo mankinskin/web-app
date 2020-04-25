@@ -17,10 +17,9 @@ http = "^0.2"
 anyhow = "^1"
 
 [dependencies.yew]
-version = "^0.14"
-features = [
-  "std_web"
-]
+version = "^0.15"
+package = "yew-stdweb"
+
 [dependencies.yew-router]
 version = "^0.11"
 features = [

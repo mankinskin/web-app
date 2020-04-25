@@ -40,11 +40,20 @@ fn handle_request(request: &Request) -> Response {
         (GET) (/api/task) => {
             get_task(request)
         },
+        (GET) (/api/tasks) => {
+            get_tasks(request)
+        },
         (POST) (/api/task) => {
             post_task(request)
         },
         (GET) (/api/user) => {
             get_user(request)
+        },
+        (POST) (/api/user) => {
+            post_user(request)
+        },
+        (GET) (/api/note) => {
+            get_note(request)
         },
         (POST) (/api/note) => {
             post_note(request)

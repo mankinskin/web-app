@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub struct BudgetView<C: 'static + Currency> {
-    model: Budget<C>,
+    props: Budget<C>,
 }
 
 impl<C: 'static + Currency> Component for BudgetView<C> {
@@ -25,7 +25,7 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
         b.get(100).add_purpose("Money");
         b.get(100).add_purpose("Money");
         Self {
-            model: b,
+            props: b,
         }
     }
     fn view(&self) -> Html {
@@ -33,12 +33,15 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
             <div class="budget-container">
                 <div class="budget-header">
                     <div class="budget-name">{
-                        self.model.name()
+                        self.props.name()
                     }</div>
                 </div>
-                {TransactionsView::from(self.model.transactions.clone()).view()}
+                {TransactionsView::from(self.props.transactions.clone()).view()}
             </div>
         }
+    }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        true
     }
     fn update(&mut self, _: Self::Message) -> ShouldRender {
         true

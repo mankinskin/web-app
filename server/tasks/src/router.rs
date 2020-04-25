@@ -1,5 +1,6 @@
 use yew::{
     *,
+    Callback,
 };
 use yew_router::{
     route::Route,
@@ -54,7 +55,7 @@ impl Component for ClientRouter {
         let mut route_service: RouteService<()> = RouteService::new();
         let route = route_service.get_route();
         let callback = link.callback(|route| Msg::RouteChanged(route));
-        route_service.register_callback(callback);
+        //route_service.register_callback(callback);
 
         Self {
             route_service,
@@ -78,7 +79,7 @@ impl Component for ClientRouter {
                     match ClientRoute::switch(self.route.clone()) {
                         Some(ClientRoute::Index) => html! {
                             <div>
-                                <PageView task={None}/>
+                                <PageView tasks={None}/>
                                 <a href="/">{"Home"}</a>
                             </div>
                         },
@@ -93,6 +94,9 @@ impl Component for ClientRouter {
                 }</div>
             </div>
         }
+    }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {

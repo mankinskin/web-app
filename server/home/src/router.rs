@@ -58,7 +58,7 @@ impl Component for ClientRouter {
         let mut route_service: RouteService<()> = RouteService::new();
         let route = route_service.get_route();
         let callback = link.callback(|route| Msg::RouteChanged(route));
-        route_service.register_callback(callback);
+        //route_service.register_callback(callback);
 
         Self {
             route_service,
@@ -94,6 +94,9 @@ impl Component for ClientRouter {
                 }</div>
             </div>
         }
+    }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {

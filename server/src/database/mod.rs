@@ -21,6 +21,7 @@ schema! {
     Schema {
         user: User,
         task: Task,
+        note: Note,
     }
 }
 lazy_static!{
@@ -32,46 +33,104 @@ pub fn get_html<P: AsRef<Path>>(path: P) -> Response {
         Err(e) => Response::text(e.to_string()),
     }
 }
-pub fn get_user(_req: &Request) -> Response {
-    let user = User::new("Server");
-    rouille::Response::json(&user)
-}
 pub fn post_note(req: &Request) -> Response {
+    //let user = User::new("Server");
     let note: Note = try_or_400!(json_input(req));
     println!("Got note: {:#?}", note);
-    rouille::Response::empty_204()
+    let note_id = DB.note_mut().insert(note);
+    rouille::Response::json(&note_id)
 }
-pub fn get_task(_req: &Request) -> Response {
-    let task =
-        TaskBuilder::default()
-            .title("Server Task".into())
-            .description("This is the top level task.".into())
-            .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
-            .children(vec![
-                        TaskBuilder::default()
-                            .title("First Item".into())
-                            .description("This is the first sub task.".into())
-                            .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-                            .children(vec![
-                                TaskBuilder::default()
-                                    .title("Second Level".into())
-                                    .description("This is a sub sub task.".into())
-                                    .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-                                    .children(vec![ ])
-                                    .build()
-                                    .unwrap(),
-                            ])
-                            .build()
-                            .unwrap(),
-                    ])
-            .build()
-            .unwrap();
-    rouille::Response::json(&task)
+pub fn get_note(req: &Request) -> Response {
+    match req.data() {
+        None => rouille::Response::empty_400(),
+        Some(body) => {
+            match serde_json::from_reader(body) {
+                Err(e) => {
+                    rouille::Response::text(e.to_string())
+                        .with_status_code(500)
+                }
+                Ok(id) => {
+                    let note = DB.note().get(id).unwrap().clone();
+                    rouille::Response::json(&note)
+                }
+            }
+        },
+    }
+}
+pub fn post_user(req: &Request) -> Response {
+    //let user = User::new("Server");
+    let user: User = try_or_400!(json_input(req));
+    println!("Got user: {:#?}", user);
+    let user_id = DB.user_mut().insert(user);
+    rouille::Response::json(&user_id)
+}
+pub fn get_user(req: &Request) -> Response {
+    match req.data() {
+        None => rouille::Response::empty_400(),
+        Some(body) => {
+            match serde_json::from_reader(body) {
+                Err(e) => {
+                    rouille::Response::text(e.to_string())
+                        .with_status_code(500)
+                }
+                Ok(id) => {
+                    let user = DB.user().get(id).unwrap().clone();
+                    rouille::Response::json(&user)
+                }
+            }
+        },
+    }
 }
 pub fn post_task(req: &Request) -> Response {
+    //let task =
+    //    TaskBuilder::default()
+    //        .title("Server Task".into())
+    //        .description("This is the top level task.".into())
+    //        .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
+    //        .children(vec![
+    //                    TaskBuilder::default()
+    //                        .title("First Item".into())
+    //                        .description("This is the first sub task.".into())
+    //                        .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+    //                        .children(vec![
+    //                            TaskBuilder::default()
+    //                                .title("Second Level".into())
+    //                                .description("This is a sub sub task.".into())
+    //                                .assignees(vec!["Heinz".into(), "Kunigunde".into()])
+    //                                .children(vec![ ])
+    //                                .build()
+    //                                .unwrap(),
+    //                        ])
+    //                        .build()
+    //                        .unwrap(),
+    //                ])
+    //        .build()
+    //        .unwrap();
     let task: Task = try_or_400!(json_input(req));
     println!("Got task: {:#?}", task);
-    rouille::Response::empty_204()
+    let task_id = DB.task_mut().insert(task);
+    rouille::Response::json(&task_id)
+}
+pub fn get_task(req: &Request) -> Response {
+    match req.data() {
+        None => rouille::Response::empty_400(),
+        Some(body) => {
+            match serde_json::from_reader(body) {
+                Err(e) => {
+                    rouille::Response::text(e.to_string())
+                        .with_status_code(500)
+                }
+                Ok(id) => {
+                    let task = DB.task().get(id).unwrap().clone();
+                    rouille::Response::json(&task)
+                }
+            }
+        },
+    }
+}
+pub fn get_tasks(_req: &Request) -> Response {
+    let task: Vec<Task> = DB.task().rows().map(|row| row.data.clone()).collect();
+    rouille::Response::json(&task)
 }
 
 pub fn setup() {

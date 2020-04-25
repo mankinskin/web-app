@@ -27,6 +27,10 @@ impl Component for TaskPreview {
             </div>
         }
     }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
+        true
+    }
     fn update(&mut self, _: Self::Message) -> ShouldRender {
         false
     }
