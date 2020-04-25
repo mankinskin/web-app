@@ -5,6 +5,7 @@ extern crate yew_router;
 extern crate wasm_bindgen;
 extern crate anyhow;
 extern crate serde_json;
+extern crate serde;
 
 extern crate plans;
 extern crate common;

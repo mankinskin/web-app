@@ -108,7 +108,7 @@ impl Component for NoteEditor {
             post_status: StatusStack::new(),
         }
     }
-    fn mounted(&mut self) -> ShouldRender {
+    fn rendered(&mut self, _first_render: bool) {
         let text_area: TextAreaElement = stdweb::web::document()
             .query_selector(".note-editor-textarea").unwrap()
             .expect("note-editor-textarea not found")
@@ -123,6 +123,9 @@ impl Component for NoteEditor {
             text_area.set_attribute("style", &cmd)
                 .expect("Failed to set attribute");
         });
+    }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
         true
     }
     fn view(&self) -> Html {

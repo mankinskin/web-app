@@ -110,6 +110,9 @@ impl Component for UserProfileView {
             html!{ }
         }
     }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        true
+    }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::GotUser(user) => {
