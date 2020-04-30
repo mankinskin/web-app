@@ -37,11 +37,11 @@ fn handle_request(request: &Request) -> Response {
         (GET) (/budget) => {
             get_html("./home/index.html")
         },
-        (GET) (/api/task) => {
-            get_task(request)
-        },
         (GET) (/api/tasks) => {
             get_tasks(request)
+        },
+        (GET) (/api/task) => {
+            get_task(request)
         },
         (POST) (/api/task) => {
             post_task(request)
