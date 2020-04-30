@@ -9,6 +9,10 @@ use yew_router::{
 };
 use crate::{
     page::*,
+    remote_data::*,
+};
+use rql::{
+    Id,
 };
 
 #[derive(Switch, Clone, Debug)]
@@ -79,7 +83,11 @@ impl Component for ClientRouter {
                     match ClientRoute::switch(self.route.clone()) {
                         Some(ClientRoute::Index) => html! {
                             <div>
-                                <PageView tasks={None}/>
+                                <PageView
+                                    task_list={RemoteData::try_new(Id::new(), "http://0.0.0.0:8000/api/tasks").unwrap()}
+                                    task={RemoteData::try_new(Id::new(), "http://0.0.0.0:8000/api/task").unwrap()}
+                            />
+
                                 <a href="/">{"Home"}</a>
                             </div>
                         },

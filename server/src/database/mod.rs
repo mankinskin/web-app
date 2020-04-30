@@ -115,22 +115,35 @@ pub fn get_task(req: &Request) -> Response {
     match req.data() {
         None => rouille::Response::empty_400(),
         Some(body) => {
-            match serde_json::from_reader(body) {
-                Err(e) => {
-                    rouille::Response::text(e.to_string())
-                        .with_status_code(500)
-                }
-                Ok(id) => {
-                    let task = DB.task().get(id).unwrap().clone();
-                    rouille::Response::json(&task)
-                }
-            }
+            let task = Task::new("Server Task");//DB.task().get(id).unwrap().clone();
+            let json = serde_json::to_string(&task).unwrap();
+            println!("Tasks: {:#?}", json);
+            let mut response = rouille::Response::text(json.clone());
+            response.data = rouille::ResponseBody::from_string(json);
+            println!("Response: {:#?}", response);
+            response
+            //match serde_json::from_reader(body) as std::result::Result<Id<Task>, serde_json::Error> {
+            //    Ok(id) => {
+            //        let task = Task::new("Server Task");//DB.task().get(id).unwrap().clone();
+            //        rouille::Response::json(&task)
+            //    },
+            //    Err(e) => {
+            //        rouille::Response::text(e.to_string())
+            //            .with_status_code(500)
+            //    },
+            //}
         },
     }
 }
 pub fn get_tasks(_req: &Request) -> Response {
-    let task: Vec<Task> = DB.task().rows().map(|row| row.data.clone()).collect();
-    rouille::Response::json(&task)
+    let tasks: Vec<Task> = DB.task().rows().map(|row| row.data.clone()).collect();
+    //let json = String::from("Hello world");
+    let json = serde_json::to_string(&tasks).unwrap();
+    println!("Tasks: {:#?}", json);
+    let mut response = rouille::Response::text(json.clone());
+    response.data = rouille::ResponseBody::from_string(json);
+    println!("Response: {:#?}", response);
+    response
 }
 
 pub fn setup() {
