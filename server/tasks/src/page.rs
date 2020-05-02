@@ -1,11 +1,5 @@
 use yew::{
     *,
-    services::{
-        fetch::{
-            FetchService,
-            FetchTask,
-        },
-    },
 };
 use common::{
     status_stack::*,
@@ -20,13 +14,6 @@ use crate::{
 use rql::{
     *
 };
-use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
-use wasm_bindgen::JsCast;
-use std::result::{Result};
-use web_sys::{Request, Response};
-use wasm_bindgen_futures::JsFuture;
-use futures::{Future, FutureExt};
 
 pub enum Msg {
     RemoteTask(RemoteMsg<Task>),
@@ -44,7 +31,7 @@ impl From<RemoteMsg<Vec<Task>>> for Msg {
 }
 #[derive(Properties, Clone, Debug)]
 pub struct PageData {
-    pub task_list: RemoteData<Vec<Task>>,
+    pub tasks: RemoteData<Vec<Task>>,
     pub task: RemoteData<Task>,
 }
 pub struct PageView {
@@ -52,66 +39,13 @@ pub struct PageView {
     link: ComponentLink<Self>,
     status: StatusStack<(), String>,
 }
-async fn fetch_request<T>(request: Request, responder: Callback<RemoteResponse<T>>)
-    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug
-{
-    let window = web_sys::window().unwrap();
-    JsFuture::from(window.fetch_with_request(&request))
-        .then(|result| {
-            let value = result.unwrap();
-            assert!(value.is_instance_of::<Response>());
-            let response: Response = value.dyn_into().unwrap();
-            console!(log, format!("got response {:#?}", response));
-            futures::future::ready(response)
-            //match result {
-            //    Ok(value) => {
-            //        assert!(value.is_instance_of::<Response>());
-            //        Ok(value.dyn_into().unwrap() as Response)
-            //    },
-            //    Err(e) => {Err(e)},
-            //})
-        })
-        .then(move |response: Response| {
-            let promise = response
-                .json()
-                .map_err(|e| anyhow!(format!("{:#?}", e)))
-                .unwrap();
-                    //.and_then(|promise| {
-                    //console!(log, format!("Start blocking"));
-            JsFuture::from(promise)
-                    //console!(log, format!("Response Json {:#?}", res));
-                    //console!(log, format!("Response body {:#?}", res));
-                //})
-        })
-        .then(move |res: Result<JsValue, JsValue>| {
-            futures::future::ready(res.unwrap())
-        })
-        .then(move |val: JsValue| {
-            RemoteResponse::for_request(request, val)
-        })
-        .then(move |resp: RemoteResponse<T>| {
-            //data.respond(request, resp)
-            responder.emit(resp);
-            futures::future::ready(())
-        }).await
-}
 impl PageView {
-    fn tasks_request(&mut self, req: RemoteRequest<Vec<Task>>) -> Request {
-        console!(log, "task_list request");
-        self.props.task_list.request(req.clone()).unwrap()
-        //console!(log, format!("{:#?}", request));
-    }
-    fn tasks_responder(&mut self) -> Callback<RemoteResponse<Vec<Task>>> {
+    fn tasks_responder(&self) -> Callback<RemoteResponse<Vec<Task>>> {
         self.link.callback(move |response: RemoteResponse<Vec<Task>>| {
             Msg::RemoteTasks(RemoteMsg::Response(response))
         })
     }
-    fn task_request(&mut self, req: RemoteRequest<Task>) -> Request {
-        console!(log, "task_list request");
-        self.props.task.request(req.clone()).unwrap()
-        //console!(log, format!("{:#?}", request));
-    }
-    fn task_responder(&mut self) -> Callback<RemoteResponse<Task>> {
+    fn task_responder(&self) -> Callback<RemoteResponse<Task>> {
         self.link.callback(move |response: RemoteResponse<Task>| {
             Msg::RemoteTask(RemoteMsg::Response(response))
         })
@@ -134,7 +68,7 @@ impl Component for PageView {
     fn view(&self) -> Html {
         html! {
             <div class="page">{
-                match self.props.task_list.clone().as_deref() {
+                match self.props.tasks.clone().as_deref() {
                     Some(tasks) => {
                         html! {
                             {
@@ -173,33 +107,26 @@ impl Component for PageView {
             Msg::RemoteTask(msg) => {
                 match msg {
                     RemoteMsg::Request(request) => {
-                        //self.task_request(request);
-                        wasm_bindgen_futures::spawn_local(
-                            fetch_request(
-                                self.task_request(request),
-                                self.task_responder()
-                            )
-                        );
+                        self.props.task.fetch_request(request, self.task_responder())
+                            .expect("RemoteData request failed");
                     },
                     RemoteMsg::Response(response) => {
-                        console!(log, format!("Got RemoteResponse {:#?}", response));
-                        //self.props.task.update(response);
+                        if let Err(e) = self.props.task.respond(response) {
+                            console!(log, format!("{:#?}", e));
+                        }
                     },
                 }
             },
             Msg::RemoteTasks(msg) => {
                 match msg {
                     RemoteMsg::Request(request) => {
-                        wasm_bindgen_futures::spawn_local(
-                            fetch_request(
-                                self.tasks_request(request),
-                                self.tasks_responder()
-                            )
-                        );
+                        self.props.tasks.fetch_request(request, self.tasks_responder())
+                            .expect("RemoteData request failed");
                     },
                     RemoteMsg::Response(response) => {
-                        console!(log, format!("Got RemoteResponse {:#?}", response));
-                        //self.props.task_list.update(response);
+                        if let Err(e) = self.props.tasks.respond(response) {
+                            console!(log, format!("{:#?}", e));
+                        }
                     },
                 }
             },
