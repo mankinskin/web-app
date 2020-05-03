@@ -4,89 +4,63 @@ pub use plans::{
 };
 use yew::{
     *,
-    services::{
-        *,
-        fetch::{
-            *,
-            FetchTask,
-        },
-    },
-    format::{
-        Json,
-        Nothing,
-    },
 };
 use crate::{
     *,
     budget::*,
 };
+use common::{
+    remote_data::*,
+};
+use rql::{
+    *,
+};
 use anyhow::Error;
 use std::result::Result;
 use std::fmt::{Debug};
+use futures::{Future, FutureExt};
 
 pub enum Msg {
-    GotUser(User),
-    FetchUserError(String),
+    RemoteUser(RemoteMsg<User>),
 }
 
 #[derive(Properties, Clone, Debug)]
-pub struct UserProfile {
-    user: User,
-}
-impl From<User> for UserProfile {
-    fn from(user: User) -> Self {
-        Self {
-            user,
-        }
-    }
+pub struct UserProfileData {
+    pub user: RemoteData<User>,
 }
 pub struct UserProfileView {
-    props: Option<UserProfile>,
-    fetch_task: Option<FetchTask>,
-    fetch_service: FetchService,
+    props: UserProfileData,
+    link: ComponentLink<Self>,
 }
-
+impl UserProfileView {
+    fn user_responder(&self) -> Callback<RemoteResponse<User>> {
+        self.link.callback(move |response: RemoteResponse<User>| {
+            Msg::RemoteUser(RemoteMsg::Response(response))
+        })
+    }
+    fn user_request(&self, request: RemoteRequest<User>) -> impl Future<Output=()> + 'static {
+        let callback = self.user_responder().clone();
+        self.props.user.fetch_request(request)
+            .then(move |res: RemoteResponse<User>| {
+                futures::future::ready(callback.emit(res))
+            })
+    }
+}
 impl Component for UserProfileView {
     type Message = Msg;
-    type Properties = ();
+    type Properties = UserProfileData;
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let req = Request::get("/api/user")
-            .body(Nothing).unwrap();
-        let callback = link.callback(|response: Response<Json<Result<User, Error>>>| {
-            let (meta, Json(body)) = response.into_parts();
-            if meta.status.is_success() {
-                console!(log, "Got user");
-                Msg::GotUser(body.unwrap())
-            } else {
-                Msg::FetchUserError(
-                    meta.status.clone()
-                        .canonical_reason()
-                        .map(ToString::to_string)
-                        .unwrap_or(format!("Got StatusCode {}", meta.status))
-                )
-            }
-        });
-        let mut fetch_service = FetchService::new();
-        let task = fetch_service.fetch(req, callback);
-        let mut fetch_task = None;
-        match task {
-            Ok(task) => {
-                fetch_task = Some(task)
-            },
-            Err(err) => {
-                link.send_message(Msg::FetchUserError(err.to_string()))
-            },
-        }
-        Self {
-            props: None,
-            fetch_service,
-            fetch_task,
-        }
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        let mut s = Self {
+            props,
+            link,
+        };
+        s.link.send_message(Msg::RemoteUser(RemoteMsg::Request(RemoteRequest::Get(Id::new()))));
+        s
     }
     fn view(&self) -> Html {
         console!(log, "Draw UserProfileView");
-        if let Some(profile) = self.props.clone() {
+        if let Some(user) = self.props.user.data().clone() {
             html!{
                 <div id="user-profile">
                     <div id="user-profile-header" class="profile-card">
@@ -95,7 +69,7 @@ impl Component for UserProfileView {
                         </div>
                         <div id="user-info-container">
                             <div id="user-name">
-                                {format!("{}", profile.user.name())}
+                                {format!("{}", user.name())}
                             </div>
                         </div>
                     </div>
@@ -115,14 +89,21 @@ impl Component for UserProfileView {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::GotUser(user) => {
-                self.props = Some(UserProfile::from(user));
-                true
-            }
-            Msg::FetchUserError(err) => {
-                console!(log, "FetchUserError: {}", format!("{}", err));
-                true
+            Msg::RemoteUser(msg) => {
+                match msg {
+                    RemoteMsg::Request(request) => {
+                        wasm_bindgen_futures::spawn_local(
+                            self.user_request(request)
+                        );
+                    },
+                    RemoteMsg::Response(response) => {
+                        if let Err(e) = self.props.user.respond(response) {
+                            console!(log, format!("{:#?}", e));
+                        }
+                    },
+                }
             },
         }
+        true
     }
 }
