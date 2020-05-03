@@ -21,7 +21,7 @@ mod transaction;
 mod transactions;
 mod budget;
 mod router;
-mod userprofile;
+mod user_profile;
 mod note;
 
 use wasm_bindgen::prelude::*;

@@ -7,7 +7,7 @@ use yew_router::{
     Switch,
 };
 use crate::{
-    userprofile::*,
+    user_profile::*,
     note::*,
 };
 use common::{
