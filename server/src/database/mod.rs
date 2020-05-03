@@ -40,21 +40,10 @@ pub fn post_note(req: &Request) -> Response {
     let note_id = DB.note_mut().insert(note);
     rouille::Response::json(&note_id)
 }
-pub fn get_note(req: &Request) -> Response {
-    match req.data() {
-        None => rouille::Response::empty_400(),
-        Some(body) => {
-            match serde_json::from_reader(body) {
-                Err(e) => {
-                    rouille::Response::text(e.to_string())
-                        .with_status_code(500)
-                }
-                Ok(id) => {
-                    let note = DB.note().get(id).unwrap().clone();
-                    rouille::Response::json(&note)
-                }
-            }
-        },
+pub fn get_note(_: &Request, id: Id<Note>) -> Response {
+    match DB.note().get(id).clone() {
+        Some(note) => rouille::Response::json(&note),
+        None => rouille::Response::empty_404(),
     }
 }
 pub fn post_user(req: &Request) -> Response {
@@ -64,21 +53,10 @@ pub fn post_user(req: &Request) -> Response {
     let user_id = DB.user_mut().insert(user);
     rouille::Response::json(&user_id)
 }
-pub fn get_user(req: &Request) -> Response {
-    match req.data() {
-        None => rouille::Response::empty_400(),
-        Some(body) => {
-            match serde_json::from_reader(body) {
-                Err(e) => {
-                    rouille::Response::text(e.to_string())
-                        .with_status_code(500)
-                }
-                Ok(id) => {
-                    let user = DB.user().get(id).unwrap().clone();
-                    rouille::Response::json(&user)
-                }
-            }
-        },
+pub fn get_user(_: &Request, id: Id<User>) -> Response {
+    match DB.user().get(id).clone() {
+        Some(user) => rouille::Response::json(&user),
+        None => rouille::Response::empty_404(),
     }
 }
 pub fn post_task(req: &Request) -> Response {
@@ -92,15 +70,7 @@ pub fn post_task(req: &Request) -> Response {
     //                        .title("First Item".into())
     //                        .description("This is the first sub task.".into())
     //                        .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-    //                        .children(vec![
-    //                            TaskBuilder::default()
-    //                                .title("Second Level".into())
-    //                                .description("This is a sub sub task.".into())
-    //                                .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-    //                                .children(vec![ ])
-    //                                .build()
-    //                                .unwrap(),
-    //                        ])
+    //                        .children(vec![])
     //                        .build()
     //                        .unwrap(),
     //                ])
@@ -111,39 +81,15 @@ pub fn post_task(req: &Request) -> Response {
     let task_id = DB.task_mut().insert(task);
     rouille::Response::json(&task_id)
 }
-pub fn get_task(req: &Request) -> Response {
-    match req.data() {
-        None => rouille::Response::empty_400(),
-        Some(body) => {
-            let task = Task::new("Server Task");//DB.task().get(id).unwrap().clone();
-            let json = serde_json::to_string(&task).unwrap();
-            println!("Tasks: {:#?}", json);
-            let mut response = rouille::Response::text(json.clone());
-            response.data = rouille::ResponseBody::from_string(json);
-            println!("Response: {:#?}", response);
-            response
-            //match serde_json::from_reader(body) as std::result::Result<Id<Task>, serde_json::Error> {
-            //    Ok(id) => {
-            //        let task = Task::new("Server Task");//DB.task().get(id).unwrap().clone();
-            //        rouille::Response::json(&task)
-            //    },
-            //    Err(e) => {
-            //        rouille::Response::text(e.to_string())
-            //            .with_status_code(500)
-            //    },
-            //}
-        },
+pub fn get_task(_: &Request, id: Id<Task>) -> Response {
+    match DB.task().get(id).clone() {
+        Some(task) => rouille::Response::json(&task),
+        None => rouille::Response::empty_404(),
     }
 }
 pub fn get_tasks(_req: &Request) -> Response {
     let tasks: Vec<Task> = DB.task().rows().map(|row| row.data.clone()).collect();
-    //let json = String::from("Hello world");
-    let json = serde_json::to_string(&tasks).unwrap();
-    println!("Tasks: {:#?}", json);
-    let mut response = rouille::Response::text(json.clone());
-    response.data = rouille::ResponseBody::from_string(json);
-    println!("Response: {:#?}", response);
-    response
+    rouille::Response::json(&tasks)
 }
 
 pub fn setup() {

@@ -180,8 +180,9 @@ impl<T> RemoteData<T>
             .map_err(|e| anyhow!(format!("Request Error: {:#?}", e)))
     }
     fn get_request(&self, id: Id<T>) -> Result<Request, Error> {
+        let url = self.url.clone().to_string() + "/" + &id.to_string();
         Request::new_with_str_and_init(
-            &self.url.clone().to_string(),
+            &url,
             &Self::default_request_init("GET")?
             )
             .map_err(|e| anyhow!(format!("Request Error: {:#?}", e)))
