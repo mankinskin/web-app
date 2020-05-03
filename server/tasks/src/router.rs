@@ -9,6 +9,8 @@ use yew_router::{
 };
 use crate::{
     page::*,
+};
+use common::{
     remote_data::*,
 };
 use rql::{
