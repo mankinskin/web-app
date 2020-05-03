@@ -3,13 +3,13 @@ use yew::{
 };
 use common::{
     status_stack::*,
+    remote_data::*,
 };
 use plans::{
     task::*,
 };
 use crate::{
     task::*,
-    remote_data::*,
 };
 use rql::{
     *
@@ -40,6 +40,7 @@ pub struct PageView {
     link: ComponentLink<Self>,
     status: StatusStack<(), String>,
 }
+
 impl PageView {
     fn tasks_responder(&self) -> Callback<RemoteResponse<Vec<Task>>> {
         self.link.callback(move |response: RemoteResponse<Vec<Task>>| {
@@ -48,8 +49,7 @@ impl PageView {
     }
     fn tasks_request(&self, request: RemoteRequest<Vec<Task>>) -> impl Future<Output=()> + 'static {
         let callback = self.tasks_responder().clone();
-        self.props.tasks
-            .fetch_request(request)
+        self.props.tasks.fetch_request(request)
             .then(move |res: RemoteResponse<Vec<Task>>| {
                 futures::future::ready(callback.emit(res))
             })
@@ -61,8 +61,7 @@ impl PageView {
     }
     fn task_request(&self, request: RemoteRequest<Task>) -> impl Future<Output=()> + 'static {
         let callback = self.task_responder().clone();
-        self.props.task
-            .fetch_request(request)
+        self.props.task.fetch_request(request)
             .then(move |res: RemoteResponse<Task>| {
                 futures::future::ready(callback.emit(res))
             })

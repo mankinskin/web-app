@@ -19,7 +19,6 @@ extern crate common;
 mod router;
 mod task;
 mod page;
-mod remote_data;
 
 use wasm_bindgen::prelude::*;
 
