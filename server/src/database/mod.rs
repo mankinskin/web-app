@@ -53,11 +53,13 @@ pub fn post_user(req: &Request) -> Response {
     let user_id = DB.user_mut().insert(user);
     rouille::Response::json(&user_id)
 }
-pub fn get_user(_: &Request, id: Id<User>) -> Response {
-    match DB.user().get(id).clone() {
-        Some(user) => rouille::Response::json(&user),
-        None => rouille::Response::empty_404(),
-    }
+pub fn get_user(_: &Request, _: Id<User>) -> Response {
+    let user = User::new("Server User");
+    rouille::Response::json(&user)
+    //match DB.user().get(id).clone() {
+    //    Some(user) => rouille::Response::json(&user),
+    //    None => rouille::Response::empty_404(),
+    //}
 }
 pub fn post_task(req: &Request) -> Response {
     //let task =
