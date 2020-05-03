@@ -9,6 +9,14 @@ use colored::*;
 use crate::{
     database::*,
 };
+use plans::{
+    user::*,
+    note::*,
+    task::*,
+};
+use rql::{
+    *,
+};
 
 
 fn log_request(r: &Request) {
@@ -40,20 +48,20 @@ fn handle_request(request: &Request) -> Response {
         (GET) (/api/tasks) => {
             get_tasks(request)
         },
-        (GET) (/api/task) => {
-            get_task(request)
+        (GET) (/api/task/{id: Id<Task>}) => {
+            get_task(request, id)
         },
         (POST) (/api/task) => {
             post_task(request)
         },
-        (GET) (/api/user) => {
-            get_user(request)
+        (GET) (/api/user/{id: Id<User>}) => {
+            get_user(request, id)
         },
         (POST) (/api/user) => {
             post_user(request)
         },
-        (GET) (/api/note) => {
-            get_note(request)
+        (GET) (/api/note/{id: Id<Note>}) => {
+            get_note(request, id)
         },
         (POST) (/api/note) => {
             post_note(request)
