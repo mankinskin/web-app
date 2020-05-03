@@ -27,7 +27,7 @@ pub enum RemoteRequest<T>
 {
     Post(T),
     Get(Id<T>),
-    Update(T),
+    Update(Id<T>, T),
     Delete(Id<T>),
 }
 #[derive(Debug)]
@@ -201,7 +201,7 @@ impl<T> RemoteData<T>
             RemoteRequest::Delete(id) => {
                 self.delete_request(id)
             },
-            RemoteRequest::Update(data) => {
+            RemoteRequest::Update(id, data) => {
                 // TODO
                 self.post_request(&data)
             },
