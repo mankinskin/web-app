@@ -1,6 +1,3 @@
-use yew::{
-    *,
-};
 use anyhow::{
     Error
 };
@@ -14,7 +11,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 use std::result::{Result};
 use wasm_bindgen_futures::JsFuture;
-use futures::{FutureExt};
+use futures::{Future, FutureExt};
 use wasm_bindgen::JsCast;
 
 #[derive(Debug)]
@@ -99,7 +96,7 @@ impl<T> std::ops::Deref for RemoteData<T>
         &self.buffer
     }
 }
-pub async fn fetch_request<T>(request: Request, responder: Callback<RemoteResponse<T>>)
+pub fn fetch_request<T>(request: Request) -> impl Future<Output=RemoteResponse<T>> + 'static
     where T: serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
 {
     let window = web_sys::window().expect("web_sys window()");
@@ -126,10 +123,6 @@ pub async fn fetch_request<T>(request: Request, responder: Callback<RemoteRespon
                 res.map_err(|e| anyhow!(format!("JsFuture::from: {:#?}", e)))
             )
         })
-        .then(move |resp: RemoteResponse<T>| {
-            console!(log, "Got response 4");
-            futures::future::ready(responder.emit(resp))
-        }).await
 }
 impl<T> RemoteData<T>
     where T: serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
@@ -153,13 +146,11 @@ impl<T> RemoteData<T>
     pub fn url(&self) -> &Url {
         &self.url
     }
-    pub fn fetch_request(&self, req: RemoteRequest<T>, responder: Callback<RemoteResponse<T>>) -> Result<(), Error> {
-        console!(log, "task_list request");
-        let request = self.request(req)?;
-        wasm_bindgen_futures::spawn_local(
-            fetch_request(request, responder)
-        );
-        Ok(())
+    pub fn fetch_request(&self, req: RemoteRequest<T>)
+        -> impl Future<Output=RemoteResponse<T>> + 'static {
+        //console!(log, "task_list request");
+        let request = self.request(req).unwrap().clone().unwrap();
+        fetch_request(request)
     }
     fn default_request_init(method: &str) -> Result<RequestInit, Error> {
         Ok(RequestInit::new()

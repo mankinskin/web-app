@@ -14,6 +14,7 @@ use crate::{
 use rql::{
     *
 };
+use futures::{Future, FutureExt};
 
 pub enum Msg {
     RemoteTask(RemoteMsg<Task>),
@@ -45,10 +46,26 @@ impl PageView {
             Msg::RemoteTasks(RemoteMsg::Response(response))
         })
     }
+    fn tasks_request(&self, request: RemoteRequest<Vec<Task>>) -> impl Future<Output=()> + 'static {
+        let callback = self.tasks_responder().clone();
+        self.props.tasks
+            .fetch_request(request)
+            .then(move |res: RemoteResponse<Vec<Task>>| {
+                futures::future::ready(callback.emit(res))
+            })
+    }
     fn task_responder(&self) -> Callback<RemoteResponse<Task>> {
         self.link.callback(move |response: RemoteResponse<Task>| {
             Msg::RemoteTask(RemoteMsg::Response(response))
         })
+    }
+    fn task_request(&self, request: RemoteRequest<Task>) -> impl Future<Output=()> + 'static {
+        let callback = self.task_responder().clone();
+        self.props.task
+            .fetch_request(request)
+            .then(move |res: RemoteResponse<Task>| {
+                futures::future::ready(callback.emit(res))
+            })
     }
 }
 impl Component for PageView {
@@ -107,8 +124,9 @@ impl Component for PageView {
             Msg::RemoteTask(msg) => {
                 match msg {
                     RemoteMsg::Request(request) => {
-                        self.props.task.fetch_request(request, self.task_responder())
-                            .expect("RemoteData request failed");
+                        wasm_bindgen_futures::spawn_local(
+                            self.task_request(request)
+                        );
                     },
                     RemoteMsg::Response(response) => {
                         if let Err(e) = self.props.task.respond(response) {
@@ -120,8 +138,9 @@ impl Component for PageView {
             Msg::RemoteTasks(msg) => {
                 match msg {
                     RemoteMsg::Request(request) => {
-                        self.props.tasks.fetch_request(request, self.tasks_responder())
-                            .expect("RemoteData request failed");
+                        wasm_bindgen_futures::spawn_local(
+                            self.tasks_request(request)
+                        );
                     },
                     RemoteMsg::Response(response) => {
                         if let Err(e) = self.props.tasks.respond(response) {
