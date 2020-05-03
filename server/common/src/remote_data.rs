@@ -84,7 +84,7 @@ impl<T> RemoteResponse<T>
 pub struct RemoteData<T>
     where T: serde::Serialize + for<'de> serde::Deserialize<'de>
 {
-    buffer: Option<T>,
+    data: Option<T>,
     id: Option<Id<T>>,
     url: Url,
 }
@@ -93,7 +93,7 @@ impl<T> std::ops::Deref for RemoteData<T>
 {
     type Target = Option<T>;
     fn deref(&self) -> &Self::Target {
-        &self.buffer
+        &self.data
     }
 }
 pub fn fetch_request<T>(request: Request) -> impl Future<Output=RemoteResponse<T>> + 'static
@@ -133,10 +133,14 @@ impl<T> RemoteData<T>
     }
     pub fn new(url: Url) -> Self {
         Self {
-            buffer: None,
+            data: None,
             id: None,
             url,
         }
+    }
+    #[allow(unused)]
+    pub fn data(&self) -> &Option<T> {
+        &self.data
     }
     #[allow(unused)]
     pub fn id(&self) -> &Option<Id<T>> {
@@ -211,7 +215,7 @@ impl<T> RemoteData<T>
         match msg {
             RemoteResponse::Get(res) => {
                 res.map_err(|e| anyhow!(e))
-                   .map(|data| { self.buffer = Some(data); })
+                   .map(|data| { self.data = Some(data); })
             },
             RemoteResponse::Post(res) => {
                 res.map_err(|e| anyhow!(e))

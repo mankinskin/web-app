@@ -28,3 +28,14 @@ impl User {
         &self.name
     }
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserProfile {
+    user: User,
+}
+impl From<User> for UserProfile {
+    fn from(user: User) -> Self {
+        Self {
+            user,
+        }
+    }
+}

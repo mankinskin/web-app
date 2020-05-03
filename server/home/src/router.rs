@@ -10,6 +10,9 @@ use crate::{
     userprofile::*,
     note::*,
 };
+use common::{
+    remote_data::*,
+};
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
@@ -84,7 +87,7 @@ impl Component for ClientRouter {
                             </div>
                         },
                         Some(ClientRoute::User) => {
-                            html!{ <UserProfileView /> }
+                            html!{ <UserProfileView user={RemoteData::try_new("http://0.0.0.0:8000/api/user").unwrap()}/> }
                         },
                         Some(ClientRoute::Note) => {
                             html!{ <NoteEditor note={None}/> }
