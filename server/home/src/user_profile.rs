@@ -15,7 +15,6 @@ use common::{
 use rql::{
     *,
 };
-use anyhow::Error;
 use std::result::Result;
 use std::fmt::{Debug};
 use futures::{Future, FutureExt};
@@ -33,17 +32,17 @@ pub struct UserProfileView {
     link: ComponentLink<Self>,
 }
 impl UserProfileView {
-    fn user_responder(&self) -> Callback<RemoteResponse<User>> {
-        self.link.callback(move |response: RemoteResponse<User>| {
+    fn user_responder(&self) -> Callback<FetchResponse<User>> {
+        self.link.callback(move |response: FetchResponse<User>| {
             Msg::RemoteUser(RemoteMsg::Response(response))
         })
     }
-    fn user_request(&self, request: RemoteRequest<User>) -> impl Future<Output=()> + 'static {
+    fn user_request(&self, request: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
         let callback = self.user_responder().clone();
-        self.props.user.fetch_request(request)
-            .then(move |res: RemoteResponse<User>| {
+        Ok(self.props.user.fetch_request(request)?
+            .then(move |res: FetchResponse<User>| {
                 futures::future::ready(callback.emit(res))
-            })
+            }))
     }
 }
 impl Component for UserProfileView {
@@ -55,7 +54,8 @@ impl Component for UserProfileView {
             props,
             link,
         };
-        s.link.send_message(Msg::RemoteUser(RemoteMsg::Request(RemoteRequest::Get(Id::new()))));
+        s.props.user.set_id(Id::new());
+        s.link.send_message(Msg::RemoteUser(RemoteMsg::Request(FetchMethod::Get)));
         s
     }
     fn view(&self) -> Html {
@@ -85,6 +85,7 @@ impl Component for UserProfileView {
         }
     }
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
         true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -94,6 +95,7 @@ impl Component for UserProfileView {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
                             self.user_request(request)
+                                .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {
