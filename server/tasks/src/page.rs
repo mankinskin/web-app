@@ -11,10 +11,8 @@ use plans::{
 use crate::{
     task::*,
 };
-use rql::{
-    *
-};
 use futures::{Future, FutureExt};
+use std::result::{Result};
 
 pub enum Msg {
     RemoteTask(RemoteMsg<Task>),
@@ -42,29 +40,29 @@ pub struct PageView {
 }
 
 impl PageView {
-    fn tasks_responder(&self) -> Callback<RemoteResponse<Vec<Task>>> {
-        self.link.callback(move |response: RemoteResponse<Vec<Task>>| {
+    fn tasks_responder(&self) -> Callback<FetchResponse<Vec<Task>>> {
+        self.link.callback(move |response: FetchResponse<Vec<Task>>| {
             Msg::RemoteTasks(RemoteMsg::Response(response))
         })
     }
-    fn tasks_request(&self, request: RemoteRequest<Vec<Task>>) -> impl Future<Output=()> + 'static {
+    fn tasks_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
         let callback = self.tasks_responder().clone();
-        self.props.tasks.fetch_request(request)
-            .then(move |res: RemoteResponse<Vec<Task>>| {
+        Ok(self.props.tasks.fetch_request(method)?
+            .then(move |res: FetchResponse<Vec<Task>>| {
                 futures::future::ready(callback.emit(res))
-            })
+            }))
     }
-    fn task_responder(&self) -> Callback<RemoteResponse<Task>> {
-        self.link.callback(move |response: RemoteResponse<Task>| {
+    fn task_responder(&self) -> Callback<FetchResponse<Task>> {
+        self.link.callback(move |response: FetchResponse<Task>| {
             Msg::RemoteTask(RemoteMsg::Response(response))
         })
     }
-    fn task_request(&self, request: RemoteRequest<Task>) -> impl Future<Output=()> + 'static {
+    fn task_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
         let callback = self.task_responder().clone();
-        self.props.task.fetch_request(request)
-            .then(move |res: RemoteResponse<Task>| {
+        Ok(self.props.task.fetch_request(method)?
+            .then(move |res: FetchResponse<Task>| {
                 futures::future::ready(callback.emit(res))
-            })
+            }))
     }
 }
 impl Component for PageView {
@@ -77,8 +75,8 @@ impl Component for PageView {
             props,
             status: StatusStack::new(),
         };
-        s.link.send_message(Msg::RemoteTasks(RemoteMsg::Request(RemoteRequest::Get(Id::new()))));
-        //s.link.send_message(Msg::RemoteTask(RemoteMsg::Request(RemoteRequest::Get(Id::new()))));
+        s.link.send_message(Msg::RemoteTasks(RemoteMsg::Request(FetchMethod::Get)));
+        //s.link.send_message(Msg::RemoteTask(RemoteMsg::Request(FetchMethod::Get)));
         s
     }
     fn view(&self) -> Html {
@@ -125,6 +123,7 @@ impl Component for PageView {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
                             self.task_request(request)
+                                .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {
@@ -139,6 +138,7 @@ impl Component for PageView {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
                             self.tasks_request(request)
+                                .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {

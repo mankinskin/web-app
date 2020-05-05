@@ -90,7 +90,7 @@ impl Component for ClientRouter {
                             html!{ <UserProfileView user={RemoteData::try_new("http://0.0.0.0:8000/api/user").unwrap()}/> }
                         },
                         Some(ClientRoute::Note) => {
-                            html!{ <NoteEditor note={None}/> }
+                            html!{ <NoteEditor note={RemoteData::try_new("http://0.0.0.0:8000/api/note").unwrap()}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }

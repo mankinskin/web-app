@@ -4,22 +4,12 @@ pub use plans::{
 };
 use yew::{
     *,
-    services::{
-        *,
-        fetch::{
-            *,
-            FetchTask,
-        },
-    },
-    format::{
-        Nothing,
-    },
 };
 use crate::{
     *,
 };
 use common::{
-    status_stack::*,
+    remote_data::*,
 };
 use std::fmt::{Debug};
 use stdweb::web::{
@@ -27,30 +17,21 @@ use stdweb::web::{
     html_element::{TextAreaElement},
 };
 use stdweb::unstable::TryInto;
+use futures::{Future, FutureExt};
+use std::result::{Result};
 
 pub enum Msg {
     SetText(String),
-    PostNote,
-    PostNoteStatus(Result<(), String>),
+    RemoteNote(RemoteMsg<Note>),
 }
 
 #[derive(Properties, Clone, Debug)]
 pub struct NoteData {
-    pub note: Option<Note>
-}
-impl From<Note> for NoteData {
-    fn from(note: Note) -> Self {
-        Self {
-            note: Some(note),
-        }
-    }
+    pub note: RemoteData<Note>
 }
 pub struct NoteEditor {
     link: ComponentLink<Self>,
     props: NoteData,
-    fetch_task: Option<FetchTask>,
-    fetch_service: FetchService,
-    post_status: StatusStack<(), String>,
 }
 
 impl NoteEditor {
@@ -60,39 +41,21 @@ impl NoteEditor {
         })
     }
     fn post_note_callback(&self) -> Callback<ClickEvent> {
-        self.link.callback(|_: ClickEvent| {
-            Msg::PostNote
+        self.link.callback(move |input: ClickEvent| {
+            Msg::RemoteNote(RemoteMsg::Request(FetchMethod::Post))
         })
     }
-    fn post_note(&mut self, note: Note) -> Result<(), String> {
-        let json = serde_json::to_string(&note).unwrap();
-        let req = Request::post("/api/note")
-            .header("Content-Type", "application/json")
-            .body(Ok(json))
-            .unwrap();
-        let callback = self.link.callback(|response: Response<Nothing>| {
-            let (meta, Nothing) = response.into_parts();
-            if meta.status.is_success() {
-                Msg::PostNoteStatus(Ok(()))
-            } else {
-                Msg::PostNoteStatus(Err(
-                    meta.status.clone()
-                        .canonical_reason()
-                        .map(ToString::to_string)
-                        .unwrap_or(format!("Got StatusCode {}", meta.status)))
-                )
-            }
-        });
-        let task = self.fetch_service.fetch(req, callback);
-        match task {
-            Ok(task) => {
-                self.fetch_task = Some(task);
-                Ok(())
-            },
-            Err(err) => {
-                Err(err.to_string())
-            },
-        }
+    fn note_responder(&self) -> Callback<FetchResponse<Note>> {
+        self.link.callback(move |response: FetchResponse<Note>| {
+            Msg::RemoteNote(RemoteMsg::Response(response))
+        })
+    }
+    fn note_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
+        let callback = self.note_responder().clone();
+        Ok(self.props.note.fetch_request(method)?
+            .then(move |res: FetchResponse<Note>| {
+                futures::future::ready(callback.emit(res))
+            }))
     }
 }
 impl Component for NoteEditor {
@@ -100,13 +63,12 @@ impl Component for NoteEditor {
     type Properties = NoteData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
+        let mut s = Self {
             link,
             props,
-            fetch_service: FetchService::new(),
-            fetch_task: None,
-            post_status: StatusStack::new(),
-        }
+        };
+        s.props.note.set_data(Note::new(""));
+        s
     }
     fn rendered(&mut self, _first_render: bool) {
         let text_area: TextAreaElement = stdweb::web::document()
@@ -124,10 +86,6 @@ impl Component for NoteEditor {
                 .expect("Failed to set attribute");
         });
     }
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props = props;
-        true
-    }
     fn view(&self) -> Html {
         html!{
             <div class="note-editor-container">
@@ -139,40 +97,41 @@ impl Component for NoteEditor {
                     format!("{:#?}", self.props.note)
                 }</div>
                 <button class="note-submit-button" onclick=self.post_note_callback()>{"Submit"}</button>
-                <div class="submit-status">
-                    <StatusStackView<(), String> stack={self.post_status.clone()} />
-                </div>
+                //<div class="submit-status">
+                //    <StatusStackView<(), String> stack={self.post_status.clone()} />
+                //</div>
             </div>
         }
+    }
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
+        true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::SetText(text) => {
-                self.props.note =
-                    self.props.note.clone().map(|mut note| {
+                *self.props.note.data_mut() =
+                    self.props.note.data().clone().map(|mut note| {
                         note.set_text(text.clone());
                         note
                     })
                     .or_else(move || Some(Note::new(text)));
-                true
             },
-            Msg::PostNote => {
-                self.post_status.clear();
-                match self.props.note.clone() {
-                    Some(note) => {
-                        let status = self.post_note(note);
-                        self.link.send_message(Msg::PostNoteStatus(status));
-                        true
+            Msg::RemoteNote(msg) => {
+                console!(log, format!("{:#?}", msg));
+                match msg {
+                    RemoteMsg::Request(request) => {
+                        let future = self.note_request(request).expect("Failed to make request");
+                        wasm_bindgen_futures::spawn_local(future);
                     },
-                    None => {
-                        false
-                    }
+                    RemoteMsg::Response(response) => {
+                        if let Err(e) = self.props.note.respond(response) {
+                            console!(log, format!("{:#?}", e));
+                        }
+                    },
                 }
             },
-            Msg::PostNoteStatus(status) => {
-                self.post_status.push(status);
-                true
-            },
         }
+        true
     }
 }
