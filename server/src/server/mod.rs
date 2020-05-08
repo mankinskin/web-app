@@ -1,13 +1,19 @@
-use rouille::{
-    Request,
-    Response,
+use rocket::{
+    request::{
+        FromParam,
+    },
+    response::{
+        *,
+    },
+    http::{
+        *,
+    },
 };
-use chrono::{
-    Utc,
+use rocket_contrib::{
+    json::Json
 };
-use colored::*;
 use crate::{
-    database::*,
+    database,
 };
 use plans::{
     user::*,
@@ -17,75 +23,138 @@ use plans::{
 use rql::{
     *,
 };
+use std::io::Result;
+use std::str::FromStr;
+use std::{
+    path::{
+        Path,
+    },
+};
 
+struct SerdeParam<T>(T)
+    where T: FromStr;
 
-fn log_request(r: &Request) {
-    print!("[{}] {} {} {} ",
-        Utc::now().format("%d.%m.%Y %T"),
-        r.remote_addr().to_string().blue(),
-        r.method(),
-        r.raw_url());
+impl<T> From<T> for SerdeParam<T>
+    where T: FromStr
+{
+    fn from(o: T) -> Self {
+        Self(o)
+    }
 }
-fn log_response(r: &Response) {
-    println!("{}", (|s: String| if r.is_error() {
-        s.red()
-    } else {
-        s.green()
-    })(r.status_code.to_string()));
+impl<T> std::ops::Deref for SerdeParam<T>
+    where T: FromStr
+{
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-fn handle_request(request: &Request) -> Response {
-    log_request(request);
-    let response = router!(request,
-        (GET) (/tasks/tools) => {
-            get_html("./tasks/index.html")
-        },
-        (GET) (/tasks) => {
-            get_html("./tasks/index.html")
-        },
-        (GET) (/budget) => {
-            get_html("./home/index.html")
-        },
-        (GET) (/api/tasks) => {
-            get_tasks(request)
-        },
-        (GET) (/api/task/{id: Id<Task>}) => {
-            get_task(request, id)
-        },
-        (POST) (/api/task) => {
-            post_task(request)
-        },
-        (GET) (/api/user/{id: Id<User>}) => {
-            get_user(request, id)
-        },
-        (POST) (/api/user) => {
-            post_user(request)
-        },
-        (GET) (/api/note/{id: Id<Note>}) => {
-            get_note(request, id)
-        },
-        (POST) (/api/note) => {
-            post_note(request)
-        },
-        (GET) (/user) => {
-            get_html("./home/index.html")
-        },
-        (GET) (/profile) => {
-            get_html("./home/index.html")
-        },
-        (GET) (/note) => {
-            get_html("./home/index.html")
-        },
-        (GET) (/) => {
-            get_html("./home/index.html")
-        },
-        _ => rouille::match_assets(request, "./")
-    );
-    log_response(&response);
-    response
+impl<'r, T> FromParam<'r> for SerdeParam<T>
+    where T: FromStr,
+          <T as FromStr>::Err: std::fmt::Display
+{
+    type Error = anyhow::Error;
+    fn from_param(param: &'r RawStr) -> std::result::Result<Self, Self::Error> {
+        T::from_str(param.as_str())
+            .map(|t: T| Self::from(t))
+            .map_err(|e|
+                anyhow!(format!("Failed to parse \'{}\': {}", param, e)))
+    }
+}
+
+pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
+    NamedFile::open(path)
+}
+#[get("/tasks/tools")]
+fn get_tasks_tools_html() -> Result<NamedFile> {
+    get_file("./tasks/index.html")
+}
+#[get("/user")]
+fn get_user_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
+#[get("/profile")]
+fn get_profile_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
+#[get("/note")]
+fn get_note_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
+#[get("/")]
+fn get_root_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
+#[get("/tasks")]
+fn get_tasks_html() -> Result<NamedFile> {
+    get_file("./tasks/index.html")
+}
+#[get("/budget")]
+fn get_budget_html() -> Result<NamedFile> {
+    get_file("./tasks/index.html")
+}
+#[get("/<app>/styles/<file_name>")]
+fn get_style_css(app: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./{}/styles/{}", app, file_name))
+}
+#[get("/<app>/pkg/<file_name>")]
+fn get_pkg_js(app: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./{}/pkg/{}", app, file_name))
+}
+#[get("/img/<file_name>")]
+fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./img/{}", file_name))
+}
+#[get("/api/tasks")]
+fn get_tasks() -> Option<Json<Vec<Task>>> {
+    database::get_tasks()
+}
+#[get("/api/tasks/<id>")]
+fn get_task(id: SerdeParam<Id<Task>>) -> Option<Json<Task>> {
+    database::get_task(*id)
+}
+#[post("/api/tasks", data="<task>")]
+fn post_task(task: Json<Task>) -> status::Accepted<Json<Id<Task>>> {
+    database::post_task(task.clone())
+}
+#[get("/api/users/<id>")]
+fn get_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
+    database::get_user(id.clone())
+}
+#[post("/api/users", data="<user>")]
+fn post_user(user: Json<User>) -> status::Accepted<Json<Id<User>>> {
+    database::post_user(user.clone())
+}
+#[get("/api/notes/<id>")]
+fn get_note(id: SerdeParam<Id<Note>>) -> Option<Json<Note>> {
+    database::get_note(*id)
+}
+#[post("/api/notes", data="<note>")]
+fn post_note(note: Json<Note>) -> status::Accepted<Json<Id<Note>>> {
+    database::post_note(note.into_inner())
 }
 
 pub fn start() {
-    let address = "0.0.0.0:8000";
-    println!("Serving on {}", address);
-    rouille::start_server(address, handle_request)
+    rocket::ignite()
+        .mount("/",
+            routes![
+                get_tasks_tools_html,
+                get_tasks_html,
+                get_budget_html,
+                get_tasks,
+                get_task,
+                post_task,
+                get_user,
+                post_user,
+                get_note,
+                post_note,
+                get_user_html,
+                get_profile_html,
+                get_note_html,
+                get_root_html,
+                get_style_css,
+                get_pkg_js,
+                get_img_file,
+            ])
+        .launch();
 }

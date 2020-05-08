@@ -65,7 +65,7 @@ impl Component for UserProfileView {
                 <div id="user-profile">
                     <div id="user-profile-header" class="profile-card">
                         <div class="user-profile-image-container">
-                            <img class="user-profile-image" src="/dweeb.jpg"/>
+                            <img class="user-profile-image" src="/img/dweeb.jpg"/>
                         </div>
                         <div id="user-info-container">
                             <div id="user-name">
