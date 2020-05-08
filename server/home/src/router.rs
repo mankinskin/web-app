@@ -87,10 +87,10 @@ impl Component for ClientRouter {
                             </div>
                         },
                         Some(ClientRoute::User) => {
-                            html!{ <UserProfileView user={RemoteData::try_new("http://0.0.0.0:8000/api/user").unwrap()}/> }
+                            html!{ <UserProfileView user={RemoteData::try_new("http://localhost:8000/api/users").unwrap()}/> }
                         },
                         Some(ClientRoute::Note) => {
-                            html!{ <NoteEditor note={RemoteData::try_new("http://0.0.0.0:8000/api/note").unwrap()}/> }
+                            html!{ <NoteEditor note={RemoteData::try_new("http://localhost:8000/api/notes").unwrap()}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }
