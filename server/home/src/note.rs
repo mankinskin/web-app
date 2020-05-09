@@ -121,7 +121,9 @@ impl Component for NoteEditor {
                 console!(log, format!("{:#?}", msg));
                 match msg {
                     RemoteMsg::Request(request) => {
-                        let future = self.note_request(request).expect("Failed to make request");
+                        let future = self
+                            .note_request(request)
+                            .expect("Failed to make request");
                         wasm_bindgen_futures::spawn_local(future);
                     },
                     RemoteMsg::Response(response) => {
