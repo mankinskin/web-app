@@ -161,9 +161,10 @@ impl<T> Fetch<T>
             &url.to_string(),
             &Self::default_request_init("POST")?
                 .body(Some(
-                    &JsValue::from_serde(data)
+                    &JsValue::from_str(&serde_json::to_string(data)
                         .map(|v| { console!(log, format!("Post: {:#?}", v)); v })
                         .map_err(|e| anyhow!(format!("Serde error: {:#?}", e)))?
+                    )
                 ))
             )
             .map_err(|e| anyhow!(format!("Request Error: {:#?}", e)))

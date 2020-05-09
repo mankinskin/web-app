@@ -107,31 +107,39 @@ fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
 }
 #[get("/api/tasks")]
 fn get_tasks() -> Option<Json<Vec<Task>>> {
-    database::get_tasks()
+    database::REST::<Task>::get_all()
+}
+#[get("/api/users")]
+fn get_users() -> Option<Json<Vec<User>>> {
+    database::REST::<User>::get_all()
+}
+#[get("/api/notes")]
+fn get_notes() -> Option<Json<Vec<Note>>> {
+    database::REST::<Note>::get_all()
 }
 #[get("/api/tasks/<id>")]
 fn get_task(id: SerdeParam<Id<Task>>) -> Option<Json<Task>> {
-    database::get_task(*id)
+    database::REST::get(*id)
 }
 #[post("/api/tasks", data="<task>")]
 fn post_task(task: Json<Task>) -> status::Accepted<Json<Id<Task>>> {
-    database::post_task(task.clone())
+    database::REST::post(task.clone())
 }
 #[get("/api/users/<id>")]
 fn get_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
-    database::get_user(id.clone())
+    database::REST::get(id.clone())
 }
 #[post("/api/users", data="<user>")]
 fn post_user(user: Json<User>) -> status::Accepted<Json<Id<User>>> {
-    database::post_user(user.clone())
+    database::REST::post(user.into_inner())
 }
 #[get("/api/notes/<id>")]
 fn get_note(id: SerdeParam<Id<Note>>) -> Option<Json<Note>> {
-    database::get_note(*id)
+    database::REST::get(*id)
 }
 #[post("/api/notes", data="<note>")]
 fn post_note(note: Json<Note>) -> status::Accepted<Json<Id<Note>>> {
-    database::post_note(note.into_inner())
+    database::REST::post(note.into_inner())
 }
 
 pub fn start() {
@@ -141,13 +149,6 @@ pub fn start() {
                 get_tasks_tools_html,
                 get_tasks_html,
                 get_budget_html,
-                get_tasks,
-                get_task,
-                post_task,
-                get_user,
-                post_user,
-                get_note,
-                post_note,
                 get_user_html,
                 get_profile_html,
                 get_note_html,
@@ -155,6 +156,18 @@ pub fn start() {
                 get_style_css,
                 get_pkg_js,
                 get_img_file,
+
+                get_tasks,
+                get_task,
+                post_task,
+
+                get_users,
+                get_user,
+                post_user,
+
+                get_notes,
+                get_note,
+                post_note,
             ])
         .launch();
 }

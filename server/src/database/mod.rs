@@ -22,53 +22,58 @@ schema! {
 lazy_static!{
     static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
 }
-pub fn post_note(note: Note) -> status::Accepted<Json<Id<Note>>> {
-    println!("Got note: {:#?}", note);
-    let note_id = DB.note_mut().insert(note);
-    status::Accepted(Some(Json(note_id)))
+
+#[derive(Clone, Debug, Default)]
+pub struct REST<T> {
+    _ty: std::marker::PhantomData<T>,
 }
-pub fn get_note(id: Id<Note>) -> Option<Json<Note>> {
-    DB.note()
-      .get(id)
-      .map(|note| Json(note.clone()))
+impl<'a, T> REST<T>
+    where T: DatabaseTable<'a> + Clone + 'a
+{
+    pub fn post(obj: T) -> status::Accepted<Json<Id<T>>> {
+        let id = T::table_mut().insert(obj);
+        status::Accepted(Some(Json(id)))
+    }
+    pub fn get(id: Id<T>) -> Option<Json<T>> {
+        T::table()
+          .get(id)
+          .map(|entry| Json(entry.clone()))
+    }
+    pub fn get_all() -> Option<Json<Vec<T>>> {
+        Some(Json(T::table()
+            .rows()
+            .map(|row| row.data.clone())
+            .collect()
+        ))
+    }
 }
-pub fn post_user(user: User) -> status::Accepted<Json<Id<User>>> {
-    //let user = User::new("Server");
-    println!("Got user: {:#?}", user);
-    let user_id = DB.user_mut().insert(user);
-    status::Accepted(Some(Json(user_id)))
+pub trait DatabaseTable<'a> : Sized + serde::Serialize {
+    fn table() -> TableGuard<'a, Self>;
+    fn table_mut() -> TableGuardMut<'a, Self>;
 }
-pub fn get_user(_: Id<User>) -> Option<Json<User>> {
-    Some(Json(User::new("Server User")))
+impl<'a> DatabaseTable<'a> for Note {
+    fn table() -> TableGuard<'a, Self> {
+        DB.note()
+    }
+    fn table_mut() -> TableGuardMut<'a, Self> {
+        DB.note_mut()
+    }
 }
-pub fn post_task(task: Task) -> status::Accepted<Json<Id<Task>>> {
-    //let task =
-    //    TaskBuilder::default()
-    //        .title("Server Task".into())
-    //        .description("This is the top level task.".into())
-    //        .assignees(vec!["Heinz".into(), "Kunigunde".into(), "Andreas".into()])
-    //        .children(vec![
-    //                    TaskBuilder::default()
-    //                        .title("First Item".into())
-    //                        .description("This is the first sub task.".into())
-    //                        .assignees(vec!["Heinz".into(), "Kunigunde".into()])
-    //                        .children(vec![])
-    //                        .build()
-    //                        .unwrap(),
-    //                ])
-    //        .build()
-    //        .unwrap();
-    let task_id = DB.task_mut().insert(task);
-    status::Accepted(Some(Json(task_id)))
+impl<'a> DatabaseTable<'a> for User {
+    fn table() -> TableGuard<'a, Self> {
+        DB.user()
+    }
+    fn table_mut() -> TableGuardMut<'a, Self> {
+        DB.user_mut()
+    }
 }
-pub fn get_task(id: Id<Task>) -> Option<Json<Task>> {
-    DB.task()
-      .get(id)
-      .map(|task| Json(task.clone()))
-}
-pub fn get_tasks() -> Option<Json<Vec<Task>>> {
-    let tasks: Vec<Task> = DB.task().rows().map(|row| row.data.clone()).collect();
-    Some(Json(tasks))
+impl<'a> DatabaseTable<'a> for Task {
+    fn table() -> TableGuard<'a, Self> {
+        DB.task()
+    }
+    fn table_mut() -> TableGuardMut<'a, Self> {
+        DB.task_mut()
+    }
 }
 
 pub fn setup() {
