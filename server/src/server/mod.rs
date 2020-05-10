@@ -13,7 +13,9 @@ use rocket_contrib::{
     json::Json
 };
 use crate::{
-    database,
+    database::{
+        *,
+    },
 };
 use plans::{
     user::*,
@@ -107,39 +109,45 @@ fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
 }
 #[get("/api/tasks")]
 fn get_tasks() -> Option<Json<Vec<Task>>> {
-    database::REST::<Task>::get_all()
-}
-#[get("/api/users")]
-fn get_users() -> Option<Json<Vec<User>>> {
-    database::REST::<User>::get_all()
-}
-#[get("/api/notes")]
-fn get_notes() -> Option<Json<Vec<Note>>> {
-    database::REST::<Note>::get_all()
+    Task::get_all()
 }
 #[get("/api/tasks/<id>")]
 fn get_task(id: SerdeParam<Id<Task>>) -> Option<Json<Task>> {
-    database::REST::get(*id)
+    Task::get(*id)
 }
 #[post("/api/tasks", data="<task>")]
 fn post_task(task: Json<Task>) -> status::Accepted<Json<Id<Task>>> {
-    database::REST::post(task.clone())
+    Task::post(task.clone())
+}
+
+#[get("/api/users")]
+fn get_users() -> Option<Json<Vec<User>>> {
+    User::get_all()
 }
 #[get("/api/users/<id>")]
 fn get_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
-    database::REST::get(id.clone())
+    User::get(id.clone())
 }
 #[post("/api/users", data="<user>")]
 fn post_user(user: Json<User>) -> status::Accepted<Json<Id<User>>> {
-    database::REST::post(user.into_inner())
+    User::post(user.into_inner())
+}
+#[delete("/api/users/<id>")]
+fn delete_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
+    User::delete(id.clone())
+}
+
+#[get("/api/notes")]
+fn get_notes() -> Option<Json<Vec<Note>>> {
+    Note::get_all()
 }
 #[get("/api/notes/<id>")]
 fn get_note(id: SerdeParam<Id<Note>>) -> Option<Json<Note>> {
-    database::REST::get(*id)
+    Note::get(*id)
 }
 #[post("/api/notes", data="<note>")]
 fn post_note(note: Json<Note>) -> status::Accepted<Json<Id<Note>>> {
-    database::REST::post(note.into_inner())
+    Note::post(note.into_inner())
 }
 
 pub fn start() {
@@ -163,6 +171,7 @@ pub fn start() {
 
                 get_users,
                 get_user,
+                delete_user,
                 post_user,
 
                 get_notes,
