@@ -23,33 +23,31 @@ lazy_static!{
     static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct REST<T> {
-    _ty: std::marker::PhantomData<T>,
-}
-impl<'a, T> REST<T>
-    where T: DatabaseTable<'a> + Clone + 'a
-{
-    pub fn post(obj: T) -> status::Accepted<Json<Id<T>>> {
-        let id = T::table_mut().insert(obj);
-        status::Accepted(Some(Json(id)))
+pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + 'a {
+    fn table() -> TableGuard<'a, Self>;
+    fn table_mut() -> TableGuardMut<'a, Self>;
+    fn post(obj: Self) -> status::Accepted<Json<Id<Self>>> {
+        status::Accepted(Some(Json(
+            Self::table_mut().insert(obj)
+        )))
     }
-    pub fn get(id: Id<T>) -> Option<Json<T>> {
-        T::table()
+    fn get(id: Id<Self>) -> Option<Json<Self>> {
+        Self::table()
           .get(id)
           .map(|entry| Json(entry.clone()))
     }
-    pub fn get_all() -> Option<Json<Vec<T>>> {
-        Some(Json(T::table()
+    fn delete(id: Id<Self>) -> Option<Json<Self>> {
+        Self::table_mut()
+          .delete_one(id)
+          .map(|entry| Json(entry.clone()))
+    }
+    fn get_all() -> Option<Json<Vec<Self>>> {
+        Some(Json(Self::table()
             .rows()
             .map(|row| row.data.clone())
             .collect()
         ))
     }
-}
-pub trait DatabaseTable<'a> : Sized + serde::Serialize {
-    fn table() -> TableGuard<'a, Self>;
-    fn table_mut() -> TableGuardMut<'a, Self>;
 }
 impl<'a> DatabaseTable<'a> for Note {
     fn table() -> TableGuard<'a, Self> {
