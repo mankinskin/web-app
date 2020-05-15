@@ -1,7 +1,19 @@
 use crate::{
     user::*,
 };
-#[derive(Clone, Debug, Serialize, Deserialize, Builder, Default)]
+use updatable::{
+    *,
+};
+#[derive(
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Builder,
+    Default,
+    Updatable,
+    PartialEq,
+    )]
 pub struct Task {
     title: String,
     description: String,

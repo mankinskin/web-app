@@ -10,7 +10,9 @@ extern crate colored;
 extern crate serde_json;
 extern crate serde;
 extern crate plans;
+extern crate common;
 #[macro_use] extern crate anyhow;
+extern crate updatable;
 
 mod server;
 mod database;

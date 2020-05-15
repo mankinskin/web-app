@@ -1,4 +1,14 @@
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use updatable::{
+    *,
+};
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    Updatable,
+    PartialEq,
+    )]
 pub struct User {
     name: String,
 }
@@ -28,7 +38,14 @@ impl User {
         &self.name
     }
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Updatable,
+    PartialEq,
+    )]
 pub struct UserProfile {
     user: User,
 }

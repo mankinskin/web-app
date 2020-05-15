@@ -12,6 +12,9 @@ use plans::{
     note::*,
     task::*,
 };
+use updatable::{
+    *,
+};
 schema! {
     Schema {
         user: User,
@@ -23,7 +26,7 @@ lazy_static!{
     static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
 }
 
-pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + 'a {
+pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + Updatable + 'a {
     fn table() -> TableGuard<'a, Self>;
     fn table_mut() -> TableGuardMut<'a, Self>;
     fn post(obj: Self) -> status::Accepted<Json<Id<Self>>> {
@@ -40,6 +43,14 @@ pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + 'a {
         Self::table_mut()
           .delete_one(id)
           .map(|entry| Json(entry.clone()))
+    }
+    fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Option<Json<Self>> {
+        Self::table_mut()
+          .get_mut(id)
+          .map(move |entry| {
+              update.update(entry);
+              Json(entry.clone())
+          })
     }
     fn get_all() -> Option<Json<Vec<Self>>> {
         Some(Json(Self::table()

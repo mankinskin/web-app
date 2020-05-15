@@ -28,3 +28,5 @@ stdweb = "0.4.2"
 [dependencies.interpreter]
 path = "../interpreter"
 
+[dependencies.updatable]
+path = "../updatable"

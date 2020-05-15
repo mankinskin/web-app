@@ -1,4 +1,14 @@
-#[derive(Clone, Debug, Serialize, Deserialize)]
+use updatable::{
+    *,
+};
+#[derive(
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Updatable,
+    PartialEq,
+    )]
 pub struct Note {
     text: String,
 }
