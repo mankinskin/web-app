@@ -29,3 +29,9 @@ features = [
 
 [dependencies.plans]
 path = "../plans"
+
+[dependencies.common]
+path = "./common"
+
+[dependencies.updatable]
+path = "../updatable"

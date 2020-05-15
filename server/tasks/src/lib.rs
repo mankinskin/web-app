@@ -3,7 +3,7 @@ extern crate yew;
 extern crate yew_router;
 #[macro_use] extern crate stdweb;
 extern crate wasm_bindgen;
-#[macro_use] extern crate anyhow;
+extern crate anyhow;
 extern crate serde_json;
 extern crate serde;
 extern crate rql;
