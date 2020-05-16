@@ -2,7 +2,11 @@ pub use crate::fetch::*;
 use rql::*;
 use url::*;
 use std::result::{Result};
-use futures::{Future};
+use futures::{Future, FutureExt};
+use std::convert::TryFrom;
+use yew::{
+    *,
+};
 
 #[derive(Debug)]
 pub enum RemoteMsg<T>
@@ -12,33 +16,57 @@ pub enum RemoteMsg<T>
     Response(FetchResponse<T>)
 }
 #[derive(Clone, Debug)]
-pub struct RemoteData<T>
-    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static
-{
-    data: Option<T>,
-    id: Option<Id<T>>,
+pub struct RemoteRoute {
     url: Url,
 }
-impl<T> std::ops::Deref for RemoteData<T>
-    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static
+impl RemoteRoute {
+    pub fn new(url: Url) -> Self {
+        Self {
+            url,
+        }
+    }
+}
+impl From<Url> for RemoteRoute {
+    fn from(url: Url) -> Self {
+        Self::new(url)
+    }
+}
+impl std::ops::Deref for RemoteRoute {
+    type Target = Url;
+    fn deref(&self) -> &Self::Target {
+        &self.url
+    }
+}
+#[derive(Clone, Debug)]
+pub struct RemoteData<T, C>
+    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static,
+          C: Component,
+{
+    route: RemoteRoute,
+    link: ComponentLink<C>,
+    data: Option<T>,
+    id: Option<Id<T>>,
+}
+impl<T, C> std::ops::Deref for RemoteData<T, C>
+    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static,
+          C: Component,
 {
     type Target = Option<T>;
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
-impl<T> RemoteData<T>
-    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static
+impl<T, C> RemoteData<T, C>
+    where T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + std::fmt::Debug + 'static,
+          C: Component,
+          <C as Component>::Message: From<RemoteMsg<T>>,
 {
-    pub fn try_new<S: ToString>(url: S) -> Result<Self, url::ParseError> {
-        Url::parse(&url.to_string())
-            .map(|url| Self::new(url))
-    }
-    pub fn new(url: Url) -> Self {
+    pub fn new(route: RemoteRoute, link: ComponentLink<C>) -> Self {
         Self {
+            route,
+            link,
             data: None,
             id: None,
-            url,
         }
     }
     pub fn data(&self) -> &Option<T> {
@@ -59,39 +87,44 @@ impl<T> RemoteData<T>
     pub fn set_id(&mut self, id: Id<T>) {
         self.id = Some(id);
     }
-    pub fn url(&self) -> &Url {
-        &self.url
-    }
-    pub fn url_mut(&mut self) -> &mut Url {
-        &mut self.url
-    }
-    pub fn set_url(&mut self, url: Url) {
-        self.url = url;
+    pub fn route(&self) -> &RemoteRoute {
+        &self.route
     }
     pub fn fetch_request(&self, method: FetchMethod)
-        -> Result<impl Future<Output=FetchResponse<T>> + 'static, anyhow::Error> {
+        -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
         //console!(log, "task_list request");
-        Fetch::send_request(
-            self.url.clone(),
-            self.request(method)
+        let callback = self.responder().clone();
+        Ok(
+            Fetch::send_request(
+                self.route.url.clone(),
+                self.method_request(method)
+            )?
+            .then(move |res: FetchResponse<T>| {
+                futures::future::ready(callback.emit(res))
+            })
         )
     }
-    pub fn post_request(&self) -> FetchRequest<T> {
+    pub fn responder(&self) -> Callback<FetchResponse<T>> {
+        self.link.callback(move |response: FetchResponse<T>| {
+            <C as Component>::Message::from(RemoteMsg::Response(response))
+        })
+    }
+    fn post_request(&self) -> FetchRequest<T> {
         FetchRequest::Post(self.data.clone().unwrap())
     }
-    pub fn get_request(&self) -> FetchRequest<T> {
-        FetchRequest::Get(self.id.unwrap())
+    fn get_request(&self) -> FetchRequest<T> {
+        FetchRequest::Get(self.id)
     }
-    pub fn delete_request(&self) -> FetchRequest<T> {
+    fn delete_request(&self) -> FetchRequest<T> {
         FetchRequest::Delete(self.id.unwrap())
     }
-    pub fn update_request(&self) -> FetchRequest<T> {
+    fn update_request(&self) -> FetchRequest<T> {
         FetchRequest::Update(
             self.id.unwrap(),
             self.data.clone().unwrap()
         )
     }
-    pub fn request(&self, method: FetchMethod) -> FetchRequest<T> {
+    fn method_request(&self, method: FetchMethod) -> FetchRequest<T> {
         match method {
             FetchMethod::Get => {
                 self.get_request()

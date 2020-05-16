@@ -24,14 +24,20 @@ pub enum Msg {
     SetText(String),
     RemoteNote(RemoteMsg<Note>),
 }
+impl From<RemoteMsg<Note>> for Msg {
+    fn from(m: RemoteMsg<Note>) -> Self {
+        Self::RemoteNote(m)
+    }
+}
 
 #[derive(Properties, Clone, Debug)]
 pub struct NoteData {
-    pub note: RemoteData<Note>
+    pub note: RemoteRoute
 }
 pub struct NoteEditor {
     link: ComponentLink<Self>,
     props: NoteData,
+    note: RemoteData<Note, Self>
 }
 
 impl NoteEditor {
@@ -45,29 +51,19 @@ impl NoteEditor {
             Msg::RemoteNote(RemoteMsg::Request(FetchMethod::Post))
         })
     }
-    fn note_responder(&self) -> Callback<FetchResponse<Note>> {
-        self.link.callback(move |response: FetchResponse<Note>| {
-            Msg::RemoteNote(RemoteMsg::Response(response))
-        })
-    }
-    fn note_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
-        let callback = self.note_responder().clone();
-        Ok(self.props.note.fetch_request(method)?
-            .then(move |res: FetchResponse<Note>| {
-                futures::future::ready(callback.emit(res))
-            }))
-    }
 }
 impl Component for NoteEditor {
     type Message = Msg;
     type Properties = NoteData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        let note = RemoteData::new(props.note.clone(), link.clone());
         let mut s = Self {
             link,
             props,
+            note
         };
-        s.props.note.set_data(Note::new(""));
+        s.note.set_data(Note::new(""));
         s
     }
     fn rendered(&mut self, _first_render: bool) {
@@ -110,8 +106,8 @@ impl Component for NoteEditor {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::SetText(text) => {
-                *self.props.note.data_mut() =
-                    self.props.note.data().clone().map(|mut note| {
+                *self.note.data_mut() =
+                    self.note.data().clone().map(|mut note| {
                         note.set_text(text.clone());
                         note
                     })
@@ -122,12 +118,12 @@ impl Component for NoteEditor {
                 match msg {
                     RemoteMsg::Request(request) => {
                         let future = self
-                            .note_request(request)
+                            .note.fetch_request(request)
                             .expect("Failed to make request");
                         wasm_bindgen_futures::spawn_local(future);
                     },
                     RemoteMsg::Response(response) => {
-                        if let Err(e) = self.props.note.respond(response) {
+                        if let Err(e) = self.note.respond(response) {
                             console!(log, format!("{:#?}", e));
                         }
                     },

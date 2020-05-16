@@ -13,6 +13,9 @@ use crate::{
 use common::{
     remote_data::*,
 };
+use url::{
+    Url,
+};
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
@@ -87,10 +90,13 @@ impl Component for ClientRouter {
                             </div>
                         },
                         Some(ClientRoute::User) => {
-                            html!{ <UserProfileView user={RemoteData::try_new("http://localhost:8000/api/users").unwrap()}/> }
+                            html!{ <UserProfileView
+                                user={RemoteRoute::from(Url::parse("http://localhost:8000/api/users").unwrap())}
+                                authentication={RemoteRoute::from(Url::parse("http://localhost:8000/api/auth").unwrap())}
+                                /> }
                         },
                         Some(ClientRoute::Note) => {
-                            html!{ <NoteEditor note={RemoteData::try_new("http://localhost:8000/api/notes").unwrap()}/> }
+                            html!{ <NoteEditor note={RemoteRoute::from(Url::parse("http://localhost:8000/api/notes").unwrap())}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }

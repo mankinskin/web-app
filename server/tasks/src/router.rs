@@ -13,8 +13,8 @@ use crate::{
 use common::{
     remote_data::*,
 };
-use rql::{
-    Id,
+use url::{
+    Url,
 };
 
 #[derive(Switch, Clone, Debug)]
@@ -86,8 +86,8 @@ impl Component for ClientRouter {
                         Some(ClientRoute::Index) => html! {
                             <div>
                                 <PageView
-                                    tasks={RemoteData::try_new("http://localhost:8000/api/tasks").unwrap()}
-                                    task={RemoteData::try_new("http://localhost:8000/api/task").unwrap()}
+                                    tasks={RemoteRoute::from(Url::parse("http://localhost:8000/api/tasks").unwrap())}
+                                    task={RemoteRoute::from(Url::parse("http://localhost:8000/api/task").unwrap())}
                             />
 
                                 <a href="/">{"Home"}</a>

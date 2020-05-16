@@ -1,12 +1,4 @@
 use rql::*;
-use rocket::{
-    response::{
-        *,
-    },
-};
-use rocket_contrib::{
-    json::Json
-};
 use plans::{
     user::*,
     note::*,
@@ -14,6 +6,9 @@ use plans::{
 };
 use updatable::{
     *,
+};
+use common::{
+    database::*,
 };
 schema! {
     Schema {
@@ -29,35 +24,47 @@ lazy_static!{
 pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + Updatable + 'a {
     fn table() -> TableGuard<'a, Self>;
     fn table_mut() -> TableGuardMut<'a, Self>;
-    fn post(obj: Self) -> status::Accepted<Json<Id<Self>>> {
-        status::Accepted(Some(Json(
-            Self::table_mut().insert(obj)
-        )))
+    fn post(obj: Self) -> Id<Self> {
+        Self::table_mut()
+            .insert(obj)
     }
-    fn get(id: Id<Self>) -> Option<Json<Self>> {
+    fn get(id: Id<Self>) -> Option<Self> {
         Self::table()
-          .get(id)
-          .map(|entry| Json(entry.clone()))
+            .get(id)
+            .map(|entry| entry.clone())
     }
-    fn delete(id: Id<Self>) -> Option<Json<Self>> {
+    fn delete(id: Id<Self>) -> Option<Self> {
         Self::table_mut()
           .delete_one(id)
-          .map(|entry| Json(entry.clone()))
     }
-    fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Option<Json<Self>> {
+    fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Option<Self> {
         Self::table_mut()
           .get_mut(id)
           .map(move |entry| {
               update.update(entry);
-              Json(entry.clone())
+              entry.clone()
           })
     }
-    fn get_all() -> Option<Json<Vec<Self>>> {
-        Some(Json(Self::table()
+    fn get_all() -> Vec<Entry<Self>> {
+        Self::table()
             .rows()
-            .map(|row| row.data.clone())
+            .map(|row| row.into())
             .collect()
-        ))
+    }
+    fn filter<F>(f: F) -> Vec<Entry<Self>>
+        where F: Fn(&Self) -> bool
+    {
+        Self::table()
+            .wher(|row| f(row.data))
+            .map(|row| row.into())
+            .collect()
+    }
+    fn find<F>(f: F) -> Option<Entry<Self>>
+        where F: Fn(&Self) -> bool
+    {
+        Self::table()
+            .find(|row| f(row.data))
+            .map(|row| row.into())
     }
 }
 impl<'a> DatabaseTable<'a> for Note {

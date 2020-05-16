@@ -11,6 +11,7 @@ use crate::{
 };
 use common::{
     remote_data::*,
+    database::*,
 };
 use rql::{
     *,
@@ -21,46 +22,50 @@ use futures::{Future, FutureExt};
 
 pub enum Msg {
     RemoteUser(RemoteMsg<User>),
+    Authentication(RemoteMsg<Entry<User>>),
+}
+impl From<RemoteMsg<User>> for Msg {
+    fn from(m: RemoteMsg<User>) -> Self {
+        Self::RemoteUser(m)
+    }
+}
+impl From<RemoteMsg<Entry<User>>> for Msg {
+    fn from(m: RemoteMsg<Entry<User>>) -> Self {
+        Self::Authentication(m)
+    }
 }
 
 #[derive(Properties, Clone, Debug)]
 pub struct UserProfileData {
-    pub user: RemoteData<User>,
+    pub user: RemoteRoute,
+    pub authentication: RemoteRoute,
 }
 pub struct UserProfileView {
     props: UserProfileData,
     link: ComponentLink<Self>,
+    user: RemoteData<User, Self>,
+    authentication: RemoteData<Entry<User>, Self>,
 }
-impl UserProfileView {
-    fn user_responder(&self) -> Callback<FetchResponse<User>> {
-        self.link.callback(move |response: FetchResponse<User>| {
-            Msg::RemoteUser(RemoteMsg::Response(response))
-        })
-    }
-    fn user_request(&self, request: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
-        let callback = self.user_responder().clone();
-        Ok(self.props.user.fetch_request(request)?
-            .then(move |res: FetchResponse<User>| {
-                futures::future::ready(callback.emit(res))
-            }))
-    }
-}
+
 impl Component for UserProfileView {
     type Message = Msg;
     type Properties = UserProfileData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut s = Self {
+        let user = RemoteData::new(props.user.clone(), link.clone());
+        let authentication = RemoteData::new(props.authentication.clone(), link.clone());
+        let s = Self {
             props,
             link,
+            user,
+            authentication,
         };
-        s.props.user.set_id(Id::new());
-        s.link.send_message(Msg::RemoteUser(RemoteMsg::Request(FetchMethod::Get)));
+        s.link.send_message(Msg::Authentication(RemoteMsg::Request(FetchMethod::Get)));
         s
     }
     fn view(&self) -> Html {
         console!(log, "Draw UserProfileView");
-        if let Some(user) = self.props.user.data().clone() {
+        if let Some(user) = self.user.data().clone() {
             html!{
                 <div id="user-profile">
                     <div id="user-profile-header" class="profile-card">
@@ -94,14 +99,31 @@ impl Component for UserProfileView {
                 match msg {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
-                            self.user_request(request)
+                            self.user.fetch_request(request)
                                 .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {
-                        if let Err(e) = self.props.user.respond(response) {
+                        if let Err(e) = self.user.respond(response) {
                             console!(log, format!("{:#?}", e));
                         }
+                    },
+                }
+            },
+            Msg::Authentication(msg) => {
+                match msg {
+                    RemoteMsg::Request(request) => {
+                        wasm_bindgen_futures::spawn_local(
+                            self.authentication.fetch_request(request)
+                                .expect("Failed to make request")
+                        );
+                    },
+                    RemoteMsg::Response(response) => {
+                        if let Err(e) = self.authentication.respond(response) {
+                            console!(log, format!("{:#?}", e));
+                        }
+                        self.user.set_id(self.authentication.data().clone().unwrap().id().clone());
+                        self.link.send_message(Msg::RemoteUser(RemoteMsg::Request(FetchMethod::Get)));
                     },
                 }
             },
