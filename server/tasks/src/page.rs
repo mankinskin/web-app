@@ -30,50 +30,32 @@ impl From<RemoteMsg<Vec<Task>>> for Msg {
 }
 #[derive(Properties, Clone, Debug)]
 pub struct PageData {
-    pub tasks: RemoteData<Vec<Task>>,
-    pub task: RemoteData<Task>,
+    pub tasks: RemoteRoute,
+    pub task: RemoteRoute,
 }
 pub struct PageView {
     props: PageData,
     link: ComponentLink<Self>,
     status: StatusStack<(), String>,
+    tasks: RemoteData<Vec<Task>, Self>,
+    task: RemoteData<Task, Self>,
 }
 
 impl PageView {
-    fn tasks_responder(&self) -> Callback<FetchResponse<Vec<Task>>> {
-        self.link.callback(move |response: FetchResponse<Vec<Task>>| {
-            Msg::RemoteTasks(RemoteMsg::Response(response))
-        })
-    }
-    fn tasks_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
-        let callback = self.tasks_responder().clone();
-        Ok(self.props.tasks.fetch_request(method)?
-            .then(move |res: FetchResponse<Vec<Task>>| {
-                futures::future::ready(callback.emit(res))
-            }))
-    }
-    fn task_responder(&self) -> Callback<FetchResponse<Task>> {
-        self.link.callback(move |response: FetchResponse<Task>| {
-            Msg::RemoteTask(RemoteMsg::Response(response))
-        })
-    }
-    fn task_request(&self, method: FetchMethod) -> Result<impl Future<Output=()> + 'static, anyhow::Error> {
-        let callback = self.task_responder().clone();
-        Ok(self.props.task.fetch_request(method)?
-            .then(move |res: FetchResponse<Task>| {
-                futures::future::ready(callback.emit(res))
-            }))
-    }
 }
 impl Component for PageView {
     type Message = Msg;
     type Properties = PageData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        let task = RemoteData::new(props.task.clone(), link.clone());
+        let tasks = RemoteData::new(props.tasks.clone(), link.clone());
         let s = Self {
             link,
             props,
             status: StatusStack::new(),
+            task,
+            tasks,
         };
         s.link.send_message(Msg::RemoteTasks(RemoteMsg::Request(FetchMethod::Get)));
         //s.link.send_message(Msg::RemoteTask(RemoteMsg::Request(FetchMethod::Get)));
@@ -82,7 +64,7 @@ impl Component for PageView {
     fn view(&self) -> Html {
         html! {
             <div class="page">{
-                match self.props.tasks.clone().as_deref() {
+                match self.tasks.clone().as_deref() {
                     Some(tasks) => {
                         html! {
                             {
@@ -122,12 +104,12 @@ impl Component for PageView {
                 match msg {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
-                            self.task_request(request)
+                            self.task.fetch_request(request)
                                 .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {
-                        if let Err(e) = self.props.task.respond(response) {
+                        if let Err(e) = self.task.respond(response) {
                             console!(log, format!("{:#?}", e));
                         }
                     },
@@ -137,12 +119,12 @@ impl Component for PageView {
                 match msg {
                     RemoteMsg::Request(request) => {
                         wasm_bindgen_futures::spawn_local(
-                            self.tasks_request(request)
+                            self.tasks.fetch_request(request)
                                 .expect("Failed to make request")
                         );
                     },
                     RemoteMsg::Response(response) => {
-                        if let Err(e) = self.props.tasks.respond(response) {
+                        if let Err(e) = self.tasks.respond(response) {
                             console!(log, format!("{:#?}", e));
                         }
                     },

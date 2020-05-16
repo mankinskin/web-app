@@ -22,6 +22,9 @@ use plans::{
     note::*,
     task::*,
 };
+use common::{
+    database::*,
+};
 use rql::{
     *,
 };
@@ -108,46 +111,50 @@ fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./img/{}", file_name))
 }
 #[get("/api/tasks")]
-fn get_tasks() -> Option<Json<Vec<Task>>> {
-    Task::get_all()
+fn get_tasks<'a>() -> Json<Vec<Entry<Task>>> {
+    Json(Task::get_all())
 }
 #[get("/api/tasks/<id>")]
-fn get_task(id: SerdeParam<Id<Task>>) -> Option<Json<Task>> {
-    Task::get(*id)
+fn get_task(id: SerdeParam<Id<Task>>) -> Json<Option<Task>> {
+    Json(Task::get(*id))
 }
 #[post("/api/tasks", data="<task>")]
-fn post_task(task: Json<Task>) -> status::Accepted<Json<Id<Task>>> {
-    Task::post(task.clone())
+fn post_task(task: Json<Task>) -> Json<Id<Task>> {
+    Json(Task::post(task.clone()))
 }
 
 #[get("/api/users")]
-fn get_users() -> Option<Json<Vec<User>>> {
-    User::get_all()
+fn get_users() -> Json<Vec<Entry<User>>> {
+    Json(User::get_all())
 }
 #[get("/api/users/<id>")]
-fn get_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
-    User::get(id.clone())
+fn get_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
+    Json(User::get(id.clone()))
 }
 #[post("/api/users", data="<user>")]
-fn post_user(user: Json<User>) -> status::Accepted<Json<Id<User>>> {
-    User::post(user.into_inner())
+fn post_user(user: Json<User>) -> Json<Id<User>> {
+    Json(User::post(user.into_inner()))
 }
 #[delete("/api/users/<id>")]
-fn delete_user(id: SerdeParam<Id<User>>) -> Option<Json<User>> {
-    User::delete(id.clone())
+fn delete_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
+    Json(User::delete(id.clone()))
 }
 
 #[get("/api/notes")]
-fn get_notes() -> Option<Json<Vec<Note>>> {
-    Note::get_all()
+fn get_notes() -> Json<Vec<Entry<Note>>> {
+    Json(Note::get_all())
 }
 #[get("/api/notes/<id>")]
-fn get_note(id: SerdeParam<Id<Note>>) -> Option<Json<Note>> {
-    Note::get(*id)
+fn get_note(id: SerdeParam<Id<Note>>) -> Json<Option<Note>> {
+    Json(Note::get(*id))
 }
 #[post("/api/notes", data="<note>")]
-fn post_note(note: Json<Note>) -> status::Accepted<Json<Id<Note>>> {
-    Note::post(note.into_inner())
+fn post_note(note: Json<Note>) -> Json<Id<Note>> {
+    Json(Note::post(note.into_inner()))
+}
+#[get("/api/auth")]
+fn authenticate() -> Json<Entry<User>> {
+    Json(User::find(|user| *user.name() == String::from("Test User")).unwrap())
 }
 
 pub fn start() {
@@ -177,6 +184,8 @@ pub fn start() {
                 get_notes,
                 get_note,
                 post_note,
+
+                authenticate,
             ])
         .launch();
 }

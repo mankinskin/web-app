@@ -18,7 +18,7 @@ pub enum FetchMethod {
 #[derive(Debug, Clone)]
 pub enum FetchRequest<T> {
     Post(T),
-    Get(Id<T>),
+    Get(Option<Id<T>>),
     Update(Id<T>, T),
     Delete(Id<T>),
 }
@@ -169,8 +169,11 @@ impl<T> Fetch<T>
             )
             .map_err(|e| anyhow!(format!("Request Error: {:#?}", e)))
     }
-    fn get_request(url: Url, id: Id<T>) -> Result<Request, Error> {
-        let url = url.to_string() + "/" + &id.to_string();
+    fn get_request(url: Url, id: Option<Id<T>>) -> Result<Request, Error> {
+        let mut url = url.to_string();
+        if let Some(id) = id {
+            url += &format!("/{}", id.to_string());
+        }
         Request::new_with_str_and_init(
             &url.to_string(),
             &Self::default_request_init("GET")?
