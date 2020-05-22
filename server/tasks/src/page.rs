@@ -4,6 +4,7 @@ use yew::{
 use common::{
     status_stack::*,
     remote_data::*,
+    database::*,
 };
 use plans::{
     task::*,
@@ -16,15 +17,15 @@ use std::result::{Result};
 
 pub enum Msg {
     RemoteTask(RemoteMsg<Task>),
-    RemoteTasks(RemoteMsg<Vec<Task>>),
+    RemoteTasks(RemoteMsg<Vec<Entry<Task>>>),
 }
 impl From<RemoteMsg<Task>> for Msg {
     fn from(msg: RemoteMsg<Task>) -> Self {
         Msg::RemoteTask(msg)
     }
 }
-impl From<RemoteMsg<Vec<Task>>> for Msg {
-    fn from(msg: RemoteMsg<Vec<Task>>) -> Self {
+impl From<RemoteMsg<Vec<Entry<Task>>>> for Msg {
+    fn from(msg: RemoteMsg<Vec<Entry<Task>>>) -> Self {
         Msg::RemoteTasks(msg)
     }
 }
@@ -37,7 +38,7 @@ pub struct PageView {
     props: PageData,
     link: ComponentLink<Self>,
     status: StatusStack<(), String>,
-    tasks: RemoteData<Vec<Task>, Self>,
+    tasks: RemoteData<Vec<Entry<Task>>, Self>,
     task: RemoteData<Task, Self>,
 }
 
@@ -69,7 +70,7 @@ impl Component for PageView {
                         html! {
                             {
                                 for tasks.iter().enumerate().map(|(i, task)| {
-                                    let props = TaskTreeRootProps::create_root(task.clone());
+                                    let props = TaskTreeRootProps::create_root(task.data().clone());
                                     html! {
                                         <div>
                                             <TaskRootView with props />
