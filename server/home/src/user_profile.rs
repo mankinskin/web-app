@@ -22,29 +22,21 @@ use futures::{Future, FutureExt};
 
 pub enum Msg {
     RemoteUser(RemoteMsg<User>),
-    Authentication(RemoteMsg<Entry<User>>),
 }
 impl From<RemoteMsg<User>> for Msg {
     fn from(m: RemoteMsg<User>) -> Self {
         Self::RemoteUser(m)
     }
 }
-impl From<RemoteMsg<Entry<User>>> for Msg {
-    fn from(m: RemoteMsg<Entry<User>>) -> Self {
-        Self::Authentication(m)
-    }
-}
 
 #[derive(Properties, Clone, Debug)]
 pub struct UserProfileData {
     pub user: RemoteRoute,
-    pub authentication: RemoteRoute,
 }
 pub struct UserProfileView {
     props: UserProfileData,
     link: ComponentLink<Self>,
     user: RemoteData<User, Self>,
-    authentication: RemoteData<Entry<User>, Self>,
 }
 
 impl Component for UserProfileView {
@@ -53,14 +45,11 @@ impl Component for UserProfileView {
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let user = RemoteData::new(props.user.clone(), link.clone());
-        let authentication = RemoteData::new(props.authentication.clone(), link.clone());
         let s = Self {
             props,
             link,
             user,
-            authentication,
         };
-        s.link.send_message(Msg::Authentication(RemoteMsg::Request(FetchMethod::Get)));
         s
     }
     fn view(&self) -> Html {
@@ -107,23 +96,6 @@ impl Component for UserProfileView {
                         if let Err(e) = self.user.respond(response) {
                             console!(log, format!("{:#?}", e));
                         }
-                    },
-                }
-            },
-            Msg::Authentication(msg) => {
-                match msg {
-                    RemoteMsg::Request(request) => {
-                        wasm_bindgen_futures::spawn_local(
-                            self.authentication.fetch_request(request)
-                                .expect("Failed to make request")
-                        );
-                    },
-                    RemoteMsg::Response(response) => {
-                        if let Err(e) = self.authentication.respond(response) {
-                            console!(log, format!("{:#?}", e));
-                        }
-                        self.user.set_id(self.authentication.data().clone().unwrap().id().clone());
-                        self.link.send_message(Msg::RemoteUser(RemoteMsg::Request(FetchMethod::Get)));
                     },
                 }
             },

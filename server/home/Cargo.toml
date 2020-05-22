@@ -54,3 +54,6 @@ path = "../../plans"
 
 [dependencies.common]
 path = "../common"
+
+[dependencies.updatable]
+path = "../../updatable"

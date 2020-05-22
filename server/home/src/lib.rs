@@ -16,6 +16,7 @@ extern crate web_sys;
 
 extern crate plans;
 extern crate common;
+extern crate updatable;
 
 mod transaction;
 mod transactions;
@@ -23,6 +24,7 @@ mod budget;
 mod router;
 mod user_profile;
 mod note;
+mod login;
 
 use wasm_bindgen::prelude::*;
 
