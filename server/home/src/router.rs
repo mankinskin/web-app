@@ -9,6 +9,7 @@ use yew_router::{
 use crate::{
     user_profile::*,
     note::*,
+    login::*,
 };
 use common::{
     remote_data::*,
@@ -23,6 +24,8 @@ pub enum ClientRoute {
     Note,
     #[to = "/user"]
     User,
+    #[to = "/login"]
+    Login,
     #[to = "/"]
     Index,
 }
@@ -33,6 +36,7 @@ impl ToString for ClientRoute {
             ClientRoute::Index => format!("/"),
             ClientRoute::User => format!("/user"),
             ClientRoute::Note => format!("/note"),
+            ClientRoute::Login => format!("/login"),
         }
     }
 }
@@ -80,6 +84,7 @@ impl Component for ClientRouter {
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::User) > {"User"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Note) > {"Note"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Login) > {"Login"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
@@ -89,10 +94,15 @@ impl Component for ClientRouter {
                                 <a href="/tasks">{"Tasks"}</a>
                             </div>
                         },
+                        Some(ClientRoute::Login) => {
+                            html!{ <Login
+                                login={RemoteRoute::from(Url::parse("http://localhost:8000/login").unwrap())}
+                                credentials={None}
+                                /> }
+                        },
                         Some(ClientRoute::User) => {
                             html!{ <UserProfileView
                                 user={RemoteRoute::from(Url::parse("http://localhost:8000/api/users").unwrap())}
-                                authentication={RemoteRoute::from(Url::parse("http://localhost:8000/api/auth").unwrap())}
                                 /> }
                         },
                         Some(ClientRoute::Note) => {

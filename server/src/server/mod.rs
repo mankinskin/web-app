@@ -86,6 +86,10 @@ fn get_profile_html() -> Result<NamedFile> {
 fn get_note_html() -> Result<NamedFile> {
     get_file("./home/index.html")
 }
+#[get("/login")]
+fn get_login_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
 #[get("/")]
 fn get_root_html() -> Result<NamedFile> {
     get_file("./home/index.html")
@@ -168,6 +172,7 @@ pub fn start() {
                 get_profile_html,
                 get_note_html,
                 get_root_html,
+                get_login_html,
                 get_style_css,
                 get_pkg_js,
                 get_img_file,

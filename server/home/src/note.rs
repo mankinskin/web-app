@@ -17,8 +17,6 @@ use stdweb::web::{
     html_element::{TextAreaElement},
 };
 use stdweb::unstable::TryInto;
-use futures::{Future, FutureExt};
-use std::result::{Result};
 
 pub enum Msg {
     SetText(String),
