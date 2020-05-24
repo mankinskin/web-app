@@ -7,7 +7,7 @@ build:
 		-s "\
 			wasm-pack build --target web &&\
 	  	rollup ./index.js --format iife --file ./pkg/bundle.js\
-		" &\
+		" \
 
 clean:
 	rm -rf pkg/
