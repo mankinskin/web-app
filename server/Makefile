@@ -2,7 +2,7 @@ APPS=home tasks
 
 build: $(APPS)
 	for app in $(APPS); do\
-		make -C $$app ;\
+		make -C $$app &\
 	done
 
 serve: build
