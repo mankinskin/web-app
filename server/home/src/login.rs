@@ -32,8 +32,10 @@ pub struct Login {
 }
 pub enum Msg {
     UpdateCredentials(CredentialsUpdate),
-    Login,
     ToggleShowPassword,
+    Login,
+    Signup,
+    Forgot,
 }
 
 impl Login {
@@ -51,11 +53,6 @@ impl Login {
                 Credentials::update()
                 .password(input.value)
             )
-        })
-    }
-    fn login_callback(&self) -> Callback<InputData> {
-        self.link.callback(|input: InputData| {
-            Msg::Login
         })
     }
     fn toggle_show_password_callback(&self) -> Callback<ClickEvent> {
@@ -82,6 +79,21 @@ impl Login {
             Msg::ToggleShowPassword
         })
     }
+    fn login_callback(&self) -> Callback<ClickEvent> {
+        self.link.callback(|_: ClickEvent| {
+            Msg::Login
+        })
+    }
+    fn signup_callback(&self) -> Callback<ClickEvent> {
+        self.link.callback(|_: ClickEvent| {
+            Msg::Signup
+        })
+    }
+    fn forgot_callback(&self) -> Callback<ClickEvent> {
+        self.link.callback(|_: ClickEvent| {
+            Msg::Forgot
+        })
+    }
 }
 impl Component for Login {
     type Message = Msg;
@@ -96,12 +108,19 @@ impl Component for Login {
     }
     fn view(&self) -> Html {
         console!(log, "Draw UserProfileView");
+        let credentials = self.props.credentials.clone().unwrap_or(Credentials::default());
         html!{
             <div id="login-container">
                 <div id="username-label">{
                     "Username"
                 }</div>
                 <input id="username-input" oninput={self.set_username_callback()}/>
+                <div id="username-invalid-icon">{
+                    format!("{}", credentials.username_is_valid())
+                }</div>
+                <div id="username-invalid-text">{
+                    credentials.username_invalid_text()
+                }</div>
                 <div id="password-label">{
                     "Password"
                 }</div>
@@ -109,13 +128,19 @@ impl Component for Login {
                 <button id="show-password-button" onclick={self.toggle_show_password_callback()}>{
                     "Show"
                 }</button>
-                <button id="login-button">{
+                <div id="password-invalid-icon">{
+                    format!("{}", credentials.password_is_valid())
+                }</div>
+                <div id="password-invalid-text">{
+                    credentials.password_invalid_text()
+                }</div>
+                <button id="login-button" onclick={self.login_callback()}>{
                     "Login"
                 }</button>
-                <button id="signup-button">{
+                <button id="signup-button" onclick={self.signup_callback()}>{
                     "Signup"
                 }</button>
-                <button id="forgot-button">{
+                <button id="forgot-button" onclick={self.forgot_callback()}>{
                     "Forgot login?"
                 }</button>
             </div>
@@ -138,21 +163,31 @@ impl Component for Login {
                             update.update(&mut c);
                             c
                         });
-                false
+                true
+            },
+            Msg::ToggleShowPassword => {
+                console!(log, "ToggleShowPassword");
+                true
             },
             Msg::Login => {
                 match self.props.credentials.clone() {
-                    None => {},
+                    None => {
+                        // Message "Fill in credentials"
+                    },
                     Some(credentials) => {
                         // post login
                     },
                 }
                 true
             },
-            Msg::ToggleShowPassword => {
-                console!(log, "ToggleShowPassword");
-                true
-            }
+            Msg::Signup => {
+                // redirect to signin page
+                false
+            },
+            Msg::Forgot => {
+                // redirect to password recovery page
+                false
+            },
         }
     }
 }
