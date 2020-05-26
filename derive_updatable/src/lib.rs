@@ -1,13 +1,22 @@
 #![feature(specialization)]
 extern crate syn;
 #[macro_use] extern crate quote;
+extern crate proc_macro2;
 
-use proc_macro::TokenStream;
+use proc_macro::{
+    TokenStream,
+};
+use proc_macro2::{
+    TokenTree,
+    Literal,
+};
 use syn::{
     parse_macro_input,
     DeriveInput,
     Ident,
+    Field,
     Fields,
+    FieldsNamed,
     Data,
     Type,
     export::{
@@ -35,22 +44,28 @@ fn update_struct(input: DeriveInput) -> syn::export::TokenStream2 {
         attrs: _,
         generics: _,
     } = input.clone();
-    let update_ident = ident_append(ident.clone(), "Update");
+    let update_ident = format_ident!("{}Update", ident.clone());
     let update_builder = update_builder(input.clone());
-    let update_fields =
-        match data {
-            Data::Struct(data) => update_fields(data.fields),
-            Data::Enum(_) | Data::Union(_) => unimplemented!(),
-        };
+    let update_data = update_data(data);
     quote! {
         #[derive(Clone, Default, Debug, PartialEq)]
-        #vis struct #update_ident #update_fields
+        #vis struct #update_ident #update_data
         #update_builder
+    }
+}
+fn update_data(data: Data) -> syn::export::TokenStream2 {
+    match data {
+        Data::Struct(data) => {
+            let fields = update_fields(data.fields);
+            let semi = data.semi_token;
+            quote! { #fields #semi }
+        },
+        Data::Enum(_) | Data::Union(_) => unimplemented!(),
     }
 }
 fn update_builder(input: DeriveInput) -> syn::export::TokenStream2 {
     let ident = input.ident.clone();
-    let update_ident = ident_append(ident.clone(), "Update");
+    let update_ident = format_ident!("{}Update", ident.clone());
     let update_setters =
         match input.data {
             Data::Struct(data) => update_setters(data.fields),
@@ -70,20 +85,9 @@ fn update_builder(input: DeriveInput) -> syn::export::TokenStream2 {
         }
     }
 }
-fn update_setters(fields: Fields) -> TokenStream2 {
-    let field_ident = field_idents(fields.clone());
-    let field_ty = field_types(fields.clone());
-    quote! {
-        #(pub fn #field_ident(self, update: <#field_ty as Updatable>::Update) -> Self {
-                let mut new = self;
-                new.#field_ident = Some(update);
-                new
-            })*
-    }
-}
 fn updatable_impl(input: DeriveInput) -> TokenStream2 {
     let ident = input.ident.clone();
-    let update_ident = ident_append(input.ident, "Update");
+    let update_ident = format_ident!("{}Update", ident.clone());
     quote! {
         impl Updatable for #ident {
             type Update = #update_ident;
@@ -92,7 +96,7 @@ fn updatable_impl(input: DeriveInput) -> TokenStream2 {
 }
 fn update_impl(input: DeriveInput) -> TokenStream2 {
     let ident = input.ident.clone();
-    let update_ident = ident_append(input.ident, "Update");
+    let update_ident = format_ident!("{}Update", ident.clone());
     let update_calls =
         match input.data {
             Data::Struct(data_struct) => update_calls(data_struct.fields),
@@ -106,28 +110,41 @@ fn update_impl(input: DeriveInput) -> TokenStream2 {
         }
     }
 }
-fn ident_append<S: AsRef<str>>(ident: Ident, append: S) -> Ident {
-    Ident::new(&(ident.to_string() + append.as_ref()), ident.span())
+fn update_field(field: &mut Field) {
+    let ty = field.ty.clone();
+    field.ty = syn::parse2(quote!{
+        Option<<#ty as Updatable>::Update>
+    }).unwrap();
 }
 fn update_fields(fields: Fields) -> Fields {
     match fields.clone() {
         Fields::Named(mut inner) => {
             inner.named
                 .iter_mut()
-                .for_each(|field| {
-                    let ty = field.ty.clone();
-                    field.ty = syn::parse2(quote!{
-                        Option<<#ty as Updatable>::Update>
-                    }).unwrap();
-                });
+                .for_each(update_field);
             Fields::Named(inner)
         },
-        Fields::Unnamed(_) => {
-            unimplemented!()
+        Fields::Unnamed(mut inner) => {
+            inner.unnamed
+                .iter_mut()
+                .for_each(update_field);
+            Fields::Unnamed(inner)
         },
         Fields::Unit => {
-            unimplemented!()
+            Fields::Unit
         },
+    }
+}
+fn update_setters(fields: Fields) -> TokenStream2 {
+    let field_ident = field_idents(fields.clone());
+    let setter_ident = setter_idents(fields.clone());
+    let field_ty = field_types(fields.clone());
+    quote! {
+        #(pub fn #setter_ident(self, update: <#field_ty as Updatable>::Update) -> Self {
+                let mut new = self;
+                new.#field_ident = Some(update);
+                new
+            })*
     }
 }
 fn update_calls(fields: Fields) -> TokenStream2 {
@@ -136,22 +153,53 @@ fn update_calls(fields: Fields) -> TokenStream2 {
         #(self.#field_ident.clone().map(|update| update.update(&mut data.#field_ident));)*
     }
 }
-fn field_idents(fields: Fields) -> Vec<Ident> {
-    match fields.clone() {
-        Fields::Named(inner) => {
-            inner.named
+fn setter_idents(fields: Fields) -> Vec<TokenTree> {
+    match fields {
+        Fields::Named(_) => {
+            field_idents(fields)
+        },
+        Fields::Unnamed(inner) => {
+            inner.unnamed
                 .iter()
-                .map(|field| {
-                    field.ident.clone().unwrap()
+                .enumerate()
+                .map(|(i, _)| {
+                    TokenTree::Ident(format_ident!("field_{}", i))
                 })
                 .collect()
         },
-        Fields::Unnamed(_) => {
-            unimplemented!()
+        Fields::Unit => {
+            Vec::new()
+        }
+    }
+}
+fn named_field_idents(fields: FieldsNamed) -> Vec<Ident> {
+    fields.named
+        .iter()
+        .map(|field| {
+            field.ident.clone().unwrap()
+        })
+        .collect()
+}
+fn field_idents(fields: Fields) -> Vec<TokenTree> {
+    match fields {
+        Fields::Named(inner) => {
+            named_field_idents(inner)
+                .iter()
+                .map(|ident| TokenTree::Ident(format_ident!("{}", ident.to_string())))
+                .collect()
+        },
+        Fields::Unnamed(inner) => {
+            inner.unnamed
+                .iter()
+                .enumerate()
+                .map(|(i, _)| {
+                    TokenTree::Literal(Literal::usize_unsuffixed(i))
+                })
+                .collect()
         },
         Fields::Unit => {
-            unimplemented!()
-        },
+            Vec::new()
+        }
     }
 }
 fn field_types(fields: Fields) -> Vec<Type> {
@@ -164,11 +212,16 @@ fn field_types(fields: Fields) -> Vec<Type> {
                 })
                 .collect()
         },
-        Fields::Unnamed(_) => {
-            unimplemented!()
+        Fields::Unnamed(inner) => {
+            inner.unnamed
+                .iter()
+                .map(|field| {
+                    field.ty.clone()
+                })
+                .collect()
         },
         Fields::Unit => {
-            unimplemented!()
+            Vec::new()
         },
     }
 }
