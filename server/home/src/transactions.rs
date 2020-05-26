@@ -2,7 +2,7 @@ use yew::{
     *,
 };
 
-use plans::{
+use budget::{
     *,
     currency::*,
 };

@@ -15,12 +15,13 @@ extern crate js_sys;
 extern crate web_sys;
 
 extern crate plans;
+extern crate budget;
 extern crate common;
 extern crate updatable;
 
 mod transaction;
 mod transactions;
-mod budget;
+mod budget_view;
 mod router;
 mod user_profile;
 mod note;

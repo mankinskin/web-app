@@ -1,13 +1,16 @@
-pub use plans::{
+use plans::{
     *,
     user::*,
 };
-use yew::{
+use budget::{
     *,
+    currency::*,
 };
 use crate::{
+    budget_view::*,
+};
+use yew::{
     *,
-    budget::*,
 };
 use common::{
     remote_data::*,

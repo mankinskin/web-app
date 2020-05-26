@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "plans",
+  "budget",
   "interpreter",
   "server",
   "server/home",
