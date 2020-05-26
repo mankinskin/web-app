@@ -52,6 +52,9 @@ features = [
 [dependencies.plans]
 path = "../../plans"
 
+[dependencies.budget]
+path = "../../budget"
+
 [dependencies.common]
 path = "../common"
 

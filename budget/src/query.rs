@@ -113,7 +113,7 @@ mod tests {
     use crate::currency::{
         Euro,
     };
-    use crate::budget::{
+    use crate::{
         Budget,
     };
     fn create_test_budget() -> Budget<Euro> {

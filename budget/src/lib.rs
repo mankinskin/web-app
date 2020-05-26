@@ -1,4 +1,15 @@
-#![allow(unused)]
+extern crate interpreter;
+
+#[cfg(target_arch="wasm32")]
+extern crate stdweb;
+
+pub mod currency;
+pub mod cartesian;
+pub mod purpose;
+pub mod query;
+pub mod subject;
+pub mod transaction;
+
 use crate::currency::{
     Euro,
     Currency,

@@ -1,11 +1,14 @@
 pub use plans::{
     *,
-    currency::*,
 };
 use yew::{
     *,
 };
 
+use budget::{
+    *,
+    currency::*,
+};
 use crate::{
     *,
     transactions::*,

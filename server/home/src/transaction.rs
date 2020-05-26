@@ -1,4 +1,4 @@
-use plans::{
+use budget::{
     currency::*,
     transaction::Transaction,
 };
