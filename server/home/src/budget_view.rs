@@ -43,7 +43,7 @@ impl<C: 'static + Currency> Component for BudgetView<C> {
             </div>
         }
     }
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: Self::Properties) -> ShouldRender {
         true
     }
     fn update(&mut self, _: Self::Message) -> ShouldRender {

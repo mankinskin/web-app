@@ -33,7 +33,7 @@ impl<C: 'static + Currency> Component for TransactionsView<C> {
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {
         true
     }
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: Self::Properties) -> ShouldRender {
         true
     }
     fn view(&self) -> Html {

@@ -15,8 +15,6 @@ use url::{
 use crate::{
     task::*,
 };
-use futures::{Future, FutureExt};
-use std::result::{Result};
 
 pub enum Msg {
     Task(FetchResponse<Task>),

@@ -4,6 +4,7 @@ use rocket::{
     },
     response::{
         *,
+        status::*,
     },
     http::{
         *,
@@ -15,12 +16,14 @@ use rocket_contrib::{
 use crate::{
     database::{
         *,
+        self,
     },
 };
 use plans::{
     user::*,
     note::*,
     task::*,
+    credentials::*,
 };
 use common::{
     database::*,
@@ -28,7 +31,9 @@ use common::{
 use rql::{
     *,
 };
-use std::io::Result;
+use std::io::{
+    Result,
+};
 use std::str::FromStr;
 use std::{
     path::{

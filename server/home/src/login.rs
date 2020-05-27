@@ -59,7 +59,7 @@ impl Login {
         })
     }
     fn toggle_show_password_callback(&self) -> Callback<ClickEvent> {
-        self.link.callback(|click_event: ClickEvent| {
+        self.link.callback(|_: ClickEvent| {
             let password_input: InputElement = stdweb::web::document()
                 .query_selector("#password-input").unwrap()
                 .expect("password-input not found")

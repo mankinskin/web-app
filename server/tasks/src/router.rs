@@ -10,8 +10,6 @@ use yew_router::{
 use crate::{
     page::*,
 };
-use common::{
-};
 use url::{
     Url,
 };
@@ -34,7 +32,7 @@ impl ToString for ClientRoute {
 }
 
 pub enum Msg {
-    RouteChanged(Route<()>),
+    //RouteChanged(Route<()>),
     ChangeRoute(ClientRoute),
 }
 
@@ -57,9 +55,9 @@ impl Component for ClientRouter {
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
         console!(log, format!("ClientRouter::create"));
-        let mut route_service: RouteService<()> = RouteService::new();
+        let route_service: RouteService<()> = RouteService::new();
         let route = route_service.get_route();
-        let callback = link.callback(|route| Msg::RouteChanged(route));
+        //let callback = link.callback(|route| Msg::RouteChanged(route));
         //route_service.register_callback(callback);
 
         Self {
@@ -104,15 +102,15 @@ impl Component for ClientRouter {
             </div>
         }
     }
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: Self::Properties) -> ShouldRender {
         true
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::RouteChanged(route) => {
-                console!(log, format!("RouteChanged({:#?})", route));
-                self.route = route
-            },
+            //Msg::RouteChanged(route) => {
+            //    console!(log, format!("RouteChanged({:#?})", route));
+            //    self.route = route
+            //},
             Msg::ChangeRoute(route) => {
                 console!(log, format!("ChangeRoute({:#?})", route));
                 self.route_service.set_route(&route.to_string(), ());

@@ -23,10 +23,10 @@ impl<C: 'static + Currency> yew::Component for TransactionView<C> {
     fn create(_props: Self::Properties, _link: yew::ComponentLink<Self>) -> Self {
         Self::from(Transaction::default())
     }
-    fn update(&mut self, _msg: Self::Message) -> yew::ShouldRender {
+    fn update(&mut self, _: Self::Message) -> yew::ShouldRender {
         true
     }
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: Self::Properties) -> ShouldRender {
         true
     }
     fn view(&self) -> yew::Html {
