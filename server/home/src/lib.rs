@@ -26,6 +26,7 @@ mod router;
 mod user_profile;
 mod note;
 mod login;
+mod signup;
 
 use wasm_bindgen::prelude::*;
 

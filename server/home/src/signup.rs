@@ -9,6 +9,9 @@ pub use plans::{
 use crate::{
     *,
 };
+use rql::{
+    *,
+};
 use url::{
     *,
 };
@@ -25,37 +28,34 @@ use stdweb::web::{
 use stdweb::unstable::TryInto;
 
 #[derive(Properties, Clone, Debug)]
-pub struct LoginData {
-    pub login: Url,
-    pub credentials: Option<Credentials>,
+pub struct SignupData {
+    pub signup: Url,
+    pub user: Option<User>,
 }
-pub struct Login {
+pub struct Signup {
     link: ComponentLink<Self>,
-    props: LoginData,
-    access_token: Option<AccessToken>,
+    props: SignupData,
 }
 pub enum Msg {
-    LoginResponse(FetchResponse<AccessToken>),
-    UpdateCredentials(CredentialsUpdate),
+    SignupResponse(FetchResponse<Id<User>>),
+    UpdateUser(UserUpdate),
     ToggleShowPassword,
-    Login,
     Signup,
-    Forgot,
 }
 
-impl Login {
+impl Signup {
     fn set_username_callback(&self) -> Callback<InputData> {
         self.link.callback(|input: InputData| {
-            Msg::UpdateCredentials(
-                Credentials::update()
-                    .username(input.value)
+            Msg::UpdateUser(
+                User::update()
+                    .name(input.value)
             )
         })
     }
     fn set_password_callback(&self) -> Callback<InputData> {
         self.link.callback(|input: InputData| {
-            Msg::UpdateCredentials(
-                Credentials::update()
+            Msg::UpdateUser(
+                User::update()
                 .password(input.value)
             )
         })
@@ -84,41 +84,31 @@ impl Login {
             Msg::ToggleShowPassword
         })
     }
-    fn login_callback(&self) -> Callback<ClickEvent> {
-        self.link.callback(|_: ClickEvent| {
-            Msg::Login
-        })
-    }
-    fn login_responder(&self) -> Callback<FetchResponse<AccessToken>> {
-        self.link.callback(|response| {
-            Msg::LoginResponse(response)
-        })
-    }
     fn signup_callback(&self) -> Callback<ClickEvent> {
         self.link.callback(|_: ClickEvent| {
             Msg::Signup
         })
     }
-    fn forgot_callback(&self) -> Callback<ClickEvent> {
-        self.link.callback(|_: ClickEvent| {
-            Msg::Forgot
+    fn signup_responder(&self) -> Callback<FetchResponse<Id<User>>> {
+        self.link.callback(|response| {
+            Msg::SignupResponse(response)
         })
     }
 }
-impl Component for Login {
+impl Component for Signup {
     type Message = Msg;
-    type Properties = LoginData;
+    type Properties = SignupData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let s = Self {
             props,
             link,
-            access_token: None,
         };
         s
     }
     fn view(&self) -> Html {
-        let credentials = self.props.credentials.clone().unwrap_or(Credentials::default());
+        let user = self.props.user.clone().unwrap_or(User::empty());
+        let credentials = user.credentials();
         html!{
             <div id="login-container">
                 <div id="username-label">{
@@ -144,14 +134,8 @@ impl Component for Login {
                 <div id="password-invalid-text">{
                     credentials.password_invalid_text()
                 }</div>
-                <button id="login-button" onclick={self.login_callback()}>{
-                    "Login"
-                }</button>
                 <button id="signup-button" onclick={self.signup_callback()}>{
                     "Signup"
-                }</button>
-                <button id="forgot-button" onclick={self.forgot_callback()}>{
-                    "Forgot login?"
                 }</button>
             </div>
         }
@@ -162,13 +146,13 @@ impl Component for Login {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::UpdateCredentials(update) => {
+            Msg::UpdateUser(update) => {
                 console!(log, "UpdateCredentials");
-                self.props.credentials =
+                self.props.user =
                     self.props
-                        .credentials
+                        .user
                         .clone()
-                        .or(Some(Credentials::new()))
+                        .or(Some(User::empty()))
                         .map(move |mut c| {
                             update.update(&mut c);
                             c
@@ -179,40 +163,31 @@ impl Component for Login {
                 console!(log, "ToggleShowPassword");
                 true
             },
-            Msg::Login => {
-                match self.props.credentials.clone() {
+            Msg::Signup => {
+                match self.props.user.clone() {
                     None => {
                         // Message "Fill in credentials"
                     },
-                    Some(credentials) => {
+                    Some(user) => {
                         // post login
-                        Fetch::post(self.props.login.clone(), credentials)
-                            .responder(self.login_responder())
+                        Fetch::post(self.props.signup.clone(), user)
+                            .responder(self.signup_responder())
                             .send()
-                            .expect("Login Request failed");
+                            .expect("Signup Request failed");
                     },
                 }
                 true
             },
-            Msg::LoginResponse(response) => {
+            Msg::SignupResponse(response) => {
                 console!(log, format!("Response: {:?}", response));
                 match response.into_inner() {
-                    Ok(access_token) => {
-                        self.access_token = Some(access_token);
+                    Ok(_id) => {
                     },
                     Err(e) => {
                         console!(log, format!("Error: {}", e));
                     },
                 }
                 true
-            },
-            Msg::Signup => {
-                // redirect to signin page
-                false
-            },
-            Msg::Forgot => {
-                // redirect to password recovery page
-                false
             },
         }
     }

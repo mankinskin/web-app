@@ -1,3 +1,6 @@
+use crate::{
+    user::*,
+};
 use updatable::{
     *,
 };
@@ -38,6 +41,22 @@ impl Credentials {
             _ => String::from(
                 "Password must be between 8 and 16 characters long."
             )
+        }
+    }
+}
+impl From<&User> for Credentials {
+    fn from(user: &User) -> Self {
+        Self {
+            username: user.name().clone(),
+            password: user.password().clone(),
+        }
+    }
+}
+impl From<User> for Credentials {
+    fn from(user: User) -> Self {
+        Self {
+            username: user.name().clone(),
+            password: user.password().clone(),
         }
     }
 }
