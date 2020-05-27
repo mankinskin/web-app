@@ -3,11 +3,14 @@ use yew::{
 };
 use common::{
     status_stack::*,
-    remote_data::*,
+    fetch::*,
     database::*,
 };
 use plans::{
     task::*,
+};
+use url::{
+    *,
 };
 use crate::{
     task::*,
@@ -16,30 +19,30 @@ use futures::{Future, FutureExt};
 use std::result::{Result};
 
 pub enum Msg {
-    RemoteTask(RemoteMsg<Task>),
-    RemoteTasks(RemoteMsg<Vec<Entry<Task>>>),
+    Task(FetchResponse<Task>),
+    Tasks(FetchResponse<Vec<Entry<Task>>>),
 }
-impl From<RemoteMsg<Task>> for Msg {
-    fn from(msg: RemoteMsg<Task>) -> Self {
-        Msg::RemoteTask(msg)
+impl From<FetchResponse<Task>> for Msg {
+    fn from(msg: FetchResponse<Task>) -> Self {
+        Msg::Task(msg)
     }
 }
-impl From<RemoteMsg<Vec<Entry<Task>>>> for Msg {
-    fn from(msg: RemoteMsg<Vec<Entry<Task>>>) -> Self {
-        Msg::RemoteTasks(msg)
+impl From<FetchResponse<Vec<Entry<Task>>>> for Msg {
+    fn from(msg: FetchResponse<Vec<Entry<Task>>>) -> Self {
+        Msg::Tasks(msg)
     }
 }
 #[derive(Properties, Clone, Debug)]
 pub struct PageData {
-    pub tasks: RemoteRoute,
-    pub task: RemoteRoute,
+    pub tasks: Url,
+    pub task: Url,
 }
 pub struct PageView {
     props: PageData,
     link: ComponentLink<Self>,
     status: StatusStack<(), String>,
-    tasks: RemoteData<Vec<Entry<Task>>, Self>,
-    task: RemoteData<Task, Self>,
+    task: Option<Task>,
+    tasks: Option<Vec<Entry<Task>>>,
 }
 
 impl PageView {
@@ -49,23 +52,32 @@ impl Component for PageView {
     type Properties = PageData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let task = RemoteData::new(props.task.clone(), link.clone());
-        let tasks = RemoteData::new(props.tasks.clone(), link.clone());
         let s = Self {
             link,
             props,
             status: StatusStack::new(),
-            task,
-            tasks,
+            task: None,
+            tasks: None,
         };
-        s.link.send_message(Msg::RemoteTasks(RemoteMsg::Request(FetchMethod::Get)));
-        //s.link.send_message(Msg::RemoteTask(RemoteMsg::Request(FetchMethod::Get)));
+        Fetch::get(s.props.task.clone())
+            .responder(s.link.callback(|response| {
+                Msg::Task(response)
+            }))
+            .send()
+            .expect("Fetch request failed");
+
+        Fetch::get(s.props.tasks.clone())
+            .responder(s.link.callback(|response| {
+                Msg::Tasks(response)
+            }))
+            .send()
+            .expect("Fetch request failed");
         s
     }
     fn view(&self) -> Html {
         html! {
             <div class="page">{
-                match self.tasks.clone().as_deref() {
+                match self.tasks.clone() {
                     Some(tasks) => {
                         html! {
                             {
@@ -101,34 +113,16 @@ impl Component for PageView {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::RemoteTask(msg) => {
-                match msg {
-                    RemoteMsg::Request(request) => {
-                        wasm_bindgen_futures::spawn_local(
-                            self.task.fetch_request(request)
-                                .expect("Failed to make request")
-                        );
-                    },
-                    RemoteMsg::Response(response) => {
-                        if let Err(e) = self.task.respond(response) {
-                            console!(log, format!("{:#?}", e));
-                        }
-                    },
+            Msg::Task(res) => {
+                match res.into_inner() {
+                    Ok(task) => self.task = Some(task),
+                    Err(e) => console!(log, format!("{:#?}", e)),
                 }
             },
-            Msg::RemoteTasks(msg) => {
-                match msg {
-                    RemoteMsg::Request(request) => {
-                        wasm_bindgen_futures::spawn_local(
-                            self.tasks.fetch_request(request)
-                                .expect("Failed to make request")
-                        );
-                    },
-                    RemoteMsg::Response(response) => {
-                        if let Err(e) = self.tasks.respond(response) {
-                            console!(log, format!("{:#?}", e));
-                        }
-                    },
+            Msg::Tasks(res) => {
+                match res.into_inner() {
+                    Ok(tasks) => self.tasks = Some(tasks),
+                    Err(e) => console!(log, format!("{:#?}", e)),
                 }
             },
         }

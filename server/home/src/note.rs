@@ -8,8 +8,11 @@ use yew::{
 use crate::{
     *,
 };
+use url::{
+    *,
+};
 use common::{
-    remote_data::*,
+    fetch::*,
 };
 use std::fmt::{Debug};
 use stdweb::web::{
@@ -20,22 +23,23 @@ use stdweb::unstable::TryInto;
 
 pub enum Msg {
     SetText(String),
-    RemoteNote(RemoteMsg<Note>),
+    Note(FetchResponse<()>),
+    PostNote,
 }
-impl From<RemoteMsg<Note>> for Msg {
-    fn from(m: RemoteMsg<Note>) -> Self {
-        Self::RemoteNote(m)
+impl From<FetchResponse<()>> for Msg {
+    fn from(m: FetchResponse<()>) -> Self {
+        Self::Note(m)
     }
 }
 
 #[derive(Properties, Clone, Debug)]
 pub struct NoteData {
-    pub note: RemoteRoute
+    pub note: Url
 }
 pub struct NoteEditor {
-    link: ComponentLink<Self>,
     props: NoteData,
-    note: RemoteData<Note, Self>
+    link: ComponentLink<Self>,
+    note: Option<Note>
 }
 
 impl NoteEditor {
@@ -46,7 +50,7 @@ impl NoteEditor {
     }
     fn post_note_callback(&self) -> Callback<ClickEvent> {
         self.link.callback(move |input: ClickEvent| {
-            Msg::RemoteNote(RemoteMsg::Request(FetchMethod::Post))
+            Msg::PostNote
         })
     }
 }
@@ -55,13 +59,11 @@ impl Component for NoteEditor {
     type Properties = NoteData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let note = RemoteData::new(props.note.clone(), link.clone());
         let mut s = Self {
             link,
             props,
-            note
+            note: None,
         };
-        s.note.set_data(Note::new(""));
         s
     }
     fn rendered(&mut self, _first_render: bool) {
@@ -104,28 +106,27 @@ impl Component for NoteEditor {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::SetText(text) => {
-                *self.note.data_mut() =
-                    self.note.data().clone().map(|mut note| {
+                self.note =
+                    self.note.clone().map(|mut note| {
                         note.set_text(text.clone());
                         note
                     })
                     .or_else(move || Some(Note::new(text)));
             },
-            Msg::RemoteNote(msg) => {
-                console!(log, format!("{:#?}", msg));
-                match msg {
-                    RemoteMsg::Request(request) => {
-                        let future = self
-                            .note.fetch_request(request)
-                            .expect("Failed to make request");
-                        wasm_bindgen_futures::spawn_local(future);
-                    },
-                    RemoteMsg::Response(response) => {
-                        if let Err(e) = self.note.respond(response) {
-                            console!(log, format!("{:#?}", e));
-                        }
-                    },
+            Msg::Note(res) => {
+                console!(log, format!("{:#?}", res));
+                match res.into_inner() {
+                    Ok(()) => {}
+                    Err(e) => console!(log, format!("{:#?}", e)),
                 }
+            },
+            Msg::PostNote => {
+                Fetch::post(self.props.note.clone(), self.note.clone().unwrap_or(Note::new("")))
+                    .responder(self.link.callback(|response| {
+                        Msg::Note(response)
+                    }))
+                    .send()
+                    .expect("Fetch request failed");
             },
         }
         true

@@ -9,8 +9,11 @@ pub use plans::{
 use crate::{
     *,
 };
+use url::{
+    *,
+};
 use common::{
-    remote_data::*,
+    fetch::*,
 };
 use updatable::{
     *,
@@ -23,7 +26,7 @@ use stdweb::unstable::TryInto;
 
 #[derive(Properties, Clone, Debug)]
 pub struct LoginData {
-    pub login: RemoteRoute,
+    pub login: Url,
     pub credentials: Option<Credentials>,
 }
 pub struct Login {
