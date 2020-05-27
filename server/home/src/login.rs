@@ -32,8 +32,10 @@ pub struct LoginData {
 pub struct Login {
     link: ComponentLink<Self>,
     props: LoginData,
+    access_token: Option<AccessToken>,
 }
 pub enum Msg {
+    LoginResponse(FetchResponse<AccessToken>),
     UpdateCredentials(CredentialsUpdate),
     ToggleShowPassword,
     Login,
@@ -78,13 +80,18 @@ impl Login {
                         }
                     }
                 }
-            );
+            ).unwrap();
             Msg::ToggleShowPassword
         })
     }
     fn login_callback(&self) -> Callback<ClickEvent> {
         self.link.callback(|_: ClickEvent| {
             Msg::Login
+        })
+    }
+    fn login_responder(&self) -> Callback<FetchResponse<AccessToken>> {
+        self.link.callback(|response| {
+            Msg::LoginResponse(response)
         })
     }
     fn signup_callback(&self) -> Callback<ClickEvent> {
@@ -106,6 +113,7 @@ impl Component for Login {
         let s = Self {
             props,
             link,
+            access_token: None,
         };
         s
     }
@@ -179,6 +187,22 @@ impl Component for Login {
                     },
                     Some(credentials) => {
                         // post login
+                        Fetch::post(self.props.login.clone(), credentials)
+                            .responder(self.login_responder())
+                            .send()
+                            .expect("Login Request failed");
+                    },
+                }
+                true
+            },
+            Msg::LoginResponse(response) => {
+                console!(log, format!("Response: {:?}", response));
+                match response.into_inner() {
+                    Ok(access_token) => {
+                        self.access_token = Some(access_token);
+                    },
+                    Err(e) => {
+                        console!(log, format!("Error: {}", e));
                     },
                 }
                 true
