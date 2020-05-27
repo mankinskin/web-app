@@ -95,6 +95,10 @@ fn get_note_html() -> Result<NamedFile> {
 fn get_login_html() -> Result<NamedFile> {
     get_file("./home/index.html")
 }
+#[get("/signup")]
+fn get_signup_html() -> Result<NamedFile> {
+    get_file("./home/index.html")
+}
 #[get("/")]
 fn get_root_html() -> Result<NamedFile> {
     get_file("./home/index.html")
@@ -174,6 +178,11 @@ fn login(credentials: Json<Credentials>) -> std::result::Result<Json<AccessToken
             }
         )
 }
+#[post("/signup", data="<user>")]
+fn signup(user: Json<User>) -> Json<Id<User>> {
+    let user = user.into_inner();
+    Json(User::post(user))
+}
 
 pub fn start() {
     database::setup();
@@ -188,9 +197,14 @@ pub fn start() {
                 get_note_html,
                 get_root_html,
                 get_login_html,
+                get_signup_html,
+
                 get_style_css,
                 get_pkg_js,
                 get_img_file,
+
+                login,
+                signup,
 
                 get_tasks,
                 get_task,
@@ -204,8 +218,6 @@ pub fn start() {
                 get_notes,
                 get_note,
                 post_note,
-
-                login,
             ])
         .launch();
 }

@@ -28,6 +28,12 @@ impl Display for User {
     }
 }
 impl User {
+    pub fn empty() -> Self {
+        Self {
+            name: String::default(),
+            password: String::default(),
+        }
+    }
     pub fn new<S1: ToString, S2: ToString>(name: S1, password: S2) -> Self {
         Self {
             name: name.to_string(),
@@ -39,6 +45,9 @@ impl User {
     }
     pub fn password(&self) -> &String {
         &self.password
+    }
+    pub fn credentials(&self) -> Credentials {
+        Credentials::from(self)
     }
 }
 #[derive(

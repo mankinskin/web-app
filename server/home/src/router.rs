@@ -10,9 +10,10 @@ use crate::{
     user_profile::*,
     note::*,
     login::*,
+    signup::*,
 };
 use url::{
-    Url,
+    *,
 };
 
 #[derive(Switch, Clone, Debug)]
@@ -23,6 +24,8 @@ pub enum ClientRoute {
     User,
     #[to = "/login"]
     Login,
+    #[to = "/signup"]
+    Signup,
     #[to = "/"]
     Index,
 }
@@ -34,6 +37,7 @@ impl ToString for ClientRoute {
             ClientRoute::User => format!("/user"),
             ClientRoute::Note => format!("/note"),
             ClientRoute::Login => format!("/login"),
+            ClientRoute::Signup => format!("/signup"),
         }
     }
 }
@@ -81,31 +85,40 @@ impl Component for ClientRouter {
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::User) > {"User"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Note) > {"Note"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Login) > {"Login"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Login) > {"Log In"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Signup) > {"Sign Up"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
+                        None => html!{ <p>{"404"}</p> },
                         Some(ClientRoute::Index) => html!{
                             <div>
                                 <p>{"Index"}</p>
                                 <a href="/tasks">{"Tasks"}</a>
                             </div>
                         },
-                        Some(ClientRoute::Login) => {
-                            html!{ <Login
+                        Some(ClientRoute::Signup) => html!{
+                            <Signup
+                                signup={Url::parse("http://localhost:8000/signup").unwrap()}
+                                user={None}
+                            />
+                        },
+                        Some(ClientRoute::Login) => html!{
+                            <Login
                                 login={Url::parse("http://localhost:8000/login").unwrap()}
                                 credentials={None}
-                                /> }
+                            />
                         },
-                        Some(ClientRoute::User) => {
-                            html!{ <UserProfileView
+                        Some(ClientRoute::User) => html!{
+                            <UserProfileView
                                 user={Url::parse("http://localhost:8000/api/users").unwrap()}
-                                /> }
+                            />
                         },
-                        Some(ClientRoute::Note) => {
-                            html!{ <NoteEditor note={Url::parse("http://localhost:8000/api/notes").unwrap()}/> }
+                        Some(ClientRoute::Note) => html!{
+                            <NoteEditor
+                                note={Url::parse("http://localhost:8000/api/notes").unwrap()}
+                            />
                         },
-                        None => html!{ <p>{"404"}</p> },
                     }
                 }</div>
             </div>
