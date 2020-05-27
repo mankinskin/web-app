@@ -15,29 +15,6 @@ pub enum FetchMethod {
     Update,
     Delete,
 }
-#[derive(Debug)]
-pub struct FetchResponse<T>
-    where T: for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
-{
-    response: Result<T, Error>,
-}
-impl<T> FetchResponse<T>
-    where T: for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
-{
-    pub async fn build(res: Result<JsValue, Error>) -> Self {
-        let res = res.and_then(|body|
-            body.into_serde()
-                .map_err(|e| anyhow!(format!("into_serde: {:#?}", e)))
-        );
-        Self { response: res }
-    }
-    pub fn is_success(&self) -> bool {
-        self.response.is_ok()
-    }
-    pub fn into_inner(self) -> Result<T, Error> {
-        self.response
-    }
-}
 fn default_request_init(method: &str) -> Result<RequestInit, Error> {
     let headers = Headers::new().unwrap();
     headers.append("content-type", "application/json").unwrap();
@@ -200,23 +177,68 @@ impl<Req, Res> Fetch<Req, Res>
                         futures::future::ready(response)
                     })
                     .then(move |response: Response| {
-                        //console!(log, "Got response 2");
-                        let promise = response
-                            .json()
-                            .map_err(|e| anyhow!(format!("{:#?}", e)))
-                            .expect("Response json()");
-                        JsFuture::from(promise)
-                    })
-                    .then(move |res: Result<JsValue, JsValue>| {
-                        //console!(log, "Got response 3");
-                        FetchResponse::build(
-                            res.map_err(|e| anyhow!(format!("JsFuture::from: {:#?}", e)))
-                        )
+                        FetchResponse::parse(response)
                     })
                     .then(move |res: FetchResponse<Res>| {
+                        console!(log, format!("{:?}", res));
                         futures::future::ready(responder.emit(res))
                     })
             )
         )
+    }
+}
+
+#[derive(Debug)]
+pub struct FetchResponse<T>
+    where T: for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
+{
+    response: Result<T, Error>,
+}
+impl<T> FetchResponse<T>
+    where T: for<'de> serde::Deserialize<'de> + std::fmt::Debug + 'static
+{
+    pub async fn parse(response: Response) -> Self {
+        //console!(log, "Unpacking response json");
+            let response = if response.ok() {
+                    response
+                        .json()
+                        .map(|promise| JsFuture::from(promise))
+                        .unwrap()
+                        .await
+                        .map_err(|e|
+                            anyhow!(format!("Failed to read body: {:#?}", e))
+                        )
+                        .and_then(|body|
+                            body.into_serde()
+                                .map_err(|e|
+                                    anyhow!(format!("Failed to deserialize body: {:#?}", e))
+                                )
+                        )
+            } else {
+                match response
+                        .text()
+                        .map(|promise| JsFuture::from(promise))
+                        .unwrap()
+                        .await
+                        .map_err(|e|
+                            anyhow!(format!("Failed to read body: {:#?}", e))
+                        )
+                        .and_then(|body|
+                            body.into_serde::<String>()
+                                .map_err(|e|
+                                    anyhow!(format!("Failed to deserialize body: {:#?}", e))
+                                )
+                        ) {
+                    Ok(text) => Err(anyhow!(text)),
+                    Err(e) => Err(e),
+                }
+            };
+        Self { response }
+    }
+    pub fn is_success(&self) -> bool {
+        self.response.is_ok()
+    }
+    pub fn into_inner(self) -> Result<T, Error> {
+        self.response
     }
 }
