@@ -49,7 +49,7 @@ impl NoteEditor {
         })
     }
     fn post_note_callback(&self) -> Callback<ClickEvent> {
-        self.link.callback(move |input: ClickEvent| {
+        self.link.callback(move |_: ClickEvent| {
             Msg::PostNote
         })
     }
@@ -59,7 +59,7 @@ impl Component for NoteEditor {
     type Properties = NoteData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut s = Self {
+        let s = Self {
             link,
             props,
             note: None,
