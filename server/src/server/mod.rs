@@ -161,12 +161,22 @@ fn get_note(id: SerdeParam<Id<Note>>) -> Json<Option<Note>> {
 fn post_note(note: Json<Note>) -> Json<Id<Note>> {
     Json(Note::post(note.into_inner()))
 }
-#[get("/api/auth")]
-fn authenticate() -> Json<Entry<User>> {
-    Json(User::find(|user| *user.name() == String::from("Test User")).unwrap())
+#[post("/login", data="<credentials>")]
+fn login(credentials: Json<Credentials>) -> std::result::Result<Json<AccessToken>, Unauthorized<String>> {
+    let credentials = credentials.into_inner();
+    User::find(|user| *user.name() == credentials.username)
+        .ok_or(Unauthorized(Some(format!("user {} not found", credentials.username))))
+        .and_then(|entry|
+            if *entry.data().password() == credentials.password {
+                Ok(Json(AccessToken::from(String::from("uwee"))))
+            } else {
+                Err(Unauthorized(Some(format!("invalid password"))))
+            }
+        )
 }
 
 pub fn start() {
+    database::setup();
     rocket::ignite()
         .mount("/",
             routes![
@@ -195,7 +205,7 @@ pub fn start() {
                 get_note,
                 post_note,
 
-                authenticate,
+                login,
             ])
         .launch();
 }

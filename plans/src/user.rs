@@ -1,25 +1,24 @@
+use crate::credentials::{
+    *,
+};
 use updatable::{
     *,
 };
 #[derive(
     Debug,
     Clone,
+    PartialEq,
     Serialize,
     Deserialize,
     Updatable,
-    PartialEq,
     )]
 pub struct User {
     name: String,
+    password: String,
 }
-impl From<String> for User {
-    fn from(s: String) -> Self {
-        User::new(s)
-    }
-}
-impl From<&str> for User {
-    fn from(s: &str) -> Self {
-        User::new(s)
+impl From<Credentials> for User {
+    fn from(credentials: Credentials) -> Self {
+        User::new(credentials.username, credentials.password)
     }
 }
 use std::fmt::{self, Display};
@@ -29,13 +28,17 @@ impl Display for User {
     }
 }
 impl User {
-    pub fn new<S: ToString>(name: S) -> Self {
+    pub fn new<S1: ToString, S2: ToString>(name: S1, password: S2) -> Self {
         Self {
             name: name.to_string(),
+            password: password.to_string(),
         }
     }
     pub fn name(&self) -> &String {
         &self.name
+    }
+    pub fn password(&self) -> &String {
+        &self.password
     }
 }
 #[derive(

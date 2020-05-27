@@ -93,9 +93,9 @@ impl<'a> DatabaseTable<'a> for Task {
 }
 
 pub fn setup() {
-    let user_1 = DB.user_mut().insert(User::new("Test User"));
-    println!("Test user ID: {}", user_1);
-    let _user_2 = DB.user_mut().insert(User::new("Alter Schwede"));
+    let test_user = DB.user_mut().insert(User::new("test_user", "test_password"));
+    println!("Test user ID: {}", test_user);
+    let _user_2 = DB.user_mut().insert(User::new("Alter Schwede", "test_password"));
     let _task_1 = DB.task_mut().insert(Task::new("Aufgabe Test"));
     let _task_2 = DB.task_mut().insert(Task::new("NSA hacken"));
 }

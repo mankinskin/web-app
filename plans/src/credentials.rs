@@ -1,10 +1,18 @@
 use updatable::{
     *,
 };
-#[derive(Clone, Debug, Updatable, Default)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Updatable,
+    Serialize,
+    Deserialize,
+    )]
 pub struct Credentials {
-    username: String,
-    password: String,
+    pub username: String,
+    pub password: String,
 }
 impl Credentials {
     pub fn new() -> Self {
@@ -31,5 +39,22 @@ impl Credentials {
                 "Password must be between 8 and 16 characters long."
             )
         }
+    }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Updatable,
+    Serialize,
+    Deserialize,
+    )]
+pub struct AccessToken(String);
+
+impl From<String> for AccessToken {
+    fn from(s: String) -> Self {
+        Self(s)
     }
 }
