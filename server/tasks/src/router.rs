@@ -11,7 +11,6 @@ use crate::{
     page::*,
 };
 use common::{
-    remote_data::*,
 };
 use url::{
     Url,
@@ -86,8 +85,8 @@ impl Component for ClientRouter {
                         Some(ClientRoute::Index) => html! {
                             <div>
                                 <PageView
-                                    tasks={RemoteRoute::from(Url::parse("http://localhost:8000/api/tasks").unwrap())}
-                                    task={RemoteRoute::from(Url::parse("http://localhost:8000/api/task").unwrap())}
+                                    tasks={Url::parse("http://localhost:8000/api/tasks").unwrap()}
+                                    task={Url::parse("http://localhost:8000/api/task").unwrap()}
                             />
 
                                 <a href="/">{"Home"}</a>

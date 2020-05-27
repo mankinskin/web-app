@@ -13,33 +13,31 @@ use yew::{
     *,
 };
 use common::{
-    remote_data::*,
-    database::*,
+    fetch::*,
 };
-use rql::{
+use url::{
     *,
 };
 use std::result::Result;
 use std::fmt::{Debug};
-use futures::{Future, FutureExt};
 
 pub enum Msg {
-    RemoteUser(RemoteMsg<User>),
+    User(FetchResponse<User>),
 }
-impl From<RemoteMsg<User>> for Msg {
-    fn from(m: RemoteMsg<User>) -> Self {
-        Self::RemoteUser(m)
+impl From<FetchResponse<User>> for Msg {
+    fn from(m: FetchResponse<User>) -> Self {
+        Self::User(m)
     }
 }
 
 #[derive(Properties, Clone, Debug)]
 pub struct UserProfileData {
-    pub user: RemoteRoute,
+    pub user: Url,
 }
 pub struct UserProfileView {
     props: UserProfileData,
     link: ComponentLink<Self>,
-    user: RemoteData<User, Self>,
+    user: Option<User>,
 }
 
 impl Component for UserProfileView {
@@ -47,17 +45,22 @@ impl Component for UserProfileView {
     type Properties = UserProfileData;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let user = RemoteData::new(props.user.clone(), link.clone());
         let s = Self {
             props,
             link,
-            user,
+            user: None,
         };
+        Fetch::get(s.props.user.clone())
+            .responder(s.link.callback(|response| {
+                Msg::User(response)
+            }))
+            .send()
+            .expect("Fetch request failed");
         s
     }
     fn view(&self) -> Html {
         console!(log, "Draw UserProfileView");
-        if let Some(user) = self.user.data().clone() {
+        if let Some(user) = self.user.clone() {
             html!{
                 <div id="user-profile">
                     <div id="user-profile-header" class="profile-card">
@@ -87,19 +90,10 @@ impl Component for UserProfileView {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::RemoteUser(msg) => {
-                match msg {
-                    RemoteMsg::Request(request) => {
-                        wasm_bindgen_futures::spawn_local(
-                            self.user.fetch_request(request)
-                                .expect("Failed to make request")
-                        );
-                    },
-                    RemoteMsg::Response(response) => {
-                        if let Err(e) = self.user.respond(response) {
-                            console!(log, format!("{:#?}", e));
-                        }
-                    },
+            Msg::User(res) => {
+                match res.into_inner() {
+                    Ok(user) => self.user = Some(user),
+                    Err(e) => console!(log, format!("{:#?}", e)),
                 }
             },
         }

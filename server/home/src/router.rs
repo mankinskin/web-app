@@ -11,9 +11,6 @@ use crate::{
     note::*,
     login::*,
 };
-use common::{
-    remote_data::*,
-};
 use url::{
     Url,
 };
@@ -96,17 +93,17 @@ impl Component for ClientRouter {
                         },
                         Some(ClientRoute::Login) => {
                             html!{ <Login
-                                login={RemoteRoute::from(Url::parse("http://localhost:8000/login").unwrap())}
+                                login={Url::parse("http://localhost:8000/login").unwrap()}
                                 credentials={None}
                                 /> }
                         },
                         Some(ClientRoute::User) => {
                             html!{ <UserProfileView
-                                user={RemoteRoute::from(Url::parse("http://localhost:8000/api/users").unwrap())}
+                                user={Url::parse("http://localhost:8000/api/users").unwrap()}
                                 /> }
                         },
                         Some(ClientRoute::Note) => {
-                            html!{ <NoteEditor note={RemoteRoute::from(Url::parse("http://localhost:8000/api/notes").unwrap())}/> }
+                            html!{ <NoteEditor note={Url::parse("http://localhost:8000/api/notes").unwrap()}/> }
                         },
                         None => html!{ <p>{"404"}</p> },
                     }
