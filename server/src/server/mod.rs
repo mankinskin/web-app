@@ -133,7 +133,7 @@ fn get_task(id: SerdeParam<Id<Task>>) -> Json<Option<Task>> {
 }
 #[post("/api/tasks", data="<task>")]
 fn post_task(task: Json<Task>) -> Json<Id<Task>> {
-    Json(Task::post(task.clone()))
+    Json(Task::insert(task.clone()))
 }
 
 #[get("/api/users")]
@@ -146,7 +146,7 @@ fn get_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
 }
 #[post("/api/users", data="<user>")]
 fn post_user(user: Json<User>) -> Json<Id<User>> {
-    Json(User::post(user.into_inner()))
+    Json(User::insert(user.into_inner()))
 }
 #[delete("/api/users/<id>")]
 fn delete_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
@@ -163,7 +163,7 @@ fn get_note(id: SerdeParam<Id<Note>>) -> Json<Option<Note>> {
 }
 #[post("/api/notes", data="<note>")]
 fn post_note(note: Json<Note>) -> Json<Id<Note>> {
-    Json(Note::post(note.into_inner()))
+    Json(Note::insert(note.into_inner()))
 }
 #[post("/login", data="<credentials>")]
 fn login(credentials: Json<Credentials>) -> std::result::Result<Json<AccessToken>, Unauthorized<String>> {
@@ -181,7 +181,7 @@ fn login(credentials: Json<Credentials>) -> std::result::Result<Json<AccessToken
 #[post("/signup", data="<user>")]
 fn signup(user: Json<User>) -> Json<Id<User>> {
     let user = user.into_inner();
-    Json(User::post(user))
+    Json(User::insert(user))
 }
 
 pub fn start() {
