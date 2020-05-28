@@ -24,7 +24,8 @@ lazy_static!{
 pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + Updatable + 'a {
     fn table() -> TableGuard<'a, Self>;
     fn table_mut() -> TableGuardMut<'a, Self>;
-    fn post(obj: Self) -> Id<Self> {
+
+    fn insert(obj: Self) -> Id<Self> {
         Self::table_mut()
             .insert(obj)
     }
