@@ -4,19 +4,17 @@ use rocket::{
     },
     response::{
         *,
-        status::*,
     },
     http::{
         *,
     },
 };
 use rocket_contrib::{
-    json::Json
+    json::*,
 };
 use crate::{
     database::{
         *,
-        self,
     },
 };
 use plans::{
@@ -24,6 +22,7 @@ use plans::{
     note::*,
     task::*,
     credentials::*,
+    jwt::*,
 };
 use common::{
     database::*,
@@ -40,7 +39,6 @@ use std::{
         Path,
     },
 };
-
 struct SerdeParam<T>(T)
     where T: FromStr;
 
@@ -166,17 +164,26 @@ fn post_note(note: Json<Note>) -> Json<Id<Note>> {
     Json(Note::insert(note.into_inner()))
 }
 #[post("/login", data="<credentials>")]
-fn login(credentials: Json<Credentials>) -> std::result::Result<Json<AccessToken>, Unauthorized<String>> {
+fn login(credentials: Json<Credentials>)
+    -> std::result::Result<Json<JWT>, Status>
+{
     let credentials = credentials.into_inner();
     User::find(|user| *user.name() == credentials.username)
-        .ok_or(Unauthorized(Some(format!("user {} not found", credentials.username))))
-        .and_then(|entry|
-            if *entry.data().password() == credentials.password {
-                Ok(Json(AccessToken::from(String::from("uwee"))))
+        .ok_or(Status::NotFound)
+        .and_then(|entry| {
+            let user = entry.data();
+            if *user.password() == credentials.password {
+                Ok(entry)
             } else {
-                Err(Unauthorized(Some(format!("invalid password"))))
+                Err(Status::Unauthorized)
             }
-        )
+        })
+        .and_then(|entry| {
+            let user = entry.data();
+            JWT::new_for(&user)
+                .map_err(|_| Status::InternalServerError)
+        })
+        .map(|jwt| Json(jwt))
 }
 #[post("/signup", data="<user>")]
 fn signup(user: Json<User>) -> Json<Id<User>> {
