@@ -192,7 +192,6 @@ fn signup(user: Json<User>) -> Json<Id<User>> {
 }
 
 pub fn start() {
-    database::setup();
     rocket::ignite()
         .mount("/",
             routes![
