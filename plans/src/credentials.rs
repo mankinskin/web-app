@@ -4,6 +4,7 @@ use crate::{
 use updatable::{
     *,
 };
+
 #[derive(
     Clone,
     Debug,
@@ -61,19 +62,4 @@ impl From<User> for Credentials {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Updatable,
-    Serialize,
-    Deserialize,
-    )]
-pub struct AccessToken(String);
 
-impl From<String> for AccessToken {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
