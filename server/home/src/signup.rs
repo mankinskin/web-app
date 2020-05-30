@@ -15,7 +15,7 @@ use rql::{
 use url::{
     *,
 };
-use common::{
+use components::{
     fetch::*,
 };
 use updatable::{

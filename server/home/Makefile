@@ -3,7 +3,7 @@ build:
 	cargo watch \
 		-w ./src \
 		-w ./styles \
-		-w ../common/ \
+		-w ../components/ \
 		-s "\
 			wasm-pack build --target web &&\
 	  	rollup ./index.js --format iife --file ./pkg/bundle.js\

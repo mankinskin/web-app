@@ -1,4 +1,4 @@
-APPS=home tasks
+APPS=home
 
 build: $(APPS)
 	for app in $(APPS); do\

@@ -10,7 +10,7 @@ use crate::{
 use yew::{
     *,
 };
-use common::{
+use components::{
     fetch::*,
 };
 use url::{

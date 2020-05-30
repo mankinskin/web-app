@@ -3,8 +3,10 @@ members = [
   "plans",
   "budget",
   "interpreter",
+  "database",
+  "updatable",
+  "derive_updatable",
   "server",
   "server/home",
-  "server/tasks",
-  "server/common",
+  "server/components",
 ]

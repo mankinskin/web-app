@@ -1,13 +1,10 @@
 .router-navigation-button {
-  background: none;
-  color: white;
+  background: lightgray;
+  color: #202020;
   border: none;
   outline: none;
   transition: all 0.5s ease-in-out;
-  font-size: 2em;
-  margin: 0;
 }
-
 .router-navigation-button:hover {
   background: gray;
   color: black;

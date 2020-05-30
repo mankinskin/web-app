@@ -11,6 +11,7 @@ use crate::{
     note::*,
     login::*,
     signup::*,
+    tasks::*,
 };
 use url::{
     *,
@@ -18,6 +19,8 @@ use url::{
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
+    #[to = "/tasks"]
+    Tasks,
     #[to = "/note"]
     Note,
     #[to = "/user"]
@@ -38,6 +41,7 @@ impl ToString for ClientRoute {
             ClientRoute::Note => format!("/note"),
             ClientRoute::Login => format!("/login"),
             ClientRoute::Signup => format!("/signup"),
+            ClientRoute::Tasks => format!("/tasks"),
         }
     }
 }
@@ -87,6 +91,7 @@ impl Component for ClientRouter {
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Note) > {"Note"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Login) > {"Log In"} </button>
                     <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Signup) > {"Sign Up"} </button>
+                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Tasks) > {"Tasks"} </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
@@ -117,6 +122,11 @@ impl Component for ClientRouter {
                         Some(ClientRoute::Note) => html!{
                             <NoteEditor
                                 note={Url::parse("http://localhost:8000/api/notes").unwrap()}
+                            />
+                        },
+                        Some(ClientRoute::Tasks) => html!{
+                            <TasksView
+                                tasks={Url::parse("http://localhost:8000/api/tasks").unwrap()}
                             />
                         },
                     }
