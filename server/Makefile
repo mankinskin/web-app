@@ -1,4 +1,4 @@
-APPS=home
+APPS=client
 
 build: $(APPS)
 	for app in $(APPS); do\

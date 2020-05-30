@@ -72,35 +72,35 @@ pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
 }
 #[get("/user")]
 fn get_user_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/profile")]
 fn get_profile_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/note")]
 fn get_note_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/login")]
 fn get_login_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/signup")]
 fn get_signup_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/")]
 fn get_root_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/tasks")]
 fn get_tasks_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/budget")]
 fn get_budget_html() -> Result<NamedFile> {
-    get_file("./home/index.html")
+    get_file("./client/index.html")
 }
 #[get("/<app>/styles/<file_name>")]
 fn get_style_css(app: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
