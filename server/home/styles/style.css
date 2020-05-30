@@ -1,14 +1,21 @@
+@import '../../components/styles/expander.css';
 @import './router.css';
-@import './userprofile.css';
+@import './task.css';
+@import './tasks.css';
 @import './budget.css';
 @import './note.css';
+@import './userprofile.css';
 
 html, body {
   margin: 0;
-  padding: 0;
-  font-family: monospace;
-  background: #222;
-  overflow-x: auto;
-  color: #EEE;
+  right: 0;
+  background: black;
+  line-height: 1em;
+  font-size: 16px;
 }
 
+@media(max-device-width:800px){
+  html, body{
+    font-size: 130%;
+  }
+}

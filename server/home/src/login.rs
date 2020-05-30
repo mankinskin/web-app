@@ -12,7 +12,7 @@ use crate::{
 use url::{
     *,
 };
-use common::{
+use components::{
     fetch::*,
 };
 use updatable::{
@@ -32,10 +32,10 @@ pub struct LoginData {
 pub struct Login {
     link: ComponentLink<Self>,
     props: LoginData,
-    access_token: Option<AccessToken>,
+    access_token: Option<String>,
 }
 pub enum Msg {
-    LoginResponse(FetchResponse<AccessToken>),
+    LoginResponse(FetchResponse<String>),
     UpdateCredentials(CredentialsUpdate),
     ToggleShowPassword,
     Login,
@@ -89,7 +89,7 @@ impl Login {
             Msg::Login
         })
     }
-    fn login_responder(&self) -> Callback<FetchResponse<AccessToken>> {
+    fn login_responder(&self) -> Callback<FetchResponse<String>> {
         self.link.callback(|response| {
             Msg::LoginResponse(response)
         })

@@ -20,9 +20,6 @@ wasm-bindgen-futures = "^0.4"
 url = "^2"
 js-sys = "^0.3"
 
-[dependencies.rql]
-path = "../../../rql"
-
 [dependencies.web-sys]
 version = "^0.3"
 features = [
@@ -49,14 +46,20 @@ features = [
   "std_web"
 ]
 
+[dependencies.rql]
+path = "../../../rql"
+
 [dependencies.plans]
 path = "../../plans"
 
 [dependencies.budget]
 path = "../../budget"
 
-[dependencies.common]
-path = "../common"
+[dependencies.components]
+path = "../components"
 
 [dependencies.updatable]
 path = "../../updatable"
+
+[dependencies.database]
+path = "../../database"
