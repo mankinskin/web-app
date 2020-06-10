@@ -16,6 +16,12 @@ use crate::{
 use url::{
     *,
 };
+use plans::{
+    user::*,
+};
+use rql::{
+    *,
+};
 
 #[derive(Switch, Clone, Debug)]
 pub enum ClientRoute {
@@ -46,21 +52,68 @@ impl ToString for ClientRoute {
     }
 }
 
+
+pub type AccessToken = String;
+
 pub enum Msg {
     //RouteChanged(Route<()>),
     ChangeRoute(ClientRoute),
+    SetUser(Id<User>),
+    UnsetUser,
+    SetToken(AccessToken),
+    UnsetToken,
 }
 
 pub struct ClientRouter {
     route_service: RouteService<()>,
     route: Route<()>,
     link: ComponentLink<Self>,
+    user: Option<Id<User>>,
+    token: Option<AccessToken>,
 }
 impl ClientRouter {
     fn change_route(&self, route: ClientRoute) -> Callback<ClickEvent> {
         self.link.callback(move |_| {
             Msg::ChangeRoute(route.clone())
         })
+    }
+    fn user_setter(&self) -> Callback<Id<User>> {
+        self.link.callback(move |id| {
+            Msg::SetUser(id)
+        })
+    }
+    fn user_unsetter(&self) -> Callback<()> {
+        self.link.callback(move |_| {
+            Msg::UnsetUser
+        })
+    }
+    pub fn set_user(&mut self, id: Id<User>) {
+        self.user = Some(id);
+    }
+    pub fn unset_user(&mut self) {
+        self.user = None;
+    }
+    pub fn get_current_user(&self) -> Option<Id<User>> {
+        self.user
+    }
+    fn token_setter(&self) -> Callback<AccessToken> {
+        self.link.callback(move |token| {
+            Msg::SetToken(token)
+        })
+    }
+    fn token_unsetter(&self) -> Callback<()> {
+        self.link.callback(move |_| {
+            Msg::UnsetToken
+        })
+    }
+    pub fn set_token(&mut self, token: AccessToken) {
+        self.token = Some(token);
+    }
+    pub fn unset_token(&mut self) {
+        self.token = None;
+    }
+    pub fn get_current_token(&self) -> Option<AccessToken> {
+        self.token.clone()
     }
 }
 
@@ -79,6 +132,8 @@ impl Component for ClientRouter {
             route_service,
             route,
             link,
+            user: None,
+            token: None,
         }
     }
     fn view(&self) -> Html {
@@ -111,7 +166,8 @@ impl Component for ClientRouter {
                         Some(ClientRoute::Login) => html!{
                             <Login
                                 login={Url::parse("http://localhost:8000/login").unwrap()}
-                                credentials={None}
+                                user_setter={self.user_setter()}
+                                token_setter={self.token_setter()}
                             />
                         },
                         Some(ClientRoute::User) => html!{
@@ -139,6 +195,22 @@ impl Component for ClientRouter {
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
+            Msg::SetUser(id) => {
+                console!(log, format!("User set: {}", id));
+                self.set_user(id);
+            },
+            Msg::UnsetUser => {
+                console!(log, format!("User unset"));
+                self.unset_user();
+            },
+            Msg::SetToken(token) => {
+                console!(log, format!("Token set: {}", token));
+                self.set_token(token);
+            },
+            Msg::UnsetToken => {
+                console!(log, format!("User unset"));
+                self.unset_token();
+            },
             //Msg::RouteChanged(route) => {
             //    console!(log, format!("RouteChanged({:#?})", route));
             //    self.route = route

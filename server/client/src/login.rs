@@ -8,6 +8,10 @@ pub use plans::{
 };
 use crate::{
     *,
+    router::*,
+};
+use rql::{
+    *,
 };
 use url::{
     *,
@@ -24,15 +28,18 @@ use stdweb::web::{
 };
 use stdweb::unstable::TryInto;
 
+
 #[derive(Properties, Clone, Debug)]
 pub struct LoginData {
     pub login: Url,
-    pub credentials: Option<Credentials>,
+
+    pub user_setter: Callback<Id<User>>,
+    pub token_setter: Callback<AccessToken>,
 }
 pub struct Login {
     link: ComponentLink<Self>,
     props: LoginData,
-    access_token: Option<String>,
+    credentials: Option<Credentials>,
 }
 pub enum Msg {
     LoginResponse(FetchResponse<String>),
@@ -113,12 +120,12 @@ impl Component for Login {
         let s = Self {
             props,
             link,
-            access_token: None,
+            credentials: None,
         };
         s
     }
     fn view(&self) -> Html {
-        let credentials = self.props.credentials.clone().unwrap_or(Credentials::default());
+        let credentials = self.credentials.clone().unwrap_or(Credentials::default());
         html!{
             <div id="login-container">
                 <div id="username-label">{
@@ -164,9 +171,8 @@ impl Component for Login {
         match msg {
             Msg::UpdateCredentials(update) => {
                 console!(log, "UpdateCredentials");
-                self.props.credentials =
-                    self.props
-                        .credentials
+                self.credentials =
+                    self.credentials
                         .clone()
                         .or(Some(Credentials::new()))
                         .map(move |mut c| {
@@ -180,7 +186,7 @@ impl Component for Login {
                 true
             },
             Msg::Login => {
-                match self.props.credentials.clone() {
+                match self.credentials.clone() {
                     None => {
                         // Message "Fill in credentials"
                     },
@@ -198,7 +204,7 @@ impl Component for Login {
                 console!(log, format!("Response: {:?}", response));
                 match response.into_inner() {
                     Ok(access_token) => {
-                        self.access_token = Some(access_token);
+                        self.props.token_setter.emit(access_token);
                     },
                     Err(e) => {
                         console!(log, format!("Error: {}", e));
