@@ -39,7 +39,7 @@ impl<'a> Parse<'a> for Word {
         map!(
             alphanumeric1,
             |w| Self::new(w)
-            )
+        )
     );
 }
 use std::fmt::{Debug, Display, self};

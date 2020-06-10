@@ -6,6 +6,11 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+build = "build.rs"
+
+[build-dependencies]
+lalrpop = { version="^0.19", features=["lexer"] }
+
 [dependencies]
 nom = "^5.1"
 nom-unicode = "^0.1"
@@ -16,6 +21,8 @@ pretty_assertions = "^0.6"
 lazy_static = "^1.4"
 nalgebra = "^0.20"
 num-traits = "^0.2"
+lalrpop-util = "^0.19"
+regex = "^1"
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 termion = "1.5"

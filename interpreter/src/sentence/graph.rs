@@ -130,16 +130,15 @@ mod tests {
         start_a_graph.write_to_file("graphs/start_a_graph");
     }
 
-    #[test]
     fn text() {
         let mut tg = TextGraph::new();
-        tg.read_text(crate::graph::tests::dornroeschen_text.clone());
-        tg.write_to_file("graphs/dornroeschen_graph");
+        //tg.read_text(crate::graph::tests::dornroeschen_text.clone());
+        //tg.write_to_file("graphs/dornroeschen_graph");
 
-        let start_path = tg
-            .find_text_path(vec![TextElement::Word(Word::from("König"))])
-            .unwrap();
-        let start_graph = SentenceGraph::from(start_path);
-        start_graph.write_to_file("graphs/start_graph");
+        //let start_path = tg
+        //    .find_text_path(vec![TextElement::Word(Word::from("König"))])
+        //    .unwrap();
+        //let start_graph = SentenceGraph::from(start_path);
+        //start_graph.write_to_file("graphs/start_graph");
     }
 }

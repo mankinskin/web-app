@@ -196,7 +196,7 @@ mod tests {
                            TextElement::Word(Word::from("Klasse")),
                            TextElement::Word(Word::from("erfuellen")),
                            TextElement::Punctuation(Punctuation::Dot)
-                               ]
+                        ]
                    ))
     }
     #[test]
