@@ -70,45 +70,22 @@ impl<'r, T> FromParam<'r> for SerdeParam<T>
 pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
     NamedFile::open(path)
 }
-#[get("/user")]
-fn get_user_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
-#[get("/profile")]
-fn get_profile_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
-#[get("/note")]
-fn get_note_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
-#[get("/login")]
-fn get_login_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
-#[get("/signup")]
-fn get_signup_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
 #[get("/")]
 fn get_root_html() -> Result<NamedFile> {
+    get_html("".into())
+}
+#[get("/<app>")]
+fn get_html(app: &RawStr) -> Result<NamedFile> {
+    let _ = app;
     get_file("./client/index.html")
 }
-#[get("/tasks")]
-fn get_tasks_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
+#[get("/<dir>/styles/<file_name>")]
+fn get_style_css(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./{}/styles/{}", dir, file_name))
 }
-#[get("/budget")]
-fn get_budget_html() -> Result<NamedFile> {
-    get_file("./client/index.html")
-}
-#[get("/<app>/styles/<file_name>")]
-fn get_style_css(app: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
-    get_file(format!("./{}/styles/{}", app, file_name))
-}
-#[get("/<app>/pkg/<file_name>")]
-fn get_pkg_js(app: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
-    get_file(format!("./{}/pkg/{}", app, file_name))
+#[get("/<dir>/pkg/<file_name>")]
+fn get_pkg_js(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./{}/pkg/{}", dir, file_name))
 }
 #[get("/img/<file_name>")]
 fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
@@ -188,14 +165,8 @@ pub fn start() {
     rocket::ignite()
         .mount("/",
             routes![
-                get_tasks_html,
-                get_budget_html,
-                get_user_html,
-                get_profile_html,
-                get_note_html,
                 get_root_html,
-                get_login_html,
-                get_signup_html,
+                get_html,
 
                 get_style_css,
                 get_pkg_js,

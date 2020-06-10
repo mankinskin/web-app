@@ -1,20 +1,15 @@
-APPS=client
 
-build: $(APPS)
-	for app in $(APPS); do\
-		make -C $$app &\
-	done
+client:
+		make -C client
 
-serve: build
+run: client
 	cargo watch \
 		-w src \
 		-x run 
 	
 clean:
-	for app in $(APPS); do\
-		make -C $$app clean ;\
-	done
+	make -C client clean
 	cargo clean
 	rm target -r
 
-.PHONY: build serve test clean run
+.PHONY: build serve clean client
