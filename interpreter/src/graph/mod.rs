@@ -338,7 +338,7 @@ Königssohns mit dem Dornröschen in aller Pracht gefeiert, und sie lebten vergn
     #[test]
     fn read_text() {
         let mut tg = TextGraph::new();
-        tg.read_text(gehen_text.clone());
-        tg.write_to_file("graphs/gehen_graph");
+        //tg.read_text(gehen_text.clone());
+        //tg.write_to_file("graphs/gehen_graph");
     }
 }

@@ -172,8 +172,8 @@ impl<'a> Parse<'a> for Transaction<Euro> {
                     preceded!(
                         terminated!(
                             alt!(
-                            tag_no_case!("to") |
-                            tag_no_case!("from")
+                                tag_no_case!("to") |
+                                tag_no_case!("from")
                             ),
                             space1
                         ),
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn basic() {
         let parsed = Transaction::parse("Today I gave 5€").unwrap().1;
-        assert!(parsed  ==
+        assert!(parsed ==
             Transaction {
                 amount: Euro::from(-5),
                 date: parsed.date,
