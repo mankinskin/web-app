@@ -19,5 +19,8 @@ features = [
   "derive",
 ]
 
+[dependencies.rql]
+path = "../../rql"
+
 [dependencies.updatable]
 path = "../updatable"

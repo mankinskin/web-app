@@ -6,12 +6,16 @@ use budget::{
 };
 use crate::{
     budget_view::*,
+    root::*,
 };
 use yew::{
     *,
 };
 use components::{
     fetch::*,
+};
+use rql::{
+    *,
 };
 use url::{
     *,
@@ -29,7 +33,8 @@ impl From<FetchResponse<User>> for Msg {
 
 #[derive(Properties, Clone, Debug)]
 pub struct UserProfileData {
-    pub user: Url,
+    pub user_url: Url,
+    pub session: UserSession,
 }
 pub struct UserProfileView {
     props: UserProfileData,
@@ -43,11 +48,15 @@ impl Component for UserProfileView {
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let s = Self {
-            props,
+            props: props.clone(),
             link,
             user: None,
         };
-        Fetch::get(s.props.user.clone())
+        let mut url = props.user_url.clone();
+        url.path_segments_mut()
+           .unwrap()
+           .push(&format!("{}", props.session.user_id.clone()));
+        Fetch::get(url)
             .responder(s.link.callback(|response| {
                 Msg::User(response)
             }))

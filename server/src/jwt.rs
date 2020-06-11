@@ -104,6 +104,11 @@ impl From<String> for JWT {
         Self(s)
     }
 }
+impl ToString for JWT {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
 impl<'a, 'r> FromRequest<'a, 'r> for JWT {
     type Error = JWTError;
     fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
