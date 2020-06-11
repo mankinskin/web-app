@@ -12,6 +12,7 @@ use crate::{
     login::*,
     signup::*,
     tasks::*,
+    root::*,
 };
 use url::{
     *,
@@ -53,75 +54,41 @@ impl ToString for ClientRoute {
 }
 
 
-pub type AccessToken = String;
-
 pub enum Msg {
     //RouteChanged(Route<()>),
     ChangeRoute(ClientRoute),
-    SetUser(Id<User>),
-    UnsetUser,
-    SetToken(AccessToken),
-    UnsetToken,
 }
 
+#[derive(Properties, Clone, Debug)]
+pub struct ClientRouterProps {
+    pub session_setter: Callback<UserSession>,
+    pub session: Option<UserSession>,
+}
 pub struct ClientRouter {
+    props: ClientRouterProps,
     route_service: RouteService<()>,
     route: Route<()>,
     link: ComponentLink<Self>,
-    user: Option<Id<User>>,
-    token: Option<AccessToken>,
 }
 impl ClientRouter {
+    fn session_setter(&self) -> Callback<UserSession> {
+        self.props.session_setter.clone()
+    }
+    fn get_session(&self) -> Option<UserSession> {
+        self.props.session.clone()
+    }
     fn change_route(&self, route: ClientRoute) -> Callback<ClickEvent> {
         self.link.callback(move |_| {
             Msg::ChangeRoute(route.clone())
         })
     }
-    fn user_setter(&self) -> Callback<Id<User>> {
-        self.link.callback(move |id| {
-            Msg::SetUser(id)
-        })
-    }
-    fn user_unsetter(&self) -> Callback<()> {
-        self.link.callback(move |_| {
-            Msg::UnsetUser
-        })
-    }
-    pub fn set_user(&mut self, id: Id<User>) {
-        self.user = Some(id);
-    }
-    pub fn unset_user(&mut self) {
-        self.user = None;
-    }
-    pub fn get_current_user(&self) -> Option<Id<User>> {
-        self.user
-    }
-    fn token_setter(&self) -> Callback<AccessToken> {
-        self.link.callback(move |token| {
-            Msg::SetToken(token)
-        })
-    }
-    fn token_unsetter(&self) -> Callback<()> {
-        self.link.callback(move |_| {
-            Msg::UnsetToken
-        })
-    }
-    pub fn set_token(&mut self, token: AccessToken) {
-        self.token = Some(token);
-    }
-    pub fn unset_token(&mut self) {
-        self.token = None;
-    }
-    pub fn get_current_token(&self) -> Option<AccessToken> {
-        self.token.clone()
-    }
 }
 
 impl Component for ClientRouter {
     type Message = Msg;
-    type Properties = ();
+    type Properties = ClientRouterProps;
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         console!(log, format!("ClientRouter::create"));
         let route_service: RouteService<()> = RouteService::new();
         let route = route_service.get_route();
@@ -132,8 +99,7 @@ impl Component for ClientRouter {
             route_service,
             route,
             link,
-            user: None,
-            token: None,
+            props
         }
     }
     fn view(&self) -> Html {
@@ -141,12 +107,36 @@ impl Component for ClientRouter {
         html! {
             <div>
                 <nav class="menu">
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Index) > {"Index"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::User) > {"User"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Note) > {"Note"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Login) > {"Log In"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Signup) > {"Sign Up"} </button>
-                    <button class="router-navigation-button" onclick=&self.change_route(ClientRoute::Tasks) > {"Tasks"} </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::Index) >
+                        {"Index"}
+                    </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::User) >
+                        {"User"}
+                    </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::Note) >
+                        {"Note"}
+                    </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::Login) >
+                        {"Log In"}
+                    </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::Signup) >
+                        {"Sign Up"}
+                    </button>
+                    <button
+                        class="router-navigation-button"
+                        onclick=&self.change_route(ClientRoute::Tasks) >
+                        {"Tasks"}
+                    </button>
                 </nav>
                 <div>{
                     match ClientRoute::switch(self.route.clone()) {
@@ -166,14 +156,22 @@ impl Component for ClientRouter {
                         Some(ClientRoute::Login) => html!{
                             <Login
                                 login={Url::parse("http://localhost:8000/login").unwrap()}
-                                user_setter={self.user_setter()}
-                                token_setter={self.token_setter()}
+                                session_setter={self.session_setter()}
                             />
                         },
-                        Some(ClientRoute::User) => html!{
-                            <UserProfileView
-                                user={Url::parse("http://localhost:8000/api/users").unwrap()}
-                            />
+                        Some(ClientRoute::User) => {
+                            if let Some(session) = self.get_session() {
+                                html!{
+                                    <UserProfileView
+                                        user_url={Url::parse("http://localhost:8000/api/users").unwrap()}
+                                        session={session.clone()}
+                                    />
+                                }
+                            } else {
+                                html!{
+                                    <div>{"Please log in"}</div>
+                                }
+                            }
                         },
                         Some(ClientRoute::Note) => html!{
                             <NoteEditor
@@ -190,27 +188,12 @@ impl Component for ClientRouter {
             </div>
         }
     }
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        true
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
+        false
     }
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::SetUser(id) => {
-                console!(log, format!("User set: {}", id));
-                self.set_user(id);
-            },
-            Msg::UnsetUser => {
-                console!(log, format!("User unset"));
-                self.unset_user();
-            },
-            Msg::SetToken(token) => {
-                console!(log, format!("Token set: {}", token));
-                self.set_token(token);
-            },
-            Msg::UnsetToken => {
-                console!(log, format!("User unset"));
-                self.unset_token();
-            },
             //Msg::RouteChanged(route) => {
             //    console!(log, format!("RouteChanged({:#?})", route));
             //    self.route = route

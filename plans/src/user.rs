@@ -4,6 +4,9 @@ use crate::credentials::{
 use updatable::{
     *,
 };
+use rql::{
+    *,
+};
 #[derive(
     Debug,
     Clone,
@@ -67,4 +70,14 @@ impl From<User> for UserProfile {
             user,
         }
     }
+}
+#[derive(
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    )]
+pub struct UserSession {
+    pub user_id: Id<User>,
+    pub token: String,
 }

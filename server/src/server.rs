@@ -135,7 +135,7 @@ fn post_note(note: Json<Note>) -> Json<Id<Note>> {
 }
 #[post("/login", data="<credentials>")]
 fn login(credentials: Json<Credentials>)
-    -> std::result::Result<Json<JWT>, Status>
+    -> std::result::Result<Json<UserSession>, Status>
 {
     let credentials = credentials.into_inner();
     User::find(|user| *user.name() == credentials.username)
@@ -149,11 +149,18 @@ fn login(credentials: Json<Credentials>)
             }
         })
         .and_then(|entry| {
-            let user = entry.data();
+            let user = entry.data().clone();
+            let id = entry.id().clone();
             JWT::new_for(&user)
                 .map_err(|_| Status::InternalServerError)
+                .map(move |jwt| (id, jwt))
         })
-        .map(|jwt| Json(jwt))
+        .map(|(id, jwt)|
+             Json(UserSession {
+                 user_id: id.clone(),
+                 token: jwt.to_string(),
+             })
+        )
 }
 #[post("/signup", data="<user>")]
 fn signup(user: Json<User>) -> Json<Id<User>> {

@@ -14,6 +14,7 @@ pub trait ChildProps<C> : Properties
 {
     fn set_parent_callback(&mut self, callback: Callback<<C as Component>::Message>);
 }
+
 /// Parents can create callbacks for their children to receive messages
 /// The callback returns the Component::Message for the parent
 pub trait IParent<C> : Component

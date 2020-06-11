@@ -24,6 +24,7 @@ mod transaction;
 mod transactions;
 mod budget_view;
 mod router;
+mod root;
 mod user_profile;
 mod note;
 mod login;
@@ -36,7 +37,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn run_app() -> Result<(), JsValue> {
     yew::initialize();
-    yew::App::<router::ClientRouter>::new()
+    yew::App::<root::ClientRoot>::new()
         .mount_to_body();
     yew::run_loop();
     Ok(())

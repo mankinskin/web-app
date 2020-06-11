@@ -8,7 +8,7 @@ pub use plans::{
 };
 use crate::{
     *,
-    router::*,
+    root::*,
 };
 use rql::{
     *,
@@ -32,9 +32,7 @@ use stdweb::unstable::TryInto;
 #[derive(Properties, Clone, Debug)]
 pub struct LoginData {
     pub login: Url,
-
-    pub user_setter: Callback<Id<User>>,
-    pub token_setter: Callback<AccessToken>,
+    pub session_setter: Callback<UserSession>,
 }
 pub struct Login {
     link: ComponentLink<Self>,
@@ -42,7 +40,7 @@ pub struct Login {
     credentials: Option<Credentials>,
 }
 pub enum Msg {
-    LoginResponse(FetchResponse<String>),
+    LoginResponse(FetchResponse<UserSession>),
     UpdateCredentials(CredentialsUpdate),
     ToggleShowPassword,
     Login,
@@ -96,7 +94,7 @@ impl Login {
             Msg::Login
         })
     }
-    fn login_responder(&self) -> Callback<FetchResponse<String>> {
+    fn login_responder(&self) -> Callback<FetchResponse<UserSession>> {
         self.link.callback(|response| {
             Msg::LoginResponse(response)
         })
@@ -141,8 +139,13 @@ impl Component for Login {
                 <div id="password-label">{
                     "Password"
                 }</div>
-                <input id="password-input" type="password" oninput={self.set_password_callback()}/>
-                <button id="show-password-button" onclick={self.toggle_show_password_callback()}>{
+                <input
+                    id="password-input"
+                    type="password"
+                    oninput={self.set_password_callback()}/>
+                <button
+                    id="show-password-button"
+                    onclick={self.toggle_show_password_callback()}>{
                     "Show"
                 }</button>
                 <div id="password-invalid-icon">{
@@ -151,13 +154,19 @@ impl Component for Login {
                 <div id="password-invalid-text">{
                     credentials.password_invalid_text()
                 }</div>
-                <button id="login-button" onclick={self.login_callback()}>{
+                <button
+                    id="login-button"
+                    onclick={self.login_callback()}>{
                     "Login"
                 }</button>
-                <button id="signup-button" onclick={self.signup_callback()}>{
+                <button
+                    id="signup-button"
+                    onclick={self.signup_callback()}>{
                     "Signup"
                 }</button>
-                <button id="forgot-button" onclick={self.forgot_callback()}>{
+                <button
+                    id="forgot-button"
+                    onclick={self.forgot_callback()}>{
                     "Forgot login?"
                 }</button>
             </div>
@@ -203,8 +212,8 @@ impl Component for Login {
             Msg::LoginResponse(response) => {
                 console!(log, format!("Response: {:?}", response));
                 match response.into_inner() {
-                    Ok(access_token) => {
-                        self.props.token_setter.emit(access_token);
+                    Ok(session) => {
+                        self.props.session_setter.emit(session);
                     },
                     Err(e) => {
                         console!(log, format!("Error: {}", e));
