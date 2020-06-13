@@ -17,17 +17,6 @@ use crate::currency::{
 use crate::transaction::{
     Transaction,
 };
-use crate::subject::{
-    Subject,
-};
-use crate::purpose::{
-    Purpose,
-    PurposeGraph,
-};
-use ::chrono::{
-    DateTime,
-    Utc,
-};
 use crate::query::*;
 
 #[derive(Clone)]

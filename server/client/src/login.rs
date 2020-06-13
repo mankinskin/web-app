@@ -8,10 +8,6 @@ pub use plans::{
 };
 use crate::{
     *,
-    root::*,
-};
-use rql::{
-    *,
 };
 use url::{
     *,

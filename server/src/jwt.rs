@@ -78,7 +78,6 @@ impl From<&User> for JWTClaims {
     Debug,
     )]
 pub enum JWTError {
-    Encoding(Error),
     MissingToken,
     Invalid,
     BadCount,
