@@ -170,7 +170,7 @@ impl MessageUpdate<NodeMsg> for TaskTreeNodeData {
             NodeMsg::Passthrough(m) => {
                 self.tree_data.update(m);
             },
-            NodeMsg::Focussed(event) => {
+            NodeMsg::Focussed(_event) => {
                 //set_margin_to_focussed_element_left(event);
             },
         }

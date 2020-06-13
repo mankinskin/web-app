@@ -7,10 +7,6 @@ use crate::{
 use plans::{
     user::*,
 };
-use rql::{
-    *,
-};
-
 
 pub enum Msg {
     SetSession(UserSession),
