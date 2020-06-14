@@ -9,4 +9,5 @@ members = [
   "server",
   "server/client",
   "server/components",
+  "server/seed_client",
 ]

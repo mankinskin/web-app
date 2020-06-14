@@ -74,18 +74,19 @@ pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
 fn get_root_html() -> Result<NamedFile> {
     get_html("".into())
 }
+static CLIENT_DIR: &'static str = "seed_client";
 #[get("/<app>")]
 fn get_html(app: &RawStr) -> Result<NamedFile> {
     let _ = app;
-    get_file("./client/index.html")
+    get_file(format!("./{}/app.html", CLIENT_DIR))
 }
 #[get("/<dir>/styles/<file_name>")]
 fn get_style_css(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./{}/styles/{}", dir, file_name))
 }
-#[get("/<dir>/pkg/<file_name>")]
-fn get_pkg_js(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
-    get_file(format!("./{}/pkg/{}", dir, file_name))
+#[get("/pkg/<file_name>")]
+fn get_pkg_js(file_name: &RawStr) -> Result<NamedFile> {
+    get_file(format!("./{}/pkg/{}", CLIENT_DIR, file_name))
 }
 #[get("/img/<file_name>")]
 fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
