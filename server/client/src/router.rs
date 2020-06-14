@@ -3,7 +3,7 @@ use yew::{
 };
 use yew_router::{
     route::Route,
-    service::RouteService,
+    RouteService,
     Switch,
 };
 use crate::{

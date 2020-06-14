@@ -23,9 +23,8 @@ use updatable::{
 };
 use stdweb::web::{
     *,
-    html_element::{InputElement},
+    html_element::*,
 };
-use stdweb::unstable::TryInto;
 
 #[derive(Properties, Clone, Debug)]
 pub struct SignupData {
