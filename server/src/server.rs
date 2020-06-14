@@ -134,7 +134,7 @@ fn get_note(id: SerdeParam<Id<Note>>) -> Json<Option<Note>> {
 fn post_note(note: Json<Note>) -> Json<Id<Note>> {
     Json(Note::insert(note.into_inner()))
 }
-#[post("/login", data="<credentials>")]
+#[post("/users/login", data="<credentials>")]
 fn login(credentials: Json<Credentials>)
     -> std::result::Result<Json<UserSession>, Status>
 {
