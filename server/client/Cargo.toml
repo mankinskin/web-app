@@ -37,13 +37,17 @@ features = [
   'serde-serialize',
 ]
 [dependencies.yew]
-version = "^0.15"
-package = "yew-stdweb"
+default-features = false
+version = "^0.16"
+features = [
+  'std_web',
+]
 
 [dependencies.yew-router]
-version = "^0.11"
+version = "^0.13"
+default-features = false
 features = [
-  "std_web"
+  'std_web',
 ]
 
 [dependencies.rql]
