@@ -13,11 +13,24 @@ extern crate budget;
 extern crate updatable;
 extern crate database;
 
-use seed::{*, prelude::*};
+use plans::{
+    credentials::*,
+    user::*,
+};
+use seed::{
+    *,
+    prelude::*,
+    fetch::*,
+};
+use futures::{
+    Future,
+};
 
 struct Model {
     count: i32,
-    what_we_count: String
+    what_we_count: String,
+    login: login::Model,
+    session: Option<UserSession>,
 }
 
 // Setup a default here, for initialization later.
@@ -25,38 +38,114 @@ impl Default for Model {
     fn default() -> Self {
         Self {
             count: 0,
-            what_we_count: "click".into()
+            what_we_count: "click".into(),
+            login: login::Model::default(),
+            session: None,
         }
     }
 }
-
 
 #[derive(Clone)]
 enum Msg {
     Increment,
     Decrement,
-    ChangeWWC(String),
+    Login(login::Msg),
+    LoginResponse(Result<UserSession, FailReason<UserSession>>),
 }
-
+impl From<login::Msg> for Msg {
+    fn from(msg: login::Msg) -> Self {
+        Self::Login(msg)
+    }
+}
+fn login_request(credentials: Credentials)
+    -> impl Future<Output = Result<Msg, Msg>>
+{
+    Request::new("http://localhost:8000/users/login")
+        .method(Method::Post)
+        .send_json(&credentials)
+        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
+            Msg::LoginResponse(data_result)
+        })
+}
 /// How we update the model
-fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Increment => model.count += 1,
         Msg::Decrement => model.count -= 1,
-        Msg::ChangeWWC(what_we_count) => model.what_we_count = what_we_count,
+        Msg::Login(msg) => {
+            login::update(msg.clone(), &mut model.login);
+            match msg {
+                login::Msg::Login => {
+                    orders.perform_cmd(login_request(model.login.credentials()));
+                },
+                _ => {}
+            }
+        },
+        Msg::LoginResponse(res) => {
+            match res {
+                Ok(session) => {
+                    seed::log!(session);
+                    model.session = Some(session);
+                },
+                Err(_reason) => {},
+            }
+        },
     }
 }
-
-
-/// A simple component.
-fn success_level(clicks: i32) -> Node<Msg> {
-    let descrip = match clicks {
-        0 ..= 5 => "Not very many 🙁",
-        6 ..= 9 => "I got my first real six-string 😐",
-        10 ..= 11 => "Spinal Tap 🙂",
-        _ => "Double pendulum 🙃"
+mod login {
+    use seed::{
+        *,
+        prelude::*,
     };
-    p![ descrip ]
+    use plans::{
+        credentials::*,
+    };
+    /// credential input component
+    #[derive(Clone, Default)]
+    pub struct Model {
+        credentials: Credentials,
+    }
+    impl Model {
+        pub fn credentials(&self) -> Credentials {
+            self.credentials.clone()
+        }
+    }
+    #[derive(Clone)]
+    pub enum Msg {
+        ChangeUsername(String),
+        ChangePassword(String),
+        Login,
+    }
+    pub fn update(msg: Msg, model: &mut Model) {
+        match msg {
+            Msg::ChangeUsername(u) => model.credentials.username = u,
+            Msg::ChangePassword(p) => model.credentials.password = p,
+            Msg::Login => {},
+        }
+    }
+    pub fn view(model: &Model) -> Node<Msg> {
+        div![
+            p!["Username"],
+            input![
+                attrs!{
+                    At::Placeholder => "Username",
+                    At::Value => model.credentials.username,
+                },
+                input_ev(Ev::Input, Msg::ChangeUsername)
+            ],
+            p!["Password"],
+            input![
+                attrs!{
+                    At::Type => "password",
+                    At::Placeholder => "Password",
+                    At::Value => model.credentials.password,
+                },
+                input_ev(Ev::Input, Msg::ChangePassword)
+            ],
+            button![simple_ev(Ev::Click, Msg::Login), "Login"],
+        ]
+    }
+
 }
 
 /// The top-level component we pass to the virtual dom.
@@ -76,7 +165,7 @@ fn view(model: &Model) -> impl View<Msg> {
             style!{
                 // Example of conditional logic in a style.
                 St::Color => if model.count > 4 {"purple"} else {"gray"};
-                St::Border => "2px solid #004422"; 
+                St::Border => "2px solid #004422";
                 St::Padding => unit!(20, px);
             },
             // We can use normal Rust code and comments in the view.
@@ -87,10 +176,8 @@ fn view(model: &Model) -> impl View<Msg> {
             // Optionally-displaying an element
             if model.count >= 10 { h2![ style!{St::Padding => px(50)}, "Nice!" ] } else { empty![] }
         ],
-        success_level(model.count),  // Incorporating a separate component
-
-        h3![ "What are we counting?" ],
-        input![ attrs!{At::Value => model.what_we_count}, input_ev(Ev::Input, Msg::ChangeWWC) ]
+        login::view(&model.login)
+            .map_msg(Msg::Login),
     ]
 }
 
