@@ -8,6 +8,4 @@ members = [
   "derive_updatable",
   "server",
   "server/client",
-  "server/components",
-  "server/seed_client",
 ]

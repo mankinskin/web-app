@@ -1,6 +1,6 @@
 
 client:
-		make -C seed_client
+		make -C client
 
 run: client
 	cargo watch \
