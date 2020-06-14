@@ -74,7 +74,7 @@ pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
 fn get_root_html() -> Result<NamedFile> {
     get_html("".into())
 }
-static CLIENT_DIR: &'static str = "seed_client";
+static CLIENT_DIR: &'static str = "client";
 #[get("/<app>")]
 fn get_html(app: &RawStr) -> Result<NamedFile> {
     let _ = app;

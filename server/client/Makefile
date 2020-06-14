@@ -1,7 +1,6 @@
 
 build:
-	wasm-pack build --target web
-	rollup ./index.js --format iife --file ./pkg/bundle.js
+	cargo make build
 
 clean:
 	rm -rf pkg/
