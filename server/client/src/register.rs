@@ -56,6 +56,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             }
         },
         Msg::Login => {
+            seed::push_route(vec!["login"]);
         },
     }
 }

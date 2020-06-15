@@ -24,12 +24,25 @@ pub mod register;
 struct Model {
     login: login::Model,
     register: register::Model,
+    page: Page,
 }
 
+#[derive(Clone)]
+enum Page {
+    Login,
+    Register,
+    Home,
+}
+impl Default for Page {
+    fn default() -> Self {
+        Page::Home
+    }
+}
 #[derive(Clone)]
 enum Msg {
     Login(login::Msg),
     Register(register::Msg),
+    SetPage(Page),
 }
 impl From<login::Msg> for Msg {
     fn from(msg: login::Msg) -> Self {
@@ -46,9 +59,24 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Login(msg) => {
             login::update(msg.clone(), &mut model.login, &mut orders.proxy(Msg::Login));
+            match msg {
+                login::Msg::Register => {
+                    orders.send_msg(Msg::SetPage(Page::Register));
+                },
+                _ => {},
+            }
         },
         Msg::Register(msg) => {
             register::update(msg.clone(), &mut model.register, &mut orders.proxy(Msg::Register));
+            match msg {
+                register::Msg::Login => {
+                    orders.send_msg(Msg::SetPage(Page::Login));
+                },
+                _ => {},
+            }
+        },
+        Msg::SetPage(page) => {
+            model.page = page;
         },
     }
 }
@@ -56,17 +84,48 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 /// The top-level component we pass to the virtual dom.
 fn view(model: &Model) -> impl View<Msg> {
     div![
-        login::view(&model.login)
-            .map_msg(Msg::Login),
+        match model.page {
+            Page::Home => ul![
+                li![
+                    a![
+                        attrs!{
+                            At::Href => "/login";
+                        },
+                        "Login",
+                    ],
+                ],
+                li![
+                    a![
+                        attrs!{
+                            At::Href => "/register";
+                        },
+                        "Register",
 
-        register::view(&model.register)
-            .map_msg(Msg::Register),
+                    ],
+                ],
+            ],
+            Page::Login =>
+                login::view(&model.login)
+                    .map_msg(Msg::Login),
+            Page::Register =>
+                register::view(&model.register)
+                    .map_msg(Msg::Register),
+        }
     ]
 }
-
+fn routes(url: Url) -> Option<Msg> {
+    let path = url.path.join("/");
+    match &path[..] {
+        "" => Some(Msg::SetPage(Page::Home)),
+        "login" => Some(Msg::SetPage(Page::Login)),
+        "register" => Some(Msg::SetPage(Page::Register)),
+        _ => Some(Msg::SetPage(Page::Register)),
+    }
+}
 
 #[wasm_bindgen(start)]
 pub fn render() {
     App::builder(update, view)
+        .routes(routes)
         .build_and_start();
 }
