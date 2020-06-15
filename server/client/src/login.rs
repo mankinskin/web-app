@@ -1,7 +1,6 @@
 use seed::{
     *,
     prelude::*,
-    fetch::*,
 };
 use futures::{
     Future,
@@ -17,8 +16,8 @@ pub struct Model {
     session: Option<UserSession>,
 }
 impl Model {
-    pub fn credentials(&self) -> Credentials {
-        self.credentials.clone()
+    pub fn credentials(&self) -> &Credentials {
+        &self.credentials
     }
 }
 #[derive(Clone)]
@@ -26,7 +25,7 @@ pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
     Login,
-    LoginResponse(Result<UserSession, FailReason<UserSession>>),
+    LoginResponse(ResponseDataResult<UserSession>),
     Register,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -51,12 +50,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::Register => {},
     }
 }
-fn login_request(credentials: Credentials)
+fn login_request(credentials: &Credentials)
     -> impl Future<Output = Result<Msg, Msg>>
 {
     Request::new("http://localhost:8000/users/login")
         .method(Method::Post)
-        .send_json(&credentials)
+        .send_json(credentials)
         .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
             Msg::LoginResponse(data_result)
         })
@@ -66,16 +65,12 @@ pub fn view(model: &Model) -> Node<Msg> {
     form![
         // Username field
         label![
-            attrs!{
-                At::For => "username",
-            },
             "Username"
         ],
         input![
             attrs!{
                 At::Placeholder => "Username",
                 At::Value => model.credentials.username,
-                At::Id => "username",
             },
             input_ev(Ev::Input, Msg::ChangeUsername)
         ],
@@ -84,9 +79,6 @@ pub fn view(model: &Model) -> Node<Msg> {
         ],
         // Password field
         label![
-            attrs!{
-                At::For => "password",
-            },
             "Password"
         ],
         input![
@@ -94,7 +86,6 @@ pub fn view(model: &Model) -> Node<Msg> {
                 At::Type => "password",
                 At::Placeholder => "Password",
                 At::Value => model.credentials.password,
-                At::Id => "password",
             },
             input_ev(Ev::Input, Msg::ChangePassword)
         ],

@@ -18,27 +18,27 @@ use seed::{
     prelude::*,
 };
 pub mod login;
+pub mod register;
 
+#[derive(Default)]
 struct Model {
     login: login::Model,
-}
-
-// Setup a default here, for initialization later.
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-            login: login::Model::default(),
-        }
-    }
+    register: register::Model,
 }
 
 #[derive(Clone)]
 enum Msg {
     Login(login::Msg),
+    Register(register::Msg),
 }
 impl From<login::Msg> for Msg {
     fn from(msg: login::Msg) -> Self {
         Self::Login(msg)
+    }
+}
+impl From<register::Msg> for Msg {
+    fn from(msg: register::Msg) -> Self {
+        Self::Register(msg)
     }
 }
 /// How we update the model
@@ -47,16 +47,20 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::Login(msg) => {
             login::update(msg.clone(), &mut model.login, &mut orders.proxy(Msg::Login));
         },
+        Msg::Register(msg) => {
+            register::update(msg.clone(), &mut model.register, &mut orders.proxy(Msg::Register));
+        },
     }
 }
 
 /// The top-level component we pass to the virtual dom.
 fn view(model: &Model) -> impl View<Msg> {
-
-    // Attrs, Style, Events, and children may be defined separately.
     div![
         login::view(&model.login)
             .map_msg(Msg::Login),
+
+        register::view(&model.register)
+            .map_msg(Msg::Register),
     ]
 }
 

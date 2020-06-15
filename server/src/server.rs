@@ -163,10 +163,15 @@ fn login(credentials: Json<Credentials>)
              })
         )
 }
-#[post("/signup", data="<user>")]
-fn signup(user: Json<User>) -> Json<Id<User>> {
+#[post("/users/register", data="<user>")]
+fn register(user: Json<User>) -> std::result::Result<Json<()>, Status> {
     let user = user.into_inner();
-    Json(User::insert(user))
+    if User::find(|u| u.name() == user.name()).is_none() {
+        User::insert(user);
+        Ok(Json(()))
+    } else {
+        Err(Status::Conflict)
+    }
 }
 
 pub fn start() {
@@ -181,7 +186,7 @@ pub fn start() {
                 get_img_file,
 
                 login,
-                signup,
+                register,
 
                 get_tasks,
                 get_task,
