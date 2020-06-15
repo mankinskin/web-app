@@ -1,5 +1,5 @@
-use crate::credentials::{
-    *,
+use crate::{
+    credentials::*,
 };
 use updatable::{
     *,
@@ -9,6 +9,7 @@ use rql::{
 };
 #[derive(
     Debug,
+    Default,
     Clone,
     PartialEq,
     Serialize,
@@ -16,41 +17,45 @@ use rql::{
     Updatable,
     )]
 pub struct User {
-    name: String,
-    password: String,
+    credentials: Credentials,
 }
 impl From<Credentials> for User {
     fn from(credentials: Credentials) -> Self {
-        User::new(credentials.username, credentials.password)
+        Self {
+            credentials,
+        }
     }
 }
 use std::fmt::{self, Display};
 impl Display for User {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.credentials.username)
     }
 }
 impl User {
     pub fn empty() -> Self {
-        Self {
-            name: String::default(),
-            password: String::default(),
-        }
+        Self::default()
     }
     pub fn new<S1: ToString, S2: ToString>(name: S1, password: S2) -> Self {
         Self {
-            name: name.to_string(),
-            password: password.to_string(),
+            credentials:
+                Credentials {
+                    username: name.to_string(),
+                    password: password.to_string()
+                },
         }
     }
     pub fn name(&self) -> &String {
-        &self.name
+        &self.credentials.username
     }
     pub fn password(&self) -> &String {
-        &self.password
+        &self.credentials.password
     }
-    pub fn credentials(&self) -> Credentials {
-        Credentials::from(self)
+    pub fn credentials(&self) -> &Credentials {
+        &self.credentials
+    }
+    pub fn credentials_mut(&mut self) -> &mut Credentials {
+        &mut self.credentials
     }
 }
 #[derive(
