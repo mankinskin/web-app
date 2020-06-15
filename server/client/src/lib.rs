@@ -19,11 +19,13 @@ use seed::{
 };
 pub mod login;
 pub mod register;
+pub mod home;
 
 #[derive(Default)]
 struct Model {
     login: login::Model,
     register: register::Model,
+    home: home::Model,
     page: Page,
 }
 
@@ -42,6 +44,7 @@ impl Default for Page {
 enum Msg {
     Login(login::Msg),
     Register(register::Msg),
+    Home(home::Msg),
     SetPage(Page),
 }
 impl From<login::Msg> for Msg {
@@ -54,7 +57,6 @@ impl From<register::Msg> for Msg {
         Self::Register(msg)
     }
 }
-/// How we update the model
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Login(msg) => {
@@ -75,35 +77,23 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 _ => {},
             }
         },
+        Msg::Home(msg) => {
+            home::update(msg.clone(), &mut model.home, &mut orders.proxy(Msg::Home));
+            match msg {
+                _ => {},
+            }
+        },
         Msg::SetPage(page) => {
             model.page = page;
         },
     }
 }
-
-/// The top-level component we pass to the virtual dom.
 fn view(model: &Model) -> impl View<Msg> {
     div![
         match model.page {
-            Page::Home => ul![
-                li![
-                    a![
-                        attrs!{
-                            At::Href => "/login";
-                        },
-                        "Login",
-                    ],
-                ],
-                li![
-                    a![
-                        attrs!{
-                            At::Href => "/register";
-                        },
-                        "Register",
-
-                    ],
-                ],
-            ],
+            Page::Home =>
+                home::view(&model.home)
+                    .map_msg(Msg::Home),
             Page::Login =>
                 login::view(&model.login)
                     .map_msg(Msg::Login),
@@ -122,7 +112,6 @@ fn routes(url: Url) -> Option<Msg> {
         _ => Some(Msg::SetPage(Page::Register)),
     }
 }
-
 #[wasm_bindgen(start)]
 pub fn render() {
     App::builder(update, view)
