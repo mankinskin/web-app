@@ -24,8 +24,8 @@ impl Model {
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
-    Login,
     LoginResponse(ResponseDataResult<UserSession>),
+    Login,
     Register,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -47,7 +47,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 },
             }
         },
-        Msg::Register => {},
+        Msg::Register => {
+            seed::push_route(vec!["register"]);
+            orders.skip();
+        },
     }
 }
 fn login_request(credentials: &Credentials)
