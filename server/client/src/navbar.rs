@@ -40,5 +40,14 @@ pub fn view(_model: &Model) -> Node<Msg> {
 
             ],
         ],
+        div![
+            a![
+                attrs!{
+                    At::Href => "/users";
+                },
+                "Users",
+
+            ],
+        ],
     ]
 }
