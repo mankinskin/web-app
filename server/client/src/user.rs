@@ -48,7 +48,7 @@ pub enum Msg {
 fn fetch_user(id: Id<User>)
     -> impl Future<Output = Result<Msg, Msg>>
 {
-    Request::new(format!("http://localhost:8000/users/{}", id))
+    Request::new(format!("http://localhost:8000/api/users/{}", id))
         .method(Method::Get)
         .fetch_json_data(move |data_result: ResponseDataResult<User>| {
             Msg::FetchedUser(data_result)

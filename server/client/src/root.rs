@@ -5,6 +5,12 @@ use seed::{
 use crate::{
     *,
 };
+use rql::{
+    *,
+};
+use std::str::{
+    FromStr,
+};
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -80,7 +86,17 @@ fn routes(url: Url) -> Option<Msg> {
         match &url.path[0][..] {
             "login" => Some(Msg::SetPage(page::Model::login())),
             "register" => Some(Msg::SetPage(page::Model::register())),
-            "users" => Some(Msg::SetPage(page::Model::users())),
+            "users" =>
+                if url.path.len() == 1 {
+                    Some(Msg::SetPage(page::Model::users()))
+                } else if url.path.len() == 2 {
+                    match Id::from_str(&url.path[1]) {
+                        Ok(id) => Some(Msg::SetPage(page::Model::user(id))),
+                        Err(_e) => Some(Msg::SetPage(page::Model::NotFound)),
+                    }
+                } else {
+                    Some(Msg::SetPage(page::Model::NotFound))
+                },
             _ => Some(Msg::SetPage(page::Model::home())),
         }
     }
