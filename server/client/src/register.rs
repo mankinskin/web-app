@@ -9,7 +9,7 @@ use futures::{
     Future,
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Model {
     user: User,
 }
