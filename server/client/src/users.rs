@@ -10,6 +10,9 @@ use plans::{
 };
 use crate::{
     user,
+    root::{
+        GMsg,
+    },
     status::{
         Status,
     },
@@ -58,7 +61,7 @@ fn fetch_all_users()
             Msg::FetchedUsers(data_result)
         })
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::FetchUsers => {
             orders.perform_cmd(fetch_all_users());

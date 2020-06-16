@@ -9,6 +9,11 @@ use rql::{
 use plans::{
     user::*,
 };
+use crate::{
+    root::{
+        GMsg,
+    },
+};
 #[derive(Clone)]
 pub enum Model {
     Login(login::Model),
@@ -69,7 +74,7 @@ impl From<register::Msg> for Msg {
         Self::Register(msg)
     }
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Home(msg) => {
             if let Model::Home(home) = model {

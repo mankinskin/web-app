@@ -23,7 +23,10 @@ pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
     SetPage(page::Model),
-    FetchData,
+}
+#[derive(Clone)]
+pub enum GMsg {
+    Root(Msg),
 }
 impl From<page::Msg> for Msg {
     fn from(msg: page::Msg) -> Self {
@@ -35,12 +38,8 @@ impl From<navbar::Msg> for Msg {
         Self::NavBar(msg)
     }
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::SetPage(page) => {
-            model.page = page;
-            orders.send_msg(Msg::FetchData);
-        },
         Msg::Page(msg) => {
             page::update(
                 msg.clone(),
@@ -61,13 +60,21 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 _ => {},
             }
         },
-        Msg::FetchData => {
+        Msg::SetPage(page) => {
+            model.page = page;
             page::update(
                 page::Msg::FetchData,
                 &mut model.page,
                 &mut orders.proxy(Msg::Page)
             );
         },
+    }
+}
+pub fn sink(msg: GMsg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
+    match msg {
+        GMsg::Root(msg) => {
+            orders.send_msg(msg);
+        }
     }
 }
 pub fn view(model: &Model) -> impl View<Msg> {
@@ -101,14 +108,14 @@ fn routes(url: Url) -> Option<Msg> {
         }
     }
 }
-fn after_mount(_url: Url, orders: &mut impl Orders<Msg>) -> AfterMount<Model> {
-    orders.send_msg(Msg::FetchData);
+fn after_mount(_url: Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Model> {
     AfterMount::default()
 }
 #[wasm_bindgen(start)]
 pub fn render() {
     App::builder(update, view)
         .routes(routes)
+        .sink(sink)
         .after_mount(after_mount)
         .build_and_start();
 }

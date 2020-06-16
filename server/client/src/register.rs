@@ -8,6 +8,13 @@ use seed::{
 use futures::{
     Future,
 };
+use crate::{
+    page,
+    root::{
+        self,
+        GMsg,
+    },
+};
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -33,7 +40,7 @@ fn registration_request(user: &User)
             Msg::RegistrationResponse(data_result)
         })
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeUsername(u) => {
             model.user.credentials_mut().username = u;
@@ -57,6 +64,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         },
         Msg::Login => {
             seed::push_route(vec!["login"]);
+            orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page::Model::login())));
         },
     }
 }

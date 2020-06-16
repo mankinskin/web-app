@@ -17,6 +17,11 @@ use futures::{
 use std::result::{
     Result,
 };
+use crate::{
+    root::{
+        GMsg,
+    },
+};
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -54,7 +59,7 @@ fn fetch_user(id: Id<User>)
             Msg::FetchedUser(data_result)
         })
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::FetchUser => {
             orders.perform_cmd(fetch_user(model.user_id));
