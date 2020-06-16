@@ -9,7 +9,10 @@ use futures::{
     Future,
 };
 use crate::{
-    page,
+    route::{
+        self,
+        Route,
+    },
     root::{
         self,
         GMsg,
@@ -19,24 +22,23 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
     user: User,
+    submit_result: Option<ResponseDataResult<UserSession>>,
 }
-
 #[derive(Clone)]
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
     Submit,
-    RegistrationResponse(ResponseDataResult<()>),
+    RegistrationResponse(ResponseDataResult<UserSession>),
     Login,
 }
-
 fn registration_request(user: &User)
     -> impl Future<Output = Result<Msg, Msg>>
 {
     Request::new("http://localhost:8000/users/register")
         .method(Method::Post)
         .send_json(user)
-        .fetch_json_data(move |data_result: ResponseDataResult<()>| {
+        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
             Msg::RegistrationResponse(data_result)
         })
 }
@@ -53,9 +55,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             orders.perform_cmd(registration_request(&model.user));
         },
         Msg::RegistrationResponse(res) => {
+            model.submit_result = Some(res.clone());
             match res {
-                Ok(()) => {
+                Ok(session) => {
                     seed::log!("Ok");
+                    root::set_session(session, orders);
+                    route::change_route(Route::Home, orders);
                 },
                 Err(reason) => {
                     seed::log!(reason);
@@ -63,8 +68,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Login => {
-            seed::push_route(vec!["login"]);
-            orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page::Model::login())));
+            route::change_route(Route::Login, orders);
         },
     }
 }
@@ -113,5 +117,8 @@ pub fn view(model: &Model) -> Node<Msg> {
         }),
         // Login Button
         button![simple_ev(Ev::Click, Msg::Login), "Log In"],
+        if let Some(res) = &model.submit_result {
+            p![format!("{:?}", res)]
+        } else { empty![] }
     ]
 }

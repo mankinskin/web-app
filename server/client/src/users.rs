@@ -28,10 +28,12 @@ use std::result::Result;
 #[derive(Clone)]
 pub struct Model {
     users: Status<Vec<user::Model>>,
+    session: Option<UserSession>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
         Self {
+            session: None,
             users: Status::Empty,
         }
     }
@@ -39,6 +41,7 @@ impl Model {
 impl From<Vec<Id<User>>> for Model {
     fn from(users: Vec<Id<User>>) -> Self {
         Self {
+            session: None,
             users: Status::Loaded(users
                 .iter()
                 .map(|id| user::Model::from(*id))
@@ -51,6 +54,8 @@ pub enum Msg {
     FetchUsers,
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
     User(user::Msg),
+    SetSession(UserSession),
+    EndSession,
 }
 fn fetch_all_users()
     -> impl Future<Output = Result<Msg, Msg>>
@@ -83,6 +88,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::User(_msg) => {
 
+        },
+        Msg::SetSession(session) => {
+            model.session = Some(session);
+        },
+        Msg::EndSession => {
+            model.session = None;
         },
     }
 }

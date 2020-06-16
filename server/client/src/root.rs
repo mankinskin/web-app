@@ -5,6 +5,9 @@ use seed::{
 use crate::{
     *,
 };
+use plans::{
+    user::*,
+};
 use rql::{
     *,
 };
@@ -14,15 +17,17 @@ use std::str::{
 
 #[derive(Clone, Default)]
 pub struct Model {
+    session: Option<UserSession>, // session of login
     navbar: navbar::Model, // the navigation bar
     page: page::Model, // the current page
 }
-
 #[derive(Clone)]
 pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
     SetPage(page::Model),
+    SetSession(UserSession),
+    EndSession,
 }
 #[derive(Clone)]
 pub enum GMsg {
@@ -68,14 +73,45 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::Page)
             );
         },
+        Msg::SetSession(session) => {
+            model.session = Some(session.clone());
+            navbar::update(
+                navbar::Msg::SetSession(session.clone()),
+                &mut model.navbar,
+                &mut orders.proxy(Msg::NavBar)
+            );
+            page::update(
+                page::Msg::SetSession(session),
+                &mut model.page,
+                &mut orders.proxy(Msg::Page)
+            );
+        },
+        Msg::EndSession => {
+            navbar::update(
+                navbar::Msg::EndSession,
+                &mut model.navbar,
+                &mut orders.proxy(Msg::NavBar)
+            );
+            page::update(
+                page::Msg::EndSession,
+                &mut model.page,
+                &mut orders.proxy(Msg::Page)
+            );
+        }
     }
 }
-pub fn sink(msg: GMsg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
+pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         GMsg::Root(msg) => {
             orders.send_msg(msg);
         }
     }
+}
+pub fn set_session<Ms: 'static>(session: UserSession, orders: &mut impl Orders<Ms, GMsg>) {
+    orders.send_g_msg(GMsg::Root(root::Msg::SetSession(session)));
+}
+pub fn end_session<Ms: 'static>(orders: &mut impl Orders<Ms, GMsg>) {
+    orders.send_g_msg(GMsg::Root(root::Msg::EndSession));
 }
 pub fn view(model: &Model) -> impl View<Msg> {
     div![
@@ -108,14 +144,10 @@ fn routes(url: Url) -> Option<Msg> {
         }
     }
 }
-fn after_mount(_url: Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Model> {
-    AfterMount::default()
-}
 #[wasm_bindgen(start)]
 pub fn render() {
     App::builder(update, view)
         .routes(routes)
         .sink(sink)
-        .after_mount(after_mount)
         .build_and_start();
 }

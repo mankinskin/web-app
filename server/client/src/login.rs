@@ -1,6 +1,9 @@
 use seed::{
     *,
     prelude::*,
+    browser::service::fetch::{
+        FailReason,
+    },
 };
 use futures::{
     Future,
@@ -10,7 +13,10 @@ use plans::{
     user::*,
 };
 use crate::{
-    page,
+    route::{
+        self,
+        Route,
+    },
     root::{
         self,
         GMsg,
@@ -20,7 +26,7 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
     credentials: Credentials,
-    session: Option<UserSession>,
+    submit_result: Option<Result<(), FailReason<UserSession>>>,
 }
 impl Model {
     pub fn credentials(&self) -> &Credentials {
@@ -44,10 +50,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             orders.perform_cmd(login_request(model.credentials()));
         },
         Msg::LoginResponse(res) => {
+            model.submit_result = Some(res.clone().map(|_| ()));
             match res {
                 Ok(session) => {
-                    seed::log!(session);
-                    model.session = Some(session);
+                    root::set_session(session, orders);
+                    route::change_route(Route::Home, orders);
                 },
                 Err(reason) => {
                     seed::log!(reason);
@@ -55,8 +62,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Register => {
-            seed::push_route(vec!["register"]);
-            orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page::Model::register())));
+            route::change_route(Route::Register, orders);
         },
     }
 }
@@ -115,5 +121,8 @@ pub fn view(model: &Model) -> Node<Msg> {
         }),
         // Register Button
         button![simple_ev(Ev::Click, Msg::Register), "Register"],
+        if let Some(res) = &model.submit_result {
+            p![format!("{:?}", res)]
+        } else { empty![] }
     ]
 }

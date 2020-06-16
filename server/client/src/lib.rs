@@ -23,3 +23,4 @@ pub mod page;
 pub mod root;
 pub use root::*;
 pub mod status;
+pub mod route;
