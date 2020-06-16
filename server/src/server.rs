@@ -80,6 +80,11 @@ fn get_html(app: &RawStr) -> Result<NamedFile> {
     let _ = app;
     get_file(format!("./{}/app.html", CLIENT_DIR))
 }
+#[get("/users/<id>")]
+fn user_page(id: &RawStr) -> Result<NamedFile> {
+    let _ = id;
+    get_file(format!("./{}/app.html", CLIENT_DIR))
+}
 #[get("/<dir>/styles/<file_name>")]
 fn get_style_css(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./{}/styles/{}", dir, file_name))
@@ -180,6 +185,7 @@ pub fn start() {
             routes![
                 get_root_html,
                 get_html,
+                user_page,
 
                 get_style_css,
                 get_pkg_js,

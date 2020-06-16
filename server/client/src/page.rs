@@ -1,5 +1,6 @@
 use crate::*;
 use seed::{
+    *,
     prelude::*,
 };
 use rql::{
@@ -15,6 +16,7 @@ pub enum Model {
     Home(home::Model),
     User(user::Model),
     Users(users::Model),
+    NotFound,
 }
 impl Default for Model {
     fn default() -> Self {
@@ -152,5 +154,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         Model::Users(users) =>
             users::view(&users)
                 .map_msg(Msg::Users),
+        Model::NotFound =>
+            div!["Not Found"]
     }
 }
