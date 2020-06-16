@@ -9,6 +9,13 @@ use plans::{
     credentials::*,
     user::*,
 };
+use crate::{
+    page,
+    root::{
+        self,
+        GMsg,
+    },
+};
 /// credential input component
 #[derive(Clone, Default)]
 pub struct Model {
@@ -28,7 +35,7 @@ pub enum Msg {
     Login,
     Register,
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeUsername(u) => model.credentials.username = u,
         Msg::ChangePassword(p) => model.credentials.password = p,
@@ -49,7 +56,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         },
         Msg::Register => {
             seed::push_route(vec!["register"]);
-            orders.skip();
+            orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page::Model::register())));
         },
     }
 }
