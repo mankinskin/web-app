@@ -31,7 +31,7 @@ pub struct JWTProvider {
 }
 lazy_static! {
     static ref JWT_PROVIDER: JWTProvider = JWTProvider::new();
-    static ref TOKEN_LIFETIME: Duration = Duration::minutes(5);
+    static ref TOKEN_LIFETIME: Duration = Duration::days(1);
 }
 
 fn get_token_lifetime() -> Duration {

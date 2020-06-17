@@ -57,9 +57,7 @@ fn fetch_all_users()
     -> impl Future<Output = Result<Msg, Msg>>
 {
     let mut request = Request::new("http://localhost:8000/api/users");
-    seed::log!("Fetching users...");
     if let Some(session) = root::get_session() {
-        seed::log!("token: {}", session.token);
         request = request.header("authorization", &format!("{}", session.token));
     }
     request.method(Method::Get)
