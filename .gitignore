@@ -1,5 +1,6 @@
 /target
 **/target
+**/test_database
 
 **/*.rs.bk
 
