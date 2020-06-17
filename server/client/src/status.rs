@@ -5,5 +5,13 @@ pub enum Status<T>
 {
     Empty,
     Loading,
-    Loaded(T)
+    Ready(T)
+}
+
+impl<T> Default for Status<T>
+    where T: Clone,
+{
+    fn default() -> Self {
+        Self::Empty
+    }
 }

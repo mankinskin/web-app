@@ -22,7 +22,7 @@ pub enum Model {
     Login(login::Model),
     Register(register::Model),
     Home(home::Model),
-    User(user::Model),
+    UserProfile(users::profile::Model),
     Users(users::Model),
     NotFound,
 }
@@ -51,7 +51,7 @@ impl Model {
         Self::Users(users::Model::fetch_all())
     }
     pub fn user(id: Id<User>) -> Self {
-        Self::User(user::Model::from(id))
+        Self::UserProfile(users::user::Model::from(id).profile())
     }
     pub fn login() -> Self {
         Self::Login(login::Model::default())
@@ -66,7 +66,7 @@ impl Model {
 #[derive(Clone)]
 pub enum Msg {
     Home(home::Msg),
-    User(user::Msg),
+    UserProfile(users::profile::Msg),
     Login(login::Msg),
     Register(register::Msg),
     Users(users::Msg),
@@ -77,9 +77,9 @@ impl From<home::Msg> for Msg {
         Self::Home(msg)
     }
 }
-impl From<user::Msg> for Msg {
-    fn from(msg: user::Msg) -> Self {
-        Self::User(msg)
+impl From<users::profile::Msg> for Msg {
+    fn from(msg: users::profile::Msg) -> Self {
+        Self::UserProfile(msg)
     }
 }
 impl From<login::Msg> for Msg {
@@ -130,22 +130,22 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 );
             }
         },
-        Msg::User(msg) => {
-            if let Model::User(user) = model {
-                user::update(
+        Msg::UserProfile(msg) => {
+            if let Model::UserProfile(profile) = model {
+                users::profile::update(
                     msg,
-                    user,
-                    &mut orders.proxy(Msg::User)
+                    profile,
+                    &mut orders.proxy(Msg::UserProfile)
                 );
             }
         },
         Msg::FetchData => {
             match model {
-                Model::User(user) => {
-                    user::update(
-                        user::Msg::FetchUser,
-                        user,
-                        &mut orders.proxy(Msg::User)
+                Model::UserProfile(profile) => {
+                    users::profile::update(
+                        users::profile::Msg::User(users::user::Msg::FetchUser),
+                        profile,
+                        &mut orders.proxy(Msg::UserProfile)
                     );
                 },
                 Model::Users(users) => {
@@ -165,9 +165,9 @@ pub fn view(model: &Model) -> Node<Msg> {
         Model::Home(home) =>
             home::view(&home)
                 .map_msg(Msg::Home),
-        Model::User(user) =>
-            user::view(&user)
-                .map_msg(Msg::User),
+        Model::UserProfile(profile) =>
+            users::profile::view(&profile)
+                .map_msg(Msg::UserProfile),
         Model::Login(login) =>
             login::view(&login)
                 .map_msg(Msg::Login),
