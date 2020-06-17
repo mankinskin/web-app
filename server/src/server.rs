@@ -36,6 +36,7 @@ use std::{
         Path,
     },
 };
+use std::convert::TryFrom;
 struct SerdeParam<T>(T)
     where T: FromStr;
 
@@ -109,9 +110,8 @@ fn get_task(id: SerdeParam<Id<Task>>) -> Json<Option<Task>> {
 fn post_task(task: Json<Task>) -> Json<Id<Task>> {
     Json(Task::insert(task.clone()))
 }
-
 #[get("/api/users")]
-fn get_users() -> Json<Vec<Entry<User>>> {
+fn get_users(token: JWT) -> Json<Vec<Entry<User>>> {
     Json(User::get_all())
 }
 #[get("/api/users/<id>")]
@@ -126,7 +126,6 @@ fn post_user(user: Json<User>) -> Json<Id<User>> {
 fn delete_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
     Json(User::delete(id.clone()))
 }
-
 #[get("/api/notes")]
 fn get_notes() -> Json<Vec<Entry<Note>>> {
     Json(Note::get_all())
@@ -157,7 +156,7 @@ fn login(credentials: Json<Credentials>)
         .and_then(|entry| {
             let user = entry.data().clone();
             let id = entry.id().clone();
-            JWT::new_for(&user)
+            JWT::try_from(&user)
                 .map_err(|_| Status::InternalServerError)
                 .map(move |jwt| (id, jwt))
         })
@@ -178,7 +177,6 @@ fn register(user: Json<User>) -> std::result::Result<Json<()>, Status> {
         Err(Status::Conflict)
     }
 }
-
 pub fn start() {
     rocket::ignite()
         .mount("/",

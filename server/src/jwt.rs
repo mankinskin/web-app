@@ -17,6 +17,9 @@ use rocket::{
         *,
     },
 };
+use chrono::*;
+use std::fmt::{self, Display, Formatter};
+use std::convert::TryFrom;
 
 #[derive(
     Debug,
@@ -28,8 +31,12 @@ pub struct JWTProvider {
 }
 lazy_static! {
     static ref JWT_PROVIDER: JWTProvider = JWTProvider::new();
+    static ref TOKEN_LIFETIME: Duration = Duration::minutes(5);
 }
 
+fn get_token_lifetime() -> Duration {
+    *TOKEN_LIFETIME
+}
 impl JWTProvider {
     fn generate_secret() -> String {
         format!("{}", chrono::Utc::now().timestamp_nanos())
@@ -39,6 +46,7 @@ impl JWTProvider {
             validate_exp: true,
             validate_iat: true,
             validate_nbf: true,
+            leeway: 60,
             ..Default::default()
         };
         Self {
@@ -53,9 +61,6 @@ impl JWTProvider {
     pub fn decode(&self, token: &str) -> Result<TokenData<JWTClaims>> {
         decode(token, &self.secret.as_bytes(), &self.validation)
     }
-    pub fn token_is_valid(&self, token: &str) -> bool {
-        self.decode(token).is_ok()
-    }
 }
 #[derive(
     Clone,
@@ -66,11 +71,17 @@ impl JWTProvider {
     )]
 pub struct JWTClaims {
     sub: String,
+    exp: i64,
+    iat: i64,
+    nbf: i64,
 }
 impl From<&User> for JWTClaims {
     fn from(user: &User) -> Self {
         Self {
             sub: user.name().clone(),
+            iat: Utc::now().timestamp(),
+            nbf: Utc::now().timestamp(),
+            exp: (Utc::now() + get_token_lifetime()).timestamp(),
         }
     }
 }
@@ -79,7 +90,7 @@ impl From<&User> for JWTClaims {
     )]
 pub enum JWTError {
     MissingToken,
-    Invalid,
+    Invalid(jsonwebtoken::errors::Error),
     BadCount,
 }
 #[derive(
@@ -92,10 +103,25 @@ pub enum JWTError {
     )]
 pub struct JWT(String);
 
-impl JWT {
-    pub fn new_for(user: &User) -> Result<Self> {
+impl Display for JWT {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl TryFrom<&User> for JWT {
+    type Error = errors::Error;
+    fn try_from(user: &User) -> std::result::Result<Self, Self::Error> {
         let claims = JWTClaims::from(user);
+        JWT::encode(&claims)
+    }
+}
+impl JWT {
+    pub fn encode(claims: &JWTClaims) -> Result<Self> {
         JWT_PROVIDER.encode(&claims).map(JWT::from)
+    }
+    pub fn decode(&self) -> Result<JWTClaims> {
+        JWT_PROVIDER.decode(&self.0)
+            .map(|td| td.claims)
     }
 }
 impl From<String> for JWT {
@@ -103,21 +129,36 @@ impl From<String> for JWT {
         Self(s)
     }
 }
-impl ToString for JWT {
-    fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
 impl<'a, 'r> FromRequest<'a, 'r> for JWT {
     type Error = JWTError;
     fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
-        let keys: Vec<_> = request.headers().get("Authorization").collect();
+        let keys: Vec<_> = request.headers().get("authorization").collect();
         match keys.len() {
             0 => Outcome::Failure((Status::BadRequest, JWTError::MissingToken)),
-            1 if JWT_PROVIDER.token_is_valid(keys[0])
-                => Outcome::Success(JWT(keys[0].to_string())),
-            1 => Outcome::Failure((Status::BadRequest, JWTError::Invalid)),
+            1 => {
+                let token = keys[0];
+                match JWT_PROVIDER.decode(token) {
+                    Ok(_claims) => Outcome::Success(JWT(token.to_string())),
+                    Err(err) => Outcome::Failure((Status::BadRequest, JWTError::Invalid(err))),
+                }
+            },
             _ => Outcome::Failure((Status::BadRequest, JWTError::BadCount)),
         }
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    lazy_static! {
+        static ref JWT_PROVIDER: JWTProvider = JWTProvider::new();
+        static ref TOKEN_LIFETIME: Duration = Duration::minutes(5);
+    }
+    #[test]
+    fn encode_decode() {
+        let user = User::new("Slim Shady", "my_name_is");
+        let claims = JWTClaims::from(&user);
+        let token = JWT::encode(&claims).unwrap();
+        assert_eq!(token.decode().unwrap(), claims)
     }
 }
