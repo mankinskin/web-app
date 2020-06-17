@@ -93,71 +93,82 @@ impl From<register::Msg> for Msg {
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::Home(msg) => {
-            if let Model::Home(home) = model {
-                home::update(
-                    msg,
-                    home,
-                    &mut orders.proxy(Msg::Home)
-                );
-            }
-        },
-        Msg::Login(msg) => {
-            if let Model::Login(login) = model {
-                login::update(
-                    msg,
-                    login,
-                    &mut orders.proxy(Msg::Login)
-                );
-            }
-        },
-        Msg::Register(msg) => {
-            if let Model::Register(register) = model {
-                register::update(
-                    msg,
-                    register,
-                    &mut orders.proxy(Msg::Register)
-                );
-            }
-        },
-        Msg::Users(msg) => {
-            if let Model::Users(users) = model {
-                users::update(
-                    msg,
-                    users,
-                    &mut orders.proxy(Msg::Users)
-                );
-            }
-        },
-        Msg::UserProfile(msg) => {
-            if let Model::UserProfile(profile) = model {
-                users::profile::update(
-                    msg,
-                    profile,
-                    &mut orders.proxy(Msg::UserProfile)
-                );
-            }
-        },
-        Msg::FetchData => {
-            match model {
-                Model::UserProfile(profile) => {
-                    users::profile::update(
-                        users::profile::Msg::User(users::user::Msg::FetchUser),
-                        profile,
-                        &mut orders.proxy(Msg::UserProfile)
+    match model {
+        Model::Home(home) => {
+            match msg {
+                Msg::Home(msg) => {
+                    home::update(
+                        msg,
+                        home,
+                        &mut orders.proxy(Msg::Home)
                     );
                 },
-                Model::Users(users) => {
+                _ => {}
+            }
+        },
+        Model::Login(login) => {
+            match msg {
+                Msg::Login(msg) => {
+                    login::update(
+                        msg,
+                        login,
+                        &mut orders.proxy(Msg::Login)
+                    );
+                },
+                _ => {}
+            }
+        },
+        Model::Register(register) => {
+            match msg {
+                Msg::Register(msg) => {
+                    register::update(
+                        msg,
+                        register,
+                        &mut orders.proxy(Msg::Register)
+                    );
+                },
+                _ => {}
+            }
+        },
+        Model::Users(users) => {
+            match msg {
+                Msg::Users(msg) => {
+                    users::update(
+                        msg,
+                        users,
+                        &mut orders.proxy(Msg::Users)
+                    );
+                },
+                Msg::FetchData => {
                     users::update(
                         users::Msg::FetchUsers,
                         users,
                         &mut orders.proxy(Msg::Users)
                     );
-                },
-                _ => {},
+                }
+                _ => {}
             }
         },
+        Model::UserProfile(profile) => {
+            match msg {
+                Msg::UserProfile(msg) => {
+                    users::profile::update(
+                        msg,
+                        profile,
+                        &mut orders.proxy(Msg::UserProfile)
+                    );
+                },
+                Msg::FetchData => {
+                    users::profile::update(
+                        users::profile::Msg::User(users::user::Msg::FetchUser),
+                        profile,
+                        &mut orders.proxy(Msg::UserProfile)
+                    );
+                }
+                _ => {}
+            }
+        },
+        _ => {},
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
