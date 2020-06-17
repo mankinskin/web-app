@@ -39,7 +39,8 @@ fn get_token_lifetime() -> Duration {
 }
 impl JWTProvider {
     fn generate_secret() -> String {
-        format!("{}", chrono::Utc::now().timestamp_nanos())
+        //format!("{}", chrono::Utc::now().timestamp_nanos())
+        format!("{}", "dw8ed832ekjdkal29ewi92ie921e09iksdjwjwi")
     }
     pub fn new() -> Self {
         let validation = Validation {
