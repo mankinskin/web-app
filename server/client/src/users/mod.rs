@@ -54,7 +54,7 @@ impl From<Vec<Id<User>>> for Model {
 pub enum Msg {
     FetchUsers,
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
-    UserPreview(preview::Msg),
+    UserPreview(usize, preview::Msg),
 }
 fn fetch_all_users(session: UserSession)
     -> impl Future<Output = Result<Msg, Msg>>
@@ -90,8 +90,17 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
             }
         },
-        Msg::UserPreview(_msg) => {
-
+        Msg::UserPreview(index, msg) => {
+            match &mut model.users {
+                Status::Ready(users) => {
+                    preview::update(
+                        msg,
+                        &mut users[index],
+                        &mut orders.proxy(move |msg| Msg::UserPreview(index.clone(), msg))
+                    );
+                },
+                _ => {}
+            }
         },
     }
 }
@@ -100,10 +109,10 @@ pub fn view(model: &Model) -> Node<Msg> {
         Status::Ready(users) => {
             div![
                 ul![
-                    users.iter()
-                        .map(|u| li![
+                    users.iter().enumerate()
+                        .map(|(i, u)| li![
                              preview::view(u)
-                                .map_msg(Msg::UserPreview)
+                                .map_msg(move |msg| Msg::UserPreview(i.clone(), msg))
                         ])
                 ]
             ]

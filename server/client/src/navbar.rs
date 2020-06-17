@@ -2,9 +2,6 @@ use seed::{
     *,
     prelude::*,
 };
-use plans::{
-    user::*,
-};
 use crate::{
     root::{
         self,
@@ -27,14 +24,14 @@ pub enum Msg {
     Logout,
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
+pub fn update(msg: Msg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Logout => {
             orders.send_g_msg(root::GMsg::EndSession);
         },
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
+pub fn view(_model: &Model) -> Node<Msg> {
     div![
         div![
             a![
