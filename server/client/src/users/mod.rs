@@ -56,23 +56,25 @@ pub enum Msg {
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
     UserPreview(preview::Msg),
 }
-fn fetch_all_users()
+fn fetch_all_users(session: UserSession)
     -> impl Future<Output = Result<Msg, Msg>>
 {
-    let mut request = Request::new("http://localhost:8000/api/users");
-    if let Some(session) = root::get_session() {
-        request = request.header("authorization", &format!("{}", session.token));
-    }
-    request.method(Method::Get)
-        .fetch_json_data(move |data_result: ResponseDataResult<Vec<Entry<User>>>| {
-            Msg::FetchedUsers(data_result)
-        })
+    Request::new("http://localhost:8000/api/users")
+        .header("authorization", &format!("{}", session.token))
+        .method(Method::Get)
+            .fetch_json_data(move |data_result: ResponseDataResult<Vec<Entry<User>>>| {
+                Msg::FetchedUsers(data_result)
+            })
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::FetchUsers => {
-            orders.perform_cmd(fetch_all_users());
-            model.users = Status::Loading;
+            if let Some(session) = root::get_session() {
+                orders.perform_cmd(fetch_all_users(session));
+                model.users = Status::Loading;
+            } else {
+                model.users = Status::Failed(String::from("No session"));
+            }
         },
         Msg::FetchedUsers(res) => {
             match res {
@@ -114,6 +116,11 @@ pub fn view(model: &Model) -> Node<Msg> {
         Status::Empty => {
             div![
                 format!("Empty...")
+            ]
+        },
+        Status::Failed(s) => {
+            div![
+                format!("Failed: {}", s)
             ]
         },
     }

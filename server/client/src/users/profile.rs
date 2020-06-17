@@ -47,5 +47,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                 h1!["Empty Profile"],
             ]
         },
+        Status::Failed(s) => {
+            div![
+                format!("Failed: {}", s)
+            ]
+        },
     }
 }
