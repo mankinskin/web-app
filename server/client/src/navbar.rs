@@ -7,6 +7,7 @@ use plans::{
 };
 use crate::{
     root::{
+        self,
         GMsg,
     },
 };
@@ -34,15 +35,19 @@ impl Default for Model {
 pub enum Msg {
     SetSession(UserSession),
     EndSession,
+    Logout,
 }
 
-pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::SetSession(session) => {
             model.session = Some(session);
         },
         Msg::EndSession => {
             model.session = None;
+        },
+        Msg::Logout => {
+            orders.send_g_msg(GMsg::Root(root::Msg::EndSession));
         },
     }
 }
@@ -56,23 +61,6 @@ pub fn view(model: &Model) -> Node<Msg> {
                 "Home",
             ],
         ],
-        div![
-            a![
-                attrs!{
-                    At::Href => "/login";
-                },
-                "Login",
-            ],
-        ],
-        div![
-            a![
-                attrs!{
-                    At::Href => "/register";
-                },
-                "Register",
-
-            ],
-        ],
         if let Some(session) = &model.session {
             div![
                 a![
@@ -82,7 +70,28 @@ pub fn view(model: &Model) -> Node<Msg> {
                     "My Profile",
 
                 ],
+                button![simple_ev(Ev::Click, Msg::Logout), "Log Out"],
             ]
-        } else { empty![] },
+        } else {
+            div![
+                div![
+                    a![
+                        attrs!{
+                            At::Href => "/login";
+                        },
+                        "Login",
+                    ],
+                ],
+                div![
+                    a![
+                        attrs!{
+                            At::Href => "/register";
+                        },
+                        "Register",
+
+                    ],
+                ],
+            ]
+        },
     ]
 }

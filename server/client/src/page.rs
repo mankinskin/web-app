@@ -10,6 +10,9 @@ use plans::{
     user::*,
 };
 use crate::{
+    route::{
+        Route,
+    },
     root::{
         GMsg,
     },
@@ -28,6 +31,18 @@ impl Default for Model {
         Self::home()
     }
 }
+impl From<Route> for Model {
+    fn from(route: Route) -> Self {
+        match route {
+            Route::Home => Self::home(),
+            Route::Login => Self::login(),
+            Route::Register => Self::register(),
+            Route::Users => Self::users(),
+            Route::User(id) => Self::user(id),
+            Route::NotFound => Self::not_found(),
+        }
+    }
+}
 impl Model {
     pub fn home() -> Self {
         Self::Home(home::Model::default())
@@ -43,6 +58,9 @@ impl Model {
     }
     pub fn register() -> Self {
         Self::Register(register::Model::default())
+    }
+    pub fn not_found() -> Self {
+        Self::NotFound
     }
 }
 #[derive(Clone)]
