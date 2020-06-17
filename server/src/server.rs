@@ -112,7 +112,12 @@ fn post_task(task: Json<Task>) -> Json<Id<Task>> {
 }
 #[get("/api/users")]
 fn get_users(token: JWT) -> Json<Vec<Entry<User>>> {
+    let _ = token;
     Json(User::get_all())
+}
+#[get("/api/token_valid")]
+fn token_valid(token: JWT) {
+    let _ = token;
 }
 #[get("/api/users/<id>")]
 fn get_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
@@ -184,6 +189,7 @@ pub fn start() {
                 get_root_html,
                 get_html,
                 user_page,
+                token_valid,
 
                 get_style_css,
                 get_pkg_js,

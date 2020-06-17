@@ -1,6 +1,9 @@
 use seed::{
     *,
     prelude::*,
+    browser::service::fetch::{
+        FetchObject,
+    },
 };
 use crate::{
     *,
@@ -9,6 +12,10 @@ use crate::{
 };
 use plans::{
     user::*,
+};
+use futures::{
+    Future,
+    FutureExt,
 };
 use std::sync::{
     Mutex,
@@ -50,6 +57,7 @@ pub enum Msg {
 pub enum GMsg {
     Root(Msg),
     SetSession(UserSession),
+    ValidateSession(UserSession),
     EndSession,
 }
 impl From<page::Msg> for Msg {
@@ -94,6 +102,25 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
     }
 }
+fn validate_session_request(session: UserSession)
+    -> impl Future<Output = Result<GMsg, GMsg>>
+{
+    Request::new("http://localhost:8000/api/token_valid")
+        .header("authorization", &format!("{}", session.token))
+        .method(Method::Get)
+        .fetch(move |fetch_object: FetchObject<()>| {
+            match fetch_object.response() {
+                Ok(response) => {
+                    if response.status.is_ok() {
+                        GMsg::SetSession(session)
+                    } else {
+                        GMsg::EndSession
+                    }
+                },
+                Err(_) => GMsg::EndSession,
+            }
+        })
+}
 pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         GMsg::Root(msg) => {
@@ -102,6 +129,9 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         GMsg::SetSession(session) => {
             set_session(session.clone());
             storage::store_session(&session.clone());
+        },
+        GMsg::ValidateSession(session) => {
+            orders.perform_g_cmd(validate_session_request(session));
         },
         GMsg::EndSession => {
             storage::delete_app_data();
@@ -124,7 +154,7 @@ fn after_mount(url: Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Mode
     let route = Route::from(url.path);
     orders.send_msg(Msg::RouteChanged(route.clone()));
     if let Some(session) = storage::load_session() {
-        orders.send_g_msg(GMsg::SetSession(session));
+        orders.send_g_msg(GMsg::ValidateSession(session));
     }
     AfterMount::default()
 }
