@@ -9,7 +9,6 @@ use plans::{
     user::*,
 };
 use crate::{
-    user,
     root::{
         self,
         GMsg,
@@ -26,9 +25,13 @@ use database::{
 };
 use std::result::Result;
 
+pub mod preview;
+pub mod profile;
+pub mod user;
+
 #[derive(Clone)]
 pub struct Model {
-    users: Status<Vec<user::Model>>,
+    users: Status<Vec<preview::Model>>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
@@ -40,9 +43,9 @@ impl Model {
 impl From<Vec<Id<User>>> for Model {
     fn from(users: Vec<Id<User>>) -> Self {
         Self {
-            users: Status::Loaded(users
+            users: Status::Ready(users
                 .iter()
-                .map(|id| user::Model::from(*id))
+                .map(|id| user::Model::from(*id).preview())
                 .collect()),
         }
     }
@@ -51,7 +54,7 @@ impl From<Vec<Id<User>>> for Model {
 pub enum Msg {
     FetchUsers,
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
-    User(user::Msg),
+    UserPreview(preview::Msg),
 }
 fn fetch_all_users()
     -> impl Future<Output = Result<Msg, Msg>>
@@ -74,9 +77,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::FetchedUsers(res) => {
             match res {
                 Ok(users) => {
-                    model.users = Status::Loaded(
+                    model.users = Status::Ready(
                         users.iter()
-                             .map(move |entry| user::Model::from(entry))
+                             .map(move |entry| user::Model::from(entry).preview())
                              .collect()
                         );
                 },
@@ -85,18 +88,21 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
             }
         },
-        Msg::User(_msg) => {
+        Msg::UserPreview(_msg) => {
 
         },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
     match &model.users {
-        Status::Loaded(users) => {
+        Status::Ready(users) => {
             div![
                 ul![
                     users.iter()
-                        .map(|u| li![user::view(u).map_msg(Msg::User)])
+                        .map(|u| li![
+                             preview::view(u)
+                                .map_msg(Msg::UserPreview)
+                        ])
                 ]
             ]
         },

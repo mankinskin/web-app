@@ -8,9 +8,6 @@ use plans::{
 use rql::{
     *,
 };
-use database::{
-    Entry,
-};
 use futures::{
     Future,
 };
@@ -18,38 +15,50 @@ use std::result::{
     Result,
 };
 use crate::{
+    users::*,
     root::{
-        self,
         GMsg,
     },
+    status::*,
+};
+use database::{
+    Entry,
 };
 
 #[derive(Clone, Default)]
 pub struct Model {
-    user_id: Id<User>,
-    user: Option<User>,
+    pub user_id: Id<User>,
+    pub user: Status<User>,
 }
-impl From<Id<User>> for Model {
-    fn from(user_id: Id<User>) -> Self {
+impl Model {
+    pub fn preview(&self) -> preview::Model {
+        preview::Model::from(self.clone())
+    }
+    pub fn profile(&self) -> profile::Model {
+        profile::Model::from(self.clone())
+    }
+    fn ready(user_id: Id<User>, user: User) -> Self {
         Self {
             user_id,
-            user: None,
+            user: Status::Ready(user),
+        }
+    }
+    fn empty(user_id: Id<User>) -> Self {
+        Self {
+            user_id,
+            user: Status::Empty,
         }
     }
 }
 impl From<&Entry<User>> for Model {
     fn from(entry: &Entry<User>) -> Self {
-        Self {
-            user_id: *entry.id(),
-            user: Some(entry.data().clone()),
-        }
+        Self::ready(*entry.id(), entry.data().clone())
     }
 }
-
-#[derive(Clone)]
-pub enum Msg {
-    FetchUser,
-    FetchedUser(ResponseDataResult<User>),
+impl From<Id<User>> for Model {
+    fn from(user_id: Id<User>) -> Self {
+        Self::empty(user_id)
+    }
 }
 fn fetch_user(id: Id<User>)
     -> impl Future<Output = Result<Msg, Msg>>
@@ -68,7 +77,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::FetchedUser(res) => {
             match res {
                 Ok(user) => {
-                    model.user = Some(user);
+                    model.user = Status::Ready(user);
                 },
                 Err(reason) => {
                     seed::log!(reason);
@@ -77,15 +86,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
-    if let Some(user) = &model.user {
-        div![
-            p![format!("{}", model.user_id)],
-            p![user.name()],
-        ]
-    } else {
-        div![
-            p![format!("User {} not found", model.user_id)]
-        ]
-    }
+
+#[derive(Clone)]
+pub enum Msg {
+    FetchUser,
+    FetchedUser(ResponseDataResult<User>),
 }

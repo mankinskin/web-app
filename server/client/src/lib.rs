@@ -19,7 +19,6 @@ pub mod login;
 pub mod register;
 pub mod home;
 pub mod navbar;
-pub mod user;
 pub mod users;
 pub mod page;
 pub mod root;
