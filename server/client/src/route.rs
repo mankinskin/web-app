@@ -23,7 +23,7 @@ pub enum Route {
     Login,
     Register,
     Users,
-    User(Id<User>),
+    UserProfile(Id<User>),
     NotFound,
 }
 impl Into<Vec<String>> for Route {
@@ -33,7 +33,7 @@ impl Into<Vec<String>> for Route {
             Route::Login => vec!["login".into()],
             Route::Register => vec!["register".into()],
             Route::Users => vec!["users".into()],
-            Route::User(id) => vec!["users".into(), id.to_string()],
+            Route::UserProfile(id) => vec!["users".into(), id.to_string()],
             Route::NotFound => vec![],
         }
     }
@@ -51,7 +51,7 @@ impl From<Vec<String>> for Route {
                         Route::Users
                     } else if path.len() == 2 {
                         match Id::from_str(&path[1]) {
-                            Ok(id) => Route::User(id),
+                            Ok(id) => Route::UserProfile(id),
                             Err(_e) => Route::NotFound,
                         }
                     } else {

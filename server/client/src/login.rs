@@ -13,6 +13,8 @@ use plans::{
     user::*,
 };
 use crate::{
+    page,
+    register,
     route::{
         self,
         Route,
@@ -62,7 +64,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Register => {
-            route::change_route(Route::Register, orders);
+            page::go_to(register::Model::default(), orders);
         },
     }
 }

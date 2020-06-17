@@ -38,9 +38,34 @@ impl From<Route> for Model {
             Route::Login => Self::login(),
             Route::Register => Self::register(),
             Route::Users => Self::users(),
-            Route::User(id) => Self::user(id),
+            Route::UserProfile(id) => Self::profile(id),
             Route::NotFound => Self::not_found(),
         }
+    }
+}
+impl From<home::Model> for Model {
+    fn from(model: home::Model) -> Self {
+        Self::Home(model)
+    }
+}
+impl From<users::profile::Model> for Model {
+    fn from(model: users::profile::Model) -> Self {
+        Self::UserProfile(model)
+    }
+}
+impl From<login::Model> for Model {
+    fn from(model: login::Model) -> Self {
+        Self::Login(model)
+    }
+}
+impl From<register::Model> for Model {
+    fn from(model: register::Model) -> Self {
+        Self::Register(model)
+    }
+}
+impl From<users::Model> for Model {
+    fn from(model: users::Model) -> Self {
+        Self::Users(model)
     }
 }
 impl Model {
@@ -50,7 +75,7 @@ impl Model {
     pub fn users() -> Self {
         Self::Users(users::Model::fetch_all())
     }
-    pub fn user(id: Id<User>) -> Self {
+    pub fn profile(id: Id<User>) -> Self {
         Self::UserProfile(users::user::Model::from(id).profile())
     }
     pub fn login() -> Self {
@@ -62,6 +87,19 @@ impl Model {
     pub fn not_found() -> Self {
         Self::NotFound
     }
+    pub fn route(&self) -> Route {
+        match self {
+            Self::UserProfile(profile) => Route::UserProfile(profile.user.user_id),
+            Self::Users(_) => Route::Users,
+            Self::Login(_) => Route::Login,
+            Self::Register(_) => Route::Register,
+            Self::Home(_) | Self::NotFound => Route::Home,
+        }
+    }
+}
+pub fn go_to<M: Into<page::Model> + Clone, Ms: 'static>(model: M, orders: &mut impl Orders<Ms, GMsg>) {
+    let page: page::Model = model.into();
+    orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page)));
 }
 #[derive(Clone)]
 pub enum Msg {

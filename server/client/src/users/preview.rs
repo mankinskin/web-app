@@ -1,10 +1,11 @@
 use crate::{
+    page,
     users::*,
 };
 
 #[derive(Clone, Default)]
 pub struct Model {
-    user: user::Model,
+    pub user: user::Model,
 }
 impl From<user::Model> for Model {
     fn from(user: user::Model) -> Self {
@@ -16,6 +17,7 @@ impl From<user::Model> for Model {
 #[derive(Clone)]
 pub enum Msg {
     User(user::Msg),
+    GoToProfile,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -26,13 +28,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::User)
             )
         },
+        Msg::GoToProfile => {
+            seed::log!("GoToProfile");
+            page::go_to(profile::Model::from(model.user.clone()), orders);
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
     match &model.user.user {
         Status::Ready(user) => {
             div![
-                h1![user.name()],
+                a![
+                    attrs!{
+                        At::Href => "";
+                    },
+                    user.name(),
+                    simple_ev(Ev::Click, Msg::GoToProfile),
+                ],
                 p!["Preview"],
             ]
         },

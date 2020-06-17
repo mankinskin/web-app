@@ -4,7 +4,7 @@ use crate::{
 
 #[derive(Clone, Default)]
 pub struct Model {
-    user: user::Model,
+    pub user: user::Model,
 }
 #[derive(Clone)]
 pub enum Msg {

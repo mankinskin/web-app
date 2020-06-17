@@ -49,6 +49,7 @@ pub fn end_session() {
 pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
+    SetPage(page::Model),
     RouteChanged(Route),
     FetchData,
 }
@@ -111,8 +112,16 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::RouteChanged(route) => {
-            seed::log!("route changed");
+            seed::log!("route changed: {}", route);
             model.page = page::Model::from(route);
+            if let Some(session) = storage::load_session() {
+                orders.perform_g_cmd(validate_session_request(session));
+            }
+        },
+        Msg::SetPage(page) => {
+            seed::log!("page changed: {:?}", page);
+            seed::push_route(page.route());
+            model.page = page;
             if let Some(session) = storage::load_session() {
                 orders.perform_g_cmd(validate_session_request(session));
             }
@@ -134,7 +143,7 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::log!("ending session");
             storage::delete_app_data();
             end_session()
-        }
+        },
     }
 }
 pub fn view(model: &Model) -> impl View<Msg> {

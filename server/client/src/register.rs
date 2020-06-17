@@ -9,6 +9,8 @@ use futures::{
     Future,
 };
 use crate::{
+    page,
+    login,
     route::{
         self,
         Route,
@@ -68,7 +70,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Login => {
-            route::change_route(Route::Login, orders);
+            page::go_to(login::Model::default(), orders);
         },
     }
 }
