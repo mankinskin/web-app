@@ -12,6 +12,7 @@ extern crate plans;
 extern crate budget;
 extern crate updatable;
 extern crate database;
+extern crate seed;
 
 pub mod login;
 pub mod register;
@@ -24,3 +25,4 @@ pub mod root;
 pub use root::*;
 pub mod status;
 pub mod route;
+pub mod storage;

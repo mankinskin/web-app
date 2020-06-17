@@ -67,4 +67,4 @@ args = ["test", "--headless", "--firefox"]
 description = "Run tests. Ex: 'cargo make test firefox'. Test envs: [chrome, firefox, safari]"
 install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V" }
 command = "wasm-pack"
-args = ["test", "--${@}"]
+args = ["test", "--headless", "--firefox"]
