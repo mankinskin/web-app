@@ -5,7 +5,8 @@ pub enum Status<T>
 {
     Empty,
     Loading,
-    Ready(T)
+    Ready(T),
+    Failed(String),
 }
 
 impl<T> Default for Status<T>
