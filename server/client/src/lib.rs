@@ -13,6 +13,7 @@ extern crate budget;
 extern crate updatable;
 extern crate database;
 extern crate seed;
+#[macro_use] extern crate lazy_static;
 
 pub mod login;
 pub mod register;

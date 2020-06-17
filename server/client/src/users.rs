@@ -11,6 +11,7 @@ use plans::{
 use crate::{
     user,
     root::{
+        self,
         GMsg,
     },
     status::{
@@ -28,12 +29,10 @@ use std::result::Result;
 #[derive(Clone)]
 pub struct Model {
     users: Status<Vec<user::Model>>,
-    session: Option<UserSession>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
         Self {
-            session: None,
             users: Status::Empty,
         }
     }
@@ -41,7 +40,6 @@ impl Model {
 impl From<Vec<Id<User>>> for Model {
     fn from(users: Vec<Id<User>>) -> Self {
         Self {
-            session: None,
             users: Status::Loaded(users
                 .iter()
                 .map(|id| user::Model::from(*id))
@@ -54,14 +52,17 @@ pub enum Msg {
     FetchUsers,
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
     User(user::Msg),
-    SetSession(UserSession),
-    EndSession,
 }
 fn fetch_all_users()
     -> impl Future<Output = Result<Msg, Msg>>
 {
-    Request::new("http://localhost:8000/api/users")
-        .method(Method::Get)
+    let mut request = Request::new("http://localhost:8000/api/users");
+    seed::log!("Fetching users...");
+    if let Some(session) = root::get_session() {
+        seed::log!("token: {}", session.token);
+        request = request.header("authorization", &format!("{}", session.token));
+    }
+    request.method(Method::Get)
         .fetch_json_data(move |data_result: ResponseDataResult<Vec<Entry<User>>>| {
             Msg::FetchedUsers(data_result)
         })
@@ -88,12 +89,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::User(_msg) => {
 
-        },
-        Msg::SetSession(session) => {
-            model.session = Some(session);
-        },
-        Msg::EndSession => {
-            model.session = None;
         },
     }
 }

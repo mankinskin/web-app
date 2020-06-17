@@ -59,7 +59,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             match res {
                 Ok(session) => {
                     seed::log!("Ok");
-                    root::set_session(session, orders);
+                    orders.send_g_msg(root::GMsg::SetSession(session));
                     route::change_route(Route::Home, orders);
                 },
                 Err(reason) => {

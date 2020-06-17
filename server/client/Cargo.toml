@@ -21,6 +21,7 @@ futures = "^0.3"
 wasm-bindgen-futures = "^0.4"
 url = "^2"
 seed = "^0.6"
+lazy_static = "^1.4"
 
 [dependencies.wasm-bindgen]
 version = "^0.2"
