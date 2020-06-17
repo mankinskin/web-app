@@ -10,10 +10,16 @@ use crate::{
 use plans::{
     user::*,
 };
+use std::sync::{
+    Mutex,
+    MutexGuard,
+};
 
+lazy_static! {
+    static ref USER_SESSION: Mutex<Option<UserSession>> = Mutex::new(None);
+}
 #[derive(Clone, Default)]
 pub struct Model {
-    session: Option<UserSession>, // session of login
     navbar: navbar::Model, // the navigation bar
     page: page::Model, // the current page
 }
@@ -25,22 +31,26 @@ impl From<Route> for Model {
         }
     }
 }
-impl Model {
-    pub fn set_session(&mut self, session: UserSession) {
-        self.session = Some(session);
-    }
+pub fn set_session(session: UserSession) {
+    *USER_SESSION.lock().unwrap() = Some(session);
+}
+pub fn get_session() -> Option<UserSession> {
+    USER_SESSION.lock().unwrap().clone()
+}
+pub fn end_session() {
+    *USER_SESSION.lock().unwrap() = None;
 }
 #[derive(Clone)]
 pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
     RouteChanged(Route),
-    SetSession(UserSession),
-    EndSession,
 }
 #[derive(Clone)]
 pub enum GMsg {
     Root(Msg),
+    SetSession(UserSession),
+    EndSession,
 }
 impl From<page::Msg> for Msg {
     fn from(msg: page::Msg) -> Self {
@@ -82,47 +92,22 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::Page)
             );
         },
-        Msg::SetSession(session) => {
-            model.set_session(session.clone());
-            storage::store_session(&session.clone());
-            navbar::update(
-                navbar::Msg::SetSession(session.clone()),
-                &mut model.navbar,
-                &mut orders.proxy(Msg::NavBar)
-            );
-            page::update(
-                page::Msg::SetSession(session),
-                &mut model.page,
-                &mut orders.proxy(Msg::Page)
-            );
-        },
-        Msg::EndSession => {
-            storage::delete_app_data();
-            navbar::update(
-                navbar::Msg::EndSession,
-                &mut model.navbar,
-                &mut orders.proxy(Msg::NavBar)
-            );
-            page::update(
-                page::Msg::EndSession,
-                &mut model.page,
-                &mut orders.proxy(Msg::Page)
-            );
-        }
     }
 }
 pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         GMsg::Root(msg) => {
             orders.send_msg(msg);
+        },
+        GMsg::SetSession(session) => {
+            set_session(session.clone());
+            storage::store_session(&session.clone());
+        },
+        GMsg::EndSession => {
+            storage::delete_app_data();
+            end_session()
         }
     }
-}
-pub fn set_session<Ms: 'static>(session: UserSession, orders: &mut impl Orders<Ms, GMsg>) {
-    orders.send_g_msg(GMsg::Root(root::Msg::SetSession(session)));
-}
-pub fn end_session<Ms: 'static>(orders: &mut impl Orders<Ms, GMsg>) {
-    orders.send_g_msg(GMsg::Root(root::Msg::EndSession));
 }
 pub fn view(model: &Model) -> impl View<Msg> {
     div![
@@ -139,7 +124,7 @@ fn after_mount(url: Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Mode
     let route = Route::from(url.path);
     orders.send_msg(Msg::RouteChanged(route.clone()));
     if let Some(session) = storage::load_session() {
-        orders.send_msg(Msg::SetSession(session));
+        orders.send_g_msg(GMsg::SetSession(session));
     }
     AfterMount::default()
 }

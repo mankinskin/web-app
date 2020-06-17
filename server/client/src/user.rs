@@ -19,6 +19,7 @@ use std::result::{
 };
 use crate::{
     root::{
+        self,
         GMsg,
     },
 };
@@ -27,14 +28,12 @@ use crate::{
 pub struct Model {
     user_id: Id<User>,
     user: Option<User>,
-    session: Option<UserSession>,
 }
 impl From<Id<User>> for Model {
     fn from(user_id: Id<User>) -> Self {
         Self {
             user_id,
             user: None,
-            session: None,
         }
     }
 }
@@ -43,7 +42,6 @@ impl From<&Entry<User>> for Model {
         Self {
             user_id: *entry.id(),
             user: Some(entry.data().clone()),
-            session: None,
         }
     }
 }
@@ -52,8 +50,6 @@ impl From<&Entry<User>> for Model {
 pub enum Msg {
     FetchUser,
     FetchedUser(ResponseDataResult<User>),
-    SetSession(UserSession),
-    EndSession,
 }
 fn fetch_user(id: Id<User>)
     -> impl Future<Output = Result<Msg, Msg>>
@@ -78,12 +74,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     seed::log!(reason);
                 },
             }
-        },
-        Msg::SetSession(session) => {
-            model.session = Some(session);
-        },
-        Msg::EndSession => {
-            model.session = None;
         },
     }
 }

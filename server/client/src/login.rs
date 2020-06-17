@@ -53,7 +53,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             model.submit_result = Some(res.clone().map(|_| ()));
             match res {
                 Ok(session) => {
-                    root::set_session(session, orders);
+                    orders.send_g_msg(root::GMsg::SetSession(session));
                     route::change_route(Route::Home, orders);
                 },
                 Err(reason) => {

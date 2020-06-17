@@ -14,40 +14,23 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Model {
-    session: Option<UserSession>,
 }
 
-impl Model {
-    pub fn with_session(session: UserSession) -> Self {
-        Self {
-            session: Some(session),
-        }
-    }
-}
 impl Default for Model {
     fn default() -> Self {
         Self {
-            session: None,
         }
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    SetSession(UserSession),
-    EndSession,
     Logout,
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::SetSession(session) => {
-            model.session = Some(session);
-        },
-        Msg::EndSession => {
-            model.session = None;
-        },
         Msg::Logout => {
-            orders.send_g_msg(GMsg::Root(root::Msg::EndSession));
+            orders.send_g_msg(root::GMsg::EndSession);
         },
     }
 }
@@ -61,14 +44,19 @@ pub fn view(model: &Model) -> Node<Msg> {
                 "Home",
             ],
         ],
-        if let Some(session) = &model.session {
+        if let Some(session) = root::get_session() {
             div![
+                a![
+                    attrs!{
+                        At::Href => format!("/users");
+                    },
+                    "Users",
+                ],
                 a![
                     attrs!{
                         At::Href => format!("/users/{}", session.user_id);
                     },
                     "My Profile",
-
                 ],
                 button![simple_ev(Ev::Click, Msg::Logout), "Log Out"],
             ]

@@ -71,8 +71,6 @@ pub enum Msg {
     Register(register::Msg),
     Users(users::Msg),
     FetchData,
-    SetSession(UserSession),
-    EndSession,
 }
 impl From<home::Msg> for Msg {
     fn from(msg: home::Msg) -> Self {
@@ -153,44 +151,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 Model::Users(users) => {
                     users::update(
                         users::Msg::FetchUsers,
-                        users,
-                        &mut orders.proxy(Msg::Users)
-                    );
-                },
-                _ => {},
-            }
-        },
-        Msg::SetSession(session) => {
-            match model {
-                Model::User(user) => {
-                    user::update(
-                        user::Msg::SetSession(session),
-                        user,
-                        &mut orders.proxy(Msg::User)
-                    );
-                },
-                Model::Users(users) => {
-                    users::update(
-                        users::Msg::SetSession(session),
-                        users,
-                        &mut orders.proxy(Msg::Users)
-                    );
-                },
-                _ => {},
-            }
-        },
-        Msg::EndSession => {
-            match model {
-                Model::User(user) => {
-                    user::update(
-                        user::Msg::EndSession,
-                        user,
-                        &mut orders.proxy(Msg::User)
-                    );
-                },
-                Model::Users(users) => {
-                    users::update(
-                        users::Msg::EndSession,
                         users,
                         &mut orders.proxy(Msg::Users)
                     );
