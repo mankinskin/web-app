@@ -90,7 +90,18 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::log!("route changed: {}", route);
             model.page = page::Model::from(route);
             if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(request::validate_session_request(session));
+                orders.perform_g_cmd(
+                    request::validate_session_request(session.clone())
+                        .map(|result|
+                             match result {
+                                 Ok(()) => GMsg::SetSession(session),
+                                 Err(e) => {
+                                    seed::log!(e);
+                                    GMsg::EndSession
+                                 },
+                             }
+                        )
+                );
             }
         },
         Msg::SetPage(page) => {
@@ -98,7 +109,18 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::push_route(page.route());
             model.page = page;
             if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(request::validate_session_request(session));
+                orders.perform_g_cmd(
+                    request::validate_session_request(session.clone())
+                        .map(|result|
+                             match result {
+                                 Ok(()) => GMsg::SetSession(session),
+                                 Err(e) => {
+                                    seed::log!(e);
+                                    GMsg::EndSession
+                                 },
+                             }
+                        )
+                );
             }
         },
     }
@@ -116,12 +138,12 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         GMsg::EndSession => {
             seed::log!("ending session");
-            storage::delete_app_data();
+            storage::clean_storage();
             end_session()
         },
     }
 }
-pub fn view(model: &Model) -> impl View<Msg> {
+pub fn view(model: &Model) -> impl IntoNodes<Msg> {
     div![
         navbar::view(&model.navbar)
             .map_msg(Msg::NavBar),
@@ -130,7 +152,7 @@ pub fn view(model: &Model) -> impl View<Msg> {
     ]
 }
 fn routes(url: Url) -> Option<Msg> {
-    Some(Msg::RouteChanged(Route::from(url.path)))
+    Some(Msg::RouteChanged(Route::from(url.path())))
 }
 #[wasm_bindgen(start)]
 pub fn render() {

@@ -50,7 +50,7 @@ impl From<Vec<Id<User>>> for Model {
 #[derive(Clone)]
 pub enum Msg {
     FetchUsers,
-    FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
+    FetchedUsers(Result<Vec<Entry<User>>, String>),
     UserPreview(usize, preview::Msg),
 }
 
@@ -58,24 +58,25 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     match msg {
         Msg::FetchUsers => {
             if let Some(session) = root::get_session() {
-                orders.perform_cmd(request::fetch_all_users(session));
+                orders.perform_cmd(
+                    request::fetch_all_users(session)
+                        .map(|result|
+                             Msg::FetchedUsers(result.map_err(|e| format!("{:?}", e)))
+                        )
+                );
                 model.users = Status::Loading;
             } else {
                 model.users = Status::Failed(String::from("No session"));
             }
         },
-        Msg::FetchedUsers(res) => {
-            match res {
-                Ok(users) => {
-                    model.users = Status::Ready(
-                        users.iter()
-                             .map(move |entry| user::Model::from(entry).preview())
-                             .collect()
-                        );
-                },
-                Err(reason) => {
-                    seed::log!(reason);
-                },
+        Msg::FetchedUsers(result) => {
+            match result {
+                Ok(users) => model.users = Status::Ready(
+                    users.iter()
+                         .map(move |entry| user::Model::from(entry).preview())
+                         .collect()
+                    ),
+                Err(_) => {}
             }
         },
         Msg::UserPreview(index, msg) => {
