@@ -1,9 +1,6 @@
 use seed::{
     *,
     prelude::*,
-    browser::service::fetch::{
-        FetchObject,
-    },
 };
 use crate::{
     *,
@@ -12,9 +9,6 @@ use crate::{
 };
 use plans::{
     user::*,
-};
-use futures::{
-    Future,
 };
 use std::sync::{
     Mutex,
@@ -69,25 +63,6 @@ impl From<navbar::Msg> for Msg {
         Self::NavBar(msg)
     }
 }
-fn validate_session_request(session: UserSession)
-    -> impl Future<Output = Result<GMsg, GMsg>>
-{
-    Request::new("http://localhost:8000/api/token_valid")
-        .header("authorization", &format!("{}", session.token))
-        .method(Method::Get)
-        .fetch(move |fetch_object: FetchObject<()>| {
-            match fetch_object.response() {
-                Ok(response) => {
-                    if response.status.is_ok() {
-                        GMsg::SetSession(session)
-                    } else {
-                        GMsg::EndSession
-                    }
-                },
-                Err(_) => GMsg::EndSession,
-            }
-        })
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Page(msg) => {
@@ -115,7 +90,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::log!("route changed: {}", route);
             model.page = page::Model::from(route);
             if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(validate_session_request(session));
+                orders.perform_g_cmd(request::validate_session_request(session));
             }
         },
         Msg::SetPage(page) => {
@@ -123,7 +98,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::push_route(page.route());
             model.page = page;
             if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(validate_session_request(session));
+                orders.perform_g_cmd(request::validate_session_request(session));
             }
         },
     }

@@ -5,14 +5,12 @@ use seed::{
         FailReason,
     },
 };
-use futures::{
-    Future,
-};
 use plans::{
     credentials::*,
     user::*,
 };
 use crate::{
+    request,
     page,
     register,
     route::{
@@ -49,7 +47,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::ChangePassword(p) => model.credentials.password = p,
         Msg::Login => {
             seed::log!("Logging in...");
-            orders.perform_cmd(login_request(model.credentials()));
+            orders.perform_cmd(request::login_request(model.credentials()));
         },
         Msg::LoginResponse(res) => {
             model.submit_result = Some(res.clone().map(|_| ()));
@@ -67,16 +65,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             page::go_to(register::Model::default(), orders);
         },
     }
-}
-fn login_request(credentials: &Credentials)
-    -> impl Future<Output = Result<Msg, Msg>>
-{
-    Request::new("http://localhost:8000/users/login")
-        .method(Method::Post)
-        .send_json(credentials)
-        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
-            Msg::LoginResponse(data_result)
-        })
 }
 pub fn view(model: &Model) -> Node<Msg> {
     // login form
