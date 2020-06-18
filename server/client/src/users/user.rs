@@ -8,18 +8,13 @@ use plans::{
 use rql::{
     *,
 };
-use futures::{
-    Future,
-};
-use std::result::{
-    Result,
-};
 use crate::{
     users::*,
     root::{
         GMsg,
     },
     status::*,
+    request,
 };
 use database::{
     Entry,
@@ -60,19 +55,10 @@ impl From<Id<User>> for Model {
         Self::empty(user_id)
     }
 }
-fn fetch_user(id: Id<User>)
-    -> impl Future<Output = Result<Msg, Msg>>
-{
-    Request::new(format!("http://localhost:8000/api/users/{}", id))
-        .method(Method::Get)
-        .fetch_json_data(move |data_result: ResponseDataResult<User>| {
-            Msg::FetchedUser(data_result)
-        })
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::FetchUser => {
-            orders.perform_cmd(fetch_user(model.user_id));
+            orders.perform_cmd(request::fetch_user(model.user_id));
         },
         Msg::FetchedUser(res) => {
             match res {

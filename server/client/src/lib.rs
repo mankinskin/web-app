@@ -26,3 +26,4 @@ pub use root::*;
 pub mod status;
 pub mod route;
 pub mod storage;
+pub mod request;

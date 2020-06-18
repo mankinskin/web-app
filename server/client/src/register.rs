@@ -5,12 +5,10 @@ use seed::{
     *,
     prelude::*,
 };
-use futures::{
-    Future,
-};
 use crate::{
     page,
     login,
+    request,
     route::{
         self,
         Route,
@@ -34,16 +32,6 @@ pub enum Msg {
     RegistrationResponse(ResponseDataResult<UserSession>),
     Login,
 }
-fn registration_request(user: &User)
-    -> impl Future<Output = Result<Msg, Msg>>
-{
-    Request::new("http://localhost:8000/users/register")
-        .method(Method::Post)
-        .send_json(user)
-        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
-            Msg::RegistrationResponse(data_result)
-        })
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeUsername(u) => {
@@ -54,7 +42,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Submit => {
             seed::log!("Registration...");
-            orders.perform_cmd(registration_request(&model.user));
+            orders.perform_cmd(request::registration_request(&model.user));
         },
         Msg::RegistrationResponse(res) => {
             model.submit_result = Some(res.clone());

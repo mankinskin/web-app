@@ -2,9 +2,6 @@ use seed::{
     *,
     prelude::*,
 };
-use futures::{
-    Future,
-};
 use plans::{
     user::*,
 };
@@ -16,6 +13,7 @@ use crate::{
     status::{
         Status,
     },
+    request,
 };
 use rql::{
     Id,
@@ -23,7 +21,6 @@ use rql::{
 use database::{
     Entry,
 };
-use std::result::Result;
 
 pub mod preview;
 pub mod profile;
@@ -56,21 +53,12 @@ pub enum Msg {
     FetchedUsers(ResponseDataResult<Vec<Entry<User>>>),
     UserPreview(usize, preview::Msg),
 }
-fn fetch_all_users(session: UserSession)
-    -> impl Future<Output = Result<Msg, Msg>>
-{
-    Request::new("http://localhost:8000/api/users")
-        .header("authorization", &format!("{}", session.token))
-        .method(Method::Get)
-            .fetch_json_data(move |data_result: ResponseDataResult<Vec<Entry<User>>>| {
-                Msg::FetchedUsers(data_result)
-            })
-}
+
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::FetchUsers => {
             if let Some(session) = root::get_session() {
-                orders.perform_cmd(fetch_all_users(session));
+                orders.perform_cmd(request::fetch_all_users(session));
                 model.users = Status::Loading;
             } else {
                 model.users = Status::Failed(String::from("No session"));
