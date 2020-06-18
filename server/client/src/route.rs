@@ -38,8 +38,8 @@ impl Into<Vec<String>> for Route {
         }
     }
 }
-impl From<Vec<String>> for Route {
-    fn from(path: Vec<String>) -> Self {
+impl From<&[String]> for Route {
+    fn from(path: &[String]) -> Self {
         if path.is_empty() {
             Route::Home
         } else {
@@ -64,7 +64,7 @@ impl From<Vec<String>> for Route {
 }
 impl From<Route> for seed::Url {
     fn from(route: Route) -> Self {
-        <Route as Into<Vec<String>>>::into(route).into()
+        Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
     }
 }
 pub fn change_route<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {

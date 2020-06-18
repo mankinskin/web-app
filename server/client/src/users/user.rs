@@ -1,19 +1,18 @@
 use seed::{
-    *,
     prelude::*,
 };
 use plans::{
     user::*,
 };
 use rql::{
-    *,
+    Id,
 };
 use crate::{
     users::*,
     root::{
         GMsg,
     },
-    status::*,
+    status,
     request,
 };
 use database::{
@@ -23,7 +22,7 @@ use database::{
 #[derive(Clone, Default)]
 pub struct Model {
     pub user_id: Id<User>,
-    pub user: Status<User>,
+    pub user: status::Status<User>,
 }
 impl Model {
     pub fn preview(&self) -> preview::Model {
@@ -35,13 +34,13 @@ impl Model {
     fn ready(user_id: Id<User>, user: User) -> Self {
         Self {
             user_id,
-            user: Status::Ready(user),
+            user: status::Status::Ready(user),
         }
     }
     fn empty(user_id: Id<User>) -> Self {
         Self {
             user_id,
-            user: Status::Empty,
+            user: status::Status::Empty,
         }
     }
 }
@@ -55,26 +54,26 @@ impl From<Id<User>> for Model {
         Self::empty(user_id)
     }
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::FetchUser => {
-            orders.perform_cmd(request::fetch_user(model.user_id));
-        },
-        Msg::FetchedUser(res) => {
-            match res {
-                Ok(user) => {
-                    model.user = Status::Ready(user);
-                },
-                Err(reason) => {
-                    seed::log!(reason);
-                },
-            }
-        },
-    }
-}
-
 #[derive(Clone)]
 pub enum Msg {
     FetchUser,
-    FetchedUser(ResponseDataResult<User>),
+    FetchedUser(Result<User, String>),
+}
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
+    match msg {
+        Msg::FetchUser => {
+            orders.perform_cmd(
+                request::fetch_user(model.user_id)
+                    .map(|result|
+                         Msg::FetchedUser(result.map_err(|e| format!("{:?}", e)))
+                    )
+            );
+        },
+        Msg::FetchedUser(result) => {
+            match result {
+                Ok(user) => model.user = status::Status::Ready(user),
+                Err(e) => {seed::log!(e)}
+            }
+        },
+    }
 }

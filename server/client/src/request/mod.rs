@@ -1,11 +1,5 @@
 use seed::{
-    *,
-    browser::service::fetch::{
-        FetchObject,
-    },
-};
-use futures::{
-    Future,
+    browser::fetch::*,
 };
 use plans::{
     user::*,
@@ -22,61 +16,57 @@ use database::{
 };
 use std::result::Result;
 
-pub fn fetch_all_users(session: UserSession)
-    -> impl Future<Output = Result<users::Msg, users::Msg>>
+pub async fn fetch_all_users(session: UserSession) -> Result<Vec<Entry<User>>, FetchError>
 {
-    Request::new("http://localhost:8000/api/users")
-        .header("authorization", &format!("{}", session.token))
-        .method(Method::Get)
-            .fetch_json_data(move |data_result: ResponseDataResult<Vec<Entry<User>>>| {
-                users::Msg::FetchedUsers(data_result)
-            })
+    fetch(
+        Request::new("http://localhost:8000/api/users")
+            .header(Header::authorization(format!("{}", session.token)))
+            .method(Method::Get)
+    ).await?
+    .check_status()?
+    .json()
+    .await
 }
-pub fn fetch_user(id: Id<User>)
-    -> impl Future<Output = Result<users::user::Msg, users::user::Msg>>
+pub async fn fetch_user(id: Id<User>) -> Result<User, FetchError>
 {
-    Request::new(format!("http://localhost:8000/api/users/{}", id))
-        .method(Method::Get)
-        .fetch_json_data(move |data_result: ResponseDataResult<User>| {
-            users::user::Msg::FetchedUser(data_result)
-        })
+    fetch(
+        Request::new(format!("http://localhost:8000/api/users/{}", id))
+            .method(Method::Get)
+    ).await?
+    .check_status()?
+    .json()
+    .await
 }
-pub fn validate_session_request(session: UserSession)
-    -> impl Future<Output = Result<root::GMsg, root::GMsg>>
+pub async fn validate_session_request(session: UserSession) -> Result<(), FetchError>
 {
-    Request::new("http://localhost:8000/api/token_valid")
-        .header("authorization", &format!("{}", session.token))
-        .method(Method::Get)
-        .fetch(move |fetch_object: FetchObject<()>| {
-            match fetch_object.response() {
-                Ok(response) => {
-                    if response.status.is_ok() {
-                        GMsg::SetSession(session)
-                    } else {
-                        GMsg::EndSession
-                    }
-                },
-                Err(_) => GMsg::EndSession,
-            }
-        })
+    fetch(
+        Request::new("http://localhost:8000/api/token_valid")
+            .header(Header::authorization(format!("{}", session.token)))
+            .method(Method::Get)
+    ).await?
+    .check_status()
+    .map(|_| ())
 }
-pub fn registration_request(user: &User)
-    -> impl Future<Output = Result<register::Msg, register::Msg>>
+pub async fn registration_request(user: User)
+    -> Result<UserSession, FetchError>
 {
-    Request::new("http://localhost:8000/users/register")
-        .method(Method::Post)
-        .send_json(user)
-        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
-            register::Msg::RegistrationResponse(data_result)
-        })
+    fetch(
+        Request::new("http://localhost:8000/users/register")
+            .method(Method::Post)
+            .json(&user)?
+    ).await?
+    .check_status()?
+    .json()
+    .await
 }
-pub fn login_request(credentials: &Credentials)
-    -> impl Future<Output = Result<login::Msg, login::Msg>>
+pub async fn login_request(credentials: Credentials) -> Result<UserSession, FetchError>
 {
-    Request::new("http://localhost:8000/users/login")
-        .method(Method::Post)
-        .send_json(credentials)
-        .fetch_json_data(move |data_result: ResponseDataResult<UserSession>| {
-            login::Msg::LoginResponse(data_result)
-        })
+    fetch(
+        Request::new("http://localhost:8000/users/login")
+            .method(Method::Post)
+            .json(&credentials)?
+    ).await?
+    .check_status()?
+    .json()
+    .await
 }

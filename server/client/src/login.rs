@@ -1,9 +1,6 @@
 use seed::{
     *,
     prelude::*,
-    browser::service::fetch::{
-        FailReason,
-    },
 };
 use plans::{
     credentials::*,
@@ -26,7 +23,6 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
     credentials: Credentials,
-    submit_result: Option<Result<(), FailReason<UserSession>>>,
 }
 impl Model {
     pub fn credentials(&self) -> &Credentials {
@@ -37,7 +33,7 @@ impl Model {
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
-    LoginResponse(ResponseDataResult<UserSession>),
+    LoginResponse(Result<UserSession, String>),
     Login,
     Register,
 }
@@ -47,18 +43,20 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::ChangePassword(p) => model.credentials.password = p,
         Msg::Login => {
             seed::log!("Logging in...");
-            orders.perform_cmd(request::login_request(model.credentials()));
+            orders.perform_cmd(
+                request::login_request(model.credentials().clone())
+                    .map(|result: Result<UserSession, FetchError>| {
+                        Msg::LoginResponse(result.map_err(|e| format!("{:?}", e)))
+                    })
+            );
         },
-        Msg::LoginResponse(res) => {
-            model.submit_result = Some(res.clone().map(|_| ()));
-            match res {
+        Msg::LoginResponse(result) => {
+            match result {
                 Ok(session) => {
                     orders.send_g_msg(root::GMsg::SetSession(session));
                     route::change_route(Route::Home, orders);
                 },
-                Err(reason) => {
-                    seed::log!(reason);
-                },
+                Err(e) => {seed::log!(e)}
             }
         },
         Msg::Register => {
@@ -111,8 +109,5 @@ pub fn view(model: &Model) -> Node<Msg> {
         }),
         // Register Button
         button![simple_ev(Ev::Click, Msg::Register), "Register"],
-        if let Some(res) = &model.submit_result {
-            p![format!("{:?}", res)]
-        } else { empty![] }
     ]
 }

@@ -1,5 +1,7 @@
-use seed::storage;
-use serde_json;
+use seed::browser::web_storage::{
+    WebStorage,
+    SessionStorage,
+};
 use plans::{
     user::*,
 };
@@ -7,28 +9,20 @@ use plans::{
 const STORAGE_KEY: &str = "secret";
 
 pub fn load_session() -> Option<UserSession> {
-    local_storage()
-        .get_item(STORAGE_KEY)
-        .expect("try to get local storage item failed")
-        .map(|serialized_item| {
-            serde_json::from_str(&serialized_item).expect("session deserialization failed")
-        })
+    SessionStorage::get(STORAGE_KEY).ok()
 }
 
 pub fn store_session(session: &UserSession) {
-    storage::store_data(&local_storage(), STORAGE_KEY, session);
+    SessionStorage::insert(STORAGE_KEY, session)
+        .expect("insert into session storage failed")
+}
+pub fn clear_session() {
+    SessionStorage::clear()
+        .expect("clearing session storage failed")
 }
 
-pub fn delete_app_data() {
-    local_storage()
-        .remove_item(STORAGE_KEY)
-        .expect("remove item from local storage failed");
-}
-
-// ====== PRIVATE ======
-
-fn local_storage() -> storage::Storage {
-    storage::get_storage().expect("get local storage failed")
+pub fn clean_storage() {
+    clear_session()
 }
 
 // ====== ====== TESTS ====== ======
@@ -36,9 +30,6 @@ fn local_storage() -> storage::Storage {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use plans::{
-        user::*,
-    };
     use rql::{
         Id,
     };
@@ -46,14 +37,10 @@ pub mod tests {
 
     wasm_bindgen_test_configure!(run_in_browser);
 
-    fn clean_local_storage() {
-        local_storage().clear().expect("clear storage failed");
-    }
-
     #[wasm_bindgen_test]
     fn load_session_none_test() {
         // ====== ARRANGE ======
-        clean_local_storage();
+        clean_storage();
 
         // ====== ACT & ASSERT ======
         assert!(load_session().is_none())
@@ -62,7 +49,7 @@ pub mod tests {
     #[wasm_bindgen_test]
     fn store_view_test() {
         // ====== ARRANGE ======
-        clean_local_storage();
+        clean_storage();
 
         let session = UserSession {
             user_id: Id::new(),
@@ -79,7 +66,7 @@ pub mod tests {
     #[wasm_bindgen_test]
     fn delete_app_data_test() {
         // ====== ARRANGE ======
-        clean_local_storage();
+        clean_storage();
 
         let session = UserSession {
             user_id: Id::new(),
@@ -88,7 +75,7 @@ pub mod tests {
         store_session(&session);
 
         // ====== ACT ======
-        delete_app_data();
+        clean_storage();
 
         // ====== ASSERT ======
         assert!(load_session().is_none());

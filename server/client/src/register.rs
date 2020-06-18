@@ -22,14 +22,13 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
     user: User,
-    submit_result: Option<ResponseDataResult<UserSession>>,
 }
 #[derive(Clone)]
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
     Submit,
-    RegistrationResponse(ResponseDataResult<UserSession>),
+    RegistrationResponse(Result<UserSession, String>),
     Login,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -42,19 +41,21 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Submit => {
             seed::log!("Registration...");
-            orders.perform_cmd(request::registration_request(&model.user));
+            orders.perform_cmd(
+                request::registration_request(model.user.clone())
+                    .map(|result: Result<UserSession, FetchError>| {
+                        Msg::RegistrationResponse(result.map_err(|e| format!("{:?}", e)))
+                    })
+            );
         },
-        Msg::RegistrationResponse(res) => {
-            model.submit_result = Some(res.clone());
-            match res {
+        Msg::RegistrationResponse(result) => {
+            match result {
                 Ok(session) => {
                     seed::log!("Ok");
                     orders.send_g_msg(root::GMsg::SetSession(session));
                     route::change_route(Route::Home, orders);
                 },
-                Err(reason) => {
-                    seed::log!(reason);
-                },
+                Err(e) => {seed::log!(e)}
             }
         },
         Msg::Login => {
@@ -107,8 +108,5 @@ pub fn view(model: &Model) -> Node<Msg> {
         }),
         // Login Button
         button![simple_ev(Ev::Click, Msg::Login), "Log In"],
-        if let Some(res) = &model.submit_result {
-            p![format!("{:?}", res)]
-        } else { empty![] }
     ]
 }
