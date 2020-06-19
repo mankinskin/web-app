@@ -1,4 +1,5 @@
 use rql::*;
+use updatable::*;
 
 #[derive(
     Clone,
@@ -14,6 +15,21 @@ impl<T> Entry<T> {
     }
     pub fn data(&self) -> &T {
         &self.1
+    }
+    pub fn data_mut(&mut self) -> &mut T {
+        &mut self.1
+    }
+}
+impl<T> Updatable for Entry<T>
+    where T: Updatable
+{
+     type Update = <T as Updatable>::Update;
+}
+impl<T> Update<Entry<T>> for <T as Updatable>::Update
+    where T: Updatable
+{
+    fn update(&self, data: &mut Entry<T>) {
+        self.update(data.data_mut());
     }
 }
 
