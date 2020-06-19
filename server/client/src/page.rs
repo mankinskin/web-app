@@ -3,9 +3,6 @@ use seed::{
     *,
     prelude::*,
 };
-use rql::{
-    *,
-};
 use plans::{
     user::*,
 };
@@ -38,7 +35,7 @@ impl From<Route> for Model {
             Route::Login => Self::login(),
             Route::Register => Self::register(),
             Route::Users => Self::users(),
-            Route::UserProfile(id) => Self::profile(id),
+            Route::UserProfile(query) => Self::profile(query),
             Route::NotFound => Self::not_found(),
         }
     }
@@ -75,7 +72,7 @@ impl Model {
     pub fn users() -> Self {
         Self::Users(users::Model::fetch_all())
     }
-    pub fn profile(id: Id<User>) -> Self {
+    pub fn profile(id: fetched::Query<User>) -> Self {
         Self::UserProfile(users::user::Model::from(id).profile())
     }
     pub fn login() -> Self {
@@ -89,7 +86,7 @@ impl Model {
     }
     pub fn route(&self) -> Route {
         match self {
-            Self::UserProfile(profile) => Route::UserProfile(profile.user.user_id),
+            Self::UserProfile(profile) => Route::UserProfile(profile.user.user.query().clone()),
             Self::Users(_) => Route::Users,
             Self::Login(_) => Route::Login,
             Self::Register(_) => Route::Register,
@@ -179,7 +176,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::FetchData => {
                     users::update(
-                        users::Msg::FetchUsers,
+                        users::Msg::FetchUsers(fetched::Msg::Fetch(Method::Get)),
                         users,
                         &mut orders.proxy(Msg::Users)
                     );
@@ -198,7 +195,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::FetchData => {
                     users::profile::update(
-                        users::profile::Msg::User(users::user::Msg::FetchUser),
+                        users::profile::Msg::User(users::user::Msg::FetchUser(fetched::Msg::Fetch(Method::Get))),
                         profile,
                         &mut orders.proxy(Msg::UserProfile)
                     );
