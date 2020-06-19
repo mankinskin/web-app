@@ -1,24 +1,28 @@
 use crate::{
     user::*,
 };
+use rql::{
+    *,
+};
 use updatable::{
     *,
 };
 #[derive(
     Clone,
     Debug,
+    Default,
+    PartialEq,
     Serialize,
     Deserialize,
     Builder,
-    Default,
     Updatable,
-    PartialEq,
     )]
 pub struct Task {
     title: String,
     description: String,
-    assignees: Vec<User>,
-    children: Vec<Task>,
+
+    assignees: Vec<Id<User>>,
+    subtasks: Vec<Id<Task>>,
 }
 impl Task {
     pub fn new<S: ToString>(title: S) -> Self {
@@ -26,15 +30,15 @@ impl Task {
             title: title.to_string(),
             description: String::new(),
             assignees: Vec::new(),
-            children: Vec::new(),
+            subtasks: Vec::new(),
         }
     }
-    pub fn with_children<S: ToString>(title: S, children: Vec<Self>) -> Self {
+    pub fn with_subtasks<S: ToString>(title: S, subtasks: Vec<Id<Self>>) -> Self {
         Self {
             title: title.to_string(),
             description: String::new(),
             assignees: Vec::new(),
-            children,
+            subtasks,
         }
     }
     pub fn description(&self) -> &String {
@@ -49,16 +53,16 @@ impl Task {
     pub fn update_title<S: ToString>(&mut self, new_title: S) {
         self.title = new_title.to_string();
     }
-    pub fn assignees(&self) -> &Vec<User> {
+    pub fn assignees(&self) -> &Vec<Id<User>> {
         &self.assignees
     }
-    pub fn add_assignee(&self, ) -> &Vec<User> {
-        &self.assignees
+    pub fn add_assignee(&mut self, id: Id<User>) {
+        self.assignees.push(id);
     }
-    pub fn children(&self) -> &Vec<Self> {
-        &self.children
+    pub fn subtasks(&self) -> &Vec<Id<Self>> {
+        &self.subtasks
     }
-    pub fn children_mut(&mut self) -> &mut Vec<Self> {
-        &mut self.children
+    pub fn children_mut(&mut self) -> &mut Vec<Id<Self>> {
+        &mut self.subtasks
     }
 }
