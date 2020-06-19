@@ -11,7 +11,14 @@ use updatable::{
     *,
 };
 
-pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + Updatable + 'a {
+pub trait DatabaseTable<'a>
+    : Sized
+    + Clone
+    + serde::Serialize
+    + for<'de> serde::Deserialize<'de>
+    + Updatable
+    + 'a
+{
     fn table() -> TableGuard<'a, Self>;
     fn table_mut() -> TableGuardMut<'a, Self>;
 
@@ -58,6 +65,7 @@ pub trait DatabaseTable<'a> : Sized + Clone + serde::Serialize + Updatable + 'a 
             .map(|row| row.into())
     }
 }
+
 impl<'a> DatabaseTable<'a> for Note {
     fn table() -> TableGuard<'a, Self> {
         crate::DB.note()
@@ -66,6 +74,7 @@ impl<'a> DatabaseTable<'a> for Note {
         crate::DB.note_mut()
     }
 }
+
 impl<'a> DatabaseTable<'a> for User {
     fn table() -> TableGuard<'a, Self> {
         crate::DB.user()
@@ -74,6 +83,7 @@ impl<'a> DatabaseTable<'a> for User {
         crate::DB.user_mut()
     }
 }
+
 impl<'a> DatabaseTable<'a> for Task {
     fn table() -> TableGuard<'a, Self> {
         crate::DB.task()
