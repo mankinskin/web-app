@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, concat_idents)]
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rocket;
@@ -14,6 +14,7 @@ extern crate plans;
 extern crate updatable;
 extern crate database;
 extern crate jsonwebtoken;
+#[macro_use] extern crate define_api;
 
 mod server;
 mod jwt;

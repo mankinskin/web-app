@@ -16,6 +16,7 @@ use plans::{
     user::*,
     note::*,
     task::*,
+    project::*,
     credentials::*,
 };
 use crate::{
@@ -98,50 +99,15 @@ fn get_pkg_js(file_name: &RawStr) -> Result<NamedFile> {
 fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./img/{}", file_name))
 }
-#[get("/api/tasks")]
-fn get_tasks<'a>() -> Json<Vec<Entry<Task>>> {
-    Json(Task::get_all())
-}
-#[get("/api/tasks/<id>")]
-fn get_task(id: SerdeParam<Id<Task>>) -> Json<Option<Task>> {
-    Json(Task::get(*id))
-}
-#[post("/api/tasks", data="<task>")]
-fn post_task(task: Json<Task>) -> Json<Id<Task>> {
-    Json(Task::insert(task.clone()))
-}
-#[get("/api/users")]
-fn get_users(token: JWT) -> Json<Vec<Entry<User>>> {
-    let _ = token;
-    Json(User::get_all())
-}
+
+define_api!(Project);
+define_api!(User);
+define_api!(Task);
+define_api!(Note);
+
 #[get("/api/token_valid")]
 fn token_valid(token: JWT) {
     let _ = token;
-}
-#[get("/api/users/<id>")]
-fn get_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
-    Json(User::get(id.clone()))
-}
-#[post("/api/users", data="<user>")]
-fn post_user(user: Json<User>) -> Json<Id<User>> {
-    Json(User::insert(user.into_inner()))
-}
-#[delete("/api/users/<id>")]
-fn delete_user(id: SerdeParam<Id<User>>) -> Json<Option<User>> {
-    Json(User::delete(id.clone()))
-}
-#[get("/api/notes")]
-fn get_notes() -> Json<Vec<Entry<Note>>> {
-    Json(Note::get_all())
-}
-#[get("/api/notes/<id>")]
-fn get_note(id: SerdeParam<Id<Note>>) -> Json<Option<Note>> {
-    Json(Note::get(*id))
-}
-#[post("/api/notes", data="<note>")]
-fn post_note(note: Json<Note>) -> Json<Id<Note>> {
-    Json(Note::insert(note.into_inner()))
 }
 #[post("/users/login", data="<credentials>")]
 fn login(credentials: Json<Credentials>)
@@ -185,31 +151,27 @@ fn register(user: Json<User>) -> std::result::Result<Json<()>, Status> {
 pub fn start() {
     rocket::ignite()
         .mount("/",
-            routes![
-                get_root_html,
-                get_html,
-                user_page,
-                token_valid,
+            vec![
+                routes![
+                    get_root_html,
+                    get_html,
+                    user_page,
 
-                get_style_css,
-                get_pkg_js,
-                get_img_file,
+                    token_valid,
 
-                login,
-                register,
+                    get_style_css,
+                    get_pkg_js,
+                    get_img_file,
 
-                get_tasks,
-                get_task,
-                post_task,
+                    login,
+                    register,
 
-                get_users,
-                get_user,
-                delete_user,
-                post_user,
-
-                get_notes,
-                get_note,
-                post_note,
-            ])
+                ],
+                define_api_routes!(Task),
+                define_api_routes!(Project),
+                define_api_routes!(User),
+                define_api_routes!(Note),
+            ].concat()
+        )
         .launch();
 }

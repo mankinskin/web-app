@@ -3,6 +3,7 @@ use plans::{
     user::*,
     note::*,
     task::*,
+    project::*,
 };
 use crate::{
     entry::*,
@@ -11,6 +12,18 @@ use updatable::{
     *,
 };
 
+schema! {
+    Schema {
+        user: User,
+        task: Task,
+        note: Note,
+        project: Project,
+    }
+}
+
+lazy_static!{
+    static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
+}
 pub trait DatabaseTable<'a>
     : Sized
     + Clone
@@ -68,28 +81,36 @@ pub trait DatabaseTable<'a>
 
 impl<'a> DatabaseTable<'a> for Note {
     fn table() -> TableGuard<'a, Self> {
-        crate::DB.note()
+        DB.note()
     }
     fn table_mut() -> TableGuardMut<'a, Self> {
-        crate::DB.note_mut()
+        DB.note_mut()
     }
 }
 
 impl<'a> DatabaseTable<'a> for User {
     fn table() -> TableGuard<'a, Self> {
-        crate::DB.user()
+        DB.user()
     }
     fn table_mut() -> TableGuardMut<'a, Self> {
-        crate::DB.user_mut()
+        DB.user_mut()
     }
 }
 
 impl<'a> DatabaseTable<'a> for Task {
     fn table() -> TableGuard<'a, Self> {
-        crate::DB.task()
+        DB.task()
     }
     fn table_mut() -> TableGuardMut<'a, Self> {
-        crate::DB.task_mut()
+        DB.task_mut()
     }
 }
 
+impl<'a> DatabaseTable<'a> for Project {
+    fn table() -> TableGuard<'a, Self> {
+        DB.project()
+    }
+    fn table_mut() -> TableGuardMut<'a, Self> {
+        DB.project_mut()
+    }
+}

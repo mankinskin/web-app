@@ -9,18 +9,6 @@ pub trait Update<T> : Clone
 {
     fn update(&self, data: &mut T);
 }
-//impl<T> Updatable for T
-//    where T: Clone
-//{
-//    default type Update = Option<Self>;
-//}
-//impl<T> Update<T> for Option<T>
-//    where T: Clone + Updatable<Update=Self>,
-//{
-//    default fn update(&self, data: &mut T) {
-//        self.clone().map(|u| *data = u);
-//    }
-//}
 
 macro_rules! impl_updatable {
     ($($t:ty),+ $(,)?) => {
@@ -54,12 +42,12 @@ impl Update<String> for String {
     }
 }
 impl<T> Updatable for Vec<T>
-    where T: Updatable
+    where T: Clone
 {
      type Update = Self;
 }
 impl<T> Update<Vec<T>> for Vec<T>
-    where T: Updatable
+    where T: Clone
 {
     fn update(&self, data: &mut Vec<T>) {
         *data = self.clone();
@@ -72,9 +60,7 @@ mod tests {
     fn primitive() {
         let initial: u32 = 10;
         let mut number: u32 = initial;
-
         let new: u32 = 11;
-        let mut number: u32 = initial;
         new.update(&mut number);
         assert_eq!(number, new);
     }
