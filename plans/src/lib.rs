@@ -9,3 +9,4 @@ pub mod task;
 pub mod user;
 pub mod note;
 pub mod credentials;
+pub mod project;
