@@ -25,6 +25,9 @@ features = [
   "uuid",
 ]
 
+[dependencies.define_api]
+path = "./define_api"
+
 [dependencies.rql]
 path = "../../rql"
 
