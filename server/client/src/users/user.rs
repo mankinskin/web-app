@@ -12,17 +12,19 @@ use crate::{
     root::{
         GMsg,
     },
-    status,
-    request,
+    fetched::{
+        self,
+        Fetched,
+        Query,
+    },
 };
 use database::{
     Entry,
 };
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Model {
-    pub user_id: Id<User>,
-    pub user: status::Status<User>,
+    pub user: fetched::Fetched<User>,
 }
 impl Model {
     pub fn preview(&self) -> preview::Model {
@@ -33,14 +35,20 @@ impl Model {
     }
     fn ready(user_id: Id<User>, user: User) -> Self {
         Self {
-            user_id,
-            user: status::Status::Ready(user),
+            user: Fetched::ready(
+                      url::Url::parse("http://localhost:8000/api/users").unwrap(),
+                      user,
+                      Query::Id(user_id)
+                      ),
         }
     }
-    fn empty(user_id: Id<User>) -> Self {
+    fn empty(query: Query<User>) -> Self {
         Self {
-            user_id,
-            user: status::Status::Empty,
+            user:
+                Fetched::empty(
+                    url::Url::parse("http://localhost:8000/api/users").unwrap(),
+                    query,
+                ),
         }
     }
 }
@@ -49,31 +57,29 @@ impl From<&Entry<User>> for Model {
         Self::ready(*entry.id(), entry.data().clone())
     }
 }
+impl From<Entry<User>> for Model {
+    fn from(entry: Entry<User>) -> Self {
+        Self::ready(*entry.id(), entry.data().clone())
+    }
+}
+impl From<Query<User>> for Model {
+    fn from(query: Query<User>) -> Self {
+        Self::empty(query)
+    }
+}
 impl From<Id<User>> for Model {
     fn from(user_id: Id<User>) -> Self {
-        Self::empty(user_id)
+        Self::from(Query::Id(user_id))
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    FetchUser,
-    FetchedUser(Result<User, String>),
+    FetchUser(fetched::Msg<User>),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::FetchUser => {
-            orders.perform_cmd(
-                request::fetch_user(model.user_id)
-                    .map(|result|
-                         Msg::FetchedUser(result.map_err(|e| format!("{:?}", e)))
-                    )
-            );
-        },
-        Msg::FetchedUser(result) => {
-            match result {
-                Ok(user) => model.user = status::Status::Ready(user),
-                Err(e) => {seed::log!(e)}
-            }
+        Msg::FetchUser(msg) => {
+            model.user.update(msg, &mut orders.proxy(Msg::FetchUser))
         },
     }
 }

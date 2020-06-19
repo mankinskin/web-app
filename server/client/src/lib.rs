@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 extern crate chrono;
 extern crate serde;
 extern crate serde_json;
@@ -23,7 +24,7 @@ pub mod users;
 pub mod page;
 pub mod root;
 pub use root::*;
-pub mod status;
+pub mod fetched;
 pub mod route;
 pub mod storage;
 pub mod request;

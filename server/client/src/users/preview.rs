@@ -2,8 +2,11 @@ use crate::{
     page,
     users::*,
 };
+use database::{
+    Entry,
+};
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Model {
     pub user: user::Model,
 }
@@ -11,6 +14,13 @@ impl From<user::Model> for Model {
     fn from(user: user::Model) -> Self {
         Self {
             user,
+        }
+    }
+}
+impl From<&Entry<User>> for Model {
+    fn from(entry: &Entry<User>) -> Self {
+        Self {
+            user: user::Model::from(entry),
         }
     }
 }
@@ -35,7 +45,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.user.user {
+    match model.user.user.status() {
         Status::Ready(user) => {
             div![
                 a![
@@ -48,7 +58,7 @@ pub fn view(model: &Model) -> Node<Msg> {
                 p!["Preview"],
             ]
         },
-        Status::Loading => {
+        Status::Waiting => {
             div![
                 h1!["Preview"],
                 p!["Loading..."],

@@ -2,7 +2,7 @@ use crate::{
     users::*,
 };
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Model {
     pub user: user::Model,
 }
@@ -29,14 +29,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.user.user {
+    match model.user.user.status() {
         Status::Ready(user) => {
             div![
                 h1!["Profile"],
                 p![user.name()],
             ]
         },
-        Status::Loading => {
+        Status::Waiting => {
             div![
                 h1!["Profile"],
                 p!["Loading..."],
