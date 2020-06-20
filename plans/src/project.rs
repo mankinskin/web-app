@@ -37,6 +37,9 @@ impl Project {
             tasks: vec![],
         }
     }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
     pub fn members(&self) -> &Vec<Id<User>> {
         &self.members
     }
