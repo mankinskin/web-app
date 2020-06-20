@@ -8,35 +8,8 @@ use plans::{
 use crate::{
     *,
 };
-use rql::{
-    *,
-};
-use database::{
-    *,
-};
 use std::result::Result;
 
-pub async fn fetch_all_users(session: UserSession) -> Result<Vec<Entry<User>>, FetchError>
-{
-    fetch(
-        Request::new("http://localhost:8000/api/users")
-            .header(Header::authorization(format!("{}", session.token)))
-            .method(Method::Get)
-    ).await?
-    .check_status()?
-    .json()
-    .await
-}
-pub async fn fetch_user(id: Id<User>) -> Result<User, FetchError>
-{
-    fetch(
-        Request::new(format!("http://localhost:8000/api/users/{}", id))
-            .method(Method::Get)
-    ).await?
-    .check_status()?
-    .json()
-    .await
-}
 pub async fn validate_session_request(session: UserSession) -> Result<(), FetchError>
 {
     fetch(
