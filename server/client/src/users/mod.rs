@@ -9,10 +9,9 @@ use crate::{
     root::{
         GMsg,
     },
-    fetched::{
+    fetch::{
         self,
-        Status,
-        Fetched,
+        Request,
         Query,
     },
 };
@@ -26,33 +25,57 @@ pub mod user;
 
 #[derive(Clone)]
 pub struct Model {
-    users: Fetched<Vec<Entry<User>>>,
+    users: Vec<Entry<User>>,
     previews: Vec<preview::Model>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
         Self {
-            users:
-                Fetched::empty(
-                       url::Url::parse("http://localhost:8000/api/users").unwrap(),
-                       Query::all()
-                ),
+            users: vec![],
             previews: vec![],
         }
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetched::Msg<Vec<Entry<User>>>),
+    Fetch(fetch::Msg<Vec<Entry<User>>>),
     Preview(usize, preview::Msg),
+}
+impl Msg {
+    pub fn fetch_users() -> Msg {
+        Msg::Fetch(fetch::Msg::Request(Request::Get(Query::All)))
+    }
+}
+impl From<fetch::Msg<Vec<Entry<User>>>> for Msg {
+    fn from(msg: fetch::Msg<Vec<Entry<User>>>) -> Self {
+        Msg::Fetch(msg)
+    }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Fetch(msg) => {
-            model.users.update(msg, &mut orders.proxy(Msg::Fetch));
-            if let Status::Ready(users) = model.users.status() {
-                model.previews = users.iter().map(|u| preview::Model::from(u)).collect()
+            match msg {
+                fetch::Msg::Request(request) => {
+                    orders.perform_cmd(
+                        fetch::fetch(
+                            url::Url::parse("http://localhost:8000/api/users").unwrap(),
+                            request,
+                        )
+                        .map(|msg| Msg::from(msg))
+                    );
+                },
+                fetch::Msg::Response(response) => {
+                    match response {
+                        fetch::Response::Get(data) => {
+                            model.previews = data.iter().map(|u| preview::Model::from(u)).collect()
+                        },
+                        _ => {}
+                    }
+                },
+                fetch::Msg::Error(error) => {
+
+                },
             }
         },
         Msg::Preview(index, msg) => {
@@ -65,32 +88,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.users.status() {
-        Status::Ready(users) => {
-            div![
-                ul![
-                    users.iter().enumerate()
-                        .map(|(i, entry)| li![
-                             preview::view(&preview::Model::from(entry))
-                                .map_msg(move |msg| Msg::Preview(i.clone(), msg))
-                        ])
-                ]
-            ]
-        },
-        Status::Waiting => {
-            div![
-                format!("Fetching...")
-            ]
-        },
-        Status::Empty => {
-            div![
-                format!("Empty...")
-            ]
-        },
-        Status::Failed(s) => {
-            div![
-                format!("Failed: {}", s)
-            ]
-        },
-    }
+    div![
+        ul![
+            model.previews.iter().enumerate()
+                .map(|(i, preview)| li![
+                     preview::view(preview)
+                        .map_msg(move |msg| Msg::Preview(i.clone(), msg))
+                ])
+        ]
+    ]
 }

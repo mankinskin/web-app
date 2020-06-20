@@ -42,7 +42,9 @@ pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>)
         Msg::ChangeDescription(d) => {
             model.project.set_description(d);
         },
-        Msg::Create => {},
+        Msg::Create => {
+
+        },
         Msg::Cancel => {},
     }
 }
@@ -69,10 +71,6 @@ pub fn view(model: &Model) -> Node<Msg> {
             },
             input_ev(Ev::Input, Msg::ChangeDescription)
         ],
-        ev(Ev::Submit, |ev| {
-            ev.prevent_default();
-            Msg::Create
-        }),
         // Cancel Button
         button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
         // Create Button
@@ -82,5 +80,9 @@ pub fn view(model: &Model) -> Node<Msg> {
             },
             "Create"
         ],
+        ev(Ev::Submit, |ev| {
+            ev.prevent_default();
+            Msg::Create
+        }),
     ]
 }

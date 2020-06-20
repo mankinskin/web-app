@@ -7,7 +7,6 @@ use crate::{
         self,
         GMsg,
     },
-    fetched,
 };
 use rql::{
     *,
@@ -25,9 +24,9 @@ pub enum Route {
     Login,
     Register,
     Users,
-    UserProfile(fetched::Query<User>),
+    UserProfile(Id<User>),
     Projects,
-    Project(fetched::Query<Project>),
+    Project(Id<Project>),
     NotFound,
 }
 impl Into<Vec<String>> for Route {
@@ -37,9 +36,9 @@ impl Into<Vec<String>> for Route {
             Route::Login => vec!["login".into()],
             Route::Register => vec!["register".into()],
             Route::Users => vec!["users".into()],
-            Route::UserProfile(query) => vec!["users".into(), query.to_string()],
+            Route::UserProfile(id) => vec!["users".into(), id.to_string()],
             Route::Projects => vec!["projects".into()],
-            Route::Project(query) => vec!["projects".into(), query.to_string()],
+            Route::Project(id) => vec!["projects".into(), id.to_string()],
             Route::NotFound => vec![],
         }
     }
@@ -57,7 +56,7 @@ impl From<&[String]> for Route {
                         Route::Users
                     } else if path.len() == 2 {
                         match Id::from_str(&path[1]) {
-                            Ok(id) => Route::UserProfile(fetched::Query::Id(id)),
+                            Ok(id) => Route::UserProfile(id),
                             Err(_e) => Route::NotFound,
                         }
                     } else {
@@ -68,7 +67,7 @@ impl From<&[String]> for Route {
                         Route::Projects
                     } else if path.len() == 2 {
                         match Id::from_str(&path[1]) {
-                            Ok(id) => Route::Project(fetched::Query::Id(id)),
+                            Ok(id) => Route::Project(id),
                             Err(_e) => Route::NotFound,
                         }
                     } else {

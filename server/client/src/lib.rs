@@ -24,7 +24,7 @@ pub mod users;
 pub mod page;
 pub mod root;
 pub use root::*;
-pub mod fetched;
+pub mod fetch;
 pub mod route;
 pub mod storage;
 pub mod request;
