@@ -29,27 +29,17 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match model.user.user.status() {
-        Status::Ready(user) => {
+    match &model.user.user {
+        Some(user) => {
             div![
                 h1!["Profile"],
                 p![user.name()],
             ]
         },
-        Status::Waiting => {
+        None => {
             div![
                 h1!["Profile"],
                 p!["Loading..."],
-            ]
-        },
-        Status::Empty => {
-            div![
-                h1!["Empty Profile"],
-            ]
-        },
-        Status::Failed(s) => {
-            div![
-                format!("Failed: {}", s)
             ]
         },
     }

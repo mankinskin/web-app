@@ -15,6 +15,10 @@ use crate::{
         GMsg,
     },
 };
+use rql::{
+    Id,
+};
+
 #[derive(Clone)]
 pub enum Model {
     Login(login::Model),
@@ -38,9 +42,9 @@ impl From<Route> for Model {
             Route::Login => Self::login(),
             Route::Register => Self::register(),
             Route::Users => Self::users(),
-            Route::UserProfile(query) => Self::profile(query),
+            Route::UserProfile(id) => Self::profile(id),
             Route::Projects=> Self::projects(),
-            Route::Project(query) => Self::project(query),
+            Route::Project(id) => Self::project(id),
             Route::NotFound => Self::not_found(),
         }
     }
@@ -87,13 +91,13 @@ impl Model {
     pub fn users() -> Self {
         Self::Users(users::Model::fetch_all())
     }
-    pub fn profile(id: fetched::Query<User>) -> Self {
+    pub fn profile(id: Id<User>) -> Self {
         Self::UserProfile(users::user::Model::from(id).profile())
     }
     pub fn projects() -> Self {
         Self::Projects(projects::Model::fetch_all())
     }
-    pub fn project(id: fetched::Query<Project>) -> Self {
+    pub fn project(id: Id<Project>) -> Self {
         Self::Project(projects::project::Model::from(id))
     }
     pub fn login() -> Self {
@@ -107,9 +111,9 @@ impl Model {
     }
     pub fn route(&self) -> Route {
         match self {
-            Self::UserProfile(profile) => Route::UserProfile(profile.user.user.query().clone()),
+            Self::UserProfile(profile) => Route::UserProfile(profile.user.user_id),
             Self::Users(_) => Route::Users,
-            Self::Project(project) => Route::Project(project.project.query().clone()),
+            Self::Project(project) => Route::Project(project.project_id),
             Self::Projects(_) => Route::Projects,
             Self::Login(_) => Route::Login,
             Self::Register(_) => Route::Register,
@@ -201,7 +205,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::Fetch => {
                     users::update(
-                        users::Msg::Fetch(fetched::Msg::Fetch(Method::Get)),
+                        users::Msg::fetch_users(),
                         model,
                         &mut orders.proxy(Msg::Users)
                     );
@@ -220,7 +224,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::Fetch => {
                     users::profile::update(
-                        users::profile::Msg::User(users::user::Msg::Fetch(fetched::Msg::Fetch(Method::Get))),
+                        users::profile::Msg::User(users::user::Msg::fetch_user(model.user.user_id)),
                         model,
                         &mut orders.proxy(Msg::UserProfile)
                     );
@@ -239,7 +243,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::Fetch => {
                     projects::update(
-                        projects::Msg::Fetch(fetched::Msg::Fetch(Method::Get)),
+                        projects::Msg::fetch_projects(),
                         model,
                         &mut orders.proxy(Msg::Projects)
                     );
@@ -258,7 +262,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::Fetch => {
                     projects::project::update(
-                        projects::project::Msg::Fetch(fetched::Msg::Fetch(Method::Get)),
+                        projects::project::Msg::fetch_project(model.project_id),
                         model,
                         &mut orders.proxy(Msg::Project)
                     );

@@ -12,10 +12,8 @@ use crate::{
     root::{
         GMsg,
     },
-    fetched::{
+    fetch::{
         self,
-        Fetched,
-        Query,
     },
 };
 use database::{
@@ -24,7 +22,8 @@ use database::{
 
 #[derive(Clone)]
 pub struct Model {
-    pub user: fetched::Fetched<User>,
+    pub user_id: Id<User>,
+    pub user: Option<User>,
 }
 impl Model {
     pub fn preview(&self) -> preview::Model {
@@ -33,22 +32,16 @@ impl Model {
     pub fn profile(&self) -> profile::Model {
         profile::Model::from(self.clone())
     }
-    fn ready(user_id: Id<User>, user: User) -> Self {
+    fn ready(id: Id<User>, user: User) -> Self {
         Self {
-            user: Fetched::ready(
-                      url::Url::parse("http://localhost:8000/api/users").unwrap(),
-                      user,
-                      Query::Id(user_id)
-                      ),
+            user_id: id,
+            user: Some(user),
         }
     }
-    fn empty(query: Query<User>) -> Self {
+    fn fetch_id(id: Id<User>) -> Self {
         Self {
-            user:
-                Fetched::empty(
-                    url::Url::parse("http://localhost:8000/api/users").unwrap(),
-                    query,
-                ),
+            user: None,
+            user_id: id,
         }
     }
 }
@@ -62,24 +55,50 @@ impl From<Entry<User>> for Model {
         Self::ready(*entry.id(), entry.data().clone())
     }
 }
-impl From<Query<User>> for Model {
-    fn from(query: Query<User>) -> Self {
-        Self::empty(query)
-    }
-}
 impl From<Id<User>> for Model {
     fn from(user_id: Id<User>) -> Self {
-        Self::from(Query::Id(user_id))
+        Self::fetch_id(user_id)
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetched::Msg<User>),
+    Fetch(fetch::Msg<User>),
+}
+impl Msg {
+    pub fn fetch_user(id: Id<User>) -> Msg {
+        Msg::Fetch(fetch::Msg::Request(fetch::Request::Get(Query::Id(id))))
+    }
+}
+impl From<fetch::Msg<User>> for Msg {
+    fn from(msg: fetch::Msg<User>) -> Self {
+        Msg::Fetch(msg)
+    }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Fetch(msg) => {
-            model.user.update(msg, &mut orders.proxy(Msg::Fetch))
+            match msg {
+                fetch::Msg::Request(request) => {
+                    orders.perform_cmd(
+                        fetch::fetch(
+                            url::Url::parse("http://localhost:8000/api/users").unwrap(),
+                            request,
+                        )
+                        .map(|msg| Msg::from(msg))
+                    );
+                },
+                fetch::Msg::Response(response) => {
+                    match response {
+                        fetch::Response::Get(data) => {
+                            model.user = Some(data);
+                        },
+                        _ => {}
+                    }
+                },
+                fetch::Msg::Error(error) => {
+
+                },
+            }
         },
     }
 }

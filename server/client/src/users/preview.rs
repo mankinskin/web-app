@@ -44,8 +44,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match model.user.user.status() {
-        Status::Ready(user) => {
+    match &model.user.user {
+        Some(user) => {
             div![
                 a![
                     attrs!{
@@ -57,20 +57,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                 p!["Preview"],
             ]
         },
-        Status::Waiting => {
+        None => {
             div![
                 h1!["Preview"],
                 p!["Loading..."],
-            ]
-        },
-        Status::Empty => {
-            div![
-                h1!["Empty Preview"],
-            ]
-        },
-        Status::Failed(s) => {
-            div![
-                format!("Failed: {}", s)
             ]
         },
     }

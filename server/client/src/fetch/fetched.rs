@@ -12,15 +12,6 @@ use crate::{
     root,
 
 };
-pub mod fetch;
-pub use fetch::{
-    FetchResponse,
-    Fetch,
-};
-pub mod query;
-pub use query::*;
-pub mod status;
-pub use status::*;
 
 use serde::{
     Serialize,

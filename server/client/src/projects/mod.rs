@@ -10,11 +10,10 @@ use crate::{
         self,
         GMsg,
     },
-    fetched::{
+    fetch::{
         self,
-        Status,
-        Fetched,
         Query,
+        Request,
     },
 };
 use database::{
@@ -27,37 +26,60 @@ pub mod editor;
 
 #[derive(Clone)]
 pub struct Model {
-    projects: Fetched<Vec<Entry<Project>>>,
     previews: Vec<preview::Model>,
     project_editor: Option<editor::Model>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
         Self {
-            projects:
-                Fetched::empty(
-                       url::Url::parse("http://localhost:8000/api/projects").unwrap(),
-                       Query::all()
-                ),
             previews: vec![],
             project_editor: None,
         }
     }
 }
+
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetched::Msg<Vec<Entry<Project>>>),
+    Fetch(fetch::Msg<Vec<Entry<Project>>>),
     Preview(usize, preview::Msg),
     OpenProjectEditor,
     Editor(editor::Msg),
 }
+impl Msg {
+    pub fn fetch_projects() -> Msg {
+        Msg::Fetch(fetch::Msg::Request(Request::Get(Query::All)))
+    }
+}
 
+impl From<fetch::Msg<Vec<Entry<Project>>>> for Msg {
+    fn from(msg: fetch::Msg<Vec<Entry<Project>>>) -> Self {
+        Msg::Fetch(msg)
+    }
+}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Fetch(msg) => {
-            model.projects.update(msg, &mut orders.proxy(Msg::Fetch));
-            if let Status::Ready(projects) = model.projects.status() {
-                model.previews = projects.iter().map(|u| preview::Model::from(u)).collect()
+            match msg {
+                fetch::Msg::Request(request) => {
+                    orders.perform_cmd(
+                        fetch::fetch(
+                            url::Url::parse("http://localhost:8000/api/projects").unwrap(),
+                            request,
+                        )
+                        .map(|msg| Msg::from(msg))
+                    );
+                },
+                fetch::Msg::Response(response) => {
+                    match response {
+                        fetch::Response::Get(data) => {
+                            model.previews = data.iter().map(|u| preview::Model::from(u)).collect()
+                        },
+                        _ => {}
+                    }
+                },
+                fetch::Msg::Error(error) => {
+
+                },
             }
         },
         Msg::Preview(index, msg) => {
@@ -71,6 +93,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             model.project_editor = Some(editor::Model::default());
         },
         Msg::Editor(msg) => {
+            match msg {
+                editor::Msg::Cancel => {
+                    model.project_editor = None;
+                },
+                _ => {},
+            }
             if let Some(model) = &mut model.project_editor {
                 editor::update(
                     msg,
@@ -82,42 +110,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.projects.status() {
-        Status::Ready(projects) => {
-            div![
-                if let Some(model) = &model.project_editor {
-                    editor::view(&model).map_msg(Msg::Editor)
-                } else {
-                    if let Some(_) = root::get_session() {
-                        button![
-                            simple_ev(Ev::Click, Msg::OpenProjectEditor),
-                            "New Project"
-                        ]
-                    } else { empty![] }
-                },
-                ul![
-                    projects.iter().enumerate()
-                        .map(|(i, entry)| li![
-                             preview::view(&preview::Model::from(entry))
-                                .map_msg(move |msg| Msg::Preview(i.clone(), msg))
-                        ])
+    div![
+        if let Some(model) = &model.project_editor {
+            editor::view(&model).map_msg(Msg::Editor)
+        } else {
+            if let Some(_) = root::get_session() {
+                button![
+                    simple_ev(Ev::Click, Msg::OpenProjectEditor),
+                    "New Project"
                 ]
-            ]
+            } else { empty![] }
         },
-        Status::Waiting => {
-            div![
-                format!("Fetching...")
-            ]
-        },
-        Status::Empty => {
-            div![
-                format!("Empty...")
-            ]
-        },
-        Status::Failed(s) => {
-            div![
-                format!("Failed: {}", s)
-            ]
-        },
-    }
+        ul![
+            model.previews.iter().enumerate()
+                .map(|(i, preview)| li![
+                     preview::view(&preview)
+                        .map_msg(move |msg| Msg::Preview(i.clone(), msg))
+                ])
+        ]
+    ]
 }
