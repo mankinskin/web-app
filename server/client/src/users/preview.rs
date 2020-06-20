@@ -39,7 +39,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             )
         },
         Msg::GoToProfile => {
-            seed::log!("GoToProfile");
             page::go_to(profile::Model::from(model.user.clone()), orders);
         },
     }

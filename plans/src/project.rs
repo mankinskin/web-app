@@ -25,6 +25,7 @@ use serde::{
     )]
 pub struct Project {
     name: String,
+    description: String,
     members: Vec<Id<User>>,
     tasks: Vec<Id<Task>>,
 }
@@ -33,12 +34,22 @@ impl Project {
     pub fn new(name: String) -> Self {
         Self {
             name,
+            description: String::new(),
             members: vec![],
             tasks: vec![],
         }
     }
     pub fn name(&self) -> &String {
         &self.name
+    }
+    pub fn set_name(&mut self, n: String) {
+        self.name = n;
+    }
+    pub fn description(&self) -> &String {
+        &self.description
+    }
+    pub fn set_description(&mut self, n: String) {
+        self.description = n;
     }
     pub fn members(&self) -> &Vec<Id<User>> {
         &self.members

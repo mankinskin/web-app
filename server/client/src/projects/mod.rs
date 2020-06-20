@@ -7,6 +7,7 @@ use plans::{
 };
 use crate::{
     root::{
+        self,
         GMsg,
     },
     fetched::{
@@ -22,11 +23,13 @@ use database::{
 
 pub mod preview;
 pub mod project;
+pub mod editor;
 
 #[derive(Clone)]
 pub struct Model {
     projects: Fetched<Vec<Entry<Project>>>,
     previews: Vec<preview::Model>,
+    project_editor: Option<editor::Model>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
@@ -37,6 +40,7 @@ impl Model {
                        Query::all()
                 ),
             previews: vec![],
+            project_editor: None,
         }
     }
 }
@@ -44,6 +48,8 @@ impl Model {
 pub enum Msg {
     Fetch(fetched::Msg<Vec<Entry<Project>>>),
     Preview(usize, preview::Msg),
+    OpenProjectEditor,
+    Editor(editor::Msg),
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -61,12 +67,34 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
             );
         },
+        Msg::OpenProjectEditor => {
+            model.project_editor = Some(editor::Model::default());
+        },
+        Msg::Editor(msg) => {
+            if let Some(model) = &mut model.project_editor {
+                editor::update(
+                    msg,
+                    model,
+                    &mut orders.proxy(Msg::Editor)
+                );
+            }
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
     match &model.projects.status() {
         Status::Ready(projects) => {
             div![
+                if let Some(model) = &model.project_editor {
+                    editor::view(&model).map_msg(Msg::Editor)
+                } else {
+                    if let Some(_) = root::get_session() {
+                        button![
+                            simple_ev(Ev::Click, Msg::OpenProjectEditor),
+                            "New Project"
+                        ]
+                    } else { empty![] }
+                },
                 ul![
                     projects.iter().enumerate()
                         .map(|(i, entry)| li![
