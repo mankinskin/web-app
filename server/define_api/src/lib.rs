@@ -9,17 +9,10 @@ use quote::{
     ToTokens,
 };
 use proc_macro2::{
-    TokenTree,
-    Literal,
     Span,
 };
 use syn::{
     parse_macro_input,
-    Token,
-    parse::{
-        ParseStream,
-        Parse,
-    },
     Ident,
     Type,
     export::{
@@ -66,7 +59,7 @@ pub fn define_api_routes(input: TokenStream) -> TokenStream {
     })
 }
 
-fn define_get(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
+fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
     let ident_plural = format_ident!("{}s", ident);
     let route = format!("/api/{}/<id>", ident_plural);
     let name = format_ident!("get_{}", ident);
@@ -77,7 +70,7 @@ fn define_get(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
         }
     }
 }
-fn define_post(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
+fn define_post(ty: Type, ident: Ident) -> TokenStream2 {
     let ident_plural = format_ident!("{}s", ident);
     let route = format!("/api/{}", ident_plural);
     let name = format_ident!("post_{}", ident);
@@ -88,7 +81,7 @@ fn define_post(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
         }
     }
 }
-fn define_get_all(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
+fn define_get_all(ty: Type, ident: Ident) -> TokenStream2 {
     let ident_plural = format_ident!("{}s", ident);
     let route = format!("/api/{}", ident_plural);
     let name = format_ident!("get_{}", ident_plural);
@@ -99,7 +92,7 @@ fn define_get_all(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
         }
     }
 }
-fn define_delete(ty: Type, ident: Ident) -> syn::export::TokenStream2 {
+fn define_delete(ty: Type, ident: Ident) -> TokenStream2 {
     let ident_plural = format_ident!("{}s", ident);
     let route = format!("/api/{}/<id>", ident_plural);
     let name = format_ident!("delete_{}", ident);
