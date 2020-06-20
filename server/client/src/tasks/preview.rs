@@ -1,6 +1,6 @@
 use crate::{
     page,
-    projects::*,
+    tasks::*,
 };
 use database::{
     Entry,
@@ -8,50 +8,50 @@ use database::{
 
 #[derive(Clone)]
 pub struct Model {
-    pub project: project::Model,
+    pub task: task::Model,
 }
-impl From<project::Model> for Model {
-    fn from(model: project::Model) -> Self {
+impl From<task::Model> for Model {
+    fn from(model: task::Model) -> Self {
         Self {
-            project: model,
+            task: model,
         }
     }
 }
-impl From<&Entry<Project>> for Model {
-    fn from(entry: &Entry<Project>) -> Self {
+impl From<&Entry<Task>> for Model {
+    fn from(entry: &Entry<Task>) -> Self {
         Self {
-            project: project::Model::from(entry),
+            task: task::Model::from(entry),
         }
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    Project(project::Msg),
+    Task(task::Msg),
     Open,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Project(msg) => {
-            project::update(
+        Msg::Task(msg) => {
+            task::update(
                 msg,
-                &mut model.project,
-                &mut orders.proxy(Msg::Project)
+                &mut model.task,
+                &mut orders.proxy(Msg::Task)
             )
         },
         Msg::Open => {
-            page::go_to(project::Model::from(model.project.clone()), orders);
+            page::go_to(task::Model::from(model.task.clone()), orders);
         },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.project.project {
-        Some(project) => {
+    match &model.task.task {
+        Some(task) => {
             div![
                 a![
                     attrs!{
                         At::Href => "";
                     },
-                    project.name(),
+                    task.title(),
                     simple_ev(Ev::Click, Msg::Open),
                 ],
                 p!["Preview"],

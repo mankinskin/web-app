@@ -3,7 +3,7 @@ use seed::{
     prelude::*,
 };
 use plans::{
-    project::*,
+    task::*,
 };
 use crate::{
     root::{
@@ -21,7 +21,7 @@ use database::{
 };
 
 pub mod preview;
-pub mod project;
+pub mod task;
 pub mod editor;
 
 #[derive(Clone)]
@@ -42,9 +42,10 @@ impl Default for Model {
         Self::empty()
     }
 }
+
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetch::Msg<Vec<Entry<Project>>>),
+    Fetch(fetch::Msg<Vec<Entry<Task>>>),
     Preview(usize, preview::Msg),
     OpenEditor,
     Editor(editor::Msg),
@@ -55,8 +56,8 @@ impl Msg {
     }
 }
 
-impl From<fetch::Msg<Vec<Entry<Project>>>> for Msg {
-    fn from(msg: fetch::Msg<Vec<Entry<Project>>>) -> Self {
+impl From<fetch::Msg<Vec<Entry<Task>>>> for Msg {
+    fn from(msg: fetch::Msg<Vec<Entry<Task>>>) -> Self {
         Msg::Fetch(msg)
     }
 }
@@ -67,7 +68,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 fetch::Msg::Request(request) => {
                     orders.perform_cmd(
                         fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/projects").unwrap(),
+                            url::Url::parse("http://localhost:8000/api/tasks").unwrap(),
                             request,
                         )
                         .map(|msg| Msg::from(msg))
@@ -124,7 +125,7 @@ pub fn view(model: &Model) -> Node<Msg> {
             if let Some(_) = root::get_session() {
                 button![
                     simple_ev(Ev::Click, Msg::OpenEditor),
-                    "New Project"
+                    "New Task"
                 ]
             } else { empty![] }
         },

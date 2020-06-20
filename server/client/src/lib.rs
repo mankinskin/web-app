@@ -29,3 +29,4 @@ pub mod route;
 pub mod storage;
 pub mod request;
 pub mod projects;
+pub mod tasks;

@@ -44,13 +44,13 @@ impl Task {
     pub fn description(&self) -> &String {
         &self.description
     }
-    pub fn update_description<S: ToString>(&mut self, new_desc: S) {
+    pub fn set_description<S: ToString>(&mut self, new_desc: S) {
         self.description = new_desc.to_string();
     }
     pub fn title(&self) -> &String {
         &self.title
     }
-    pub fn update_title<S: ToString>(&mut self, new_title: S) {
+    pub fn set_title<S: ToString>(&mut self, new_title: S) {
         self.title = new_title.to_string();
     }
     pub fn assignees(&self) -> &Vec<Id<User>> {
