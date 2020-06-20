@@ -6,6 +6,7 @@ use seed::{
 use plans::{
     user::*,
     project::*,
+    task::*,
 };
 use crate::{
     route::{
@@ -28,6 +29,7 @@ pub enum Model {
     Users(users::Model),
     Projects(projects::Model),
     Project(projects::project::Model),
+    Task(tasks::task::Model),
     NotFound,
 }
 impl Default for Model {
@@ -45,6 +47,7 @@ impl From<Route> for Model {
             Route::UserProfile(id) => Self::profile(id),
             Route::Projects=> Self::projects(),
             Route::Project(id) => Self::project(id),
+            Route::Task(id) => Self::task(id),
             Route::NotFound => Self::not_found(),
         }
     }
@@ -84,21 +87,29 @@ impl From<projects::project::Model> for Model {
         Self::Project(model)
     }
 }
+impl From<tasks::task::Model> for Model {
+    fn from(model: tasks::task::Model) -> Self {
+        Self::Task(model)
+    }
+}
 impl Model {
     pub fn home() -> Self {
         Self::Home(home::Model::default())
     }
     pub fn users() -> Self {
-        Self::Users(users::Model::fetch_all())
+        Self::Users(users::Model::default())
     }
     pub fn profile(id: Id<User>) -> Self {
         Self::UserProfile(users::user::Model::from(id).profile())
     }
     pub fn projects() -> Self {
-        Self::Projects(projects::Model::fetch_all())
+        Self::Projects(projects::Model::default())
     }
     pub fn project(id: Id<Project>) -> Self {
         Self::Project(projects::project::Model::from(id))
+    }
+    pub fn task(id: Id<Task>) -> Self {
+        Self::Task(tasks::task::Model::from(id))
     }
     pub fn login() -> Self {
         Self::Login(login::Model::default())
@@ -115,6 +126,7 @@ impl Model {
             Self::Users(_) => Route::Users,
             Self::Project(project) => Route::Project(project.project_id),
             Self::Projects(_) => Route::Projects,
+            Self::Task(task) => Route::Task(task.task_id),
             Self::Login(_) => Route::Login,
             Self::Register(_) => Route::Register,
             Self::Home(_) | Self::NotFound => Route::Home,
@@ -135,6 +147,7 @@ pub enum Msg {
     UserProfile(users::profile::Msg),
     Projects(projects::Msg),
     Project(projects::project::Msg),
+    Task(tasks::task::Msg),
     Fetch,
 }
 impl From<home::Msg> for Msg {
@@ -244,7 +257,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 },
                 Msg::Fetch => {
                     projects::update(
-                        projects::Msg::fetch_projects(),
+                        projects::Msg::fetch_all(),
                         model,
                         &mut orders.proxy(Msg::Projects)
                     );
@@ -266,6 +279,25 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         projects::project::Msg::fetch_project(model.project_id),
                         model,
                         &mut orders.proxy(Msg::Project)
+                    );
+                }
+                _ => {}
+            }
+        },
+        Model::Task(model) => {
+            match msg {
+                Msg::Task(msg) => {
+                    tasks::task::update(
+                        msg,
+                        model,
+                        &mut orders.proxy(Msg::Task)
+                    );
+                },
+                Msg::Fetch => {
+                    tasks::task::update(
+                        tasks::task::Msg::fetch_task(model.task_id),
+                        model,
+                        &mut orders.proxy(Msg::Task)
                     );
                 }
                 _ => {}
@@ -297,6 +329,9 @@ pub fn view(model: &Model) -> Node<Msg> {
         Model::Project(model) =>
             projects::project::view(&model)
                 .map_msg(Msg::Project),
+        Model::Task(model) =>
+            tasks::task::view(&model)
+                .map_msg(Msg::Task),
         Model::NotFound =>
             div!["Not Found"]
     }

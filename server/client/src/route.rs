@@ -1,12 +1,5 @@
 use seed::{
     self,
-    prelude::*,
-};
-use crate::{
-    root::{
-        self,
-        GMsg,
-    },
 };
 use rql::{
     *,
@@ -14,6 +7,7 @@ use rql::{
 use plans::{
     user::*,
     project::*,
+    task::*,
 };
 use std::str::{
     FromStr,
@@ -27,6 +21,7 @@ pub enum Route {
     UserProfile(Id<User>),
     Projects,
     Project(Id<Project>),
+    Task(Id<Task>),
     NotFound,
 }
 impl Into<Vec<String>> for Route {
@@ -39,6 +34,7 @@ impl Into<Vec<String>> for Route {
             Route::UserProfile(id) => vec!["users".into(), id.to_string()],
             Route::Projects => vec!["projects".into()],
             Route::Project(id) => vec!["projects".into(), id.to_string()],
+            Route::Task(id) => vec!["tasks".into(), id.to_string()],
             Route::NotFound => vec![],
         }
     }

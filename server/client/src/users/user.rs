@@ -96,7 +96,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     }
                 },
                 fetch::Msg::Error(error) => {
-
+                    seed::log(error);
                 },
             }
         },

@@ -27,7 +27,7 @@ impl From<&Entry<User>> for Model {
 #[derive(Clone)]
 pub enum Msg {
     User(user::Msg),
-    GoToProfile,
+    Open,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -38,7 +38,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::User)
             )
         },
-        Msg::GoToProfile => {
+        Msg::Open => {
             page::go_to(profile::Model::from(model.user.clone()), orders);
         },
     }
@@ -52,7 +52,7 @@ pub fn view(model: &Model) -> Node<Msg> {
                         At::Href => "";
                     },
                     user.name(),
-                    simple_ev(Ev::Click, Msg::GoToProfile),
+                    simple_ev(Ev::Click, Msg::Open),
                 ],
                 p!["Preview"],
             ]

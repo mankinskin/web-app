@@ -29,11 +29,16 @@ pub struct Model {
     previews: Vec<preview::Model>,
 }
 impl Model {
-    pub fn fetch_all() -> Self {
+    pub fn empty() -> Self {
         Self {
             users: vec![],
             previews: vec![],
         }
+    }
+}
+impl Default for Model {
+    fn default() -> Self {
+        Self::empty()
     }
 }
 #[derive(Clone)]
@@ -74,7 +79,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     }
                 },
                 fetch::Msg::Error(error) => {
-
+                    seed::log(error);
                 },
             }
         },
