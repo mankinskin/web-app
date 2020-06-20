@@ -9,6 +9,8 @@ use crate::{
         GMsg,
     },
     projects::*,
+    fetch,
+    fetch::Request,
 };
 
 #[derive(Clone)]
@@ -33,8 +35,19 @@ pub enum Msg {
     ChangeDescription(String),
     Create,
     Cancel,
+    Fetch(fetch::Msg<Project>)
 }
-pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
+impl From<fetch::Msg<Project>> for Msg {
+    fn from(msg: fetch::Msg<Project>) -> Self {
+        Msg::Fetch(msg)
+    }
+}
+impl Msg {
+    pub fn post_project(project: &Project) -> Msg {
+        Msg::Fetch(fetch::Msg::Request(Request::Post(project.clone())))
+    }
+}
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeName(n) => {
             model.project.set_name(n);
@@ -42,14 +55,35 @@ pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>)
         Msg::ChangeDescription(d) => {
             model.project.set_description(d);
         },
+        Msg::Fetch(msg) => {
+            match msg {
+                fetch::Msg::Request(request) => {
+                    orders.perform_cmd(
+                        fetch::fetch(
+                            url::Url::parse("http://localhost:8000/api/projects").unwrap(),
+                            request,
+                        )
+                        .map(|msg| Msg::from(msg))
+                    );
+                },
+                fetch::Msg::Response(response) => {
+                    match response {
+                        _ => {}
+                    }
+                },
+                fetch::Msg::Error(error) => {
+                    seed::log(error);
+                },
+            }
+        },
         Msg::Create => {
-
+            orders.send_msg(Msg::post_project(&model.project));
         },
         Msg::Cancel => {},
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    div![
+    form![
         h1!["New Project"],
         label![
             "Name"

@@ -13,6 +13,9 @@ use url::*;
 use crate::{
     root,
 };
+use rql::{
+    Id,
+};
 pub mod query;
 pub use query::*;
 pub mod status;
@@ -21,7 +24,7 @@ pub use status::*;
 #[derive(Clone)]
 pub enum Response<T> {
     Get(T),
-    Post(Query<T>),
+    Post(Id<T>),
     Delete,
     Put,
 }
