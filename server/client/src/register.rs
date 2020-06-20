@@ -10,7 +10,6 @@ use crate::{
     login,
     request,
     route::{
-        self,
         Route,
     },
     root::{
@@ -53,7 +52,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 Ok(session) => {
                     seed::log!("Ok");
                     orders.send_g_msg(root::GMsg::SetSession(session));
-                    route::change_route(Route::Home, orders);
+                    page::go_to(Route::Home, orders);
                 },
                 Err(e) => {seed::log!(e)}
             }

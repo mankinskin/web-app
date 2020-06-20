@@ -44,7 +44,6 @@ pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
     SetPage(page::Model),
-    RouteChanged(Route),
     Fetch,
 }
 #[derive(Clone)]
@@ -86,42 +85,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::Page)
             );
         },
-        Msg::RouteChanged(route) => {
-            seed::log!("route changed: {}", route);
-            model.page = page::Model::from(route);
-            if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(
-                    request::validate_session_request(session.clone())
-                        .map(|result|
-                             match result {
-                                 Ok(()) => GMsg::SetSession(session),
-                                 Err(e) => {
-                                    seed::log!(e);
-                                    GMsg::EndSession
-                                 },
-                             }
-                        )
-                );
-            }
-        },
         Msg::SetPage(page) => {
-            seed::log!("page changed: {:?}", page);
-            seed::push_route(page.route());
             model.page = page;
-            if let Some(session) = storage::load_session() {
-                orders.perform_g_cmd(
-                    request::validate_session_request(session.clone())
-                        .map(|result|
-                             match result {
-                                 Ok(()) => GMsg::SetSession(session),
-                                 Err(e) => {
-                                    seed::log!(e);
-                                    GMsg::EndSession
-                                 },
-                             }
-                        )
-                );
-            }
+            orders.send_msg(Msg::Fetch);
         },
     }
 }
@@ -152,7 +118,8 @@ pub fn view(model: &Model) -> impl IntoNodes<Msg> {
     ]
 }
 fn routes(url: Url) -> Option<Msg> {
-    Some(Msg::RouteChanged(Route::from(url.path())))
+    // needed to use Hrefs (because they only change the browser url)
+    Some(Msg::SetPage(page::Model::from(Route::from(url.path()))))
 }
 #[wasm_bindgen(start)]
 pub fn render() {
