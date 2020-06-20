@@ -14,6 +14,7 @@ use rql::{
 };
 use plans::{
     user::*,
+    project::*,
 };
 use std::str::{
     FromStr,
@@ -25,6 +26,8 @@ pub enum Route {
     Register,
     Users,
     UserProfile(fetched::Query<User>),
+    Projects,
+    Project(fetched::Query<Project>),
     NotFound,
 }
 impl Into<Vec<String>> for Route {
@@ -35,6 +38,8 @@ impl Into<Vec<String>> for Route {
             Route::Register => vec!["register".into()],
             Route::Users => vec!["users".into()],
             Route::UserProfile(query) => vec!["users".into(), query.to_string()],
+            Route::Projects => vec!["projects".into()],
+            Route::Project(query) => vec!["projects".into(), query.to_string()],
             Route::NotFound => vec![],
         }
     }
@@ -53,6 +58,17 @@ impl From<&[String]> for Route {
                     } else if path.len() == 2 {
                         match Id::from_str(&path[1]) {
                             Ok(id) => Route::UserProfile(fetched::Query::Id(id)),
+                            Err(_e) => Route::NotFound,
+                        }
+                    } else {
+                        Route::NotFound
+                    },
+                "projects" =>
+                    if path.len() == 1 {
+                        Route::Projects
+                    } else if path.len() == 2 {
+                        match Id::from_str(&path[1]) {
+                            Ok(id) => Route::Project(fetched::Query::Id(id)),
                             Err(_e) => Route::NotFound,
                         }
                     } else {

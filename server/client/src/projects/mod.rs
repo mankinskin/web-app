@@ -3,7 +3,7 @@ use seed::{
     prelude::*,
 };
 use plans::{
-    user::*,
+    project::*,
 };
 use crate::{
     root::{
@@ -21,20 +21,19 @@ use database::{
 };
 
 pub mod preview;
-pub mod profile;
-pub mod user;
+pub mod project;
 
 #[derive(Clone)]
 pub struct Model {
-    users: Fetched<Vec<Entry<User>>>,
+    projects: Fetched<Vec<Entry<Project>>>,
     previews: Vec<preview::Model>,
 }
 impl Model {
     pub fn fetch_all() -> Self {
         Self {
-            users:
+            projects:
                 Fetched::empty(
-                       url::Url::parse("http://localhost:8000/api/users").unwrap(),
+                       url::Url::parse("http://localhost:8000/api/projects").unwrap(),
                        Query::all()
                 ),
             previews: vec![],
@@ -43,16 +42,16 @@ impl Model {
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetched::Msg<Vec<Entry<User>>>),
+    Fetch(fetched::Msg<Vec<Entry<Project>>>),
     Preview(usize, preview::Msg),
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Fetch(msg) => {
-            model.users.update(msg, &mut orders.proxy(Msg::Fetch));
-            if let Status::Ready(users) = model.users.status() {
-                model.previews = users.iter().map(|u| preview::Model::from(u)).collect()
+            model.projects.update(msg, &mut orders.proxy(Msg::Fetch));
+            if let Status::Ready(projects) = model.projects.status() {
+                model.previews = projects.iter().map(|u| preview::Model::from(u)).collect()
             }
         },
         Msg::Preview(index, msg) => {
@@ -65,11 +64,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.users.status() {
-        Status::Ready(users) => {
+    match &model.projects.status() {
+        Status::Ready(projects) => {
             div![
                 ul![
-                    users.iter().enumerate()
+                    projects.iter().enumerate()
                         .map(|(i, entry)| li![
                              preview::view(&preview::Model::from(entry))
                                 .map_msg(move |msg| Msg::Preview(i.clone(), msg))

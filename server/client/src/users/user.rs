@@ -74,12 +74,12 @@ impl From<Id<User>> for Model {
 }
 #[derive(Clone)]
 pub enum Msg {
-    FetchUser(fetched::Msg<User>),
+    Fetch(fetched::Msg<User>),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::FetchUser(msg) => {
-            model.user.update(msg, &mut orders.proxy(Msg::FetchUser))
+        Msg::Fetch(msg) => {
+            model.user.update(msg, &mut orders.proxy(Msg::Fetch))
         },
     }
 }

@@ -45,7 +45,7 @@ pub enum Msg {
     Page(page::Msg),
     SetPage(page::Model),
     RouteChanged(Route),
-    FetchData,
+    Fetch,
 }
 #[derive(Clone)]
 pub enum GMsg {
@@ -79,9 +79,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::NavBar)
             );
         },
-        Msg::FetchData => {
+        Msg::Fetch => {
             page::update(
-                page::Msg::FetchData,
+                page::Msg::Fetch,
                 &mut model.page,
                 &mut orders.proxy(Msg::Page)
             );
@@ -134,7 +134,7 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             seed::log!("Setting session...");
             set_session(session.clone());
             storage::store_session(&session.clone());
-            orders.send_msg(Msg::FetchData);
+            orders.send_msg(Msg::Fetch);
         },
         GMsg::EndSession => {
             seed::log!("ending session");
