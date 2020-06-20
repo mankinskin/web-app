@@ -16,6 +16,9 @@ use crate::{
 use rql::{
     Id,
 };
+use updatable::{
+    Updatable,
+};
 pub mod query;
 pub use query::*;
 pub mod status;
@@ -28,10 +31,24 @@ pub enum Response<T> {
     Delete,
     Put,
 }
-
+pub trait Fetchable
+    : 'static
+    + for<'de> Deserialize<'de>
+    + Serialize
+    + Updatable
+{
+}
+impl<T> Fetchable for T
+    where T
+        : 'static
+        + for<'de> Deserialize<'de>
+        + Serialize
+        + Updatable,
+{
+}
 #[derive(Clone)]
 pub enum Request<T>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     Get(Query<T>),
     Post(T),
@@ -40,7 +57,7 @@ pub enum Request<T>
 }
 #[derive(Clone)]
 pub enum Msg<T>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     Request(Request<T>),
     Response(Response<T>),
@@ -55,7 +72,7 @@ fn new_request<'a>(url: Url) -> seed::fetch::Request<'a> {
     req
 }
 pub async fn fetch<T>(url: Url, request: Request<T>) -> Msg<T>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     let res = match request {
         Request::Get(query) => {
@@ -77,7 +94,7 @@ pub async fn fetch<T>(url: Url, request: Request<T>) -> Msg<T>
     }
 }
 fn query_request<'a, T>(url: Url, query: Query<T>) -> seed::fetch::Request<'a>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     let mut url = url;
     match query {
@@ -89,7 +106,7 @@ fn query_request<'a, T>(url: Url, query: Query<T>) -> seed::fetch::Request<'a>
     new_request(url)
 }
 async fn delete_request<T>(url: Url, query: Query<T>) -> Result<Response<T>, FetchError>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     seed::fetch::fetch(query_request(url, query).method(Method::Delete))
         .await?
@@ -97,7 +114,7 @@ async fn delete_request<T>(url: Url, query: Query<T>) -> Result<Response<T>, Fet
         .map(|_| Response::Delete)
 }
 async fn get_request<T>(url: Url, query: Query<T>) -> Result<Response<T>, FetchError>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     seed::fetch::fetch(query_request(url, query).method(Method::Get))
         .await?
@@ -107,7 +124,7 @@ async fn get_request<T>(url: Url, query: Query<T>) -> Result<Response<T>, FetchE
         .map(|t| Response::Get(t))
 }
 async fn put_request<T>(url: Url, query: Query<T>, t: &T) -> Result<Response<T>, FetchError>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     seed::fetch::fetch(
         query_request(url, query)
@@ -119,7 +136,7 @@ async fn put_request<T>(url: Url, query: Query<T>, t: &T) -> Result<Response<T>,
         .map(|_| Response::Put)
 }
 async fn post_request<T>(url: Url, t: &T) -> Result<Response<T>, FetchError>
-    where T: 'static + for<'de> Deserialize<'de> + Serialize
+    where T: Fetchable
 {
     seed::fetch::fetch(
         new_request(url)
