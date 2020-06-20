@@ -123,6 +123,7 @@ impl Model {
 }
 pub fn go_to<M: Into<page::Model> + Clone, Ms: 'static>(model: M, orders: &mut impl Orders<Ms, GMsg>) {
     let page: page::Model = model.into();
+    seed::push_route(page.route());
     orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page)));
 }
 #[derive(Clone)]

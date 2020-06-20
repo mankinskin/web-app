@@ -83,7 +83,7 @@ impl From<Route> for seed::Url {
         Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
     }
 }
-pub fn change_route<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {
-    seed::push_route(route.clone());
-    orders.send_g_msg(GMsg::Root(root::Msg::RouteChanged(route)));
-}
+//pub fn change_route<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {
+//    seed::push_route(route.clone());
+//    orders.send_g_msg(GMsg::Root(root::Msg::RouteChanged(route)));
+//}
