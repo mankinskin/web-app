@@ -78,7 +78,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     }
                 },
                 fetch::Msg::Error(error) => {
-
+                    seed::log(error);
                 },
             }
         },
@@ -93,18 +93,21 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             model.project_editor = Some(editor::Model::default());
         },
         Msg::Editor(msg) => {
+            if let Some(model) = &mut model.project_editor {
+                editor::update(
+                    msg.clone(),
+                    model,
+                    &mut orders.proxy(Msg::Editor)
+                );
+            }
             match msg {
                 editor::Msg::Cancel => {
                     model.project_editor = None;
                 },
+                editor::Msg::Create => {
+                    orders.send_msg(Msg::fetch_projects());
+                },
                 _ => {},
-            }
-            if let Some(model) = &mut model.project_editor {
-                editor::update(
-                    msg,
-                    model,
-                    &mut orders.proxy(Msg::Editor)
-                );
             }
         },
     }
