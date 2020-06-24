@@ -8,4 +8,7 @@ members = [
   "derive_updatable",
   "server",
   "server/client",
+  "server/api",
+  "server/api/examples/rocket_server",
+  "server/api/examples/rocket_server/seed_client",
 ]
