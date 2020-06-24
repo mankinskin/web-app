@@ -17,6 +17,15 @@ use std::sync::{
 lazy_static! {
     static ref USER_SESSION: Mutex<Option<UserSession>> = Mutex::new(None);
 }
+pub fn set_session(session: UserSession) {
+    *USER_SESSION.lock().unwrap() = Some(session);
+}
+pub fn get_session() -> Option<UserSession> {
+    USER_SESSION.lock().unwrap().clone()
+}
+pub fn end_session() {
+    *USER_SESSION.lock().unwrap() = None;
+}
 #[derive(Clone, Default)]
 pub struct Model {
     navbar: navbar::Model, // the navigation bar
@@ -29,15 +38,6 @@ impl From<Route> for Model {
             ..Default::default()
         }
     }
-}
-pub fn set_session(session: UserSession) {
-    *USER_SESSION.lock().unwrap() = Some(session);
-}
-pub fn get_session() -> Option<UserSession> {
-    USER_SESSION.lock().unwrap().clone()
-}
-pub fn end_session() {
-    *USER_SESSION.lock().unwrap() = None;
 }
 #[derive(Clone)]
 pub enum Msg {

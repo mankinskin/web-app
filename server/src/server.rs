@@ -72,16 +72,18 @@ impl<'r, T> FromParam<'r> for SerdeParam<T>
 pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
     NamedFile::open(path)
 }
-#[get("/")]
-fn get_root_html() -> Result<NamedFile> {
-    get_html("".into())
-}
 static CLIENT_DIR: &'static str = "client";
+
 #[get("/<app>")]
 fn get_html(app: &RawStr) -> Result<NamedFile> {
     let _ = app;
     get_file(format!("./{}/app.html", CLIENT_DIR))
 }
+#[get("/")]
+fn get_root_html() -> Result<NamedFile> {
+    get_html("".into())
+}
+
 #[get("/users/<id>")]
 fn user_page(id: &RawStr) -> Result<NamedFile> {
     let _ = id;
