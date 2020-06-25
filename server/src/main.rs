@@ -4,17 +4,14 @@
 #[macro_use] extern crate rocket;
 extern crate rocket_contrib;
 extern crate rql;
-extern crate uuid;
 extern crate chrono;
-extern crate colored;
 extern crate serde_json;
 extern crate serde;
 extern crate plans;
-#[macro_use] extern crate anyhow;
-extern crate updatable;
 extern crate database;
 extern crate jsonwebtoken;
 #[macro_use] extern crate define_api;
+#[macro_use] extern crate anyhow;
 
 mod server;
 mod jwt;
