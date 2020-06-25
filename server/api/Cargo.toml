@@ -19,3 +19,6 @@ features = [
   "json",
   "uuid",
 ]
+
+[dependencies.define_api]
+path = "../define_api"

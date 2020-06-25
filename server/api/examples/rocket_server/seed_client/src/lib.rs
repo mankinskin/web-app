@@ -36,14 +36,14 @@ pub fn end_session() {
 }
 #[derive(Clone, Default)]
 pub struct Model {
-    a: u32,
-    b: u32,
-    result: Option<Result<u32, String>>,
+    a: String,
+    b: String,
+    result: Option<Result<String, String>>,
 }
 #[derive(Clone)]
 pub enum Msg {
     Call,
-    CallResult(Result<u32, String>),
+    CallResult(Result<String, String>),
     ChangeA(String),
     ChangeB(String),
 }
@@ -56,9 +56,9 @@ pub enum GMsg {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Call => {
-            seed::log(format!("calling add({}, {})...", model.a, model.b));
+            seed::log(format!("calling concat({}, {})...", model.a, model.b));
             orders.perform_cmd(
-                api::add(model.a, model.b)
+                api::concat(model.a.clone(), model.b.clone())
                     .map(|res|
                          res.map_err(|e| format!("{:?}", e))
                     )
@@ -70,16 +70,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             model.result = Some(res);
         },
         Msg::ChangeA(s) => {
-            match s.parse::<u32>() {
-                Ok(a) => model.a = a,
-                Err(e) => model.result = Some(Err(e.to_string())),
-            }
+            model.a = s;
         },
         Msg::ChangeB(s) => {
-            match s.parse::<u32>() {
-                Ok(b) => model.b = b,
-                Err(e) => model.result = Some(Err(e.to_string())),
-            }
+            model.b = s;
         },
     }
 }
@@ -117,7 +111,7 @@ pub fn view(model: &Model) -> impl IntoNodes<Msg> {
             input_ev(Ev::Input, Msg::ChangeA)
         ],
         div![
-            model.a
+            model.a.clone()
         ],
         p![
             ","
@@ -133,7 +127,7 @@ pub fn view(model: &Model) -> impl IntoNodes<Msg> {
             input_ev(Ev::Input, Msg::ChangeB)
         ],
         div![
-            model.b
+            model.b.clone()
         ],
         p![
             ")"

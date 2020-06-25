@@ -16,9 +16,6 @@ use rocket::{
         *,
     },
 };
-use api::{
-    *,
-};
 use std::{
     path::{
         Path,
@@ -54,6 +51,7 @@ fn main() {
                 get_root_html,
                 get_pkg_js,
                 api::routes::add,
+                api::routes::concat,
             ],
         )
         .launch();
