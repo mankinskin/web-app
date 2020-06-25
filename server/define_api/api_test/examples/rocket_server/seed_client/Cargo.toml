@@ -28,7 +28,7 @@ features = [
   'serde-serialize',
 ]
 [dependencies.plans]
-path = "../../../../../plans"
+path = "../../../../../../plans"
 
-[dependencies.api]
-path = "../../../../api"
+[dependencies.api_test]
+path = "../../../../api_test"

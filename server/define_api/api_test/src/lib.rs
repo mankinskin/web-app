@@ -35,5 +35,11 @@ use rocket_contrib::{
 };
 
 api! {
+    fn add(a: u32, b: u32) -> u32 {
+        a + b
+    }
+    fn concat(a: String, b: String) -> String {
+        format!("{}{}", a, b)
+    }
 }
 

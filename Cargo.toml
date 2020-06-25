@@ -9,6 +9,7 @@ members = [
   "server",
   "server/client",
   "server/api",
-  "server/api/examples/rocket_server",
-  "server/api/examples/rocket_server/seed_client",
+  "server/define_api/api_test",
+  "server/define_api/api_test/examples/rocket_server",
+  "server/define_api/api_test/examples/rocket_server/seed_client",
 ]
