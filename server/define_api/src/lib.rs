@@ -55,6 +55,30 @@ pub fn api(input: TokenStream) -> TokenStream {
         .map(|item| rpc_route(item.clone()))
         .collect();
     TokenStream::from(quote! {
+        use serde::{
+            Serialize,
+            Deserialize,
+        };
+        use seed::{
+            browser::fetch::{
+                Method,
+                FetchError,
+            },
+        };
+        use rocket::{
+            request::{
+                FromParam,
+            },
+        };
+        use std::result::{
+            Result,
+        };
+        use rocket_contrib::{
+            json::{
+                Json,
+            },
+        };
+
         #(#definitions)*
         #[cfg(not(target_arch="wasm32"))]
         mod call {
