@@ -6,7 +6,9 @@ extern crate uuid;
 extern crate serde_json;
 extern crate serde;
 extern crate jsonwebtoken;
-extern crate api;
+extern crate api_test;
+
+use api_test as api;
 
 use rocket::{
     response::{

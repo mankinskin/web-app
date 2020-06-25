@@ -8,6 +8,8 @@ extern crate wasm_bindgen;
 extern crate seed;
 extern crate plans;
 #[macro_use] extern crate lazy_static;
+extern crate api_test;
+use api_test as api;
 
 mod storage;
 
