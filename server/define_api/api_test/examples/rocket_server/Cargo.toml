@@ -20,5 +20,5 @@ features = [
   "json",
   "uuid",
 ]
-[dependencies.api]
-path = "../../../api"
+[dependencies.api_test]
+path = "../../../api_test"
