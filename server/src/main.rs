@@ -12,6 +12,7 @@ extern crate database;
 extern crate jsonwebtoken;
 #[macro_use] extern crate define_api;
 #[macro_use] extern crate anyhow;
+extern crate api;
 
 mod server;
 mod jwt;

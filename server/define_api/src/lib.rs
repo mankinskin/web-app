@@ -14,6 +14,7 @@ use proc_macro2::{
 use syn::{
     *,
     Type,
+    Macro,
     punctuated::{
         Punctuated,
     },
@@ -24,6 +25,24 @@ use syn::{
         TokenStream2,
     },
 };
+struct Items {
+    items: Vec<Item>,
+}
+impl std::ops::Deref for Items {
+    type Target = Vec<Item>;
+    fn deref(&self) -> &Self::Target {
+        &self.items
+    }
+}
+impl syn::parse::Parse for Items {
+    fn parse(input: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let mut items = Vec::new();
+        while let Ok(item) = input.parse::<Item>() {
+            items.push(item);
+        }
+        Ok(Items { items })
+    }
+}
 struct ItemFns {
     items: Vec<ItemFn>,
 }
@@ -33,26 +52,82 @@ impl syn::parse::Parse for ItemFns {
         while let Ok(item) = input.parse::<ItemFn>() {
             items.push(item);
         }
-        Ok(ItemFns{ items })
+        Ok(ItemFns { items })
     }
 }
 #[proc_macro]
 pub fn api(input: TokenStream) -> TokenStream {
-    let fns = parse_macro_input!(input as ItemFns);
-    let definitions: Vec<TokenStream2> = fns
-        .items
+
+    let items = parse_macro_input!(input as Items);
+    let mut fns: Vec<ItemFn> = items
         .iter()
-        .map(|item| rpc_definitions(item.clone()))
+        .filter_map(|item|
+            if let Item::Fn(f) = item {
+                Some(f.clone())
+            } else {
+                None
+            }
+        )
+        .collect();
+    let imports: Vec<ItemUse> = items
+        .iter()
+        .filter_map(|item|
+            if let Item::Use(u) = item {
+                Some(u.clone())
+            } else {
+                None
+            }
+        )
+        .collect();
+    let macros: Vec<ItemMacro> = items
+        .iter()
+        .filter_map(|item|
+            if let Item::Macro(m) = item {
+                Some(m.clone())
+            } else {
+                None
+            }
+        )
+        .collect();
+    let rest_apis: Vec<TokenStream> = macros
+        .iter()
+        .filter_map(|m| {
+            let Macro {
+                path,
+                tokens,
+                ..
+            } = &m.mac;
+            if path.is_ident(&format_ident!("rest_api")) {
+                Some(define_rest_api(TokenStream::from(tokens.clone())))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let rest_fns: Vec<Vec<ItemFn>> = rest_apis
+        .iter()
+        .map(|ts| {
+            let fns = syn::parse::<ItemFns>(ts.clone()).unwrap();
+            fns.items
+        })
+        .collect();
+    let rest_fns: Vec<ItemFn> = rest_fns[..].concat();
+    fns.extend(rest_fns.iter().cloned());
+    let protocols: Vec<TokenStream2> = fns
+        .iter()
+        .map(|f| rpc_protocol(f.clone()))
+        .collect();
+    let clients: Vec<TokenStream2> = fns
+        .iter()
+        .map(|f| rpc_client(f.clone()))
         .collect();
     let calls: Vec<TokenStream2> = fns
-        .items
         .iter()
-        .map(|item| rpc_call(item.clone()))
+        .map(|f| rpc_call(f.clone()))
         .collect();
     let routes: Vec<TokenStream2> = fns
-        .items
         .iter()
-        .map(|item| rpc_route(item.clone()))
+        .map(|f| rpc_route(f.clone()))
         .collect();
     TokenStream::from(quote! {
         use serde::{
@@ -78,10 +153,16 @@ pub fn api(input: TokenStream) -> TokenStream {
                 Json,
             },
         };
+        use updatable::{
+            Updatable
+        };
+        #(#imports)*
 
-        #(#definitions)*
+        #(#protocols)*
+        #(#clients)*
         #[cfg(not(target_arch="wasm32"))]
         mod call {
+            use super::*;
             #(#calls)*
         }
         #[cfg(not(target_arch="wasm32"))]
@@ -114,8 +195,10 @@ fn rpc_route(item: ItemFn) -> TokenStream2 {
         variadic,   //: Option<Dot3>
         output,     //: ReturnType
     } = sig;
+
     let params_ident = format_ident!("{}Parameters", ident.clone());
     let result_ident = format_ident!("{}Result", ident.clone());
+
     let route = format!("/api/call/{}", ident);
     let args: Punctuated<Expr, Comma> = inputs.iter().map(|arg| {
             match arg {
@@ -140,29 +223,13 @@ fn rpc_route(item: ItemFn) -> TokenStream2 {
         }
     }
 }
-fn rpc_definitions(item: ItemFn) -> TokenStream2 {
-    #[allow(unused)]
-    let ItemFn {
-        attrs,      //: Vec<Attribute>
-        vis,        //: Visibility
-        sig,       //: Signature
-        block,      //: Box<Block>
-    } = item.clone();
-
-    #[allow(unused)]
+fn rpc_protocol(item: ItemFn) -> TokenStream2 {
     let Signature {
-        constness,  //: Option<Const>
-        asyncness,  //: Option<Async>
-        unsafety,   //: Option<Unsafe>
-        abi,        //: Option<Abi>
-        fn_token,   //: Fn
         ident,      //: Ident
-        generics,   //: Generics
-        paren_token,//: Paren
         inputs,     //: Punctuated<FnArg, Comma>
-        variadic,   //: Option<Dot3>
         output,     //: ReturnType
-    } = sig;
+        ..
+    } = item.sig;
 
     let params_ident = format_ident!("{}Parameters", ident.clone());
     let params = rpc_params(params_ident.clone(), inputs.clone());
@@ -170,27 +237,23 @@ fn rpc_definitions(item: ItemFn) -> TokenStream2 {
     let result_ident = format_ident!("{}Result", ident.clone());
     let result = rpc_result(result_ident.clone(), output.clone());
 
-    let client = rpc_client(
-        ident.clone(),
-        params_ident.clone(),
-        result_ident.clone(),
-        output.clone(),
-        inputs.clone(),
-    );
     quote! {
         #params
         #result
-        #client
     }
 }
-fn rpc_client(
-    ident: Ident,
-    params_ident: Ident,
-    result_ident: Ident,
-    result_ty: ReturnType,
-    inputs: Punctuated<FnArg, Comma>,
-) -> TokenStream2
-{
+fn rpc_client(item: ItemFn) -> TokenStream2 {
+    let Signature {
+        ident,      //: Ident
+        inputs,     //: Punctuated<FnArg, Comma>
+        output,     //: ReturnType
+        ..
+    } = item.sig;
+
+    let params_ident = format_ident!("{}Parameters", ident.clone());
+
+    let result_ident = format_ident!("{}Result", ident.clone());
+
     let route = format!("/api/call/{}", ident);
     let members: Punctuated<Ident, Comma> = inputs.iter().map(|arg| {
             match arg {
@@ -204,7 +267,7 @@ fn rpc_client(
             }
         }).collect();
 
-    let ret_ty: Type = match result_ty {
+    let ret_ty: Type = match output {
         ReturnType::Default => { syn::parse_str("()").unwrap() },
         ReturnType::Type(_arrow, ty) => {
             *ty
@@ -294,8 +357,7 @@ fn rpc_result(ident: Ident, ty: ReturnType) -> TokenStream2 {
         pub struct #ident #fields;
     }
 }
-#[proc_macro]
-pub fn define_api(input: TokenStream) -> TokenStream {
+fn define_rest_api(input: TokenStream) -> TokenStream {
     let ty = parse_macro_input!(input as Type);
     let ident = Ident::new(
             &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
@@ -305,6 +367,7 @@ pub fn define_api(input: TokenStream) -> TokenStream {
     let get_all = define_get_all(ty.clone(), ident.clone());
     let post = define_post(ty.clone(), ident.clone());
     let delete = define_delete(ty.clone(), ident.clone());
+    let _update = define_update(ty.clone(), ident.clone());
     TokenStream::from(quote! {
         #get
         #get_all
@@ -313,68 +376,68 @@ pub fn define_api(input: TokenStream) -> TokenStream {
     })
 }
 #[proc_macro]
-pub fn define_api_routes(input: TokenStream) -> TokenStream {
+pub fn rest_api(input: TokenStream) -> TokenStream {
+    define_rest_api(input)
+}
+#[proc_macro]
+pub fn rest_api_routes(input: TokenStream) -> TokenStream {
     let ty = parse_macro_input!(input as Type);
     let ident = Ident::new(
             &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
             Span::call_site(),
         );
-    let ident_plural = format_ident!("{}s", ident);
     let get_name = format_ident!("get_{}", ident);
     let post_name = format_ident!("post_{}", ident);
-    let get_all_name = format_ident!("get_{}", ident_plural);
+    let get_all_name = format_ident!("get_{}s", ident);
     let delete_name = format_ident!("delete_{}", ident);
+    let _update_name = format_ident!("update_{}", ident);
     TokenStream::from(quote! {
         routes![
-            #get_name,
-            #post_name,
-            #get_all_name,
-            #delete_name,
+            api::routes::#get_name,
+            api::routes::#post_name,
+            api::routes::#get_all_name,
+            api::routes::#delete_name,
         ]
     })
 }
 
 fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
-    let ident_plural = format_ident!("{}s", ident);
-    let route = format!("/api/{}/<id>", ident_plural);
     let name = format_ident!("get_{}", ident);
     quote! {
-        #[get(#route)]
-        fn #name(id: SerdeParam<Id<#ty>>) -> Json<Option<#ty>> {
-            Json(#ty::get(*id))
+        fn #name(id: Id<#ty>) -> Option<#ty> {
+            #ty::get(id)
         }
     }
 }
 fn define_post(ty: Type, ident: Ident) -> TokenStream2 {
-    let ident_plural = format_ident!("{}s", ident);
-    let route = format!("/api/{}", ident_plural);
     let name = format_ident!("post_{}", ident);
     quote! {
-        #[post(#route, data="<data>")]
-        fn #name(data: Json<#ty>) -> Json<Id<#ty>> {
-            Json(#ty::insert(data.clone()))
+        fn #name(data: #ty) -> Id<#ty> {
+            #ty::insert(data)
         }
     }
 }
 fn define_get_all(ty: Type, ident: Ident) -> TokenStream2 {
-    let ident_plural = format_ident!("{}s", ident);
-    let route = format!("/api/{}", ident_plural);
-    let name = format_ident!("get_{}", ident_plural);
+    let name = format_ident!("get_{}s", ident);
     quote! {
-        #[get(#route)]
-        fn #name() -> Json<Vec<Entry<#ty>>> {
-            Json(#ty::get_all())
+        fn #name() -> Vec<Entry<#ty>> {
+            #ty::get_all()
         }
     }
 }
 fn define_delete(ty: Type, ident: Ident) -> TokenStream2 {
-    let ident_plural = format_ident!("{}s", ident);
-    let route = format!("/api/{}/<id>", ident_plural);
     let name = format_ident!("delete_{}", ident);
     quote! {
-        #[delete(#route)]
-        fn #name(id: SerdeParam<Id<#ty>>) -> Json<Option<#ty>> {
-            Json(#ty::delete(id.clone()))
+        fn #name(id: Id<#ty>) -> Option<#ty> {
+            #ty::delete(id)
+        }
+    }
+}
+fn define_update(ty: Type, ident: Ident) -> TokenStream2 {
+    let name = format_ident!("update_{}", ident);
+    quote! {
+        fn #name(id: Id<#ty>, update: <#ty as Updatable>::Update) -> Option<#ty> {
+            #ty::update(id, update)
         }
     }
 }

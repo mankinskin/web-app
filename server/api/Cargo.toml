@@ -22,3 +22,15 @@ features = [
 
 [dependencies.define_api]
 path = "../define_api"
+
+[dependencies.rql]
+path = "../../../rql"
+
+[dependencies.plans]
+path = "../../plans"
+
+[dependencies.database]
+path = "../../database"
+
+[dependencies.updatable]
+path = "../../updatable"

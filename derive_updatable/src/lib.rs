@@ -48,7 +48,7 @@ fn update_struct(input: DeriveInput) -> syn::export::TokenStream2 {
     let update_builder = update_builder(input.clone());
     let update_data = update_data(data);
     quote! {
-        #[derive(Clone, Default, Debug, PartialEq)]
+        #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #update_ident #update_data
         #update_builder
     }

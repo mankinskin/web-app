@@ -10,15 +10,11 @@ use crate::{
         self,
         GMsg,
     },
-    fetch::{
-        self,
-        Query,
-        Request,
-    },
 };
 use database::{
     Entry,
 };
+use std::result::Result;
 
 pub mod preview;
 pub mod task;
@@ -45,47 +41,31 @@ impl Default for Model {
 
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetch::Msg<Vec<Entry<Task>>>),
+    GetAll,
+    AllTasks(Result<Vec<Entry<Task>>, String>),
     Preview(usize, preview::Msg),
     OpenEditor,
     Editor(editor::Msg),
 }
 impl Msg {
     pub fn fetch_all() -> Msg {
-        Msg::Fetch(fetch::Msg::Request(Request::Get(Query::All)))
+        Msg::GetAll
     }
 }
 
-impl From<fetch::Msg<Vec<Entry<Task>>>> for Msg {
-    fn from(msg: fetch::Msg<Vec<Entry<Task>>>) -> Self {
-        Msg::Fetch(msg)
-    }
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/tasks").unwrap(),
-                            request,
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        fetch::Response::Get(data) => {
-                            model.previews = data.iter().map(|u| preview::Model::from(u)).collect()
-                        },
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::AllTasks(res) => {
+            match res {
+                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::GetAll => {
+            orders.perform_cmd(
+                api::get_tasks()
+                    .map(|res| Msg::AllTasks(res.map_err(|e| format!("{:?}", e))))
+            );
         },
         Msg::Preview(index, msg) => {
             preview::update(

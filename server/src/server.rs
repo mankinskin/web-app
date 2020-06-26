@@ -107,11 +107,6 @@ fn get_img_file(file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./img/{}", file_name))
 }
 
-define_api!(Project);
-define_api!(User);
-define_api!(Task);
-define_api!(Note);
-
 #[get("/api/token_valid")]
 fn token_valid(token: JWT) {
     let _ = token;
@@ -173,12 +168,12 @@ pub fn start() {
 
                     login,
                     register,
-
+                    api::routes::find_user_projects,
                 ],
-                define_api_routes!(Task),
-                define_api_routes!(Project),
-                define_api_routes!(User),
-                define_api_routes!(Note),
+                rest_api_routes!(Task),
+                rest_api_routes!(Project),
+                rest_api_routes!(User),
+                rest_api_routes!(Note),
             ].concat()
         )
         .launch();

@@ -12,9 +12,6 @@ use crate::{
     root::{
         GMsg,
     },
-    fetch::{
-        self,
-    },
 };
 use database::{
     Entry,
@@ -62,43 +59,27 @@ impl From<Id<User>> for Model {
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetch::Msg<User>),
+    Get(Id<User>),
+    User(Result<Option<User>, String>),
 }
 impl Msg {
     pub fn fetch_user(id: Id<User>) -> Msg {
-        Msg::Fetch(fetch::Msg::Request(fetch::Request::Get(Query::Id(id))))
-    }
-}
-impl From<fetch::Msg<User>> for Msg {
-    fn from(msg: fetch::Msg<User>) -> Self {
-        Msg::Fetch(msg)
+        Msg::Get(id)
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/users").unwrap(),
-                            request,
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        fetch::Response::Get(data) => {
-                            model.user = Some(data);
-                        },
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::User(res) => {
+            match res {
+                Ok(u) => model.user = u,
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::Get(id) => {
+            orders.perform_cmd(
+                api::get_user(id)
+                    .map(|res| Msg::User(res.map_err(|e| format!("{:?}", e))))
+            );
         },
     }
 }

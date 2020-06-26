@@ -34,3 +34,6 @@ path = "../plans"
 
 [dependencies.database]
 path = "../database"
+
+[dependencies.api]
+path = "./api"

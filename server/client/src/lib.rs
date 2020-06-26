@@ -13,6 +13,7 @@ extern crate plans;
 extern crate database;
 extern crate updatable;
 extern crate seed;
+extern crate api;
 
 pub mod login;
 pub mod register;
@@ -22,7 +23,6 @@ pub mod users;
 pub mod page;
 pub mod root;
 pub use root::*;
-pub mod fetch;
 pub mod route;
 pub mod storage;
 pub mod request;

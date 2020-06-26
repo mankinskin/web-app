@@ -13,7 +13,7 @@ use updatable::{
 };
 
 schema! {
-    Schema {
+    pub Schema {
         user: User,
         task: Task,
         note: Note,
@@ -22,7 +22,7 @@ schema! {
 }
 
 lazy_static!{
-    static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
+    pub static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
 }
 pub trait DatabaseTable<'a>
     : Sized
