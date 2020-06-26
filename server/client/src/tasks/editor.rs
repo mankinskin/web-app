@@ -9,9 +9,11 @@ use crate::{
         GMsg,
     },
     tasks::*,
-    fetch,
-    fetch::Request,
 };
+use rql::{
+    *,
+};
+use std::result::Result;
 
 #[derive(Clone)]
 pub struct Model {
@@ -35,16 +37,12 @@ pub enum Msg {
     ChangeDescription(String),
     Create,
     Cancel,
-    Fetch(fetch::Msg<Task>)
-}
-impl From<fetch::Msg<Task>> for Msg {
-    fn from(msg: fetch::Msg<Task>) -> Self {
-        Msg::Fetch(msg)
-    }
+    CreateTask(Task),
+    CreatedTask(Result<Id<Task>, String>),
 }
 impl Msg {
     pub fn post_task(task: &Task) -> Msg {
-        Msg::Fetch(fetch::Msg::Request(Request::Post(task.clone())))
+        Msg::CreateTask(task.clone())
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -55,26 +53,17 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::ChangeDescription(d) => {
             model.task.set_description(d);
         },
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/tasks").unwrap(),
-                            request,
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::CreatedTask(res) => {
+            match res {
+                Ok(ps) => {},
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::CreateTask(t) => {
+            orders.perform_cmd(
+                api::post_task(t)
+                    .map(|res| Msg::CreatedTask(res.map_err(|e| format!("{:?}", e))))
+            );
         },
         Msg::Create => {
             orders.send_msg(Msg::post_task(&model.task));

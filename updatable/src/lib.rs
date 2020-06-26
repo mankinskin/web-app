@@ -1,3 +1,4 @@
+extern crate serde;
 extern crate derive_updatable;
 pub use derive_updatable::*;
 

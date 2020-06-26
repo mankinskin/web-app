@@ -71,7 +71,7 @@ fn new_request<'a>(url: Url) -> seed::fetch::Request<'a> {
     }
     req
 }
-pub async fn fetch<T>(url: Url, request: Request<T>) -> Msg<T>
+pub async fn fetch<T>(url: Url, request: Request<T>) -> Response<T>
     where T: Fetchable
 {
     let res = match request {
@@ -89,7 +89,7 @@ pub async fn fetch<T>(url: Url, request: Request<T>) -> Msg<T>
         },
     };
     match res {
-        Ok(response) => Msg::Response(response),
+        Ok(response) => response,
         Err(e) => Msg::Error(format!("{:?}", e)),
     }
 }

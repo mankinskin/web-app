@@ -4,21 +4,24 @@ use seed::{
 };
 use plans::{
     project::*,
+    user::*,
+};
+use api::{
+    *,
+};
+use rql::{
+    *,
 };
 use crate::{
     root::{
         self,
         GMsg,
     },
-    fetch::{
-        self,
-        Query,
-        Request,
-    },
 };
 use database::{
     Entry,
 };
+use std::result::Result;
 
 pub mod preview;
 pub mod project;
@@ -44,47 +47,48 @@ impl Default for Model {
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetch::Msg<Vec<Entry<Project>>>),
+    GetAll,
+    AllProjects(Result<Vec<Entry<Project>>, String>),
+    FetchUserProjects(Id<User>),
+    UserProjects(Result<Vec<Entry<Project>>, String>),
     Preview(usize, preview::Msg),
     OpenEditor,
     Editor(editor::Msg),
 }
 impl Msg {
     pub fn fetch_all() -> Msg {
-        Msg::Fetch(fetch::Msg::Request(Request::Get(Query::All)))
+        Msg::GetAll
+    }
+    pub fn fetch_for_user(id: Id<User>) -> Msg {
+        Msg::FetchUserProjects(id)
     }
 }
 
-impl From<fetch::Msg<Vec<Entry<Project>>>> for Msg {
-    fn from(msg: fetch::Msg<Vec<Entry<Project>>>) -> Self {
-        Msg::Fetch(msg)
-    }
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/projects").unwrap(),
-                            request,
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        fetch::Response::Get(data) => {
-                            model.previews = data.iter().map(|u| preview::Model::from(u)).collect()
-                        },
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::AllProjects(res) => {
+            match res {
+                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::GetAll => {
+            orders.perform_cmd(
+                api::get_projects()
+                    .map(|res| Msg::AllProjects(res.map_err(|e| format!("{:?}", e))))
+            );
+        },
+        Msg::UserProjects(res) => {
+            match res {
+                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Err(e) => { seed::log(e); },
+            }
+        },
+        Msg::FetchUserProjects(id) => {
+            orders.perform_cmd(
+                api::find_user_projects(id)
+                .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
+            );
         },
         Msg::Preview(index, msg) => {
             preview::update(

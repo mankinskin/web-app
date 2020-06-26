@@ -9,8 +9,6 @@ use crate::{
         GMsg,
     },
     projects::*,
-    fetch,
-    fetch::Request,
 };
 
 #[derive(Clone)]
@@ -35,16 +33,12 @@ pub enum Msg {
     ChangeDescription(String),
     Create,
     Cancel,
-    Fetch(fetch::Msg<Project>)
-}
-impl From<fetch::Msg<Project>> for Msg {
-    fn from(msg: fetch::Msg<Project>) -> Self {
-        Msg::Fetch(msg)
-    }
+    CreateProject(Project),
+    CreatedProject(Result<Id<Project>, String>),
 }
 impl Msg {
     pub fn post_project(project: &Project) -> Msg {
-        Msg::Fetch(fetch::Msg::Request(Request::Post(project.clone())))
+        Msg::CreateProject(project.clone())
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -55,26 +49,17 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::ChangeDescription(d) => {
             model.project.set_description(d);
         },
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/projects").unwrap(),
-                            request,
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::CreatedProject(res) => {
+            match res {
+                Ok(id) => {},
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::CreateProject(p) => {
+            orders.perform_cmd(
+                api::post_project(p)
+                    .map(|res| Msg::CreatedProject(res.map_err(|e| format!("{:?}", e))))
+            );
         },
         Msg::Create => {
             orders.send_msg(Msg::post_project(&model.project));

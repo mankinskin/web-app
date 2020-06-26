@@ -11,14 +11,12 @@ use crate::{
     root::{
         GMsg,
     },
-    fetch::{
-        self,
-    },
     tasks::*,
 };
 use database::{
     Entry,
 };
+use std::result::Result;
 
 #[derive(Clone)]
 pub struct Model {
@@ -56,43 +54,27 @@ impl From<Id<Task>> for Model {
 }
 #[derive(Clone)]
 pub enum Msg {
-    Fetch(fetch::Msg<Task>),
-}
-impl From<fetch::Msg<Task>> for Msg {
-    fn from(msg: fetch::Msg<Task>) -> Self {
-        Msg::Fetch(msg)
-    }
+    Get(Id<Task>),
+    Task(Result<Option<Task>, String>),
 }
 impl Msg {
     pub fn fetch_task(id: Id<Task>) -> Msg {
-        Msg::Fetch(fetch::Msg::Request(fetch::Request::Get(Query::Id(id))))
+        Msg::Get(id)
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Fetch(msg) => {
-            match msg {
-                fetch::Msg::Request(request) => {
-                    orders.perform_cmd(
-                        fetch::fetch(
-                            url::Url::parse("http://localhost:8000/api/tasks").unwrap(),
-                            request
-                        )
-                        .map(|msg| Msg::from(msg))
-                    );
-                },
-                fetch::Msg::Response(response) => {
-                    match response {
-                        fetch::Response::Get(data) => {
-                            model.task = Some(data);
-                        },
-                        _ => {}
-                    }
-                },
-                fetch::Msg::Error(error) => {
-                    seed::log(error);
-                },
+        Msg::Task(res) => {
+            match res {
+                Ok(t) => model.task = t,
+                Err(e) => { seed::log(e); },
             }
+        },
+        Msg::Get(id) => {
+            orders.perform_cmd(
+                api::get_task(id)
+                    .map(|res| Msg::Task(res.map_err(|e| format!("{:?}", e))))
+            );
         },
     }
 }
