@@ -6,15 +6,11 @@ use plans::{
     project::*,
     user::*,
 };
-use api::{
-    *,
-};
 use rql::{
     *,
 };
 use crate::{
     root::{
-        self,
         GMsg,
     },
 };
@@ -125,7 +121,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         if let Some(model) = &model.editor {
             editor::view(&model).map_msg(Msg::Editor)
         } else {
-            if let Some(_) = root::get_session() {
+            if let Some(_) = api::auth::get_session() {
                 button![
                     simple_ev(Ev::Click, Msg::OpenEditor),
                     "New Project"

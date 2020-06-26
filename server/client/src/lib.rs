@@ -1,5 +1,5 @@
 #![feature(async_closure)]
-#[macro_use] extern crate lazy_static;
+extern crate lazy_static;
 extern crate chrono;
 extern crate serde;
 extern crate serde_json;
@@ -24,7 +24,5 @@ pub mod page;
 pub mod root;
 pub use root::*;
 pub mod route;
-pub mod storage;
-pub mod request;
 pub mod projects;
 pub mod tasks;

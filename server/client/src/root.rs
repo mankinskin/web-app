@@ -5,27 +5,11 @@ use seed::{
 use crate::{
     *,
     route::*,
-    storage,
 };
 use plans::{
     user::*,
 };
-use std::sync::{
-    Mutex,
-};
 
-lazy_static! {
-    static ref USER_SESSION: Mutex<Option<UserSession>> = Mutex::new(None);
-}
-pub fn set_session(session: UserSession) {
-    *USER_SESSION.lock().unwrap() = Some(session);
-}
-pub fn get_session() -> Option<UserSession> {
-    USER_SESSION.lock().unwrap().clone()
-}
-pub fn end_session() {
-    *USER_SESSION.lock().unwrap() = None;
-}
 #[derive(Clone, Default)]
 pub struct Model {
     navbar: navbar::Model, // the navigation bar
@@ -86,6 +70,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::SetPage(page) => {
+            if let None = api::auth::get_session() {
+                if let Some(session) = api::auth::load_session() {
+                    api::auth::set_session(session);
+                }
+            }
             model.page = page;
             orders.send_msg(Msg::Fetch);
         },
@@ -98,14 +87,12 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         GMsg::SetSession(session) => {
             seed::log!("Setting session...");
-            set_session(session.clone());
-            storage::store_session(&session.clone());
+            api::auth::set_session(session.clone());
             orders.send_msg(Msg::Fetch);
         },
         GMsg::EndSession => {
             seed::log!("ending session");
-            storage::clean_storage();
-            end_session()
+            api::auth::end_session()
         },
     }
 }

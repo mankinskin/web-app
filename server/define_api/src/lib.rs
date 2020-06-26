@@ -138,11 +138,19 @@ pub fn api(input: TokenStream) -> TokenStream {
             browser::fetch::{
                 Method,
                 FetchError,
+                Header,
+                Response,
             },
         };
         use rocket::{
             request::{
                 FromParam,
+            },
+            response::{
+                *,
+            },
+            http::{
+                *,
             },
         };
         use std::result::{
@@ -156,10 +164,87 @@ pub fn api(input: TokenStream) -> TokenStream {
         use updatable::{
             Updatable
         };
+        use plans::{
+            user::*,
+            credentials::*,
+        };
+        #[cfg(target_arch="wasm32")]
+        pub mod auth {
+            use super::*;
+            use std::sync::{
+                Mutex,
+            };
+            use seed::browser::web_storage::{
+                WebStorage,
+                SessionStorage,
+            };
+            use plans::{
+                user::*,
+            };
+            lazy_static! {
+                static ref USER_SESSION: Mutex<Option<UserSession>> = Mutex::new(None);
+            }
+            const STORAGE_KEY: &str = "secret";
+            pub fn load_session() -> Option<UserSession> {
+                SessionStorage::get(STORAGE_KEY).ok()
+            }
+            pub fn store_session(session: &UserSession) {
+                SessionStorage::insert(STORAGE_KEY, session)
+                    .expect("insert into session storage failed")
+            }
+            pub fn clear_session() {
+                SessionStorage::clear()
+                    .expect("clearing session storage failed")
+            }
+            pub fn set_session(session: UserSession) {
+                *USER_SESSION.lock().unwrap() = Some(session.clone());
+                store_session(&session.clone());
+            }
+            pub fn get_session() -> Option<UserSession> {
+                USER_SESSION.lock().unwrap().clone()
+            }
+            pub fn end_session() {
+                *USER_SESSION.lock().unwrap() = None;
+                clear_session();
+            }
+        }
+        #[cfg(target_arch="wasm32")]
+        pub async fn register(user: User) -> Result<UserSession, FetchError> {
+            let url = format!("{}{}", "http://localhost:8000", "/api/auth/register");
+            let mut req = seed::fetch::Request::new(&url)
+                .method(Method::Post);
+            seed::fetch::fetch(
+                req.json(&user)?
+            )
+            .await?
+            .check_status()?
+            .json()
+            .await
+            .map(|session: UserSession| session)
+        }
+        #[cfg(target_arch="wasm32")]
+        pub async fn login(credentials: Credentials) -> Result<UserSession, FetchError> {
+            let url = format!("{}{}", "http://localhost:8000", "/api/auth/login");
+            let mut req = seed::fetch::Request::new(&url)
+                .method(Method::Post);
+            seed::fetch::fetch(
+                req.json(&credentials)?
+            )
+            .await?
+            .check_status()?
+            .json()
+            .await
+            .map(|session: UserSession| session)
+        }
+
         #(#imports)*
 
         #(#protocols)*
         #(#clients)*
+        #[cfg(not(target_arch="wasm32"))]
+        use jwt::{
+            *,
+        };
         #[cfg(not(target_arch="wasm32"))]
         mod call {
             use super::*;
@@ -168,6 +253,53 @@ pub fn api(input: TokenStream) -> TokenStream {
         #[cfg(not(target_arch="wasm32"))]
         pub mod routes {
             use super::*;
+            use std::convert::TryFrom;
+            #[post("/api/auth/login", data="<credentials>")]
+            pub fn login(credentials: Json<Credentials>)
+                -> std::result::Result<Json<UserSession>, Status>
+            {
+                let credentials = credentials.into_inner();
+                User::find(|user| *user.name() == credentials.username)
+                    .ok_or(Status::NotFound)
+                    .and_then(|entry| {
+                        let user = entry.data();
+                        if *user.password() == credentials.password {
+                            Ok(entry)
+                        } else {
+                            Err(Status::Unauthorized)
+                        }
+                    })
+                    .and_then(|entry| {
+                        let user = entry.data().clone();
+                        let id = entry.id().clone();
+                        JWT::try_from(&user)
+                            .map_err(|_| Status::InternalServerError)
+                            .map(move |jwt| (id, jwt))
+                    })
+                    .map(|(id, jwt)|
+                         Json(UserSession {
+                             user_id: id.clone(),
+                             token: jwt.to_string(),
+                         })
+                    )
+            }
+            #[post("/api/auth/register", data="<user>")]
+            pub fn register(user: Json<User>) -> std::result::Result<Json<UserSession>, Status> {
+                let user = user.into_inner();
+                if User::find(|u| u.name() == user.name()).is_none() {
+                    let id = User::insert(user.clone());
+                    JWT::try_from(&user)
+                        .map_err(|_| Status::InternalServerError)
+                        .map(move |jwt|
+                            Json(UserSession {
+                                user_id: id.clone(),
+                                token: jwt.to_string(),
+                            })
+                        )
+                } else {
+                    Err(Status::Conflict)
+                }
+            }
             #(#routes)*
         }
     })
@@ -177,7 +309,7 @@ fn rpc_route(item: ItemFn) -> TokenStream2 {
     let ItemFn {
         attrs,      //: Vec<Attribute>
         vis,        //: Visibility
-        sig,       //: Signature
+        sig,        //: Signature
         block,      //: Box<Block>
     } = item.clone();
 
@@ -217,7 +349,8 @@ fn rpc_route(item: ItemFn) -> TokenStream2 {
         }).collect();
     quote! {
         #[post(#route, data="<parameters>")]
-        pub fn #ident(parameters: Json<#params_ident>) -> Json<#result_ident> {
+        pub fn #ident(token: JWT, parameters: Json<#params_ident>) -> Json<#result_ident> {
+            let _ = token;
             let Json(parameters) = parameters;
             Json(#result_ident(call::#ident(#args)))
         }
@@ -277,14 +410,14 @@ fn rpc_client(item: ItemFn) -> TokenStream2 {
         #[cfg(target_arch="wasm32")]
         pub async fn #ident(#inputs) -> Result<#ret_ty, FetchError> {
             let url = format!("{}{}", "http://localhost:8000", #route);
+            let mut req = seed::fetch::Request::new(&url)
+                .method(Method::Post);
             // authentication
-            //if let Some(session) = root::get_session() {
-            //    req = req.header(Header::authorization(format!("{}", session.token)));
-            //}
+            if let Some(session) = auth::get_session() {
+                req = req.header(Header::authorization(format!("{}", session.token)));
+            }
             seed::fetch::fetch(
-                seed::fetch::Request::new(&url)
-                    .method(Method::Post)
-                    .json(&#params_ident { #members })?
+                req.json(&#params_ident { #members })?
             )
             .await?
             .check_status()?

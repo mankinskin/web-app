@@ -1,29 +1,3 @@
-use seed::browser::web_storage::{
-    WebStorage,
-    SessionStorage,
-};
-use plans::{
-    user::*,
-};
-
-const STORAGE_KEY: &str = "secret";
-
-pub fn load_session() -> Option<UserSession> {
-    SessionStorage::get(STORAGE_KEY).ok()
-}
-
-pub fn store_session(session: &UserSession) {
-    SessionStorage::insert(STORAGE_KEY, session)
-        .expect("insert into session storage failed")
-}
-pub fn clear_session() {
-    SessionStorage::clear()
-        .expect("clearing session storage failed")
-}
-
-pub fn clean_storage() {
-    clear_session()
-}
 
 // ====== ====== TESTS ====== ======
 

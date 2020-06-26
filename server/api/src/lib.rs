@@ -1,6 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #![allow(unused)]
 #[macro_use] extern crate define_api;
+#[macro_use] extern crate lazy_static;
 
 #[macro_use] extern crate rocket;
 extern crate rocket_contrib;
@@ -8,11 +9,13 @@ extern crate seed;
 extern crate serde_json;
 extern crate serde;
 
+#[cfg(not(target_arch="wasm32"))]
+extern crate jwt;
+
 extern crate rql;
 extern crate plans;
 extern crate database;
 extern crate updatable;
-
 api! {
     use rql::{
         Id,

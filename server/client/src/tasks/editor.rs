@@ -18,11 +18,13 @@ use std::result::Result;
 #[derive(Clone)]
 pub struct Model {
     pub task: Task,
+    pub task_id: Option<Id<Task>>,
 }
 impl Model {
     fn empty() -> Self {
         Self {
             task: Task::new(String::new()),
+            task_id: None,
         }
     }
 }
@@ -55,7 +57,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::CreatedTask(res) => {
             match res {
-                Ok(ps) => {},
+                Ok(id) => model.task_id = Some(id),
                 Err(e) => { seed::log(e); },
             }
         },
