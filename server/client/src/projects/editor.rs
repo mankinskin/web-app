@@ -14,11 +14,13 @@ use crate::{
 #[derive(Clone)]
 pub struct Model {
     pub project: Project,
+    pub project_id: Option<Id<Project>>,
 }
 impl Model {
     fn empty() -> Self {
         Self {
             project: Project::new(String::new()),
+            project_id: None,
         }
     }
 }
@@ -51,7 +53,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::CreatedProject(res) => {
             match res {
-                Ok(id) => {},
+                Ok(id) => model.project_id = Some(id),
                 Err(e) => { seed::log(e); },
             }
         },

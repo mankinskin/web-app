@@ -8,7 +8,6 @@ use seed::{
 use crate::{
     page,
     login,
-    request,
     route::{
         Route,
     },
@@ -41,7 +40,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::Submit => {
             seed::log!("Registration...");
             orders.perform_cmd(
-                request::registration_request(model.user.clone())
+                api::register(model.user.clone())
                     .map(|result: Result<UserSession, FetchError>| {
                         Msg::RegistrationResponse(result.map_err(|e| format!("{:?}", e)))
                     })

@@ -41,7 +41,7 @@ pub fn view(_model: &Model) -> Node<Msg> {
                 "Home",
             ],
         ],
-        if let Some(session) = root::get_session() {
+        if let Some(session) = api::auth::get_session() {
             div![
                 a![
                     attrs!{

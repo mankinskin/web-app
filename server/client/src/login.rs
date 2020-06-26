@@ -7,7 +7,6 @@ use plans::{
     user::*,
 };
 use crate::{
-    request,
     page,
     register,
     route::{
@@ -43,7 +42,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::Login => {
             seed::log!("Logging in...");
             orders.perform_cmd(
-                request::login_request(model.credentials().clone())
+                api::login(model.credentials().clone())
                     .map(|result: Result<UserSession, FetchError>| {
                         Msg::LoginResponse(result.map_err(|e| format!("{:?}", e)))
                     })

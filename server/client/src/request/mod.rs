@@ -20,26 +20,3 @@ pub async fn validate_session_request(session: UserSession) -> Result<(), FetchE
     .check_status()
     .map(|_| ())
 }
-pub async fn registration_request(user: User)
-    -> Result<UserSession, FetchError>
-{
-    fetch(
-        Request::new("http://localhost:8000/users/register")
-            .method(Method::Post)
-            .json(&user)?
-    ).await?
-    .check_status()?
-    .json()
-    .await
-}
-pub async fn login_request(credentials: Credentials) -> Result<UserSession, FetchError>
-{
-    fetch(
-        Request::new("http://localhost:8000/users/login")
-            .method(Method::Post)
-            .json(&credentials)?
-    ).await?
-    .check_status()?
-    .json()
-    .await
-}
