@@ -30,9 +30,6 @@ api! {
         task::{
             Task,
         },
-        note::{
-            Note,
-        },
     };
     use database::{
         *,
@@ -43,5 +40,4 @@ api! {
     rest_api!(User);
     rest_api!(Project);
     rest_api!(Task);
-    rest_api!(Note);
 }

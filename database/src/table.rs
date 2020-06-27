@@ -1,7 +1,6 @@
 use rql::*;
 use plans::{
     user::*,
-    note::*,
     task::*,
     project::*,
 };
@@ -16,7 +15,6 @@ schema! {
     pub Schema {
         user: User,
         task: Task,
-        note: Note,
         project: Project,
     }
 }
@@ -76,15 +74,6 @@ pub trait DatabaseTable<'a>
         Self::table()
             .find(|row| f(row.data))
             .map(|row| row.into())
-    }
-}
-
-impl<'a> DatabaseTable<'a> for Note {
-    fn table() -> TableGuard<'a, Self> {
-        DB.note()
-    }
-    fn table_mut() -> TableGuardMut<'a, Self> {
-        DB.note_mut()
     }
 }
 
