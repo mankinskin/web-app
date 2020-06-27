@@ -28,7 +28,6 @@ pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
     SetPage(page::Model),
-    Fetch,
 }
 #[derive(Clone)]
 pub enum GMsg {
@@ -62,13 +61,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::NavBar)
             );
         },
-        Msg::Fetch => {
-            page::update(
-                page::Msg::Fetch,
-                &mut model.page,
-                &mut orders.proxy(Msg::Page)
-            );
-        },
         Msg::SetPage(page) => {
             if let None = api::auth::get_session() {
                 if let Some(session) = api::auth::load_session() {
@@ -76,7 +68,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 }
             }
             model.page = page;
-            orders.send_msg(Msg::Fetch);
         },
     }
 }
@@ -86,12 +77,9 @@ pub fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             orders.send_msg(msg);
         },
         GMsg::SetSession(session) => {
-            seed::log!("Setting session...");
             api::auth::set_session(session.clone());
-            orders.send_msg(Msg::Fetch);
         },
         GMsg::EndSession => {
-            seed::log!("ending session");
             api::auth::end_session()
         },
     }
