@@ -133,7 +133,6 @@ fn main() {
                 rest_api_routes!(Task),
                 rest_api_routes!(Project),
                 rest_api_routes!(User),
-                rest_api_routes!(Note),
             ].concat()
         )
         .launch();
