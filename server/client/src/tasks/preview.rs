@@ -55,6 +55,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                     simple_ev(Ev::Click, Msg::Open),
                 ],
                 p!["Preview"],
+                button![
+                    simple_ev(Ev::Click, Msg::Task(task::Msg::Delete)),
+                    "Delete"
+                ],
             ]
         },
         None => {

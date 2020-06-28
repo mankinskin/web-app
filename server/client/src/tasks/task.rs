@@ -53,11 +53,6 @@ impl From<Id<Task>> for Model {
     }
 }
 #[derive(Clone)]
-pub enum Msg {
-    Get(Id<Task>),
-    Task(Result<Option<Task>, String>),
-}
-#[derive(Clone)]
 pub enum Config {
     TaskId(Id<Task>),
     Model(Model),
@@ -87,10 +82,12 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
         },
     }
 }
-impl Msg {
-    pub fn fetch_task(id: Id<Task>) -> Msg {
-        Msg::Get(id)
-    }
+#[derive(Clone)]
+pub enum Msg {
+    Get(Id<Task>),
+    Task(Result<Option<Task>, String>),
+    Delete,
+    Deleted(Result<Option<Task>, String>),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -106,6 +103,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     .map(|res| Msg::Task(res.map_err(|e| format!("{:?}", e))))
             );
         },
+        Msg::Delete => {
+            orders.perform_cmd(
+                api::delete_task(model.task_id)
+                .map(|res| Msg::Deleted(res.map_err(|e| format!("{:?}", e))))
+            );
+        },
+        Msg::Deleted(_res) => {
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
@@ -114,6 +119,10 @@ pub fn view(model: &Model) -> Node<Msg> {
             div![
                 h1!["Task"],
                 p![model.title()],
+                button![
+                    simple_ev(Ev::Click, Msg::Delete),
+                    "Delete"
+                ],
             ]
         },
         None => {
