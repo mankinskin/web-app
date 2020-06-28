@@ -113,10 +113,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Preview(index, msg) => {
             preview::update(
-                msg,
+                msg.clone(),
                 &mut model.previews[index],
                 &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
             );
+            if let preview::Msg::Deleted(_) = msg {
+                model.config.update(orders);
+            }
         },
         Msg::OpenEditor => {
             model.editor = match model.config {
