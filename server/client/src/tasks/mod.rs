@@ -128,10 +128,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Preview(index, msg) => {
             preview::update(
-                msg,
+                msg.clone(),
                 &mut model.previews[index],
                 &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
             );
+            if let preview::Msg::Task(task::Msg::Deleted(_)) = msg {
+                model.config.update(orders);
+            }
         },
         Msg::OpenEditor => {
             model.editor = Some(editor::init(editor::Config::from(model.config.clone()), &mut orders.proxy(Msg::Editor)));
