@@ -119,7 +119,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::OpenEditor => {
-            model.editor = Some(editor::Model::default());
+            model.editor = match model.config {
+                Config::User(id) => {
+                    Some(editor::init(editor::Config::User(id), &mut orders.proxy(Msg::Editor)))
+                },
+                _ => {
+                    Some(editor::init(editor::Config::Empty, &mut orders.proxy(Msg::Editor)))
+                },
+            };
         },
         Msg::Editor(msg) => {
             if let Some(model) = &mut model.editor {

@@ -15,12 +15,14 @@ use crate::{
 pub struct Model {
     pub project: Project,
     pub project_id: Option<Id<Project>>,
+    pub config: Config,
 }
 impl Model {
     fn empty() -> Self {
         Self {
             project: Project::new(String::new()),
             project_id: None,
+            config: Config::Empty,
         }
     }
 }
@@ -28,6 +30,30 @@ impl Default for Model {
     fn default() -> Self {
         Self::empty()
     }
+}
+#[derive(Clone)]
+pub enum Config {
+    Empty,
+    User(Id<User>),
+}
+impl From<Config> for Model {
+    fn from(config: Config) -> Self {
+        Self {
+            config,
+            ..Default::default()
+        }
+    }
+}
+impl Config {
+    fn update(&self, _orders: &mut impl Orders<Msg, GMsg>) {
+        match self {
+            _ => {}
+        }
+    }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    config.update(orders);
+    Model::from(config)
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -58,8 +84,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::CreateProject(p) => {
+            let mut project = p;
+            match model.config {
+                Config::User(id) => { project.add_member(id); },
+                _ => {},
+            }
             orders.perform_cmd(
-                api::post_project(p)
+                api::post_project(project)
                     .map(|res| Msg::CreatedProject(res.map_err(|e| format!("{:?}", e))))
             );
         },
