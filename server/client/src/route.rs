@@ -103,6 +103,7 @@ impl From<page::Config> for Route {
             page::Config::Project(config) => Route::Project(
                 match config {
                     projects::project::Config::ProjectId(id) => id,
+                    projects::project::Config::Entry(entry) => *entry.id(),
                     projects::project::Config::Model(model) => model.project_id,
                 }
             ),
