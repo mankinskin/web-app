@@ -3,11 +3,6 @@ use seed::{
     *,
     prelude::*,
 };
-use plans::{
-    user::*,
-    project::*,
-    task::*,
-};
 use crate::{
     route::{
         Route,
@@ -15,9 +10,6 @@ use crate::{
     root::{
         GMsg,
     },
-};
-use rql::{
-    Id,
 };
 
 #[derive(Clone)]
@@ -34,109 +26,96 @@ pub enum Model {
 }
 impl Default for Model {
     fn default() -> Self {
-        Self::home()
-    }
-}
-impl From<Route> for Model {
-    fn from(route: Route) -> Self {
-        match route {
-            Route::Home => Self::home(),
-            Route::Login => Self::login(),
-            Route::Register => Self::register(),
-            Route::Users => Self::users(),
-            Route::UserProfile(id) => Self::profile(id),
-            Route::Projects=> Self::projects(),
-            Route::Project(id) => Self::project(id),
-            Route::Task(id) => Self::task(id),
-            Route::NotFound => Self::not_found(),
-        }
-    }
-}
-impl From<home::Model> for Model {
-    fn from(model: home::Model) -> Self {
-        Self::Home(model)
-    }
-}
-impl From<login::Model> for Model {
-    fn from(model: login::Model) -> Self {
-        Self::Login(model)
-    }
-}
-impl From<register::Model> for Model {
-    fn from(model: register::Model) -> Self {
-        Self::Register(model)
-    }
-}
-impl From<users::Model> for Model {
-    fn from(model: users::Model) -> Self {
-        Self::Users(model)
-    }
-}
-impl From<users::profile::Model> for Model {
-    fn from(model: users::profile::Model) -> Self {
-        Self::UserProfile(model)
-    }
-}
-impl From<projects::Model> for Model {
-    fn from(model: projects::Model) -> Self {
-        Self::Projects(model)
-    }
-}
-impl From<projects::project::Model> for Model {
-    fn from(model: projects::project::Model) -> Self {
-        Self::Project(model)
-    }
-}
-impl From<tasks::task::Model> for Model {
-    fn from(model: tasks::task::Model) -> Self {
-        Self::Task(model)
-    }
-}
-impl Model {
-    pub fn home() -> Self {
         Self::Home(home::Model::default())
     }
-    pub fn users() -> Self {
-        Self::Users(users::Model::default())
-    }
-    pub fn profile(id: Id<User>) -> Self {
-        Self::UserProfile(users::user::Model::from(id).profile())
-    }
-    pub fn projects() -> Self {
-        Self::Projects(projects::Model::default())
-    }
-    pub fn project(id: Id<Project>) -> Self {
-        Self::Project(projects::project::Model::from(id))
-    }
-    pub fn task(id: Id<Task>) -> Self {
-        Self::Task(tasks::task::Model::from(id))
-    }
-    pub fn login() -> Self {
-        Self::Login(login::Model::default())
-    }
-    pub fn register() -> Self {
-        Self::Register(register::Model::default())
-    }
-    pub fn not_found() -> Self {
-        Self::NotFound
-    }
-    pub fn route(&self) -> Route {
-        match self {
-            Self::UserProfile(profile) => Route::UserProfile(profile.user.user_id),
-            Self::Users(_) => Route::Users,
-            Self::Project(project) => Route::Project(project.project_id),
-            Self::Projects(_) => Route::Projects,
-            Self::Task(task) => Route::Task(task.task_id),
-            Self::Login(_) => Route::Login,
-            Self::Register(_) => Route::Register,
-            Self::Home(_) | Self::NotFound => Route::Home,
-        }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::Home(c) => Model::Home(home::init(c, &mut orders.proxy(Msg::Home))),
+        Config::Users(c) => Model::Users(users::init(c, &mut orders.proxy(Msg::Users))),
+        Config::UserProfile(c) => Model::UserProfile(users::profile::init(c, &mut orders.proxy(Msg::UserProfile))),
+        Config::Projects(c) => Model::Projects(projects::init(c, &mut orders.proxy(Msg::Projects))),
+        Config::Project(c) => Model::Project(projects::project::init(c, &mut orders.proxy(Msg::Project))),
+        Config::Task(c) => Model::Task(tasks::task::init(c, &mut orders.proxy(Msg::Task))),
+        Config::Login(c) => Model::Login(login::init(c, &mut orders.proxy(Msg::Login))),
+        Config::Register(c) => Model::Register(register::init(c, &mut orders.proxy(Msg::Register))),
     }
 }
-pub fn go_to<M: Into<page::Model> + Clone, Ms: 'static>(model: M, orders: &mut impl Orders<Ms, GMsg>) {
-    let page: page::Model = model.into();
-    seed::push_route(page.route());
-    orders.send_g_msg(GMsg::Root(root::Msg::SetPage(page)));
+pub fn go_to<C: Into<page::Config> + Clone, Ms: 'static>(config: C, orders: &mut impl Orders<Ms, GMsg>) {
+    let config: page::Config = config.into();
+    seed::push_route(Route::from(config.clone()));
+    orders.send_g_msg(GMsg::Root(root::Msg::SetPage(config)));
+}
+
+#[derive(Clone)]
+pub enum Config {
+    Home(home::Config),
+    Login(login::Config),
+    Register(register::Config),
+    Users(users::Config),
+    UserProfile(users::profile::Config),
+    Projects(projects::Config),
+    Project(projects::project::Config),
+    Task(tasks::task::Config),
+}
+impl From<home::Config> for Config {
+    fn from(config: home::Config) -> Self {
+        Self::Home(config)
+    }
+}
+impl From<login::Config> for Config {
+    fn from(config: login::Config) -> Self {
+        Self::Login(config)
+    }
+}
+impl From<register::Config> for Config {
+    fn from(config: register::Config) -> Self {
+        Self::Register(config)
+    }
+}
+impl From<users::Config> for Config {
+    fn from(config: users::Config) -> Self {
+        Self::Users(config)
+    }
+}
+impl From<users::profile::Config> for Config {
+    fn from(config: users::profile::Config) -> Self {
+        Self::UserProfile(config)
+    }
+}
+impl From<projects::Config> for Config {
+    fn from(config: projects::Config) -> Self {
+        Self::Projects(config)
+    }
+}
+impl From<projects::project::Config> for Config {
+    fn from(config: projects::project::Config) -> Self {
+        Self::Project(config)
+    }
+}
+impl From<tasks::task::Config> for Config {
+    fn from(config: tasks::task::Config) -> Self {
+        Self::Task(config)
+    }
+}
+impl From<seed::Url> for Config {
+    fn from(url: seed::Url) -> Self {
+        Self::from(Route::from(url))
+    }
+}
+impl From<Route> for Config {
+    fn from(route: Route) -> Self {
+        match route {
+            Route::Login => Self::Login(login::Config::default()),
+            Route::Register => Self::Register(register::Config::default()),
+            Route::Users => Self::Users(users::Config::All),
+            Route::UserProfile(id) => Self::UserProfile(users::profile::Config::UserId(id)),
+            Route::Projects => Self::Projects(projects::Config::All),
+            Route::Project(id) => Self::Project(projects::project::Config::ProjectId(id)),
+            Route::Task(id) => Self::Task(tasks::task::Config::TaskId(id)),
+            Route::Home | Route::NotFound => Self::Home(home::Config::default()),
+        }
+    }
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -148,7 +127,6 @@ pub enum Msg {
     Projects(projects::Msg),
     Project(projects::project::Msg),
     Task(tasks::task::Msg),
-    Fetch,
 }
 impl From<home::Msg> for Msg {
     fn from(msg: home::Msg) -> Self {
@@ -217,13 +195,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         &mut orders.proxy(Msg::Users)
                     );
                 },
-                Msg::Fetch => {
-                    users::update(
-                        users::Msg::fetch_users(),
-                        model,
-                        &mut orders.proxy(Msg::Users)
-                    );
-                }
                 _ => {}
             }
         },
@@ -236,13 +207,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         &mut orders.proxy(Msg::UserProfile)
                     );
                 },
-                Msg::Fetch => {
-                    users::profile::update(
-                        users::profile::Msg::User(users::user::Msg::fetch_user(model.user.user_id)),
-                        model,
-                        &mut orders.proxy(Msg::UserProfile)
-                    );
-                }
                 _ => {}
             }
         },
@@ -255,13 +219,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         &mut orders.proxy(Msg::Projects)
                     );
                 },
-                Msg::Fetch => {
-                    projects::update(
-                        projects::Msg::fetch_all(),
-                        model,
-                        &mut orders.proxy(Msg::Projects)
-                    );
-                }
                 _ => {}
             }
         },
@@ -274,13 +231,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         &mut orders.proxy(Msg::Project)
                     );
                 },
-                Msg::Fetch => {
-                    projects::project::update(
-                        projects::project::Msg::fetch_project(model.project_id),
-                        model,
-                        &mut orders.proxy(Msg::Project)
-                    );
-                }
                 _ => {}
             }
         },
@@ -293,13 +243,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                         &mut orders.proxy(Msg::Task)
                     );
                 },
-                Msg::Fetch => {
-                    tasks::task::update(
-                        tasks::task::Msg::fetch_task(model.task_id),
-                        model,
-                        &mut orders.proxy(Msg::Task)
-                    );
-                }
                 _ => {}
             }
         },

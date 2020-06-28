@@ -45,10 +45,38 @@ pub enum Msg {
     Preview(usize, preview::Msg),
     OpenEditor,
     Editor(editor::Msg),
+    GetProjectTasks(Id<Project>),
 }
 impl Msg {
     pub fn fetch_all() -> Msg {
         Msg::GetAll
+    }
+}
+use plans::{
+    project::*,
+};
+use rql::{
+    *,
+};
+#[derive(Clone)]
+pub enum Config {
+    Empty,
+    All,
+    Project(Id<Project>),
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::Empty => {
+            Model::empty()
+        },
+        Config::All => {
+            orders.send_msg(Msg::GetAll);
+            Model::empty()
+        },
+        Config::Project(id) => {
+            orders.send_msg(Msg::GetProjectTasks(id));
+            Model::empty()
+        },
     }
 }
 
@@ -65,6 +93,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 api::get_tasks()
                     .map(|res| Msg::AllTasks(res.map_err(|e| format!("{:?}", e))))
             );
+        },
+        Msg::GetProjectTasks(_id) => {
         },
         Msg::Preview(index, msg) => {
             preview::update(

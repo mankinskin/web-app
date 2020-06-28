@@ -33,6 +33,12 @@ impl Model {
             task: Some(task),
         }
     }
+    fn fetch(id: Id<Task>) -> Self {
+        Self {
+            task_id: id,
+            task: None,
+        }
+    }
 }
 impl From<&Entry<Task>> for Model {
     fn from(entry: &Entry<Task>) -> Self {
@@ -46,16 +52,39 @@ impl From<Entry<Task>> for Model {
 }
 impl From<Id<Task>> for Model {
     fn from(id: Id<Task>) -> Self {
-        Self {
-            task_id: id,
-            task: None,
-        }
+        Self::fetch(id)
     }
 }
 #[derive(Clone)]
 pub enum Msg {
     Get(Id<Task>),
     Task(Result<Option<Task>, String>),
+}
+#[derive(Clone)]
+pub enum Config {
+    TaskId(Id<Task>),
+    Model(Model),
+}
+impl From<Id<Task>> for Config {
+    fn from(id: Id<Task>) -> Self {
+        Self::TaskId(id)
+    }
+}
+impl From<Model> for Config {
+    fn from(model: Model) -> Self {
+        Self::Model(model)
+    }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::TaskId(id) => {
+            orders.send_msg(Msg::Get(id));
+            Model::fetch(id)
+        },
+        Config::Model(model) => {
+            model
+        },
+    }
 }
 impl Msg {
     pub fn fetch_task(id: Id<Task>) -> Msg {

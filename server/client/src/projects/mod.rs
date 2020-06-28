@@ -42,22 +42,35 @@ impl Default for Model {
     }
 }
 #[derive(Clone)]
+pub enum Config {
+    Empty,
+    All,
+    User(Id<User>),
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::User(id) => {
+            orders.send_msg(Msg::FetchUserProjects(id));
+            Model::empty()
+        },
+        Config::Empty => {
+            Model::empty()
+        },
+        Config::All => {
+            orders.send_msg(Msg::GetAll);
+            Model::empty()
+        },
+    }
+}
+#[derive(Clone)]
 pub enum Msg {
     GetAll,
+    OpenEditor,
+    Editor(editor::Msg),
     AllProjects(Result<Vec<Entry<Project>>, String>),
     FetchUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),
     Preview(usize, preview::Msg),
-    OpenEditor,
-    Editor(editor::Msg),
-}
-impl Msg {
-    pub fn fetch_all() -> Msg {
-        Msg::GetAll
-    }
-    pub fn fetch_for_user(id: Id<User>) -> Msg {
-        Msg::FetchUserProjects(id)
-    }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -109,7 +122,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     model.editor = None;
                 },
                 editor::Msg::Create => {
-                    orders.send_msg(Msg::fetch_all());
                 },
                 _ => {},
             }

@@ -26,6 +26,15 @@ impl Model {
     pub fn credentials(&self) -> &Credentials {
         &self.credentials
     }
+    pub fn empty() -> Self {
+        Self::default()
+    }
+}
+pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    Model::empty()
+}
+#[derive(Clone, Default)]
+pub struct Config {
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -58,7 +67,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Register => {
-            page::go_to(register::Model::default(), orders);
+            page::go_to(register::Config::default(), orders);
         },
     }
 }
