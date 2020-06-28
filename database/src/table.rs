@@ -60,6 +60,15 @@ pub trait DatabaseTable<'a>
             .map(|row| row.into())
             .collect()
     }
+    fn get_list(ids: Vec<Id<Self>>) -> Vec<Entry<Self>> {
+        ids.iter()
+            .filter_map(|id|
+                 Self::table()
+                    .get(*id)
+                    .map(|entry| Entry::new(id.clone(), entry.clone()))
+            )
+            .collect()
+    }
     fn filter<F>(f: F) -> Vec<Entry<Self>>
         where F: Fn(&Self) -> bool
     {

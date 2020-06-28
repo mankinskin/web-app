@@ -3,9 +3,7 @@ client:
 		make -C client
 
 run: client
-	cargo watch \
-		-w src \
-		-x run 
+	cargo run 
 	
 clean:
 	make -C client clean
