@@ -24,48 +24,20 @@ pub struct Model {
     pub project: Option<Project>,
     pub tasks: tasks::Model,
 }
-impl Model {
-    pub fn preview(&self) -> preview::Model {
-        preview::Model::from(self.clone())
-    }
-    fn ready(id: Id<Project>, project: Project) -> Self {
-        Self {
-            project_id: id,
-            project: Some(project),
-            tasks: tasks::Model::empty(),
-        }
-    }
-    fn fetch(id: Id<Project>) -> Self {
-        Self {
-            project_id: id,
-            project: None,
-            tasks: tasks::Model::empty(),
-        }
-    }
-}
-impl From<&Entry<Project>> for Model {
-    fn from(entry: &Entry<Project>) -> Self {
-        Self::ready(*entry.id(), entry.data().clone())
-    }
-}
-impl From<Entry<Project>> for Model {
-    fn from(entry: Entry<Project>) -> Self {
-        Self::from(&entry)
-    }
-}
-impl From<Id<Project>> for Model {
-    fn from(id: Id<Project>) -> Self {
-        Self::fetch(id)
-    }
-}
 #[derive(Clone)]
 pub enum Config {
     ProjectId(Id<Project>),
+    Entry(Entry<Project>),
     Model(Model),
 }
 impl From<Id<Project>> for Config {
     fn from(id: Id<Project>) -> Self {
         Self::ProjectId(id)
+    }
+}
+impl From<Entry<Project>> for Config {
+    fn from(entry: Entry<Project>) -> Self {
+        Self::Entry(entry)
     }
 }
 impl From<Model> for Config {
@@ -77,16 +49,31 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     match config {
         Config::ProjectId(id) => {
             orders.send_msg(Msg::Get(id));
-            Model::fetch(id)
+            Model {
+                project_id: id,
+                project: None,
+                tasks: tasks::init(tasks::Config::Project(id), &mut orders.proxy(Msg::Tasks)),
+            }
         },
         Config::Model(model) => {
             model
+        },
+        Config::Entry(entry) => {
+            let id = entry.id().clone();
+            let data = entry.data().clone();
+            Model {
+                project_id: id,
+                project: Some(data),
+                tasks: tasks::init(tasks::Config::Project(id), &mut orders.proxy(Msg::Tasks)),
+            }
         },
     }
 }
 #[derive(Clone)]
 pub enum Msg {
     Get(Id<Project>),
+    Delete,
+    Deleted(Result<Option<Project>, String>),
     Project(Result<Option<Project>, String>),
     Tasks(tasks::Msg),
 }
@@ -111,6 +98,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::Tasks)
             );
         },
+        Msg::Deleted(res) => {
+        },
+        Msg::Delete => {
+            orders.perform_cmd(
+                api::delete_project(model.project_id)
+                .map(|res| Msg::Deleted(res.map_err(|e| format!("{:?}", e))))
+            );
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
@@ -120,6 +115,10 @@ pub fn view(model: &Model) -> Node<Msg> {
             Some(model) => {
                 div![
                     p![model.name()],
+                    button![
+                        simple_ev(Ev::Click, Msg::Delete),
+                        "Delete"
+                    ],
                 ]
             },
             None => {

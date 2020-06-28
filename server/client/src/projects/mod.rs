@@ -89,7 +89,19 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     match msg {
         Msg::AllProjects(res) => {
             match res {
-                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Ok(ps) => { model.previews = ps
+                    .iter()
+                    .enumerate()
+                    .map(|(i, u)|
+                        preview::Model::from(
+                            project::init(
+                                project::Config::Entry(u.clone()),
+                                &mut orders
+                                    .proxy(move |p| Msg::Preview(i, preview::Msg::Project(p)))
+                            )
+                        )
+                    )
+                    .collect(); },
                 Err(e) => { seed::log(e); },
             }
         },
@@ -101,7 +113,19 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::UserProjects(res) => {
             match res {
-                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Ok(ps) => { model.previews = ps
+                    .iter()
+                    .enumerate()
+                    .map(|(i, u)|
+                        preview::Model::from(
+                            project::init(
+                                project::Config::Entry(u.clone()),
+                                &mut orders
+                                    .proxy(move |p| Msg::Preview(i, preview::Msg::Project(p)))
+                            )
+                        )
+                    )
+                    .collect(); },
                 Err(e) => { seed::log(e); },
             }
         },
@@ -117,7 +141,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut model.previews[index],
                 &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
             );
-            if let preview::Msg::Deleted(_) = msg {
+            if let preview::Msg::Project(project::Msg::Deleted(_)) = msg {
                 model.config.update(orders);
             }
         },
