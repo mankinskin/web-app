@@ -96,7 +96,7 @@ impl From<page::Config> for Route {
             page::Config::UserProfile(config) => Route::UserProfile(
                 match config {
                     users::profile::Config::UserId(id) => id,
-                    users::profile::Config::User(model) => model.user_id,
+                    users::profile::Config::Model(model) => model.user_id,
                 }
             ),
             page::Config::Users(_) => Route::Users,
@@ -104,7 +104,6 @@ impl From<page::Config> for Route {
                 match config {
                     projects::project::Config::ProjectId(id) => id,
                     projects::project::Config::Entry(entry) => *entry.id(),
-                    projects::project::Config::Model(model) => model.project_id,
                 }
             ),
             page::Config::Projects(_) => Route::Projects,
@@ -112,6 +111,7 @@ impl From<page::Config> for Route {
                 match config {
                     tasks::task::Config::TaskId(id) => id,
                     tasks::task::Config::Model(model) => model.task_id,
+                    tasks::task::Config::Entry(entry) => *entry.id(),
                 }
             ),
             page::Config::Login(_) => Route::Login,

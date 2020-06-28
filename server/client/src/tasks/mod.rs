@@ -4,6 +4,7 @@ use seed::{
 };
 use plans::{
     task::*,
+    project::*,
 };
 use crate::{
     root::{
@@ -12,6 +13,9 @@ use crate::{
 };
 use database::{
     Entry,
+};
+use rql::{
+    *,
 };
 use std::result::Result;
 
@@ -40,15 +44,6 @@ impl Default for Model {
     }
 }
 
-#[derive(Clone)]
-pub enum Msg {
-    GetAll,
-    AllTasks(Result<Vec<Entry<Task>>, String>),
-    Preview(usize, preview::Msg),
-    OpenEditor,
-    Editor(editor::Msg),
-    GetProjectTasks(Id<Project>),
-}
 impl From<Config> for Model {
     fn from(config: Config) -> Self {
         Self {
@@ -57,17 +52,11 @@ impl From<Config> for Model {
         }
     }
 }
-use plans::{
-    project::*,
-};
-use rql::{
-    *,
-};
 #[derive(Clone)]
 pub enum Config {
     Empty,
     All,
-    Project(Id<Project>),
+    ProjectId(Id<Project>),
 }
 impl Config {
     fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
@@ -75,7 +64,7 @@ impl Config {
             Config::All => {
                 orders.send_msg(Msg::GetAll);
             },
-            Config::Project(id) => {
+            Config::ProjectId(id) => {
                 orders.send_msg(Msg::GetProjectTasks(id.clone()));
             },
             _ => {},
@@ -86,22 +75,56 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     config.update(orders);
     Model::from(config)
 }
-
+#[derive(Clone)]
+pub enum Msg {
+    GetAll,
+    AllTasks(Result<Vec<Entry<Task>>, String>),
+    Preview(usize, preview::Msg),
+    OpenEditor,
+    Editor(editor::Msg),
+    GetProjectTasks(Id<Project>),
+    ProjectTasks(Result<Vec<Entry<Task>>, String>),
+}
+fn init_previews(entries: Vec<Entry<Task>>, orders: &mut impl Orders<Msg, GMsg>) -> Vec<preview::Model> {
+    entries
+        .iter()
+        .enumerate()
+        .map(|(i, u)|
+            preview::Model::from(
+                task::init(
+                    task::Config::Entry(u.clone()),
+                    &mut orders
+                        .proxy(move |p| Msg::Preview(i, preview::Msg::Task(p)))
+                )
+            )
+        )
+        .collect()
+}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::AllTasks(res) => {
-            match res {
-                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
-                Err(e) => { seed::log(e); },
-            }
-        },
         Msg::GetAll => {
             orders.perform_cmd(
                 api::get_tasks()
                     .map(|res| Msg::AllTasks(res.map_err(|e| format!("{:?}", e))))
             );
         },
-        Msg::GetProjectTasks(_id) => {
+        Msg::AllTasks(res) => {
+            match res {
+                Ok(ps) => model.previews = init_previews(ps, orders),
+                Err(e) => { seed::log(e); },
+            }
+        },
+        Msg::GetProjectTasks(id) => {
+            orders.perform_cmd(
+                api::get_project_tasks(id)
+                    .map(|res| Msg::ProjectTasks(res.map_err(|e| format!("{:?}", e))))
+            );
+        },
+        Msg::ProjectTasks(res) => {
+            match res {
+                Ok(ps) => model.previews = init_previews(ps, orders),
+                Err(e) => { seed::log(e); },
+            }
         },
         Msg::Preview(index, msg) => {
             preview::update(
@@ -111,24 +134,24 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::OpenEditor => {
-            model.editor = Some(editor::Model::default());
+            model.editor = Some(editor::init(editor::Config::from(model.config.clone()), &mut orders.proxy(Msg::Editor)));
         },
         Msg::Editor(msg) => {
-            if let Some(model) = &mut model.editor {
+            if let Some(ed) = &mut model.editor {
                 editor::update(
                     msg.clone(),
-                    model,
+                    ed,
                     &mut orders.proxy(Msg::Editor)
                 );
-            }
-            match msg {
-                editor::Msg::Cancel => {
-                    model.editor = None;
-                },
-                editor::Msg::Create => {
-                    model.config.update(orders);
-                },
-                _ => {},
+                match msg {
+                    editor::Msg::Cancel => {
+                        model.editor = None;
+                    },
+                    editor::Msg::Create => {
+                        model.config.update(orders);
+                    },
+                    _ => {},
+                }
             }
         },
     }

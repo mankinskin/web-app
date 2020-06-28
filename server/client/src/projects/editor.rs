@@ -34,7 +34,7 @@ impl Default for Model {
 #[derive(Clone)]
 pub enum Config {
     Empty,
-    User(Id<User>),
+    UserId(Id<User>),
 }
 impl From<Config> for Model {
     fn from(config: Config) -> Self {
@@ -61,13 +61,7 @@ pub enum Msg {
     ChangeDescription(String),
     Create,
     Cancel,
-    CreateProject(Project),
     CreatedProject(Result<Id<Project>, String>),
-}
-impl Msg {
-    pub fn post_project(project: &Project) -> Msg {
-        Msg::CreateProject(project.clone())
-    }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -83,19 +77,16 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 Err(e) => { seed::log(e); },
             }
         },
-        Msg::CreateProject(p) => {
-            let mut project = p;
+        Msg::Create => {
+            let mut project = model.project.clone();
             match model.config {
-                Config::User(id) => { project.add_member(id); },
+                Config::UserId(id) => { project.add_member(id); },
                 _ => {},
             }
             orders.perform_cmd(
                 api::post_project(project)
                     .map(|res| Msg::CreatedProject(res.map_err(|e| format!("{:?}", e))))
             );
-        },
-        Msg::Create => {
-            orders.send_msg(Msg::post_project(&model.project));
         },
         Msg::Cancel => {},
     }

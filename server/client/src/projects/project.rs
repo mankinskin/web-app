@@ -23,12 +23,12 @@ pub struct Model {
     pub project_id: Id<Project>,
     pub project: Option<Project>,
     pub tasks: tasks::Model,
+    pub config: Config,
 }
 #[derive(Clone)]
 pub enum Config {
     ProjectId(Id<Project>),
     Entry(Entry<Project>),
-    Model(Model),
 }
 impl From<Id<Project>> for Config {
     fn from(id: Id<Project>) -> Self {
@@ -42,21 +42,19 @@ impl From<Entry<Project>> for Config {
 }
 impl From<Model> for Config {
     fn from(model: Model) -> Self {
-        Self::Model(model)
+        model.config
     }
 }
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    match config {
+    match config.clone() {
         Config::ProjectId(id) => {
             orders.send_msg(Msg::Get(id));
             Model {
                 project_id: id,
                 project: None,
-                tasks: tasks::init(tasks::Config::Project(id), &mut orders.proxy(Msg::Tasks)),
+                tasks: tasks::init(tasks::Config::ProjectId(id), &mut orders.proxy(Msg::Tasks)),
+                config,
             }
-        },
-        Config::Model(model) => {
-            model
         },
         Config::Entry(entry) => {
             let id = entry.id().clone();
@@ -64,7 +62,8 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
             Model {
                 project_id: id,
                 project: Some(data),
-                tasks: tasks::init(tasks::Config::Project(id), &mut orders.proxy(Msg::Tasks)),
+                tasks: tasks::init(tasks::Config::ProjectId(id), &mut orders.proxy(Msg::Tasks)),
+                config,
             }
         },
     }
@@ -98,13 +97,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::Tasks)
             );
         },
-        Msg::Deleted(res) => {
-        },
         Msg::Delete => {
             orders.perform_cmd(
                 api::delete_project(model.project_id)
                 .map(|res| Msg::Deleted(res.map_err(|e| format!("{:?}", e))))
             );
+        },
+        Msg::Deleted(_res) => {
         },
     }
 }
