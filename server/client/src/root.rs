@@ -15,19 +15,11 @@ pub struct Model {
     navbar: navbar::Model, // the navigation bar
     page: page::Model, // the current page
 }
-impl From<Route> for Model {
-    fn from(route: Route) -> Self {
-        Self {
-            page: page::Model::from(route),
-            ..Default::default()
-        }
-    }
-}
 #[derive(Clone)]
 pub enum Msg {
     NavBar(navbar::Msg),
     Page(page::Msg),
-    SetPage(page::Model),
+    SetPage(page::Config),
 }
 #[derive(Clone)]
 pub enum GMsg {
@@ -61,13 +53,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut orders.proxy(Msg::NavBar)
             );
         },
-        Msg::SetPage(page) => {
+        Msg::SetPage(config) => {
             if let None = api::auth::get_session() {
                 if let Some(session) = api::auth::load_session() {
                     api::auth::set_session(session);
                 }
             }
-            model.page = page;
+            model.page = page::init(config, &mut orders.proxy(Msg::Page));
         },
     }
 }
@@ -94,11 +86,35 @@ pub fn view(model: &Model) -> impl IntoNodes<Msg> {
 }
 fn routes(url: Url) -> Option<Msg> {
     // needed to use Hrefs (because they only change the browser url)
-    Some(Msg::SetPage(page::Model::from(Route::from(url.path()))))
+    Some(Msg::SetPage(page::Config::from(Route::from(url.path()))))
+}
+#[derive(Clone)]
+pub struct Config {
+    navbar: navbar::Config,
+    page: page::Config,
+}
+impl From<seed::Url> for Config {
+    fn from(url: seed::Url) -> Self {
+        Self {
+            navbar: navbar::Config::default(),
+            page: page::Config::from(url),
+        }
+    }
+}
+fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    Model {
+        navbar: navbar::init(config.navbar, &mut orders.proxy(Msg::NavBar)),
+        page: page::init(config.page, &mut orders.proxy(Msg::Page)),
+    }
+}
+
+fn after_mount(url: seed::Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Model> {
+    AfterMount::new(init(Config::from(url), orders))
 }
 #[wasm_bindgen(start)]
 pub fn render() {
     App::builder(update, view)
+        .after_mount(after_mount)
         .routes(routes)
         .sink(sink)
         .build_and_start();

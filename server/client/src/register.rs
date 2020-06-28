@@ -21,6 +21,17 @@ use crate::{
 pub struct Model {
     user: User,
 }
+impl Model {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+}
+#[derive(Clone, Default)]
+pub struct Config {
+}
+pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    Model::default()
+}
 #[derive(Clone)]
 pub enum Msg {
     ChangeUsername(String),
@@ -57,7 +68,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             }
         },
         Msg::Login => {
-            page::go_to(login::Model::default(), orders);
+            page::go_to(login::Config::default(), orders);
         },
     }
 }

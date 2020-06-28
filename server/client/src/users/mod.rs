@@ -23,6 +23,17 @@ pub struct Model {
     users: Vec<Entry<User>>,
     previews: Vec<preview::Model>,
 }
+#[derive(Clone)]
+pub enum Config {
+    Empty,
+    All,
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::Empty => Model::empty(),
+        Config::All => { orders.send_msg(Msg::GetAll); Model::empty() },
+    }
+}
 impl Model {
     pub fn empty() -> Self {
         Self {

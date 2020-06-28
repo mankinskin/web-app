@@ -39,7 +39,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             )
         },
         Msg::Open => {
-            page::go_to(project::Model::from(model.project.clone()), orders);
+            page::go_to(project::Config::from(model.project.clone()), orders);
         },
     }
 }

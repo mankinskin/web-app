@@ -1,3 +1,6 @@
+use rql::{
+    *,
+};
 use crate::{
     users::*,
     projects,
@@ -9,16 +12,34 @@ pub struct Model {
     pub projects: projects::Model,
 }
 #[derive(Clone)]
+pub enum Config {
+    UserId(Id<User>),
+    User(user::Model),
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::UserId(id) => {
+            Model {
+                user: user::init(user::Config::UserId(id), &mut orders.proxy(Msg::User)),
+                projects: projects::init(projects::Config::User(id), &mut orders.proxy(Msg::Projects)),
+            }
+        },
+        Config::User(model) => {
+            Model {
+                user: model.clone(),
+                projects: projects::init(projects::Config::User(model.user_id), &mut orders.proxy(Msg::Projects)),
+            }
+        },
+    }
+}
+#[derive(Clone)]
 pub enum Msg {
     User(user::Msg),
     Projects(projects::Msg),
 }
-impl From<user::Model> for Model {
-    fn from(user: user::Model) -> Self {
-        Self {
-            user,
-            projects: projects::Model::empty(),
-        }
+impl From<user::Model> for Config {
+    fn from(model: user::Model) -> Self {
+        Self::User(model)
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {

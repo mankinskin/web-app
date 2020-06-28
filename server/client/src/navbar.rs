@@ -19,6 +19,12 @@ impl Default for Model {
         }
     }
 }
+#[derive(Clone, Default)]
+pub struct Config {
+}
+pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    Model::default()
+}
 #[derive(Clone)]
 pub enum Msg {
     Logout,

@@ -35,6 +35,13 @@ impl Model {
             tasks: tasks::Model::empty(),
         }
     }
+    fn fetch(id: Id<Project>) -> Self {
+        Self {
+            project_id: id,
+            project: None,
+            tasks: tasks::Model::empty(),
+        }
+    }
 }
 impl From<&Entry<Project>> for Model {
     fn from(entry: &Entry<Project>) -> Self {
@@ -48,11 +55,33 @@ impl From<Entry<Project>> for Model {
 }
 impl From<Id<Project>> for Model {
     fn from(id: Id<Project>) -> Self {
-        Self {
-            project_id: id,
-            project: None,
-            tasks: tasks::Model::empty(),
-        }
+        Self::fetch(id)
+    }
+}
+#[derive(Clone)]
+pub enum Config {
+    ProjectId(Id<Project>),
+    Model(Model),
+}
+impl From<Id<Project>> for Config {
+    fn from(id: Id<Project>) -> Self {
+        Self::ProjectId(id)
+    }
+}
+impl From<Model> for Config {
+    fn from(model: Model) -> Self {
+        Self::Model(model)
+    }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::ProjectId(id) => {
+            orders.send_msg(Msg::Get(id));
+            Model::fetch(id)
+        },
+        Config::Model(model) => {
+            model
+        },
     }
 }
 #[derive(Clone)]

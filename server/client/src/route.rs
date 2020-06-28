@@ -9,6 +9,12 @@ use plans::{
     project::*,
     task::*,
 };
+use crate::{
+    page,
+    users,
+    tasks,
+    projects,
+};
 use std::str::{
     FromStr,
 };
@@ -79,7 +85,51 @@ impl From<Route> for seed::Url {
         Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
     }
 }
-//pub fn change_route<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {
-//    seed::push_route(route.clone());
-//    orders.send_g_msg(GMsg::Root(root::Msg::RouteChanged(route)));
-//}
+impl From<seed::Url> for Route {
+    fn from(url: seed::Url) -> Self {
+        Self::from(url.path())
+    }
+}
+impl From<page::Config> for Route {
+    fn from(config: page::Config) -> Self {
+        match config {
+            page::Config::UserProfile(config) => Route::UserProfile(
+                match config {
+                    users::profile::Config::UserId(id) => id,
+                    users::profile::Config::User(model) => model.user_id,
+                }
+            ),
+            page::Config::Users(_) => Route::Users,
+            page::Config::Project(config) => Route::Project(
+                match config {
+                    projects::project::Config::ProjectId(id) => id,
+                    projects::project::Config::Model(model) => model.project_id,
+                }
+            ),
+            page::Config::Projects(_) => Route::Projects,
+            page::Config::Task(config) => Route::Task(
+                match config {
+                    tasks::task::Config::TaskId(id) => id,
+                    tasks::task::Config::Model(model) => model.task_id,
+                }
+            ),
+            page::Config::Login(_) => Route::Login,
+            page::Config::Register(_) => Route::Register,
+            page::Config::Home(_) => Route::Home,
+        }
+    }
+}
+impl From<page::Model> for Route {
+    fn from(config: page::Model) -> Self {
+        match config {
+            page::Model::UserProfile(profile) => Route::UserProfile(profile.user.user_id),
+            page::Model::Users(_) => Route::Users,
+            page::Model::Project(project) => Route::Project(project.project_id),
+            page::Model::Projects(_) => Route::Projects,
+            page::Model::Task(task) => Route::Task(task.task_id),
+            page::Model::Login(_) => Route::Login,
+            page::Model::Register(_) => Route::Register,
+            page::Model::Home(_) | page::Model::NotFound => Route::Home,
+        }
+    }
+}

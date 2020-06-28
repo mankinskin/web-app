@@ -22,24 +22,44 @@ pub struct Model {
     pub user_id: Id<User>,
     pub user: Option<User>,
 }
+#[derive(Clone)]
+pub enum Config {
+    Model(Model),
+    UserId(Id<User>),
+}
+impl From<Id<User>> for Config {
+    fn from(id: Id<User>) -> Self {
+        Self::UserId(id)
+    }
+}
+impl From<Model> for Config {
+    fn from(model: Model) -> Self {
+        Self::Model(model)
+    }
+}
 impl Model {
-    pub fn preview(&self) -> preview::Model {
-        preview::Model::from(self.clone())
-    }
-    pub fn profile(&self) -> profile::Model {
-        profile::Model::from(self.clone())
-    }
     fn ready(id: Id<User>, user: User) -> Self {
         Self {
-            user_id: id,
             user: Some(user),
+            user_id: id,
         }
     }
-    fn fetch_id(id: Id<User>) -> Self {
+    fn fetch(id: Id<User>) -> Self {
         Self {
             user: None,
             user_id: id,
         }
+    }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    match config {
+        Config::UserId(id) => {
+            orders.send_msg(Msg::Get(id));
+            Model::fetch(id)
+        },
+        Config::Model(model) => {
+            model
+        },
     }
 }
 impl From<&Entry<User>> for Model {
@@ -54,7 +74,7 @@ impl From<Entry<User>> for Model {
 }
 impl From<Id<User>> for Model {
     fn from(user_id: Id<User>) -> Self {
-        Self::fetch_id(user_id)
+        Self::fetch(user_id)
     }
 }
 #[derive(Clone)]
