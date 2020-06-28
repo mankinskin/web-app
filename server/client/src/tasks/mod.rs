@@ -23,12 +23,14 @@ pub mod editor;
 pub struct Model {
     previews: Vec<preview::Model>,
     editor: Option<editor::Model>,
+    config: Config,
 }
 impl Model {
     pub fn empty() -> Self {
         Self {
             previews: vec![],
             editor: None,
+            config: Config::Empty,
         }
     }
 }
@@ -47,9 +49,12 @@ pub enum Msg {
     Editor(editor::Msg),
     GetProjectTasks(Id<Project>),
 }
-impl Msg {
-    pub fn fetch_all() -> Msg {
-        Msg::GetAll
+impl From<Config> for Model {
+    fn from(config: Config) -> Self {
+        Self {
+            config,
+            ..Default::default()
+        }
     }
 }
 use plans::{
@@ -64,20 +69,22 @@ pub enum Config {
     All,
     Project(Id<Project>),
 }
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    match config {
-        Config::Empty => {
-            Model::empty()
-        },
-        Config::All => {
-            orders.send_msg(Msg::GetAll);
-            Model::empty()
-        },
-        Config::Project(id) => {
-            orders.send_msg(Msg::GetProjectTasks(id));
-            Model::empty()
-        },
+impl Config {
+    fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
+        match self {
+            Config::All => {
+                orders.send_msg(Msg::GetAll);
+            },
+            Config::Project(id) => {
+                orders.send_msg(Msg::GetProjectTasks(id.clone()));
+            },
+            _ => {},
+        }
     }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    config.update(orders);
+    Model::from(config)
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
@@ -119,7 +126,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     model.editor = None;
                 },
                 editor::Msg::Create => {
-                    orders.send_msg(Msg::fetch_all());
+                    model.config.update(orders);
                 },
                 _ => {},
             }

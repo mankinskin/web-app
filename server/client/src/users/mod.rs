@@ -22,23 +22,41 @@ pub mod user;
 pub struct Model {
     users: Vec<Entry<User>>,
     previews: Vec<preview::Model>,
+    config: Config,
+}
+impl From<Config> for Model {
+    fn from(config: Config) -> Self {
+        Self {
+            config,
+            ..Default::default()
+        }
+    }
 }
 #[derive(Clone)]
 pub enum Config {
     Empty,
     All,
 }
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    match config {
-        Config::Empty => Model::empty(),
-        Config::All => { orders.send_msg(Msg::GetAll); Model::empty() },
+impl Config {
+    fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
+        match self {
+            Config::All => {
+                orders.send_msg(Msg::GetAll);
+            },
+            _ => {}
+        }
     }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    config.update(orders);
+    Model::from(config)
 }
 impl Model {
     pub fn empty() -> Self {
         Self {
             users: vec![],
             previews: vec![],
+            config: Config::Empty,
         }
     }
 }

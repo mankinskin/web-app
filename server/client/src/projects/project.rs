@@ -90,14 +90,6 @@ pub enum Msg {
     Project(Result<Option<Project>, String>),
     Tasks(tasks::Msg),
 }
-impl Msg {
-    pub fn fetch_project(id: Id<Project>) -> Msg {
-        Msg::Get(id)
-    }
-    pub fn fetch_tasks() -> Msg {
-        Msg::Tasks(tasks::Msg::fetch_all())
-    }
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Project(res) => {
