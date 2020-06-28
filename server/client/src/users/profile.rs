@@ -14,7 +14,7 @@ pub struct Model {
 #[derive(Clone)]
 pub enum Config {
     UserId(Id<User>),
-    User(user::Model),
+    Model(user::Model),
 }
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     match config {
@@ -24,7 +24,7 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
                 projects: projects::init(projects::Config::User(id), &mut orders.proxy(Msg::Projects)),
             }
         },
-        Config::User(model) => {
+        Config::Model(model) => {
             Model {
                 user: model.clone(),
                 projects: projects::init(projects::Config::User(model.user_id), &mut orders.proxy(Msg::Projects)),
@@ -39,7 +39,7 @@ pub enum Msg {
 }
 impl From<user::Model> for Config {
     fn from(model: user::Model) -> Self {
-        Self::User(model)
+        Self::Model(model)
     }
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {

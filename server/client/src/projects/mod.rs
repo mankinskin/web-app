@@ -61,7 +61,7 @@ impl Config {
     fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
         match self {
             Config::User(id) => {
-                orders.send_msg(Msg::FetchUserProjects(id.clone()));
+                orders.send_msg(Msg::GetUserProjects(id.clone()));
             },
             Config::All => {
                 orders.send_msg(Msg::GetAll);
@@ -80,28 +80,31 @@ pub enum Msg {
     OpenEditor,
     Editor(editor::Msg),
     AllProjects(Result<Vec<Entry<Project>>, String>),
-    FetchUserProjects(Id<User>),
+    GetUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),
     Preview(usize, preview::Msg),
 }
 
+fn init_previews(entries: Vec<Entry<Project>>, orders: &mut impl Orders<Msg, GMsg>) -> Vec<preview::Model> {
+    entries
+        .iter()
+        .enumerate()
+        .map(|(i, u)|
+            preview::Model::from(
+                project::init(
+                    project::Config::Entry(u.clone()),
+                    &mut orders
+                        .proxy(move |p| Msg::Preview(i, preview::Msg::Project(p)))
+                )
+            )
+        )
+        .collect()
+}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::AllProjects(res) => {
             match res {
-                Ok(ps) => { model.previews = ps
-                    .iter()
-                    .enumerate()
-                    .map(|(i, u)|
-                        preview::Model::from(
-                            project::init(
-                                project::Config::Entry(u.clone()),
-                                &mut orders
-                                    .proxy(move |p| Msg::Preview(i, preview::Msg::Project(p)))
-                            )
-                        )
-                    )
-                    .collect(); },
+                Ok(ps) => { model.previews = init_previews(ps, orders); },
                 Err(e) => { seed::log(e); },
             }
         },
@@ -113,25 +116,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::UserProjects(res) => {
             match res {
-                Ok(ps) => { model.previews = ps
-                    .iter()
-                    .enumerate()
-                    .map(|(i, u)|
-                        preview::Model::from(
-                            project::init(
-                                project::Config::Entry(u.clone()),
-                                &mut orders
-                                    .proxy(move |p| Msg::Preview(i, preview::Msg::Project(p)))
-                            )
-                        )
-                    )
-                    .collect(); },
+                Ok(ps) => { model.previews = init_previews(ps, orders); },
                 Err(e) => { seed::log(e); },
             }
         },
-        Msg::FetchUserProjects(id) => {
+        Msg::GetUserProjects(id) => {
             orders.perform_cmd(
-                api::find_user_projects(id)
+                api::get_user_projects(id)
                 .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
             );
         },
@@ -148,7 +139,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::OpenEditor => {
             model.editor = match model.config {
                 Config::User(id) => {
-                    Some(editor::init(editor::Config::User(id), &mut orders.proxy(Msg::Editor)))
+                    Some(editor::init(editor::Config::UserId(id), &mut orders.proxy(Msg::Editor)))
                 },
                 _ => {
                     Some(editor::init(editor::Config::Empty, &mut orders.proxy(Msg::Editor)))

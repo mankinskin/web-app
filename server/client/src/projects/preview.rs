@@ -2,9 +2,6 @@ use crate::{
     page,
     projects::*,
 };
-use database::{
-    Entry,
-};
 
 #[derive(Clone)]
 pub struct Model {
