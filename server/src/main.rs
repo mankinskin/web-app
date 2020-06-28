@@ -128,7 +128,9 @@ fn main() {
 
                     api::routes::login,
                     api::routes::register,
-                    api::routes::find_user_projects,
+                    api::routes::get_user_projects,
+                    api::routes::get_project_tasks,
+                    api::routes::project_create_subtask,
                 ],
                 rest_api_routes!(Task),
                 rest_api_routes!(Project),

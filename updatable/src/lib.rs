@@ -51,7 +51,7 @@ impl<T> Update<Vec<T>> for Vec<T>
     where T: Clone
 {
     fn update(&self, data: &mut Vec<T>) {
-        *data = self.clone();
+        data.extend(self.iter().cloned());
     }
 }
 

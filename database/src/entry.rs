@@ -10,6 +10,9 @@ use updatable::*;
 pub struct Entry<T>(Id<T>, T);
 
 impl<T> Entry<T> {
+    pub fn new(id: Id<T>, data: T) -> Self {
+        Self(id, data)
+    }
     pub fn id(&self) -> &Id<T> {
         &self.0
     }
