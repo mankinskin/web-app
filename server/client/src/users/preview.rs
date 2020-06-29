@@ -17,8 +17,8 @@ impl From<user::Model> for Model {
         }
     }
 }
-impl From<&Entry<User>> for Model {
-    fn from(entry: &Entry<User>) -> Self {
+impl From<Entry<User>> for Model {
+    fn from(entry: Entry<User>) -> Self {
         Self {
             user: user::Model::from(entry),
         }

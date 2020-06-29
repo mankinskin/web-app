@@ -107,6 +107,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
 }
 pub fn view(model: &Model) -> Node<Msg> {
     form![
+        style!{
+            St::Display => "grid",
+            St::GridTemplateColumns => "1fr",
+            St::GridGap => "10px",
+            St::MaxWidth => "20%",
+        },
         h1!["New Task"],
         label![
             "Title"

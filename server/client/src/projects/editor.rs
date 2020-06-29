@@ -12,26 +12,6 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Model {
-    pub project: Project,
-    pub project_id: Option<Id<Project>>,
-    pub config: Config,
-}
-impl Model {
-    fn empty() -> Self {
-        Self {
-            project: Project::new(String::new()),
-            project_id: None,
-            config: Config::Empty,
-        }
-    }
-}
-impl Default for Model {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-#[derive(Clone)]
 pub enum Config {
     Empty,
     UserId(Id<User>),
@@ -54,6 +34,26 @@ impl Config {
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     config.update(orders);
     Model::from(config)
+}
+#[derive(Clone)]
+pub struct Model {
+    pub project: Project,
+    pub project_id: Option<Id<Project>>,
+    pub config: Config,
+}
+impl Model {
+    fn empty() -> Self {
+        Self {
+            project: Project::new(String::new()),
+            project_id: None,
+            config: Config::Empty,
+        }
+    }
+}
+impl Default for Model {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 #[derive(Clone)]
 pub enum Msg {

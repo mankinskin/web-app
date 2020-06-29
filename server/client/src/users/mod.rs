@@ -80,7 +80,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     match msg {
         Msg::AllUsers(res) => {
             match res {
-                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u)).collect(),
+                Ok(ps) => model.previews = ps.iter().map(|u| preview::Model::from(u.clone())).collect(),
                 Err(e) => { seed::log(e); },
             }
         },

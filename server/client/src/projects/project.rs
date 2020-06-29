@@ -19,13 +19,6 @@ use database::{
 };
 
 #[derive(Clone)]
-pub struct Model {
-    pub project_id: Id<Project>,
-    pub project: Option<Project>,
-    pub tasks: tasks::Model,
-    pub config: Config,
-}
-#[derive(Clone)]
 pub enum Config {
     ProjectId(Id<Project>),
     Entry(Entry<Project>),
@@ -69,33 +62,35 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     }
 }
 #[derive(Clone)]
+pub struct Model {
+    pub project_id: Id<Project>,
+    pub project: Option<Project>,
+    pub tasks: tasks::Model,
+    pub config: Config,
+}
+#[derive(Clone)]
 pub enum Msg {
     Get(Id<Project>),
+    Project(Result<Option<Project>, String>),
+
     Delete,
     Deleted(Result<Option<Project>, String>),
-    Project(Result<Option<Project>, String>),
+
     Tasks(tasks::Msg),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Project(res) => {
-            match res {
-                Ok(p) => model.project = p,
-                Err(e) => { seed::log(e); },
-            }
-        },
         Msg::Get(id) => {
             orders.perform_cmd(
                 api::get_project(id)
                     .map(|res| Msg::Project(res.map_err(|e| format!("{:?}", e))))
             );
         },
-        Msg::Tasks(msg) => {
-            tasks::update(
-                msg,
-                &mut model.tasks,
-                &mut orders.proxy(Msg::Tasks)
-            );
+        Msg::Project(res) => {
+            match res {
+                Ok(p) => model.project = p,
+                Err(e) => { seed::log(e); },
+            }
         },
         Msg::Delete => {
             orders.perform_cmd(
@@ -104,6 +99,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::Deleted(_res) => {
+        },
+        Msg::Tasks(msg) => {
+            tasks::update(
+                msg,
+                &mut model.tasks,
+                &mut orders.proxy(Msg::Tasks)
+            );
         },
     }
 }

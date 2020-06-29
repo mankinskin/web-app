@@ -24,6 +24,29 @@ pub mod project;
 pub mod editor;
 
 #[derive(Clone)]
+pub enum Config {
+    Empty,
+    All,
+    User(Id<User>),
+}
+impl Config {
+    fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
+        match self {
+            Config::User(id) => {
+                orders.send_msg(Msg::GetUserProjects(id.clone()));
+            },
+            Config::All => {
+                orders.send_msg(Msg::GetAll);
+            },
+            _ => {}
+        }
+    }
+}
+pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    config.update(orders);
+    Model::from(config)
+}
+#[derive(Clone)]
 pub struct Model {
     previews: Vec<preview::Model>,
     editor: Option<editor::Model>,
@@ -50,29 +73,6 @@ impl From<Config> for Model {
             ..Default::default()
         }
     }
-}
-#[derive(Clone)]
-pub enum Config {
-    Empty,
-    All,
-    User(Id<User>),
-}
-impl Config {
-    fn update(&self, orders: &mut impl Orders<Msg, GMsg>) {
-        match self {
-            Config::User(id) => {
-                orders.send_msg(Msg::GetUserProjects(id.clone()));
-            },
-            Config::All => {
-                orders.send_msg(Msg::GetAll);
-            },
-            _ => {}
-        }
-    }
-}
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    config.update(orders);
-    Model::from(config)
 }
 #[derive(Clone)]
 pub enum Msg {
