@@ -17,8 +17,8 @@ impl From<task::Model> for Model {
         }
     }
 }
-impl From<&Entry<Task>> for Model {
-    fn from(entry: &Entry<Task>) -> Self {
+impl From<Entry<Task>> for Model {
+    fn from(entry: Entry<Task>) -> Self {
         Self {
             task: task::Model::from(entry),
         }

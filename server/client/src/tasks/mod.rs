@@ -24,35 +24,6 @@ pub mod task;
 pub mod editor;
 
 #[derive(Clone)]
-pub struct Model {
-    previews: Vec<preview::Model>,
-    editor: Option<editor::Model>,
-    config: Config,
-}
-impl Model {
-    pub fn empty() -> Self {
-        Self {
-            previews: vec![],
-            editor: None,
-            config: Config::Empty,
-        }
-    }
-}
-impl Default for Model {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-impl From<Config> for Model {
-    fn from(config: Config) -> Self {
-        Self {
-            config,
-            ..Default::default()
-        }
-    }
-}
-#[derive(Clone)]
 pub enum Config {
     Empty,
     All,
@@ -74,6 +45,34 @@ impl Config {
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     config.update(orders);
     Model::from(config)
+}
+#[derive(Clone)]
+pub struct Model {
+    previews: Vec<preview::Model>,
+    editor: Option<editor::Model>,
+    config: Config,
+}
+impl Model {
+    pub fn empty() -> Self {
+        Self {
+            previews: vec![],
+            editor: None,
+            config: Config::Empty,
+        }
+    }
+}
+impl Default for Model {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+impl From<Config> for Model {
+    fn from(config: Config) -> Self {
+        Self {
+            config,
+            ..Default::default()
+        }
+    }
 }
 #[derive(Clone)]
 pub enum Msg {

@@ -82,11 +82,6 @@ pub enum Msg {
     Get(Id<User>),
     User(Result<Option<User>, String>),
 }
-impl Msg {
-    pub fn fetch_user(id: Id<User>) -> Msg {
-        Msg::Get(id)
-    }
-}
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::User(res) => {

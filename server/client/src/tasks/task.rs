@@ -19,40 +19,6 @@ use database::{
 use std::result::Result;
 
 #[derive(Clone)]
-pub struct Model {
-    pub task_id: Id<Task>,
-    pub task: Option<Task>,
-}
-impl Model {
-    pub fn preview(&self) -> preview::Model {
-        preview::Model::from(self.clone())
-    }
-    fn ready(id: Id<Task>, task: Task) -> Self {
-        Self {
-            task_id: id,
-            task: Some(task),
-        }
-    }
-}
-impl From<&Entry<Task>> for Model {
-    fn from(entry: &Entry<Task>) -> Self {
-        Self::ready(*entry.id(), entry.data().clone())
-    }
-}
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
-        Self::from(&entry)
-    }
-}
-impl From<Id<Task>> for Model {
-    fn from(id: Id<Task>) -> Self {
-        Self {
-            task_id: id,
-            task: None,
-        }
-    }
-}
-#[derive(Clone)]
 pub enum Config {
     TaskId(Id<Task>),
     Model(Model),
@@ -83,9 +49,31 @@ pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     }
 }
 #[derive(Clone)]
+pub struct Model {
+    pub task_id: Id<Task>,
+    pub task: Option<Task>,
+}
+impl From<Id<Task>> for Model {
+    fn from(id: Id<Task>) -> Self {
+        Self {
+            task_id: id,
+            task: None,
+        }
+    }
+}
+impl From<Entry<Task>> for Model {
+    fn from(entry: Entry<Task>) -> Self {
+        Self {
+            task_id: *entry.id(),
+            task: Some(entry.data().clone()),
+        }
+    }
+}
+#[derive(Clone)]
 pub enum Msg {
     Get(Id<Task>),
     Task(Result<Option<Task>, String>),
+
     Delete,
     Deleted(Result<Option<Task>, String>),
 }
