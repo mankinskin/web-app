@@ -13,36 +13,18 @@ use crate::{
 use std::result::Result;
 
 #[derive(Clone)]
-pub struct Model {
-    pub task: Task,
-    pub task_id: Option<Id<Task>>,
-    pub config: Config,
-}
-impl Model {
-    fn empty() -> Self {
-        Self {
-            task: Task::new(String::new()),
-            task_id: None,
-            config: Config::Empty,
-        }
-    }
-}
-impl Default for Model {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-#[derive(Clone)]
 pub enum Config {
     Empty,
-    ProjectId(Id<Project>),
+    Task(task::Config),
 }
-impl From<Config> for Model {
-    fn from(config: Config) -> Self {
-        Self {
-            config,
-            ..Default::default()
-        }
+impl Default for Config {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+impl From<task::Config> for Config {
+    fn from(config: task::Config) -> Self {
+        Self::Task(config)
     }
 }
 impl Config {
@@ -52,27 +34,47 @@ impl Config {
         }
     }
 }
-impl From<tasks::Config> for Config {
-    fn from(config: tasks::Config) -> Self {
-        match config {
-            tasks::Config::ProjectId(id) => {
-                Self::ProjectId(id)
-            },
-            _ => Self::Empty,
-        }
-    }
-}
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     config.update(orders);
     Model::from(config)
 }
 #[derive(Clone)]
+pub struct Model {
+    task: task::Model,
+}
+impl Default for Model {
+    fn default() -> Self {
+        Self {
+            task: task::Model::default(),
+        }
+    }
+}
+impl From<Task> for Model {
+    fn from(task: Task) -> Self {
+        Self {
+            task,
+            task_id: None,
+        }
+    }
+}
+impl From<Config> for Model {
+    fn from(config: Config) -> Self {
+        match config {
+            Config::Empty => {
+                Self::default()
+            },
+            Config::Task(task) => {
+                Self::from(task)
+            },
+        }
+    }
+}
+#[derive(Clone)]
 pub enum Msg {
     ChangeTitle(String),
     ChangeDescription(String),
-    Create,
+    Submit,
     Cancel,
-    CreatedTask(Result<Id<Task>, String>),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -82,25 +84,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         Msg::ChangeDescription(d) => {
             model.task.set_description(d);
         },
-        Msg::Create => {
-            let task = model.task.clone();
-            if let Config::ProjectId(id) = model.config {
-                orders.perform_cmd(
-                    api::project_create_subtask(id, task)
-                        .map(|res| Msg::CreatedTask(res.map_err(|e| format!("{:?}", e))))
-                );
-            } else {
-                orders.perform_cmd(
-                    api::post_task(task)
-                        .map(|res| Msg::CreatedTask(res.map_err(|e| format!("{:?}", e))))
-                );
-            }
-        },
-        Msg::CreatedTask(res) => {
-            match res {
-                Ok(id) => model.task_id = Some(id),
-                Err(e) => { seed::log(e); },
-            }
+        Msg::Submit => {
         },
         Msg::Cancel => {},
     }
@@ -113,7 +97,11 @@ pub fn view(model: &Model) -> Node<Msg> {
             St::GridGap => "10px",
             St::MaxWidth => "20%",
         },
-        h1!["New Task"],
+        if let Some(_) = model.task_id {
+            h1!["Edit Task"]
+        } else {
+            h1!["New Task"]
+        },
         label![
             "Title"
         ],
@@ -134,9 +122,7 @@ pub fn view(model: &Model) -> Node<Msg> {
             },
             input_ev(Ev::Input, Msg::ChangeDescription)
         ],
-        // Cancel Button
-        button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
-        // Create Button
+        // Submit Button
         button![
             attrs!{
                 At::Type => "submit",
@@ -145,7 +131,9 @@ pub fn view(model: &Model) -> Node<Msg> {
         ],
         ev(Ev::Submit, |ev| {
             ev.prevent_default();
-            Msg::Create
+            Msg::Submit
         }),
+        // Cancel Button
+        button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
     ]
 }

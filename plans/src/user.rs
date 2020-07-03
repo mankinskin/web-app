@@ -18,11 +18,15 @@ use rql::{
     )]
 pub struct User {
     credentials: Credentials,
+    full_name: Option<String>,
+    followers: Vec<Id<User>>,
 }
 impl From<Credentials> for User {
     fn from(credentials: Credentials) -> Self {
         Self {
             credentials,
+            full_name: None,
+            followers: vec![],
         }
     }
 }
@@ -38,11 +42,9 @@ impl User {
     }
     pub fn new<S1: ToString, S2: ToString>(name: S1, password: S2) -> Self {
         Self {
-            credentials:
-                Credentials {
-                    username: name.to_string(),
-                    password: password.to_string()
-                },
+            credentials: Credentials::new(name, password),
+            full_name: None,
+            followers: vec![],
         }
     }
     pub fn name(&self) -> &String {
@@ -56,6 +58,12 @@ impl User {
     }
     pub fn credentials_mut(&mut self) -> &mut Credentials {
         &mut self.credentials
+    }
+    pub fn followers(&self) -> &Vec<Id<User>> {
+        &self.followers
+    }
+    pub fn full_name(&self) -> &Option<String> {
+        &self.full_name
     }
 }
 #[derive(

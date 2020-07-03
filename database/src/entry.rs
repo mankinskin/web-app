@@ -43,3 +43,17 @@ impl<T> From<Row<'_, T>> for Entry<T>
         Self(row.id, (*row.data).clone())
     }
 }
+impl<T> From<Id<T>> for Entry<T>
+    where T: Clone + Default
+{
+    fn from(id: Id<T>) -> Self {
+        Self::from((id, T::default()))
+    }
+}
+impl<T> From<(Id<T>, T)> for Entry<T>
+    where T: Clone
+{
+    fn from((id, data): (Id<T>, T)) -> Self {
+        Self(id, data)
+    }
+}

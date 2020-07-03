@@ -8,7 +8,7 @@ use plans::{
 };
 use crate::{
     page,
-    register,
+    config::*,
     route::{
         Route,
     },
@@ -20,38 +20,27 @@ use crate::{
 /// credential input component
 #[derive(Clone, Default)]
 pub struct Model {
-    credentials: Credentials,
+    pub credentials: Credentials,
 }
-impl Model {
-    pub fn credentials(&self) -> &Credentials {
-        &self.credentials
-    }
-    pub fn empty() -> Self {
-        Self::default()
-    }
-}
-pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    Model::empty()
-}
-#[derive(Clone, Default)]
-pub struct Config {
+impl Component for Model {
+    type Msg = Msg;
 }
 #[derive(Clone)]
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),
     LoginResponse(Result<UserSession, String>),
-    Login,
-    Register,
+    Submit,
+    //Register,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeUsername(u) => model.credentials.username = u,
         Msg::ChangePassword(p) => model.credentials.password = p,
-        Msg::Login => {
+        Msg::Submit => {
             seed::log!("Logging in...");
             orders.perform_cmd(
-                api::login(model.credentials().clone())
+                api::login(model.credentials.clone())
                     .map(|result: Result<UserSession, FetchError>| {
                         Msg::LoginResponse(result.map_err(|e| format!("{:?}", e)))
                     })
@@ -66,9 +55,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 Err(e) => {seed::log!(e)}
             }
         },
-        Msg::Register => {
-            page::go_to(register::Config::default(), orders);
-        },
+        //Msg::Register => {
+        //    page::go_to(register::Config::default(), orders);
+        //},
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
@@ -112,9 +101,9 @@ pub fn view(model: &Model) -> Node<Msg> {
         ],
         ev(Ev::Submit, |ev| {
             ev.prevent_default();
-            Msg::Login
+            Msg::Submit
         }),
-        // Register Button
-        button![simple_ev(Ev::Click, Msg::Register), "Register"],
+        // Go to Register Button
+        // button![simple_ev(Ev::Click, Msg::Register), "Register"],
     ]
 }

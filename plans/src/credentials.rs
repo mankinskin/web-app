@@ -19,8 +19,11 @@ pub struct Credentials {
     pub password: String,
 }
 impl Credentials {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new<S1: ToString, S2: ToString>(name: S1, password: S2) -> Self {
+        Self {
+            username: name.to_string(),
+            password: password.to_string()
+        }
     }
     pub fn username_is_valid(&self) -> bool {
         self.username_invalid_text().is_empty()

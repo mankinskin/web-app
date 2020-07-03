@@ -2,79 +2,88 @@ use rql::{
     *,
 };
 use crate::{
+    config::*,
     users::*,
-    projects,
 };
+use std::result::Result;
 
-#[derive(Clone)]
-pub struct Model {
-    pub user: user::Model,
-    pub projects: projects::Model,
+impl Component for Model {
+    type Msg = Msg;
 }
-#[derive(Clone)]
-pub enum Config {
-    UserId(Id<User>),
-    Model(user::Model),
-}
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    match config {
-        Config::UserId(id) => {
-            Model {
-                user: user::init(user::Config::UserId(id), &mut orders.proxy(Msg::User)),
-                projects: projects::init(projects::Config::User(id), &mut orders.proxy(Msg::Projects)),
-            }
-        },
-        Config::Model(model) => {
-            Model {
-                user: model.clone(),
-                projects: projects::init(projects::Config::User(model.user_id), &mut orders.proxy(Msg::Projects)),
-            }
-        },
+impl From<Id<User>> for Model {
+    fn from(user_id: Id<User>) -> Self {
+        Self {
+            user_id,
+            user: None,
+        }
     }
+}
+impl From<Id<User>> for Msg {
+    fn from(id: Id<User>) -> Self {
+        Msg::Get(id)
+    }
+}
+impl From<Entry<User>> for Model {
+    fn from(entry: Entry<User>) -> Self {
+        Self {
+            user_id: entry.id().clone(),
+            user: Some(entry.data().clone()),
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct Model {
+    pub user_id: Id<User>,
+    pub user: Option<User>,
+    //pub projects: projects::Model,
 }
 #[derive(Clone)]
 pub enum Msg {
-    User(user::Msg),
-    Projects(projects::Msg),
-}
-impl From<user::Model> for Config {
-    fn from(model: user::Model) -> Self {
-        Self::Model(model)
-    }
+    Get(Id<User>),
+    User(Result<Option<Entry<User>>, String>),
+    //Projects(projects::Msg),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::User(msg) => {
-            user::update(
-                msg,
-                &mut model.user,
-                &mut orders.proxy(Msg::User)
-            )
+        Msg::Get(id) => {
+            orders.perform_cmd(
+                api::get_user(id)
+                    .map(|res| Msg::User(res.map_err(|e| format!("{:?}", e))))
+            );
         },
-        Msg::Projects(msg) => {
-            projects::update(
-                msg,
-                &mut model.projects,
-                &mut orders.proxy(Msg::Projects)
-            )
+        Msg::User(res) => {
+            match res {
+                Ok(r) => {
+                    if let Some(entry) = r {
+                        model.user_id = entry.id().clone();
+                        model.user = Some(entry.data().clone());
+                    }
+                },
+                Err(e) => { seed::log(e); },
+            }
         },
+        //Msg::Projects(msg) => {
+        //    projects::update(
+        //        msg,
+        //        &mut model.projects,
+        //        &mut orders.proxy(Msg::Projects)
+        //    )
+        //},
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    match &model.user.user {
-        Some(user) => {
-            div![
-                h1!["Profile"],
-                p![user.name()],
-                projects::view(&model.projects)
-                    .map_msg(Msg::Projects),
-            ]
-        },
-        None => {
-            div![
-                h1!["Profile"],
-                p!["Loading..."],
-            ]
-        },
+    if let Some(user) = &model.user {
+        div![
+            h1!["Profile"],
+            p![user.name()],
+            p![format!("Followers: {}", user.followers().len())],
+            //projects::view(&model.projects)
+            //    .map_msg(Msg::Projects),
+        ]
+    } else {
+        div![
+            p!["Loading..."],
+        ]
     }
 }

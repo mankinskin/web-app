@@ -37,10 +37,10 @@ pub trait DatabaseTable<'a>
         Self::table_mut()
             .insert(obj)
     }
-    fn get(id: Id<Self>) -> Option<Self> {
+    fn get(id: Id<Self>) -> Option<Entry<Self>> {
         Self::table()
             .get(id)
-            .map(|entry| entry.clone())
+            .map(|data| Entry::from((id, data.clone())))
     }
     fn delete(id: Id<Self>) -> Option<Self> {
         Self::table_mut()
@@ -63,9 +63,7 @@ pub trait DatabaseTable<'a>
     fn get_list(ids: Vec<Id<Self>>) -> Vec<Entry<Self>> {
         ids.iter()
             .filter_map(|id|
-                 Self::table()
-                    .get(*id)
-                    .map(|entry| Entry::new(id.clone(), entry.clone()))
+                 Self::get(*id)
             )
             .collect()
     }

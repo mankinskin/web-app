@@ -22,6 +22,7 @@ use std::result::Result;
 pub mod preview;
 pub mod task;
 pub mod editor;
+pub mod profile;
 
 #[derive(Clone)]
 pub enum Config {
@@ -79,10 +80,11 @@ pub enum Msg {
     GetAll,
     AllTasks(Result<Vec<Entry<Task>>, String>),
     Preview(usize, preview::Msg),
-    OpenEditor,
     Editor(editor::Msg),
     GetProjectTasks(Id<Project>),
     ProjectTasks(Result<Vec<Entry<Task>>, String>),
+    NewTask,
+    CreatedTask(Result<Id<Task>, String>),
 }
 fn init_previews(entries: Vec<Entry<Task>>, orders: &mut impl Orders<Msg, GMsg>) -> Vec<preview::Model> {
     entries
@@ -135,21 +137,39 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 model.config.update(orders);
             }
         },
-        Msg::OpenEditor => {
-            model.editor = Some(editor::init(editor::Config::from(model.config.clone()), &mut orders.proxy(Msg::Editor)));
+        Msg::NewTask => {
+            model.editor = Some(editor::init(editor::Config::default(), &mut orders.proxy(Msg::Editor)));
+        },
+        Msg::CreatedTask(res) => {
+            match res {
+                Ok(_id) => {},
+                Err(e) => { seed::log(e); },
+            }
         },
         Msg::Editor(msg) => {
-            if let Some(ed) = &mut model.editor {
+            if let Some(editor) = &mut model.editor {
                 editor::update(
                     msg.clone(),
-                    ed,
+                    editor,
                     &mut orders.proxy(Msg::Editor)
                 );
                 match msg {
                     editor::Msg::Cancel => {
                         model.editor = None;
                     },
-                    editor::Msg::Create => {
+                    editor::Msg::Submit => {
+                        let task = editor.task.clone();
+                        if let Config::ProjectId(id) = model.config {
+                            orders.perform_cmd(
+                                api::project_create_subtask(id, task)
+                                    .map(|res| Msg::CreatedTask(res.map_err(|e| format!("{:?}", e))))
+                            );
+                        } else {
+                            orders.perform_cmd(
+                                api::post_task(task)
+                                    .map(|res| Msg::CreatedTask(res.map_err(|e| format!("{:?}", e))))
+                            );
+                        }
                         model.config.update(orders);
                     },
                     _ => {},
@@ -165,7 +185,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             if let Some(_) = api::auth::get_session() {
                 button![
-                    simple_ev(Ev::Click, Msg::OpenEditor),
+                    simple_ev(Ev::Click, Msg::NewTask),
                     "New Task"
                 ]
             } else { empty![] }
