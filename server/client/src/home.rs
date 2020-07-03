@@ -3,6 +3,7 @@ use seed::{
     prelude::*,
 };
 use crate::{
+    config::*,
     root::{
         GMsg,
     },
@@ -11,19 +12,11 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
 }
-impl Model {
-    pub fn empty() -> Self {
-        Model::default()
-    }
-}
-#[derive(Clone, Default)]
-pub struct Config {
+impl Component for Model {
+    type Msg = Msg;
 }
 #[derive(Clone)]
 pub enum Msg {
-}
-pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    Model::empty()
 }
 pub fn update(_msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
 }

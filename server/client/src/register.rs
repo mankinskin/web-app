@@ -7,7 +7,7 @@ use seed::{
 };
 use crate::{
     page,
-    login,
+    config::*,
     route::{
         Route,
     },
@@ -21,16 +21,8 @@ use crate::{
 pub struct Model {
     user: User,
 }
-impl Model {
-    pub fn empty() -> Self {
-        Self::default()
-    }
-}
-#[derive(Clone, Default)]
-pub struct Config {
-}
-pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    Model::default()
+impl Component for Model {
+    type Msg = Msg;
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -38,7 +30,7 @@ pub enum Msg {
     ChangePassword(String),
     Submit,
     RegistrationResponse(Result<UserSession, String>),
-    Login,
+    //Login,
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
@@ -67,9 +59,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 Err(e) => {seed::log!(e)}
             }
         },
-        Msg::Login => {
-            page::go_to(login::Config::default(), orders);
-        },
+        //Msg::Login => {
+        //    page::go_to(login::Config::default(), orders);
+        //},
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
@@ -116,6 +108,6 @@ pub fn view(model: &Model) -> Node<Msg> {
             Msg::Submit
         }),
         // Login Button
-        button![simple_ev(Ev::Click, Msg::Login), "Log In"],
+        //button![simple_ev(Ev::Click, Msg::Login), "Log In"],
     ]
 }

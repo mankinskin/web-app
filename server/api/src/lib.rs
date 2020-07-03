@@ -39,7 +39,9 @@ api! {
         *,
     };
     fn get_project_tasks(id: Id<Project>) -> Vec<Entry<Task>> {
-        let ids = Project::get(id).map(|project| project.tasks().clone()).unwrap_or(Vec::new());
+        let ids = Project::get(id)
+            .map(|entry| entry.data().tasks().clone())
+            .unwrap_or(Vec::new());
         Task::get_list(ids)
     }
     fn get_user_projects(id: Id<User>) -> Vec<Entry<Project>> {

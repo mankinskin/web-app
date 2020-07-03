@@ -33,10 +33,16 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
     match msg {
         Msg::Task(msg) => {
             task::update(
-                msg,
+                msg.clone(),
                 &mut model.task,
                 &mut orders.proxy(Msg::Task)
-            )
+            );
+            match msg {
+                task::Msg::Edit => {
+                    page::go_to(task::Config::Edit(model.task.clone()), orders);
+                },
+                _ => {}
+            }
         },
         Msg::Open => {
             page::go_to(task::Config::from(model.task.clone()), orders);
@@ -58,6 +64,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                 button![
                     simple_ev(Ev::Click, Msg::Task(task::Msg::Delete)),
                     "Delete"
+                ],
+                button![
+                    simple_ev(Ev::Click, Msg::Task(task::Msg::Edit)),
+                    "Edit"
                 ],
             ]
         },

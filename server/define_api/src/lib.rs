@@ -537,7 +537,7 @@ pub fn rest_api_routes(input: TokenStream) -> TokenStream {
 fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("get_{}", ident);
     quote! {
-        fn #name(id: Id<#ty>) -> Option<#ty> {
+        fn #name(id: Id<#ty>) -> Option<Entry<#ty>> {
             #ty::get(id)
         }
     }

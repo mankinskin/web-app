@@ -20,44 +20,35 @@ use std::result::Result;
 
 #[derive(Clone)]
 pub enum Config {
-    TaskId(Id<Task>),
-    Model(Model),
-    Entry(Entry<Task>),
+    Task(task::Config),
+    Editor(editor::Config),
 }
-impl From<Id<Task>> for Config {
-    fn from(id: Id<Task>) -> Self {
-        Self::TaskId(id)
-    }
-}
-impl From<Model> for Config {
-    fn from(model: Model) -> Self {
-        Self::Model(model)
+impl From<task::Config> for Config {
+    fn from(config: task::Config) -> Self {
+        Self::Task(config)
     }
 }
 pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
     match config {
-        Config::TaskId(id) => {
-            orders.send_msg(Msg::Get(id.clone()));
-            Model::from(id)
+        Config::Task(config) => {
+            Model::Task(task::init(config, orders.proxy(Msg::Task)))
         },
-        Config::Entry(entry) => {
-            Model::from(entry)
-        },
-        Config::Model(model) => {
-            model
+        Config::Editor(config) => {
+            Model::Editor(editor::init(config, orders.proxy(Msg::Editor)))
         },
     }
 }
 #[derive(Clone)]
-pub struct Model {
-    pub task_id: Id<Task>,
-    pub task: Option<Task>,
+pub enum Model {
+    Task(task::Model),
+    Editor(editor::Model),
 }
 impl From<Id<Task>> for Model {
     fn from(id: Id<Task>) -> Self {
         Self {
             task_id: id,
             task: None,
+            editor: None,
         }
     }
 }
@@ -66,6 +57,7 @@ impl From<Entry<Task>> for Model {
         Self {
             task_id: *entry.id(),
             task: Some(entry.data().clone()),
+            editor: None,
         }
     }
 }
@@ -102,26 +94,46 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Deleted(_res) => {
         },
+        Msg::Edit => {
+            if let Some(task) = &model.task {
+                model.editor = Some(editor::init(editor::Config::Task(task.clone()), &mut orders.proxy(Msg::Editor)));
+            }
+        },
+        Msg::Editor(msg) => {
+            if let Some(model) = &mut model.editor {
+                editor::update(
+                    msg,
+                    model,
+                    &mut orders.proxy(Msg::Editor),
+                );
+            }
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
-    if let Some(model) = &model.task {
+    if let Some(model) = &model.editor {
         div![
-            h1!["Task"],
-            p![model.title()],
-            button![
-                simple_ev(Ev::Click, Msg::Delete),
-                "Delete"
-            ],
-            button![
-                simple_ev(Ev::Click, Msg::Edit),
-                "Edit"
-            ],
+            editor::view(&model).map_msg(Msg::Editor)
         ]
     } else {
-        div![
-            h1!["Task"],
-            p!["Loading..."],
-        ]
+        if let Some(model) = &model.task {
+            div![
+                h1!["Task"],
+                p![model.title()],
+                button![
+                    simple_ev(Ev::Click, Msg::Delete),
+                    "Delete"
+                ],
+                button![
+                    simple_ev(Ev::Click, Msg::Edit),
+                    "Edit"
+                ],
+            ]
+        } else {
+            div![
+                h1!["Task"],
+                p!["Loading..."],
+            ]
+        }
     }
 }

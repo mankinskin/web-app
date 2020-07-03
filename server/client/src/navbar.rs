@@ -3,27 +3,19 @@ use seed::{
     prelude::*,
 };
 use crate::{
+    config::*,
     root::{
         self,
         GMsg,
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Model {
 }
 
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-        }
-    }
-}
-#[derive(Clone, Default)]
-pub struct Config {
-}
-pub fn init(_config: Config, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    Model::default()
+impl Component for Model {
+    type Msg = Msg;
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -55,12 +47,12 @@ pub fn view(_model: &Model) -> Node<Msg> {
                     },
                     "Users",
                 ],
-                a![
-                    attrs!{
-                        At::Href => format!("/projects");
-                    },
-                    "Projects",
-                ],
+                //a![
+                //    attrs!{
+                //        At::Href => format!("/projects");
+                //    },
+                //    "Projects",
+                //],
                 a![
                     attrs!{
                         At::Href => format!("/users/{}", session.user_id);

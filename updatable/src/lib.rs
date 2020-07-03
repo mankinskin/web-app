@@ -54,6 +54,18 @@ impl<T> Update<Vec<T>> for Vec<T>
         data.extend(self.iter().cloned());
     }
 }
+impl<T> Updatable for Option<T>
+    where T: Clone
+{
+     type Update = Self;
+}
+impl<T> Update<Option<T>> for Option<T>
+    where T: Clone
+{
+    fn update(&self, data: &mut Option<T>) {
+        *data = self.clone();
+    }
+}
 
 mod tests {
     use super::*;
