@@ -10,6 +10,7 @@ use rql::{
 use crate::{
     config::*,
     root::{
+        self,
         GMsg,
     },
     tasks::*,
@@ -27,38 +28,44 @@ pub struct Model {
     pub task_id: Id<Task>,
     pub task: Option<Task>,
 }
-impl From<Id<Task>> for Msg {
-    fn from(id: Id<Task>) -> Self {
-        Msg::Get(id)
-    }
-}
-impl From<Id<Task>> for Model {
-    fn from(id: Id<Task>) -> Self {
-        Self {
-            task_id: id,
+impl Config<Model> for Id<Task> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task_id: self,
             task: None,
         }
     }
+    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+        orders.send_msg(Msg::Get(self));
+    }
 }
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
-        Self {
-            task_id: *entry.id(),
-            task: Some(entry.data().clone()),
+impl Config<Model> for Entry<Task> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task_id: *self.id(),
+            task: Some(self.data().clone()),
         }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
 pub enum Msg {
     Get(Id<Task>),
-    Task(Result<Option<Entry<Task>>, String>),
+    GotTask(Result<Option<Entry<Task>>, String>),
 
     Delete,
     Deleted(Result<Option<Task>, String>),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::Task(res) => {
+        Msg::Get(id) => {
+            orders.perform_cmd(
+                api::get_task(id)
+                    .map(|res| Msg::GotTask(res.map_err(|e| format!("{:?}", e))))
+            );
+        },
+        Msg::GotTask(res) => {
             match res {
                 Ok(r) =>
                     if let Some(entry) = r {
@@ -67,12 +74,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                     },
                 Err(e) => { seed::log(e); },
             }
-        },
-        Msg::Get(id) => {
-            orders.perform_cmd(
-                api::get_task(id)
-                    .map(|res| Msg::Task(res.map_err(|e| format!("{:?}", e))))
-            );
         },
         Msg::Delete => {
             orders.perform_cmd(

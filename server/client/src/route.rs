@@ -20,8 +20,8 @@ pub enum Route {
     Home,
     Login,
     Register,
-    UserList,
-    UserProfile(Id<User>),
+    Users,
+    User(Id<User>),
     Projects,
     Project(Id<Project>),
     Task(Id<Task>),
@@ -34,8 +34,8 @@ impl Into<Vec<String>> for Route {
             Route::Home => vec![],
             Route::Login => vec!["login".into()],
             Route::Register => vec!["register".into()],
-            Route::UserList => vec!["users".into()],
-            Route::UserProfile(id) => vec!["users".into(), id.to_string()],
+            Route::Users => vec!["users".into()],
+            Route::User(id) => vec!["users".into(), id.to_string()],
             Route::Projects => vec!["projects".into()],
             Route::Project(id) => vec!["projects".into(), id.to_string()],
             Route::Task(id) => vec!["tasks".into(), id.to_string()],
@@ -52,10 +52,10 @@ impl From<&[String]> for Route {
                 "register" => Route::Register,
                 "users" =>
                     if path.len() == 1 {
-                        Route::UserList
+                        Route::Users
                     } else if path.len() == 2 {
                         match Id::from_str(&path[1]) {
-                            Ok(id) => Route::UserProfile(id),
+                            Ok(id) => Route::User(id),
                             Err(_e) => Route::NotFound,
                         }
                     } else {
@@ -102,11 +102,11 @@ impl From<page::Model> for Route {
             page::Model::Home(_) | page::Model::NotFound => Route::Home,
             page::Model::Login(_) => Route::Login,
             page::Model::Register(_) => Route::Register,
-            page::Model::UserList(_) => Route::UserList,
-            page::Model::UserProfile(profile) => Route::UserProfile(profile.user.user_id.clone()),
-            page::Model::Project(project) => Route::Project(project.project_id),
+            page::Model::UserList(_) => Route::Users,
+            page::Model::UserProfile(profile) => Route::User(profile.user.user_id.clone()),
+            page::Model::ProjectProfile(project) => Route::Project(project.project.project_id),
             page::Model::ProjectList(_) => Route::Projects,
-            page::Model::Task(task) => Route::Task(task.task_id),
+            page::Model::TaskProfile(task) => Route::Task(task.task.task_id),
         }
     }
 }

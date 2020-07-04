@@ -11,6 +11,11 @@ use crate::{
 impl Component for Model {
     type Msg = Msg;
 }
+#[derive(Clone, Default)]
+pub struct Model {
+    pub user: user::Model,
+    pub projects: projects::list::Model,
+}
 impl Config<Model> for Id<User> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
@@ -33,11 +38,6 @@ impl Config<Model> for Entry<User> {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct Model {
-    pub user: user::Model,
-    pub projects: projects::list::Model,
-}
 #[derive(Clone)]
 pub enum Msg {
     User(user::Msg),

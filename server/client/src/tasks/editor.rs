@@ -12,6 +12,7 @@ use crate::{
     },
     tasks::{*},
 };
+use std::result::Result;
 
 impl Component for Model {
     type Msg = Msg;
@@ -25,9 +26,8 @@ pub struct Model {
 impl Config<Model> for Id<Project> {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
-            task: Default::default(),
-            task_id: None,
             project_id: Some(self),
+            ..Default::default()
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -38,7 +38,7 @@ impl Config<Model> for task::Model {
         Model {
             task: self.task.unwrap_or(Default::default()),
             task_id: Some(self.task_id),
-            project_id: None,
+            ..Default::default()
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -49,7 +49,7 @@ impl From<Entry<Task>> for Model {
         Self {
             task_id: Some(entry.id().clone()),
             task: entry.data().clone(),
-            project_id: None,
+            ..Default::default()
         }
     }
 }
@@ -57,10 +57,11 @@ impl From<Entry<Task>> for Model {
 pub enum Msg {
     ChangeTitle(String),
     ChangeDescription(String),
-    Submit,
     Cancel,
+    Submit,
+    Created(Result<Id<Task>, String>),
 }
-pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeTitle(n) => {
             model.task.set_title(n);
@@ -68,9 +69,27 @@ pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>)
         Msg::ChangeDescription(d) => {
             model.task.set_description(d);
         },
-        Msg::Submit => {
-        },
         Msg::Cancel => {},
+        Msg::Submit => {
+            let task = model.task.clone();
+            if let Some(id) = model.project_id {
+                orders.perform_cmd(
+                    api::project_create_subtask(id, task)
+                        .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
+                );
+            } else {
+                orders.perform_cmd(
+                    api::post_task(task)
+                        .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
+                );
+            }
+        },
+        Msg::Created(res) => {
+            match res {
+                Ok(id) => model.task_id = Some(id),
+                Err(e) => { seed::log(e); },
+            }
+        },
     }
 }
 pub fn view(model: &Model) -> Node<Msg> {
