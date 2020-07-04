@@ -31,9 +31,7 @@ impl Component for Model {
 }
 impl Config<Model> for Msg {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-        match self {
-            _ => Model::default(),
-        }
+        Model::default()
     }
     fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
         orders.send_msg(self);
@@ -43,8 +41,7 @@ impl Config<Model> for Vec<Entry<Project>> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
             previews: init_previews(self, orders),
-            editor: None,
-            user_id: None,
+            ..Default::default()
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -53,9 +50,8 @@ impl Config<Model> for Vec<Entry<Project>> {
 impl Config<Model> for Id<User> {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
-            previews: vec![],
-            editor: None,
             user_id: Some(self),
+            ..Default::default()
         }
     }
     fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -77,38 +73,35 @@ fn init_previews(entries: Vec<Entry<Project>>, orders: &mut impl Orders<Msg, GMs
 }
 #[derive(Clone, Default)]
 pub struct Model {
-    previews: Vec<preview::Model>,
     user_id: Option<Id<User>>,
+    previews: Vec<preview::Model>,
     editor: Option<editor::Model>,
 }
 #[derive(Clone)]
 pub enum Msg {
     GetAll,
-    OpenEditor,
-    Editor(editor::Msg),
     AllProjects(Result<Vec<Entry<Project>>, String>),
+
     GetUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),
+
     Preview(usize, preview::Msg),
+
+    OpenEditor,
+    Editor(editor::Msg),
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::AllProjects(res) => {
-            match res {
-                Ok(ps) => { model.previews = init_previews(ps, orders); },
-                Err(e) => { seed::log(e); },
-            }
-        },
         Msg::GetAll => {
             orders.perform_cmd(
                 api::get_projects()
                     .map(|res| Msg::AllProjects(res.map_err(|e| format!("{:?}", e))))
             );
         },
-        Msg::UserProjects(res) => {
+        Msg::AllProjects(res) => {
             match res {
-                Ok(ps) => { model.previews = init_previews(ps, orders); },
+                Ok(ps) => model.previews = init_previews(ps, orders),
                 Err(e) => { seed::log(e); },
             }
         },
@@ -117,6 +110,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 api::get_user_projects(id)
                 .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
             );
+        },
+        Msg::UserProjects(res) => {
+            match res {
+                Ok(ps) => model.previews = init_previews(ps, orders),
+                Err(e) => { seed::log(e); },
+            }
         },
         Msg::Preview(index, msg) => {
             preview::update(
@@ -139,10 +138,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             };
         },
         Msg::Editor(msg) => {
-            if let Some(model) = &mut model.editor {
+            if let Some(editor) = &mut model.editor {
                 editor::update(
                     msg.clone(),
-                    model,
+                    editor,
                     &mut orders.proxy(Msg::Editor)
                 );
             }
@@ -150,7 +149,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 editor::Msg::Cancel => {
                     model.editor = None;
                 },
-                editor::Msg::Create => {
+                editor::Msg::Created(_) => {
                     orders.send_msg(
                         if let Some(id) = model.user_id {
                             Msg::GetUserProjects(id)

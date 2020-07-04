@@ -23,8 +23,8 @@ pub enum Model {
     UserProfile(users::profile::Model),
     UserList(users::list::Model),
     ProjectList(projects::list::Model),
-    Project(projects::project::Model),
-    Task(tasks::task::Model),
+    ProjectProfile(projects::profile::Model),
+    TaskProfile(tasks::profile::Model),
 }
 impl Default for Model {
     fn default() -> Self {
@@ -41,18 +41,14 @@ impl Config<Model> for Route {
             Route::Home => Model::Home(Default::default()),
             Route::Login => Model::Login(Default::default()),
             Route::Register => Model::Register(Default::default()),
-            Route::UserList => Model::UserList(Config::init(users::list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
-            Route::UserProfile(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
-            Route::Task(id) => Model::Task(Config::init(id, &mut orders.proxy(Msg::Task))),
-            Route::Project(id) => Model::Project(Config::init(id, &mut orders.proxy(Msg::Project))),
+            Route::Users => Model::UserList(Config::init(users::list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
+            Route::User(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
             Route::Projects => Model::ProjectList(Config::init(projects::list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
+            Route::Project(id) => Model::ProjectProfile(Config::init(id, &mut orders.proxy(Msg::ProjectProfile))),
+            Route::Task(id) => Model::TaskProfile(Config::init(id, &mut orders.proxy(Msg::TaskProfile))),
         }
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
-        match self {
-            Route::UserList => Some(Msg::UserList(users::list::Msg::GetAll)),
-            _ => None,
-        }.map(|msg| orders.send_msg(msg));
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 pub fn go_to<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {
@@ -67,8 +63,8 @@ pub enum Msg {
     UserList(users::list::Msg),
     UserProfile(users::profile::Msg),
     ProjectList(projects::list::Msg),
-    Project(projects::project::Msg),
-    Task(tasks::task::Msg),
+    ProjectProfile(projects::profile::Msg),
+    TaskProfile(tasks::profile::Msg),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match model {
@@ -144,25 +140,25 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 _ => {}
             }
         },
-        Model::Project(model) => {
+        Model::ProjectProfile(model) => {
             match msg {
-                Msg::Project(msg) => {
-                    projects::project::update(
+                Msg::ProjectProfile(msg) => {
+                    projects::profile::update(
                         msg,
                         model,
-                        &mut orders.proxy(Msg::Project)
+                        &mut orders.proxy(Msg::ProjectProfile)
                     );
                 },
                 _ => {}
             }
         },
-        Model::Task(model) => {
+        Model::TaskProfile(model) => {
             match msg {
-                Msg::Task(msg) => {
-                    tasks::task::update(
+                Msg::TaskProfile(msg) => {
+                    tasks::profile::update(
                         msg,
                         model,
-                        &mut orders.proxy(Msg::Task)
+                        &mut orders.proxy(Msg::TaskProfile)
                     );
                 },
                 _ => {}
@@ -193,11 +189,11 @@ pub fn view(model: &Model) -> Node<Msg> {
         Model::ProjectList(model) =>
             projects::list::view(&model)
                 .map_msg(Msg::ProjectList),
-        Model::Project(model) =>
-            projects::project::view(&model)
-                .map_msg(Msg::Project),
-        Model::Task(model) =>
-            tasks::task::view(&model)
-                .map_msg(Msg::Task),
+        Model::ProjectProfile(model) =>
+            projects::profile::view(&model)
+                .map_msg(Msg::ProjectProfile),
+        Model::TaskProfile(model) =>
+            tasks::profile::view(&model)
+                .map_msg(Msg::TaskProfile),
     }
 }

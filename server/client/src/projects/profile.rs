@@ -23,6 +23,12 @@ use database::{
 impl Component for Model {
     type Msg = Msg;
 }
+#[derive(Clone)]
+pub struct Model {
+    pub project: project::Model,
+    pub tasks: tasks::list::Model,
+    //pub editor: Option<editor::Model>,
+}
 impl Config<Model> for Id<Project> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
@@ -43,11 +49,6 @@ impl Config<Model> for Entry<Project> {
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
-}
-#[derive(Clone)]
-pub struct Model {
-    pub project: project::Model,
-    pub tasks: tasks::list::Model,
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -74,7 +75,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
 }
 pub fn view(model: &Model) -> Node<Msg> {
     div![
-        project::view(&model.project).map_msg(Msg::Project),
-        tasks::list::view(&model.tasks).map_msg(Msg::TaskList),
+        project::view(&model.project)
+            .map_msg(Msg::Project),
+        tasks::list::view(&model.tasks)
+            .map_msg(Msg::TaskList),
     ]
 }

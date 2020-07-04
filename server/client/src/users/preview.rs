@@ -29,7 +29,7 @@ pub enum Msg {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Open => {
-            page::go_to(route::Route::UserProfile(model.user.id().clone()), orders);
+            page::go_to(route::Route::User(model.user.id().clone()), orders);
         },
     }
 }

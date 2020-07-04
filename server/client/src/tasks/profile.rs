@@ -10,6 +10,7 @@ use rql::{
 use crate::{
     config::*,
     root::{
+        self,
         GMsg,
     },
     tasks::*,
@@ -17,45 +18,37 @@ use crate::{
 use database::{
     Entry,
 };
-use std::result::Result;
 
 impl Component for Model {
     type Msg = Msg;
 }
 #[derive(Clone)]
 pub struct Model {
-    task: task::Model,
-    editor: Option<editor::Model>,
+    pub task: task::Model,
+    pub editor: Option<editor::Model>,
 }
-impl From<Id<Task>> for Msg {
-    fn from(id: Id<Task>) -> Self {
-        Msg::Get(id)
-    }
-}
-impl From<Id<Task>> for Model {
-    fn from(id: Id<Task>) -> Self {
-        Self {
-            task: task::Model::from(id),
+impl Config<Model> for Id<Task> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: Config::init(self.clone(), &mut orders.proxy(Msg::Task)),
             editor: None,
         }
     }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
 }
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
-        Self {
-            task: task::Model::from(entry),
+impl Config<Model> for Entry<Task> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: Config::init(self, &mut orders.proxy(Msg::Task)),
             editor: None,
         }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    Get(Id<Task>),
-    GotTask(Result<Option<Entry<Task>>, String>),
-
-    Delete,
-    Deleted(Result<Option<Task>, String>),
-
     Edit,
     Editor(editor::Msg),
 
@@ -63,30 +56,6 @@ pub enum Msg {
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
-        Msg::GotTask(res) => {
-            match res {
-                Ok(r) =>
-                    if let Some(entry) = r {
-                        model.task.task_id = entry.id().clone();
-                        model.task.task = Some(entry.data().clone());
-                    },
-                Err(e) => { seed::log(e); },
-            }
-        },
-        Msg::Get(id) => {
-            orders.perform_cmd(
-                api::get_task(id)
-                    .map(|res| Msg::GotTask(res.map_err(|e| format!("{:?}", e))))
-            );
-        },
-        Msg::Delete => {
-            orders.perform_cmd(
-                api::delete_task(model.task.task_id)
-                .map(|res| Msg::Deleted(res.map_err(|e| format!("{:?}", e))))
-            );
-        },
-        Msg::Deleted(_res) => {
-        },
         Msg::Edit => {
             model.editor = Some(Config::init(model.task.clone(), &mut orders.proxy(Msg::Editor)));
         },

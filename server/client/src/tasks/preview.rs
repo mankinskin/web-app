@@ -23,10 +23,19 @@ impl From<task::Model> for Model {
         }
     }
 }
-impl Config<Model> for Entry<Task> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+impl Config<Model> for Id<Task> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
-            task: task::Model::from(self),
+            task: Config::init(self, &mut orders.proxy(Msg::Task)),
+        }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
+}
+impl Config<Model> for Entry<Task> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: Config::init(self, &mut orders.proxy(Msg::Task)),
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
