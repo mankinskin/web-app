@@ -17,4 +17,4 @@ use seed::{
 pub mod preview;
 pub mod profile;
 pub mod list;
-
+pub mod user;

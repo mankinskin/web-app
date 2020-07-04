@@ -6,8 +6,8 @@ use rql::{
 };
 use plans::{
     user::*,
-    //project::*,
-    //task::*,
+    project::*,
+    task::*,
 };
 use crate::{
     page,
@@ -22,9 +22,9 @@ pub enum Route {
     Register,
     UserList,
     UserProfile(Id<User>),
-    //Projects,
-    //Project(Id<Project>),
-    //Task(Id<Task>),
+    Projects,
+    Project(Id<Project>),
+    Task(Id<Task>),
     NotFound,
 }
 impl Into<Vec<String>> for Route {
@@ -36,9 +36,9 @@ impl Into<Vec<String>> for Route {
             Route::Register => vec!["register".into()],
             Route::UserList => vec!["users".into()],
             Route::UserProfile(id) => vec!["users".into(), id.to_string()],
-            //Route::Projects => vec!["projects".into()],
-            //Route::Project(id) => vec!["projects".into(), id.to_string()],
-            //Route::Task(id) => vec!["tasks".into(), id.to_string()],
+            Route::Projects => vec!["projects".into()],
+            Route::Project(id) => vec!["projects".into(), id.to_string()],
+            Route::Task(id) => vec!["tasks".into(), id.to_string()],
         }
     }
 }
@@ -61,17 +61,26 @@ impl From<&[String]> for Route {
                     } else {
                         Route::NotFound
                     },
-                //"projects" =>
-                //    if path.len() == 1 {
-                //        Route::Projects
-                //    } else if path.len() == 2 {
-                //        match Id::from_str(&path[1]) {
-                //            Ok(id) => Route::Project(id),
-                //            Err(_e) => Route::NotFound,
-                //        }
-                //    } else {
-                //        Route::NotFound
-                //    },
+                "projects" =>
+                    if path.len() == 1 {
+                        Route::Projects
+                    } else if path.len() == 2 {
+                        match Id::from_str(&path[1]) {
+                            Ok(id) => Route::Project(id),
+                            Err(_e) => Route::NotFound,
+                        }
+                    } else {
+                        Route::NotFound
+                    },
+                "tasks" =>
+                    if path.len() == 2 {
+                        match Id::from_str(&path[1]) {
+                            Ok(id) => Route::Task(id),
+                            Err(_e) => Route::NotFound,
+                        }
+                    } else {
+                        Route::NotFound
+                    },
                 _ => Route::Home,
             }
         }
@@ -94,10 +103,10 @@ impl From<page::Model> for Route {
             page::Model::Login(_) => Route::Login,
             page::Model::Register(_) => Route::Register,
             page::Model::UserList(_) => Route::UserList,
-            page::Model::UserProfile(profile) => Route::UserProfile(profile.user_id.clone()),
-            //page::Model::Project(project) => Route::Project(project.project_id),
-            //page::Model::Projects(_) => Route::Projects,
-            //page::Model::Task(task) => Route::Task(task.task_id),
+            page::Model::UserProfile(profile) => Route::UserProfile(profile.user.user_id.clone()),
+            page::Model::Project(project) => Route::Project(project.project_id),
+            page::Model::ProjectList(_) => Route::Projects,
+            page::Model::Task(task) => Route::Task(task.task_id),
         }
     }
 }

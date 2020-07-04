@@ -5,54 +5,41 @@ use plans::{
     project::*,
 };
 use crate::{
+    config::*,
     root::{
+        self,
         GMsg,
     },
     projects::*,
 };
 
-#[derive(Clone)]
-pub enum Config {
-    Empty,
-    UserId(Id<User>),
+impl Component for Model {
+    type Msg = Msg;
 }
-impl From<Config> for Model {
-    fn from(config: Config) -> Self {
-        Self {
-            config,
-            ..Default::default()
-        }
-    }
-}
-impl Config {
-    fn update(&self, _orders: &mut impl Orders<Msg, GMsg>) {
-        match self {
-            _ => {}
-        }
-    }
-}
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    config.update(orders);
-    Model::from(config)
-}
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Model {
     pub project: Project,
     pub project_id: Option<Id<Project>>,
-    pub config: Config,
+    pub user_id: Option<Id<User>>,
 }
-impl Model {
-    fn empty() -> Self {
-        Self {
-            project: Project::new(String::new()),
+impl Config<Model> for Id<User> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
             project_id: None,
-            config: Config::Empty,
+            project: Default::default(),
+            user_id: Some(self),
         }
     }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
 }
-impl Default for Model {
-    fn default() -> Self {
-        Self::empty()
+impl From<Entry<Project>> for Model {
+    fn from(entry: Entry<Project>) -> Self {
+        Self {
+            project_id: Some(entry.id().clone()),
+            project: entry.data().clone(),
+            user_id: None,
+        }
     }
 }
 #[derive(Clone)]
@@ -79,9 +66,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
         },
         Msg::Create => {
             let mut project = model.project.clone();
-            match model.config {
-                Config::UserId(id) => { project.add_member(id); },
-                _ => {},
+            if let Some(id) = model.user_id {
+                project.add_member(id);
             }
             orders.perform_cmd(
                 api::post_project(project)

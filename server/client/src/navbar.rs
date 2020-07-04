@@ -47,12 +47,12 @@ pub fn view(_model: &Model) -> Node<Msg> {
                     },
                     "Users",
                 ],
-                //a![
-                //    attrs!{
-                //        At::Href => format!("/projects");
-                //    },
-                //    "Projects",
-                //],
+                a![
+                    attrs!{
+                        At::Href => format!("/projects");
+                    },
+                    "Projects",
+                ],
                 a![
                     attrs!{
                         At::Href => format!("/users/{}", session.user_id);

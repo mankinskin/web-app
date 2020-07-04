@@ -22,9 +22,9 @@ pub enum Model {
     Register(register::Model),
     UserProfile(users::profile::Model),
     UserList(users::list::Model),
-    //Projects(projects::Model),
-    //Project(projects::project::Model),
-    //Task(tasks::task::Model),
+    ProjectList(projects::list::Model),
+    Project(projects::project::Model),
+    Task(tasks::task::Model),
 }
 impl Default for Model {
     fn default() -> Self {
@@ -43,6 +43,9 @@ impl Config<Model> for Route {
             Route::Register => Model::Register(Default::default()),
             Route::UserList => Model::UserList(Config::init(users::list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
             Route::UserProfile(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
+            Route::Task(id) => Model::Task(Config::init(id, &mut orders.proxy(Msg::Task))),
+            Route::Project(id) => Model::Project(Config::init(id, &mut orders.proxy(Msg::Project))),
+            Route::Projects => Model::ProjectList(Config::init(projects::list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
         }
     }
     fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -63,9 +66,9 @@ pub enum Msg {
     Register(register::Msg),
     UserList(users::list::Msg),
     UserProfile(users::profile::Msg),
-    //Projects(projects::Msg),
-    //Project(projects::project::Msg),
-    //Task(tasks::task::Msg),
+    ProjectList(projects::list::Msg),
+    Project(projects::project::Msg),
+    Task(tasks::task::Msg),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match model {
@@ -129,42 +132,42 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 _ => {}
             }
         },
-        //Model::Projects(model) => {
-        //    match msg {
-        //        Msg::Projects(msg) => {
-        //            projects::update(
-        //                msg,
-        //                model,
-        //                &mut orders.proxy(Msg::Projects)
-        //            );
-        //        },
-        //        _ => {}
-        //    }
-        //},
-        //Model::Project(model) => {
-        //    match msg {
-        //        Msg::Project(msg) => {
-        //            projects::project::update(
-        //                msg,
-        //                model,
-        //                &mut orders.proxy(Msg::Project)
-        //            );
-        //        },
-        //        _ => {}
-        //    }
-        //},
-        //Model::Task(model) => {
-        //    match msg {
-        //        Msg::Task(msg) => {
-        //            tasks::task::update(
-        //                msg,
-        //                model,
-        //                &mut orders.proxy(Msg::Task)
-        //            );
-        //        },
-        //        _ => {}
-        //    }
-        //},
+        Model::ProjectList(model) => {
+            match msg {
+                Msg::ProjectList(msg) => {
+                    projects::list::update(
+                        msg,
+                        model,
+                        &mut orders.proxy(Msg::ProjectList)
+                    );
+                },
+                _ => {}
+            }
+        },
+        Model::Project(model) => {
+            match msg {
+                Msg::Project(msg) => {
+                    projects::project::update(
+                        msg,
+                        model,
+                        &mut orders.proxy(Msg::Project)
+                    );
+                },
+                _ => {}
+            }
+        },
+        Model::Task(model) => {
+            match msg {
+                Msg::Task(msg) => {
+                    tasks::task::update(
+                        msg,
+                        model,
+                        &mut orders.proxy(Msg::Task)
+                    );
+                },
+                _ => {}
+            }
+        },
         _ => {},
     }
 }
@@ -187,14 +190,14 @@ pub fn view(model: &Model) -> Node<Msg> {
         Model::UserProfile(model) =>
             users::profile::view(&model)
                 .map_msg(Msg::UserProfile),
-        //Model::Projects(model) =>
-        //    projects::view(&model)
-        //        .map_msg(Msg::Projects),
-        //Model::Project(model) =>
-        //    projects::project::view(&model)
-        //        .map_msg(Msg::Project),
-        //Model::Task(model) =>
-        //    tasks::task::view(&model)
-        //        .map_msg(Msg::Task),
+        Model::ProjectList(model) =>
+            projects::list::view(&model)
+                .map_msg(Msg::ProjectList),
+        Model::Project(model) =>
+            projects::project::view(&model)
+                .map_msg(Msg::Project),
+        Model::Task(model) =>
+            tasks::task::view(&model)
+                .map_msg(Msg::Task),
     }
 }

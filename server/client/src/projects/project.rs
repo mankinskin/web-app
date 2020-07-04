@@ -8,87 +8,71 @@ use rql::{
     Id,
 };
 use crate::{
+    config::*,
     root::{
+        self,
         GMsg,
     },
     projects::*,
-    tasks,
 };
 use database::{
     Entry,
 };
 
-#[derive(Clone)]
-pub enum Config {
-    ProjectId(Id<Project>),
-    Entry(Entry<Project>),
+impl Component for Model {
+    type Msg = Msg;
 }
-impl From<Id<Project>> for Config {
-    fn from(id: Id<Project>) -> Self {
-        Self::ProjectId(id)
+impl Config<Model> for Id<Project> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            project_id: self.clone(),
+            project: None,
+        }
+    }
+    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+        orders.send_msg(Msg::Get(self));
     }
 }
-impl From<Entry<Project>> for Config {
-    fn from(entry: Entry<Project>) -> Self {
-        Self::Entry(entry)
+impl Config<Model> for Entry<Project> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        let id = self.id().clone();
+        let data = self.data().clone();
+        Model {
+            project_id: id.clone(),
+            project: Some(data),
+        }
     }
-}
-impl From<Model> for Config {
-    fn from(model: Model) -> Self {
-        model.config
-    }
-}
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    match config.clone() {
-        Config::ProjectId(id) => {
-            orders.send_msg(Msg::Get(id));
-            Model {
-                project_id: id,
-                project: None,
-                tasks: tasks::init(tasks::Config::ProjectId(id), &mut orders.proxy(Msg::Tasks)),
-                config,
-            }
-        },
-        Config::Entry(entry) => {
-            let id = entry.id().clone();
-            let data = entry.data().clone();
-            Model {
-                project_id: id,
-                project: Some(data),
-                tasks: tasks::init(tasks::Config::ProjectId(id), &mut orders.proxy(Msg::Tasks)),
-                config,
-            }
-        },
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
 pub struct Model {
     pub project_id: Id<Project>,
     pub project: Option<Project>,
-    pub tasks: tasks::Model,
-    pub config: Config,
 }
 #[derive(Clone)]
 pub enum Msg {
     Get(Id<Project>),
-    Project(Result<Option<Project>, String>),
+    GotProject(Result<Option<Entry<Project>>, String>),
 
     Delete,
     Deleted(Result<Option<Project>, String>),
-
-    Tasks(tasks::Msg),
 }
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::Get(id) => {
             orders.perform_cmd(
                 api::get_project(id)
-                    .map(|res| Msg::Project(res.map_err(|e| format!("{:?}", e))))
+                    .map(|res| Msg::GotProject(res.map_err(|e| format!("{:?}", e))))
             );
         },
-        Msg::Project(res) => {
+        Msg::GotProject(res) => {
             match res {
-                Ok(p) => model.project = p,
+                Ok(r) =>
+                if let Some(entry) = r {
+                    model.project_id = entry.id().clone();
+                    model.project = Some(entry.data().clone());
+                },
                 Err(e) => { seed::log(e); },
             }
         },
@@ -99,13 +83,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             );
         },
         Msg::Deleted(_res) => {
-        },
-        Msg::Tasks(msg) => {
-            tasks::update(
-                msg,
-                &mut model.tasks,
-                &mut orders.proxy(Msg::Tasks)
-            );
         },
     }
 }
@@ -120,6 +97,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                         simple_ev(Ev::Click, Msg::Delete),
                         "Delete"
                     ],
+                    //button![
+                    //    simple_ev(Ev::Click, Msg::Edit),
+                    //    "Edit"
+                    //],
                 ]
             },
             None => {
@@ -128,6 +109,5 @@ pub fn view(model: &Model) -> Node<Msg> {
                 ]
             },
         },
-        tasks::view(&model.tasks).map_msg(Msg::Tasks)
     ]
 }
