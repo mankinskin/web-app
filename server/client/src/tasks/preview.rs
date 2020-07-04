@@ -1,11 +1,17 @@
 use crate::{
     page,
+    route,
     tasks::*,
+    config::*,
+    root,
 };
 use database::{
     Entry,
 };
 
+impl Component for Model {
+    type Msg = Msg;
+}
 #[derive(Clone)]
 pub struct Model {
     pub task: task::Model,
@@ -17,11 +23,13 @@ impl From<task::Model> for Model {
         }
     }
 }
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
-        Self {
-            task: task::Model::from(entry),
+impl Config<Model> for Entry<Task> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: task::Model::from(self),
         }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
@@ -37,15 +45,15 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
                 &mut model.task,
                 &mut orders.proxy(Msg::Task)
             );
-            match msg {
-                task::Msg::Edit => {
-                    page::go_to(task::Config::Edit(model.task.clone()), orders);
-                },
-                _ => {}
-            }
+            //match msg {
+            //    task::Msg::Edit => {
+            //        page::go_to(route::Route::Task(model.task.task_id.clone()), orders);
+            //    },
+            //    _ => {}
+            //}
         },
         Msg::Open => {
-            page::go_to(task::Config::from(model.task.clone()), orders);
+            page::go_to(route::Route::Task(model.task.task_id.clone()), orders);
         },
     }
 }
@@ -65,10 +73,10 @@ pub fn view(model: &Model) -> Node<Msg> {
                     simple_ev(Ev::Click, Msg::Task(task::Msg::Delete)),
                     "Delete"
                 ],
-                button![
-                    simple_ev(Ev::Click, Msg::Task(task::Msg::Edit)),
-                    "Edit"
-                ],
+                //button![
+                //    simple_ev(Ev::Click, Msg::Task(task::Msg::Edit)),
+                //    "Edit"
+                //],
             ]
         },
         None => {

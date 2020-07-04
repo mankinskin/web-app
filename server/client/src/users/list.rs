@@ -40,14 +40,6 @@ impl Config<Model> for Msg {
         orders.send_msg(self);
     }
 }
-//impl Config<Model> for Vec<Entry<User>> {
-//    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-//        Model::from(self)
-//    }
-//    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
-//        orders.send_msg(self);
-//    }
-//}
 impl From<Vec<Entry<User>>> for Model {
     fn from(entries: Vec<Entry<User>>) -> Self {
         Self {
@@ -55,11 +47,6 @@ impl From<Vec<Entry<User>>> for Model {
         }
     }
 }
-//impl From<Vec<Entry<User>>> for Msg {
-//    fn from(entry: Vec<Entry<User>>) -> Self {
-//        Msg::None
-//    }
-//}
 #[derive(Clone)]
 pub enum Msg {
     Preview(usize, preview::Msg),

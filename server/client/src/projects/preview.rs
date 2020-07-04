@@ -1,8 +1,14 @@
 use crate::{
+    root,
     page,
+    route,
     projects::*,
+    config::*,
 };
 
+impl Component for Model {
+    type Msg = Msg;
+}
 #[derive(Clone)]
 pub struct Model {
     pub project: project::Model,
@@ -12,6 +18,24 @@ impl From<project::Model> for Model {
         Self {
             project: model,
         }
+    }
+}
+impl Config<Model> for Id<Project> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            project: Config::init(self, &mut orders.proxy(Msg::Project)),
+        }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
+}
+impl Config<Model> for Entry<Project> {
+    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            project: Config::init(self, &mut orders.proxy(Msg::Project)),
+        }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
@@ -29,7 +53,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) 
             )
         },
         Msg::Open => {
-            page::go_to(project::Config::from(model.project.clone()), orders);
+            page::go_to(route::Route::Project(model.project.project_id.clone()), orders);
         },
     }
 }

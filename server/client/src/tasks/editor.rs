@@ -5,67 +5,51 @@ use plans::{
     task::*,
 };
 use crate::{
+    config::*,
     root::{
+        self,
         GMsg,
     },
-    tasks::{self, *},
+    tasks::{*},
 };
-use std::result::Result;
 
-#[derive(Clone)]
-pub enum Config {
-    Empty,
-    Task(task::Config),
+impl Component for Model {
+    type Msg = Msg;
 }
-impl Default for Config {
-    fn default() -> Self {
-        Self::Empty
-    }
-}
-impl From<task::Config> for Config {
-    fn from(config: task::Config) -> Self {
-        Self::Task(config)
-    }
-}
-impl Config {
-    fn update(&self, _orders: &mut impl Orders<Msg, GMsg>) {
-        match self {
-            _ => {}
-        }
-    }
-}
-pub fn init(config: Config, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-    config.update(orders);
-    Model::from(config)
-}
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Model {
-    task: task::Model,
+    pub task: Task,
+    pub task_id: Option<Id<Task>>,
+    pub project_id: Option<Id<Project>>,
 }
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-            task: task::Model::default(),
-        }
-    }
-}
-impl From<Task> for Model {
-    fn from(task: Task) -> Self {
-        Self {
-            task,
+impl Config<Model> for Id<Project> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: Default::default(),
             task_id: None,
+            project_id: Some(self),
         }
     }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
 }
-impl From<Config> for Model {
-    fn from(config: Config) -> Self {
-        match config {
-            Config::Empty => {
-                Self::default()
-            },
-            Config::Task(task) => {
-                Self::from(task)
-            },
+impl Config<Model> for task::Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model {
+            task: self.task.unwrap_or(Default::default()),
+            task_id: Some(self.task_id),
+            project_id: None,
+        }
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    }
+}
+impl From<Entry<Task>> for Model {
+    fn from(entry: Entry<Task>) -> Self {
+        Self {
+            task_id: Some(entry.id().clone()),
+            task: entry.data().clone(),
+            project_id: None,
         }
     }
 }
@@ -76,7 +60,7 @@ pub enum Msg {
     Submit,
     Cancel,
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
+pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
     match msg {
         Msg::ChangeTitle(n) => {
             model.task.set_title(n);
