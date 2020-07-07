@@ -7,7 +7,11 @@ use plans::{
 };
 use crate::{
     root,
-    config::*,
+    config::{
+        Config,
+        Component,
+        View,
+    },
     users::{
         preview,
     },
@@ -26,9 +30,6 @@ fn init_previews(entries: Vec<Entry<User>>) -> Vec<preview::Model> {
 #[derive(Clone, Default)]
 pub struct Model {
     previews: Vec<preview::Model>,
-}
-impl Component for Model {
-    type Msg = Msg;
 }
 impl Config<Model> for Msg {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
@@ -54,38 +55,41 @@ pub enum Msg {
     GetAll,
     AllUsers(Result<Vec<Entry<User>>, String>),
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::Preview(index, msg) => {
-            preview::update(
-                msg,
-                &mut model.previews[index],
-                &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
-            );
-        },
-        Msg::GetAll => {
-            orders.perform_cmd(
-                api::get_users()
-                    .map(|res| Msg::AllUsers(res.map_err(|e| format!("{:?}", e))))
-            );
-        },
-        Msg::AllUsers(res) => {
-            match res {
-                Ok(users) => model.previews = init_previews(users),
-                Err(e) => { seed::log(e); },
-            }
-        },
-
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+        match msg {
+            Msg::Preview(index, msg) => {
+                self.previews[index].update(
+                    msg,
+                    &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
+                );
+            },
+            Msg::GetAll => {
+                orders.perform_cmd(
+                    api::get_users()
+                        .map(|res| Msg::AllUsers(res.map_err(|e| format!("{:?}", e))))
+                );
+            },
+            Msg::AllUsers(res) => {
+                match res {
+                    Ok(users) => self.previews = init_previews(users),
+                    Err(e) => { seed::log(e); },
+                }
+            },
+        }
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
-    div![
-        ul![
-            model.previews.iter().enumerate()
-                .map(|(i, preview)| li![
-                     preview::view(preview)
-                        .map_msg(move |msg| Msg::Preview(i.clone(), msg))
-                ])
+impl View for Model {
+    fn view(&self) -> Node<Msg> {
+        div![
+            ul![
+                self.previews.iter().enumerate()
+                    .map(|(i, preview)| li![
+                         preview.view()
+                            .map_msg(move |msg| Msg::Preview(i.clone(), msg))
+                    ])
+            ]
         ]
-    ]
+    }
 }
