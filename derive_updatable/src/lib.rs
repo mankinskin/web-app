@@ -1,4 +1,3 @@
-#![feature(specialization)]
 extern crate syn;
 #[macro_use] extern crate quote;
 extern crate proc_macro2;
