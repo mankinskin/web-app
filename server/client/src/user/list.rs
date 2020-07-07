@@ -12,7 +12,7 @@ use crate::{
         Component,
         View,
     },
-    users::{
+    user::{
         preview,
     },
     root::{
@@ -30,6 +30,14 @@ fn init_previews(entries: Vec<Entry<User>>) -> Vec<preview::Model> {
 #[derive(Clone, Default)]
 pub struct Model {
     previews: Vec<preview::Model>,
+}
+impl Config<Model> for list::Msg<User> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+        Model::default()
+    }
+    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+        orders.send_msg(Msg::List(self));
+    }
 }
 impl Config<Model> for Msg {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
@@ -67,13 +75,13 @@ impl Component for Model {
             },
             Msg::GetAll => {
                 orders.perform_cmd(
-                    api::get_users()
+                    api::get_user()
                         .map(|res| Msg::AllUsers(res.map_err(|e| format!("{:?}", e))))
                 );
             },
             Msg::AllUsers(res) => {
                 match res {
-                    Ok(users) => self.previews = init_previews(users),
+                    Ok(user) => self.previews = init_previews(user),
                     Err(e) => { seed::log(e); },
                 }
             },

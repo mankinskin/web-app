@@ -10,7 +10,7 @@ use crate::{
         self,
         GMsg,
     },
-    tasks::{*},
+    task::{*},
 };
 use std::result::Result;
 

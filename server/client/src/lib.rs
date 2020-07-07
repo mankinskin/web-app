@@ -16,19 +16,22 @@ extern crate seed;
 extern crate api;
 extern crate async_trait;
 
-pub mod login;
-pub mod register;
-pub mod home;
-pub mod navbar;
-pub mod users;
-pub mod page;
 pub mod root;
-pub use root::*;
 pub mod route;
+
 pub mod config;
-pub mod projects;
-pub mod tasks;
 pub mod list;
 pub mod preview;
 pub mod entry;
 pub mod newdata;
+
+pub mod page;
+pub mod login;
+pub mod register;
+pub mod home;
+pub mod navbar;
+pub mod user;
+pub mod project;
+pub mod task;
+
+pub use root::*;

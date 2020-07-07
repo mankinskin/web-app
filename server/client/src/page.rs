@@ -28,11 +28,11 @@ pub enum Model {
     Home(home::Model),
     Login(login::Model),
     Register(register::Model),
-    UserProfile(users::profile::Model),
+    UserProfile(user::profile::Model),
     UserList(list::Model<User>),
-    ProjectList(projects::list::Model),
-    ProjectProfile(projects::profile::Model),
-    TaskProfile(tasks::profile::Model),
+    ProjectList(project::list::Model),
+    ProjectProfile(project::profile::Model),
+    TaskProfile(task::profile::Model),
 }
 impl Default for Model {
     fn default() -> Self {
@@ -48,7 +48,7 @@ impl Config<Model> for Route {
             Route::Register => Model::Register(Default::default()),
             Route::Users => Model::UserList(Config::init(list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
             Route::User(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
-            Route::Projects => Model::ProjectList(Config::init(projects::list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
+            Route::Projects => Model::ProjectList(Config::init(list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
             Route::Project(id) => Model::ProjectProfile(Config::init(id, &mut orders.proxy(Msg::ProjectProfile))),
             Route::Task(id) => Model::TaskProfile(Config::init(id, &mut orders.proxy(Msg::TaskProfile))),
         }
@@ -67,10 +67,10 @@ pub enum Msg {
     Login(login::Msg),
     Register(register::Msg),
     UserList(list::Msg<User>),
-    UserProfile(users::profile::Msg),
-    ProjectList(projects::list::Msg),
-    ProjectProfile(projects::profile::Msg),
-    TaskProfile(tasks::profile::Msg),
+    UserProfile(user::profile::Msg),
+    ProjectList(project::list::Msg),
+    ProjectProfile(project::profile::Msg),
+    TaskProfile(task::profile::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
