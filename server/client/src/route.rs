@@ -42,11 +42,11 @@ impl Into<Vec<String>> for Route {
             Route::Home => vec![],
             Route::Login => vec!["login".into()],
             Route::Register => vec!["register".into()],
-            Route::Users => vec!["users".into()],
-            Route::User(id) => vec!["users".into(), id.to_string()],
-            Route::Projects => vec!["projects".into()],
-            Route::Project(id) => vec!["projects".into(), id.to_string()],
-            Route::Task(id) => vec!["tasks".into(), id.to_string()],
+            Route::Users => vec!["user".into()],
+            Route::User(id) => vec!["user".into(), id.to_string()],
+            Route::Projects => vec!["project".into()],
+            Route::Project(id) => vec!["project".into(), id.to_string()],
+            Route::Task(id) => vec!["task".into(), id.to_string()],
         }
     }
 }
@@ -58,7 +58,7 @@ impl From<&[String]> for Route {
             match &path[0][..] {
                 "login" => Route::Login,
                 "register" => Route::Register,
-                "users" =>
+                "user" =>
                     if path.len() == 1 {
                         Route::Users
                     } else if path.len() == 2 {
@@ -69,7 +69,7 @@ impl From<&[String]> for Route {
                     } else {
                         Route::NotFound
                     },
-                "projects" =>
+                "project" =>
                     if path.len() == 1 {
                         Route::Projects
                     } else if path.len() == 2 {
@@ -80,7 +80,7 @@ impl From<&[String]> for Route {
                     } else {
                         Route::NotFound
                     },
-                "tasks" =>
+                "task" =>
                     if path.len() == 2 {
                         match Id::from_str(&path[1]) {
                             Ok(id) => Route::Task(id),

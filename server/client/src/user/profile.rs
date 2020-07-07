@@ -1,47 +1,34 @@
-use seed::{
-    *,
-    prelude::*,
-};
-use plans::{
-    project::*,
-};
 use rql::{
-    Id,
+    *,
 };
 use crate::{
+    root,
     config::{
+        Config,
         Component,
         View,
-        Config,
     },
-    root::{
-        self,
-        GMsg,
-    },
-    tasks,
+    user::*,
+    project,
     entry,
-};
-use database::{
-    Entry,
 };
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: entry::Model<Project>,
-    pub tasks: tasks::list::Model,
-    //pub editor: Option<editor::Model>,
+    pub entry: entry::Model<User>,
+    pub project: project::list::Model,
 }
-impl Config<Model> for Id<Project> {
+impl Config<Model> for Id<User> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
-            tasks: Config::init(self, &mut orders.proxy(Msg::TaskList)),
+            project: Config::init(self, &mut orders.proxy(Msg::ProjectList)),
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
-impl Config<Model> for Entry<Project> {
+impl Config<Model> for Entry<User> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         let id = self.id().clone();
         Config::init(id, orders)
@@ -49,10 +36,11 @@ impl Config<Model> for Entry<Project> {
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
+
 #[derive(Clone)]
 pub enum Msg {
-    Entry(entry::Msg<Project>),
-    TaskList(tasks::list::Msg),
+    Entry(entry::Msg<User>),
+    ProjectList(project::list::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
@@ -62,13 +50,13 @@ impl Component for Model {
                 self.entry.update(
                     msg,
                     &mut orders.proxy(Msg::Entry)
-                );
+                )
             },
-            Msg::TaskList(msg) => {
-                self.tasks.update(
+            Msg::ProjectList(msg) => {
+                self.project.update(
                     msg,
-                    &mut orders.proxy(Msg::TaskList)
-                );
+                    &mut orders.proxy(Msg::ProjectList)
+                )
             },
         }
     }
@@ -78,8 +66,8 @@ impl View for Model {
         div![
             self.entry.view()
                 .map_msg(Msg::Entry),
-            self.tasks.view()
-                .map_msg(Msg::TaskList),
+            self.project.view()
+                .map_msg(Msg::ProjectList),
         ]
     }
 }

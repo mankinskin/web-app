@@ -14,7 +14,7 @@ use crate::{
         self,
         GMsg,
     },
-    projects::*,
+    project::*,
 };
 
 #[derive(Clone, Default)]

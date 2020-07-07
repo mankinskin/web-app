@@ -3,20 +3,16 @@ use seed::{
     prelude::*,
 };
 use plans::{
+    task::*,
     project::*,
-    user::*,
-};
-use rql::{
-    *,
 };
 use crate::{
     config::{
-        Config,
         Component,
         View,
+        Config,
     },
     root::{
-        self,
         GMsg,
     },
     list,
@@ -24,93 +20,84 @@ use crate::{
 use database::{
     Entry,
 };
+use rql::{
+    *,
+};
 use std::result::Result;
 
 #[derive(Clone, Default)]
 pub struct Model {
-    user_id: Option<Id<User>>,
-    list: list::Model<Project>,
+    project_id: Option<Id<Project>>,
+    list: list::Model<Task>,
     //editor: Option<editor::Model>,
 }
 impl Config<Model> for Msg {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg, GMsg>) {
         orders.send_msg(self);
     }
 }
-impl Config<Model> for Vec<Entry<Project>> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+impl Config<Model> for Vec<Entry<Task>> {
+    fn into_model(self, orders: &mut impl Orders<Msg, GMsg>) -> Model {
         Model {
             list: Config::init(self, &mut orders.proxy(Msg::List)),
             ..Default::default()
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg, GMsg>) {
     }
 }
-impl Config<Model> for Id<User> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+impl Config<Model> for Id<Project> {
+    fn into_model(self, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
         Model {
-            user_id: Some(self),
+            project_id: Some(self),
             ..Default::default()
         }
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
-        orders.send_msg(Msg::GetUserProjects(self));
+    fn send_msg(self, orders: &mut impl Orders<Msg, GMsg>) {
+        orders.send_msg(Msg::GetProjectTasks(self));
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    GetAll,
-    AllProjects(Result<Vec<Entry<Project>>, String>),
+    GetProjectTasks(Id<Project>),
+    ProjectTasks(Result<Vec<Entry<Task>>, String>),
 
-    GetUserProjects(Id<User>),
-    UserProjects(Result<Vec<Entry<Project>>, String>),
-
-    List(list::Msg<Project>),
+    List(list::Msg<Task>),
 
     //OpenEditor,
     //Editor(editor::Msg),
 }
-
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
         match msg {
-            Msg::GetAll => {
+            Msg::GetProjectTasks(id) => {
                 orders.perform_cmd(
-                    api::get_projects()
-                        .map(|res| Msg::AllProjects(res.map_err(|e| format!("{:?}", e))))
+                    api::get_project_tasks(id)
+                        .map(|res| Msg::ProjectTasks(res.map_err(|e| format!("{:?}", e))))
                 );
             },
-            Msg::AllProjects(res) => {
+            Msg::ProjectTasks(res) => {
                 match res {
-                    Ok(entries) => self.list = Config::init(entries, &mut orders.proxy(Msg::List)),
-                    Err(e) => { seed::log(e); },
-                }
-            },
-            Msg::GetUserProjects(id) => {
-                orders.perform_cmd(
-                    api::get_user_projects(id)
-                    .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
-                );
-            },
-            Msg::UserProjects(res) => {
-                match res {
-                    Ok(entries) => self.list = Config::init(entries, &mut orders.proxy(Msg::List)),
+                    Ok(entries) =>
+                        self.list = Config::init(
+                            entries,
+                            &mut orders.proxy(Msg::List)
+                        ),
                     Err(e) => { seed::log(e); },
                 }
             },
             Msg::List(msg) => {
                 self.list.update(
-                    msg,
+                    msg.clone(),
                     &mut orders.proxy(Msg::List)
                 );
             },
             //Msg::OpenEditor => {
-            //    self.editor = match self.user_id {
+            //    model.editor = match model.project_id {
             //        Some(id) => {
             //            Some(Config::init(id, &mut orders.proxy(Msg::Editor)))
             //        },
@@ -120,20 +107,21 @@ impl Component for Model {
             //    };
             //},
             //Msg::Editor(msg) => {
-            //    if let Some(editor) = &mut self.editor {
-            //        editor.update(
+            //    if let Some(editor) = &mut model.editor {
+            //        editor::update(
             //            msg.clone(),
+            //            editor,
             //            &mut orders.proxy(Msg::Editor)
             //        );
             //    }
             //    match msg {
             //        editor::Msg::Cancel => {
-            //            self.editor = None;
+            //            model.editor = None;
             //        },
             //        editor::Msg::Created(_) => {
             //            orders.send_msg(
-            //                if let Some(id) = self.user_id {
-            //                    Msg::GetUserProjects(id)
+            //                if let Some(id) = model.project_id {
+            //                    Msg::GetProjectTasks(id)
             //                } else {
             //                    Msg::GetAll
             //                }
@@ -148,17 +136,18 @@ impl Component for Model {
 impl View for Model {
     fn view(&self) -> Node<Msg> {
         div![
-            //if let Some(editor) = &self.editor {
-            //    editor.view().map_msg(Msg::Editor)
+            //if let Some(model) = &model.editor {
+            //    editor::view(&model).map_msg(Msg::Editor)
             //} else {
             //    if let Some(_) = api::auth::get_session() {
             //        button![
             //            simple_ev(Ev::Click, Msg::OpenEditor),
-            //            "New Project"
+            //            "New Task"
             //        ]
             //    } else { empty![] }
             //},
-            self.list.view().map_msg(Msg::List)
+            self.list.view()
+                .map_msg(Msg::List)
         ]
     }
 }

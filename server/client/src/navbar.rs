@@ -47,19 +47,19 @@ impl View for Model {
                 div![
                     a![
                         attrs!{
-                            At::Href => format!("/users");
+                            At::Href => format!("/user");
                         },
                         "Users",
                     ],
                     a![
                         attrs!{
-                            At::Href => format!("/projects");
+                            At::Href => format!("/project");
                         },
                         "Projects",
                     ],
                     a![
                         attrs!{
-                            At::Href => format!("/users/{}", session.user_id);
+                            At::Href => format!("/user/{}", session.user_id);
                         },
                         "My Profile",
                     ],
