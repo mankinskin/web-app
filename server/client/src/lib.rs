@@ -14,6 +14,7 @@ extern crate database;
 extern crate updatable;
 extern crate seed;
 extern crate api;
+extern crate async_trait;
 
 pub mod login;
 pub mod register;
@@ -27,3 +28,7 @@ pub mod route;
 pub mod config;
 pub mod projects;
 pub mod tasks;
+pub mod list;
+pub mod preview;
+pub mod entry;
+pub mod newdata;

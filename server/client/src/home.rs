@@ -3,7 +3,10 @@ use seed::{
     prelude::*,
 };
 use crate::{
-    config::*,
+    config::{
+        Component,
+        View,
+    },
     root::{
         GMsg,
     },
@@ -12,21 +15,23 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Model {
 }
-impl Component for Model {
-    type Msg = Msg;
-}
 #[derive(Clone)]
 pub enum Msg {
 }
-pub fn update(_msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg, GMsg>) {
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg, GMsg>) {
+    }
 }
-pub fn view(_model: &Model) -> Node<Msg> {
-    ul![
-        li![
-            "Awesome Stuff"
-        ],
-        li![
-            "Look at this too!"
-        ],
-    ]
+impl View for Model {
+    fn view(&self) -> Node<Msg> {
+        ul![
+            li![
+                "Awesome Stuff"
+            ],
+            li![
+                "Look at this too!"
+            ],
+        ]
+    }
 }

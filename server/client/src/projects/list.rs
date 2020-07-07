@@ -10,24 +10,27 @@ use rql::{
     *,
 };
 use crate::{
-    config::*,
+    config::{
+        Config,
+        Component,
+        View,
+    },
     root::{
         self,
         GMsg,
     },
-    projects::{
-        preview,
-        editor,
-        project,
-    },
+    list,
 };
 use database::{
     Entry,
 };
 use std::result::Result;
 
-impl Component for Model {
-    type Msg = Msg;
+#[derive(Clone, Default)]
+pub struct Model {
+    user_id: Option<Id<User>>,
+    list: list::Model<Project>,
+    //editor: Option<editor::Model>,
 }
 impl Config<Model> for Msg {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
@@ -40,7 +43,7 @@ impl Config<Model> for Msg {
 impl Config<Model> for Vec<Entry<Project>> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
-            previews: init_previews(self, orders),
+            list: Config::init(self, &mut orders.proxy(Msg::List)),
             ..Default::default()
         }
     }
@@ -58,25 +61,6 @@ impl Config<Model> for Id<User> {
         orders.send_msg(Msg::GetUserProjects(self));
     }
 }
-fn init_previews(entries: Vec<Entry<Project>>, orders: &mut impl Orders<Msg, GMsg>) -> Vec<preview::Model> {
-    entries
-        .iter()
-        .enumerate()
-        .map(|(i, entry)|
-            Config::init(
-                entry.clone(),
-                &mut orders
-                    .proxy(move |msg| Msg::Preview(i, msg))
-            )
-        )
-        .collect()
-}
-#[derive(Clone, Default)]
-pub struct Model {
-    user_id: Option<Id<User>>,
-    previews: Vec<preview::Model>,
-    editor: Option<editor::Model>,
-}
 #[derive(Clone)]
 pub enum Msg {
     GetAll,
@@ -85,102 +69,96 @@ pub enum Msg {
     GetUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),
 
-    Preview(usize, preview::Msg),
+    List(list::Msg<Project>),
 
-    OpenEditor,
-    Editor(editor::Msg),
+    //OpenEditor,
+    //Editor(editor::Msg),
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::GetAll => {
-            orders.perform_cmd(
-                api::get_projects()
-                    .map(|res| Msg::AllProjects(res.map_err(|e| format!("{:?}", e))))
-            );
-        },
-        Msg::AllProjects(res) => {
-            match res {
-                Ok(ps) => model.previews = init_previews(ps, orders),
-                Err(e) => { seed::log(e); },
-            }
-        },
-        Msg::GetUserProjects(id) => {
-            orders.perform_cmd(
-                api::get_user_projects(id)
-                .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
-            );
-        },
-        Msg::UserProjects(res) => {
-            match res {
-                Ok(ps) => model.previews = init_previews(ps, orders),
-                Err(e) => { seed::log(e); },
-            }
-        },
-        Msg::Preview(index, msg) => {
-            preview::update(
-                msg.clone(),
-                &mut model.previews[index],
-                &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg))
-            );
-            if let preview::Msg::Project(project::Msg::Deleted(_)) = msg {
-                model.previews.remove(index);
-            }
-        },
-        Msg::OpenEditor => {
-            model.editor = match model.user_id {
-                Some(id) => {
-                    Some(Config::init(id, &mut orders.proxy(Msg::Editor)))
-                },
-                None => {
-                    Some(editor::Model::default())
-                },
-            };
-        },
-        Msg::Editor(msg) => {
-            if let Some(editor) = &mut model.editor {
-                editor::update(
-                    msg.clone(),
-                    editor,
-                    &mut orders.proxy(Msg::Editor)
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+        match msg {
+            Msg::GetAll => {
+                orders.perform_cmd(
+                    api::get_projects()
+                        .map(|res| Msg::AllProjects(res.map_err(|e| format!("{:?}", e))))
                 );
-            }
-            match msg {
-                editor::Msg::Cancel => {
-                    model.editor = None;
-                },
-                editor::Msg::Created(_) => {
-                    orders.send_msg(
-                        if let Some(id) = model.user_id {
-                            Msg::GetUserProjects(id)
-                        } else {
-                            Msg::GetAll
-                        }
-                    );
-                },
-                _ => {},
-            }
-        },
+            },
+            Msg::AllProjects(res) => {
+                match res {
+                    Ok(entries) => self.list = Config::init(entries, &mut orders.proxy(Msg::List)),
+                    Err(e) => { seed::log(e); },
+                }
+            },
+            Msg::GetUserProjects(id) => {
+                orders.perform_cmd(
+                    api::get_user_projects(id)
+                    .map(|res| Msg::UserProjects(res.map_err(|e| format!("{:?}", e))))
+                );
+            },
+            Msg::UserProjects(res) => {
+                match res {
+                    Ok(entries) => self.list = Config::init(entries, &mut orders.proxy(Msg::List)),
+                    Err(e) => { seed::log(e); },
+                }
+            },
+            Msg::List(msg) => {
+                self.list.update(
+                    msg,
+                    &mut orders.proxy(Msg::List)
+                );
+            },
+            //Msg::OpenEditor => {
+            //    self.editor = match self.user_id {
+            //        Some(id) => {
+            //            Some(Config::init(id, &mut orders.proxy(Msg::Editor)))
+            //        },
+            //        None => {
+            //            Some(editor::Model::default())
+            //        },
+            //    };
+            //},
+            //Msg::Editor(msg) => {
+            //    if let Some(editor) = &mut self.editor {
+            //        editor.update(
+            //            msg.clone(),
+            //            &mut orders.proxy(Msg::Editor)
+            //        );
+            //    }
+            //    match msg {
+            //        editor::Msg::Cancel => {
+            //            self.editor = None;
+            //        },
+            //        editor::Msg::Created(_) => {
+            //            orders.send_msg(
+            //                if let Some(id) = self.user_id {
+            //                    Msg::GetUserProjects(id)
+            //                } else {
+            //                    Msg::GetAll
+            //                }
+            //            );
+            //        },
+            //        _ => {},
+            //    }
+            //},
+        }
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
-    div![
-        if let Some(model) = &model.editor {
-            editor::view(&model).map_msg(Msg::Editor)
-        } else {
-            if let Some(_) = api::auth::get_session() {
-                button![
-                    simple_ev(Ev::Click, Msg::OpenEditor),
-                    "New Project"
-                ]
-            } else { empty![] }
-        },
-        ul![
-            model.previews.iter().enumerate()
-                .map(|(i, preview)| li![
-                     preview::view(&preview)
-                        .map_msg(move |msg| Msg::Preview(i.clone(), msg))
-                ])
+impl View for Model {
+    fn view(&self) -> Node<Msg> {
+        div![
+            //if let Some(editor) = &self.editor {
+            //    editor.view().map_msg(Msg::Editor)
+            //} else {
+            //    if let Some(_) = api::auth::get_session() {
+            //        button![
+            //            simple_ev(Ev::Click, Msg::OpenEditor),
+            //            "New Project"
+            //        ]
+            //    } else { empty![] }
+            //},
+            self.list.view().map_msg(Msg::List)
         ]
-    ]
+    }
 }

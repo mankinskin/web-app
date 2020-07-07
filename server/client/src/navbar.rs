@@ -3,7 +3,10 @@ use seed::{
     prelude::*,
 };
 use crate::{
-    config::*,
+    config::{
+        Component,
+        View,
+    },
     root::{
         self,
         GMsg,
@@ -14,73 +17,74 @@ use crate::{
 pub struct Model {
 }
 
-impl Component for Model {
-    type Msg = Msg;
-}
 #[derive(Clone)]
 pub enum Msg {
     Logout,
 }
 
-pub fn update(msg: Msg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::Logout => {
-            orders.send_g_msg(root::GMsg::EndSession);
-        },
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+        match msg {
+            Msg::Logout => {
+                orders.send_g_msg(root::GMsg::EndSession);
+            },
+        }
     }
 }
-pub fn view(_model: &Model) -> Node<Msg> {
-    div![
+impl View for Model {
+    fn view(&self) -> Node<Msg> {
         div![
-            a![
-                attrs!{
-                    At::Href => "/";
-                },
-                "Home",
+            div![
+                a![
+                    attrs!{
+                        At::Href => "/";
+                    },
+                    "Home",
+                ],
             ],
-        ],
-        if let Some(session) = api::auth::get_session() {
-            div![
-                a![
-                    attrs!{
-                        At::Href => format!("/users");
-                    },
-                    "Users",
-                ],
-                a![
-                    attrs!{
-                        At::Href => format!("/projects");
-                    },
-                    "Projects",
-                ],
-                a![
-                    attrs!{
-                        At::Href => format!("/users/{}", session.user_id);
-                    },
-                    "My Profile",
-                ],
-                button![simple_ev(Ev::Click, Msg::Logout), "Log Out"],
-            ]
-        } else {
-            div![
+            if let Some(session) = api::auth::get_session() {
                 div![
                     a![
                         attrs!{
-                            At::Href => "/login";
+                            At::Href => format!("/users");
                         },
-                        "Login",
+                        "Users",
                     ],
-                ],
-                div![
                     a![
                         attrs!{
-                            At::Href => "/register";
+                            At::Href => format!("/projects");
                         },
-                        "Register",
-
+                        "Projects",
                     ],
-                ],
-            ]
-        },
-    ]
+                    a![
+                        attrs!{
+                            At::Href => format!("/users/{}", session.user_id);
+                        },
+                        "My Profile",
+                    ],
+                    button![simple_ev(Ev::Click, Msg::Logout), "Log Out"],
+                ]
+            } else {
+                div![
+                    div![
+                        a![
+                            attrs!{
+                                At::Href => "/login";
+                            },
+                            "Login",
+                        ],
+                    ],
+                    div![
+                        a![
+                            attrs!{
+                                At::Href => "/register";
+                            },
+                            "Register",
+                        ],
+                    ],
+                ]
+            },
+        ]
+    }
 }

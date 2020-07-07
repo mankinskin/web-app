@@ -5,7 +5,11 @@ use seed::{
 use crate::{
     *,
     route::*,
-    config::*,
+    config::{
+        Component,
+        Config,
+        View,
+    },
 };
 use plans::{
     user::*,
@@ -13,7 +17,7 @@ use plans::{
 
 #[wasm_bindgen(start)]
 pub fn render() {
-    App::builder(update, view)
+    App::builder(move |msg, model, orders| model.update(msg, orders), Model::view)
         .after_mount(after_mount)
         .routes(routes)
         .sink(sink)
@@ -30,9 +34,6 @@ fn routes(url: Url) -> Option<Msg> {
 pub struct Model {
     navbar: navbar::Model, // the navigation bar
     page: page::Model, // the current page
-}
-impl Component for Model {
-    type Msg = Msg;
 }
 impl Config<Model> for Route {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
@@ -60,30 +61,31 @@ impl From<navbar::Msg> for Msg {
         Self::NavBar(msg)
     }
 }
-fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::Page(msg) => {
-            page::update(
-                msg.clone(),
-                &mut model.page,
-                &mut orders.proxy(Msg::Page)
-            );
-        },
-        Msg::NavBar(msg) => {
-            navbar::update(
-                msg.clone(),
-                &mut model.navbar,
-                &mut orders.proxy(Msg::NavBar)
-            );
-        },
-        Msg::SetPage(route) => {
-            if let None = api::auth::get_session() {
-                if let Some(session) = api::auth::load_session() {
-                    api::auth::set_session(session);
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
+        match msg {
+            Msg::Page(msg) => {
+                self.page.update(
+                    msg.clone(),
+                    &mut orders.proxy(Msg::Page)
+                );
+            },
+            Msg::NavBar(msg) => {
+                self.navbar.update(
+                    msg.clone(),
+                    &mut orders.proxy(Msg::NavBar)
+                );
+            },
+            Msg::SetPage(route) => {
+                if let None = api::auth::get_session() {
+                    if let Some(session) = api::auth::load_session() {
+                        api::auth::set_session(session);
+                    }
                 }
-            }
-            model.page = Config::init(route, &mut orders.proxy(Msg::Page));
-        },
+                self.page = Config::init(route, &mut orders.proxy(Msg::Page));
+            },
+        }
     }
 }
 #[derive(Clone)]
@@ -105,11 +107,13 @@ fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
         },
     }
 }
-fn view(model: &Model) -> impl IntoNodes<Msg> {
-    div![
-        navbar::view(&model.navbar)
-            .map_msg(Msg::NavBar),
-        page::view(&model.page)
-            .map_msg(Msg::Page),
-    ]
+impl View for Model {
+    fn view(&self) -> Node<Self::Msg> {
+        div![
+            self.navbar.view()
+                .map_msg(Msg::NavBar),
+            self.page.view()
+                .map_msg(Msg::Page),
+        ]
+    }
 }

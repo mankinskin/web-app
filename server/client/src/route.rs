@@ -11,6 +11,14 @@ use plans::{
 };
 use crate::{
     page,
+    entry::{
+        self,
+        Model,
+        TableItem,
+    },
+    config::{
+        Child,
+    },
 };
 use std::str::{
     FromStr,
@@ -103,10 +111,39 @@ impl From<page::Model> for Route {
             page::Model::Login(_) => Route::Login,
             page::Model::Register(_) => Route::Register,
             page::Model::UserList(_) => Route::Users,
-            page::Model::UserProfile(profile) => Route::User(profile.user.user_id.clone()),
-            page::Model::ProjectProfile(project) => Route::Project(project.project.project_id),
+            page::Model::UserProfile(profile) => Route::User(profile.entry.id),
+            page::Model::ProjectProfile(profile) => Route::Project(profile.entry.id),
             page::Model::ProjectList(_) => Route::Projects,
-            page::Model::TaskProfile(task) => Route::Task(task.task.task_id),
+            page::Model::TaskProfile(profile) => Route::Task(profile.entry.id),
         }
+    }
+}
+pub trait Routable {
+    fn route(&self) -> Route;
+}
+
+impl Routable for Route
+{
+    fn route(&self) -> Route {
+        self.clone()
+    }
+}
+impl<T: TableItem> Routable for T
+{
+    fn route(&self) -> Route {
+        T::table_route()
+    }
+}
+impl<T: TableItem> Routable for Id<T>
+{
+    fn route(&self) -> Route {
+        T::entry_route(*self)
+    }
+}
+impl<T: TableItem + Child<Model<T>>> Routable for entry::Model<T>
+    where Id<T>: Routable,
+{
+    fn route(&self) -> Route {
+        self.id.route()
     }
 }

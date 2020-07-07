@@ -3,10 +3,18 @@ use seed::{
     *,
     prelude::*,
 };
+use plans::{
+    user::User,
+};
 use crate::{
-    config::*,
+    config::{
+        Component,
+        Config,
+        View,
+    },
     route::{
         Route,
+        Routable,
     },
     root::{
         GMsg,
@@ -21,7 +29,7 @@ pub enum Model {
     Login(login::Model),
     Register(register::Model),
     UserProfile(users::profile::Model),
-    UserList(users::list::Model),
+    UserList(list::Model<User>),
     ProjectList(projects::list::Model),
     ProjectProfile(projects::profile::Model),
     TaskProfile(tasks::profile::Model),
@@ -31,9 +39,6 @@ impl Default for Model {
         Self::Home(home::Model::default())
     }
 }
-impl Component for Model {
-    type Msg = Msg;
-}
 impl Config<Model> for Route {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         match self {
@@ -41,7 +46,7 @@ impl Config<Model> for Route {
             Route::Home => Model::Home(Default::default()),
             Route::Login => Model::Login(Default::default()),
             Route::Register => Model::Register(Default::default()),
-            Route::Users => Model::UserList(Config::init(users::list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
+            Route::Users => Model::UserList(Config::init(list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
             Route::User(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
             Route::Projects => Model::ProjectList(Config::init(projects::list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
             Route::Project(id) => Model::ProjectProfile(Config::init(id, &mut orders.proxy(Msg::ProjectProfile))),
@@ -51,7 +56,8 @@ impl Config<Model> for Route {
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
-pub fn go_to<Ms: 'static>(route: Route, orders: &mut impl Orders<Ms, GMsg>) {
+pub fn go_to<R: Routable, Ms: 'static>(r: R, orders: &mut impl Orders<Ms, GMsg>) {
+    let route = r.route();
     seed::push_route(route.clone());
     orders.send_g_msg(GMsg::Root(root::Msg::SetPage(route)));
 }
@@ -60,140 +66,129 @@ pub enum Msg {
     Home(home::Msg),
     Login(login::Msg),
     Register(register::Msg),
-    UserList(users::list::Msg),
+    UserList(list::Msg<User>),
     UserProfile(users::profile::Msg),
     ProjectList(projects::list::Msg),
     ProjectProfile(projects::profile::Msg),
     TaskProfile(tasks::profile::Msg),
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match model {
-        Model::Home(home) => {
-            match msg {
-                Msg::Home(msg) => {
-                    home::update(
-                        msg,
-                        home,
-                        &mut orders.proxy(Msg::Home)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::Login(login) => {
-            match msg {
-                Msg::Login(msg) => {
-                    login::update(
-                        msg,
-                        login,
-                        &mut orders.proxy(Msg::Login)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::Register(register) => {
-            match msg {
-                Msg::Register(msg) => {
-                    register::update(
-                        msg,
-                        register,
-                        &mut orders.proxy(Msg::Register)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::UserList(model) => {
-            match msg {
-                Msg::UserList(msg) => {
-                    users::list::update(
-                        msg,
-                        model,
-                        &mut orders.proxy(Msg::UserList)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::UserProfile(model) => {
-            match msg {
-                Msg::UserProfile(msg) => {
-                    users::profile::update(
-                        msg,
-                        model,
-                        &mut orders.proxy(Msg::UserProfile)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::ProjectList(model) => {
-            match msg {
-                Msg::ProjectList(msg) => {
-                    projects::list::update(
-                        msg,
-                        model,
-                        &mut orders.proxy(Msg::ProjectList)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::ProjectProfile(model) => {
-            match msg {
-                Msg::ProjectProfile(msg) => {
-                    projects::profile::update(
-                        msg,
-                        model,
-                        &mut orders.proxy(Msg::ProjectProfile)
-                    );
-                },
-                _ => {}
-            }
-        },
-        Model::TaskProfile(model) => {
-            match msg {
-                Msg::TaskProfile(msg) => {
-                    tasks::profile::update(
-                        msg,
-                        model,
-                        &mut orders.proxy(Msg::TaskProfile)
-                    );
-                },
-                _ => {}
-            }
-        },
-        _ => {},
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+        match self {
+            Model::Home(home) => {
+                match msg {
+                    Msg::Home(msg) => {
+                        home.update(
+                            msg,
+                            &mut orders.proxy(Msg::Home)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::Login(login) => {
+                match msg {
+                    Msg::Login(msg) => {
+                        login.update(
+                            msg,
+                            &mut orders.proxy(Msg::Login)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::Register(register) => {
+                match msg {
+                    Msg::Register(msg) => {
+                        register.update(
+                            msg,
+                            &mut orders.proxy(Msg::Register)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::UserList(list) => {
+                match msg {
+                    Msg::UserList(msg) => {
+                        list.update(
+                            msg,
+                            &mut orders.proxy(Msg::UserList)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::UserProfile(profile) => {
+                match msg {
+                    Msg::UserProfile(msg) => {
+                        profile.update(
+                            msg,
+                            &mut orders.proxy(Msg::UserProfile)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::ProjectList(list) => {
+                match msg {
+                    Msg::ProjectList(msg) => {
+                        list.update(
+                            msg,
+                            &mut orders.proxy(Msg::ProjectList)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::ProjectProfile(profile) => {
+                match msg {
+                    Msg::ProjectProfile(msg) => {
+                        profile.update(
+                            msg,
+                            &mut orders.proxy(Msg::ProjectProfile)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            Model::TaskProfile(profile) => {
+                match msg {
+                    Msg::TaskProfile(msg) => {
+                        profile.update(
+                            msg,
+                            &mut orders.proxy(Msg::TaskProfile)
+                        );
+                    },
+                    _ => {}
+                }
+            },
+            _ => {},
+        }
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
-    match model {
-        Model::NotFound =>
-            div!["Not Found"],
-        Model::Home(model) =>
-            home::view(&model)
-                .map_msg(Msg::Home),
-        Model::Login(model) =>
-            login::view(&model)
-                .map_msg(Msg::Login),
-        Model::Register(model) =>
-            register::view(&model)
-                .map_msg(Msg::Register),
-        Model::UserList(model) =>
-            users::list::view(&model)
-                .map_msg(Msg::UserList),
-        Model::UserProfile(model) =>
-            users::profile::view(&model)
-                .map_msg(Msg::UserProfile),
-        Model::ProjectList(model) =>
-            projects::list::view(&model)
-                .map_msg(Msg::ProjectList),
-        Model::ProjectProfile(model) =>
-            projects::profile::view(&model)
-                .map_msg(Msg::ProjectProfile),
-        Model::TaskProfile(model) =>
-            tasks::profile::view(&model)
-                .map_msg(Msg::TaskProfile),
+impl View for Model {
+    fn view(&self) -> Node<Msg> {
+        match self {
+            Model::NotFound =>
+                div!["Not Found"],
+            Model::Home(model) =>
+                model.view().map_msg(Msg::Home),
+            Model::Login(model) =>
+                model.view().map_msg(Msg::Login),
+            Model::Register(model) =>
+                model.view().map_msg(Msg::Register),
+            Model::UserList(model) =>
+                model.view().map_msg(Msg::UserList),
+            Model::UserProfile(model) =>
+                model.view().map_msg(Msg::UserProfile),
+            Model::ProjectList(model) =>
+                model.view().map_msg(Msg::ProjectList),
+            Model::ProjectProfile(model) =>
+                model.view().map_msg(Msg::ProjectProfile),
+            Model::TaskProfile(model) =>
+                model.view().map_msg(Msg::TaskProfile),
+        }
     }
 }
