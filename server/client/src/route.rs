@@ -12,17 +12,39 @@ use plans::{
 use crate::{
     page,
     entry::{
-        self,
-        Model,
         TableItem,
     },
-    config::{
-        Child,
-    },
+};
+use database::{
+    Entry,
 };
 use std::str::{
     FromStr,
 };
+pub trait Routable {
+    fn route(&self) -> Route;
+}
+
+impl Routable for Route {
+    fn route(&self) -> Route {
+        self.clone()
+    }
+}
+impl<T: TableItem> Routable for T {
+    fn route(&self) -> Route {
+        T::table_route()
+    }
+}
+impl<T: TableItem> Routable for Id<T> {
+    fn route(&self) -> Route {
+        T::entry_route(*self)
+    }
+}
+impl<T: TableItem> Routable for Entry<T> {
+    fn route(&self) -> Route {
+        T::entry_route(self.id)
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Route {
     Home,
@@ -34,6 +56,30 @@ pub enum Route {
     Project(Id<Project>),
     Task(Id<Task>),
     NotFound,
+}
+impl From<Route> for seed::Url {
+    fn from(route: Route) -> Self {
+        Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
+    }
+}
+impl From<seed::Url> for Route {
+    fn from(url: seed::Url) -> Self {
+        Self::from(url.path())
+    }
+}
+impl From<page::Model> for Route {
+    fn from(config: page::Model) -> Self {
+        match config {
+            page::Model::Home(_) | page::Model::NotFound => Route::Home,
+            page::Model::Login(_) => Route::Login,
+            page::Model::Register(_) => Route::Register,
+            page::Model::UserList(_) => Route::Users,
+            page::Model::UserProfile(profile) => profile.entry.route(),
+            page::Model::ProjectProfile(profile) => profile.entry.route(),
+            page::Model::ProjectList(_) => Route::Projects,
+            page::Model::TaskProfile(profile) => profile.entry.route(),
+        }
+    }
 }
 impl Into<Vec<String>> for Route {
     fn into(self) -> Vec<String> {
@@ -92,58 +138,5 @@ impl From<&[String]> for Route {
                 _ => Route::Home,
             }
         }
-    }
-}
-impl From<Route> for seed::Url {
-    fn from(route: Route) -> Self {
-        Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
-    }
-}
-impl From<seed::Url> for Route {
-    fn from(url: seed::Url) -> Self {
-        Self::from(url.path())
-    }
-}
-impl From<page::Model> for Route {
-    fn from(config: page::Model) -> Self {
-        match config {
-            page::Model::Home(_) | page::Model::NotFound => Route::Home,
-            page::Model::Login(_) => Route::Login,
-            page::Model::Register(_) => Route::Register,
-            page::Model::UserList(_) => Route::Users,
-            page::Model::UserProfile(profile) => Route::User(profile.entry.id),
-            page::Model::ProjectProfile(profile) => Route::Project(profile.entry.id),
-            page::Model::ProjectList(_) => Route::Projects,
-            page::Model::TaskProfile(profile) => Route::Task(profile.entry.id),
-        }
-    }
-}
-pub trait Routable {
-    fn route(&self) -> Route;
-}
-
-impl Routable for Route
-{
-    fn route(&self) -> Route {
-        self.clone()
-    }
-}
-impl<T: TableItem> Routable for T
-{
-    fn route(&self) -> Route {
-        T::table_route()
-    }
-}
-impl<T: TableItem> Routable for Id<T>
-{
-    fn route(&self) -> Route {
-        T::entry_route(*self)
-    }
-}
-impl<T: TableItem + Child<Model<T>>> Routable for entry::Model<T>
-    where Id<T>: Routable,
-{
-    fn route(&self) -> Route {
-        self.id.route()
     }
 }

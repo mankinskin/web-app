@@ -20,6 +20,14 @@ use crate::{
         GMsg,
     },
     list,
+    project::editor,
+    editor::{
+        self as g_editor,
+        Edit,
+    },
+    newdata,
+    remote,
+    entry,
 };
 use database::{
     Entry,
@@ -30,7 +38,18 @@ use std::result::Result;
 pub struct Model {
     user_id: Option<Id<User>>,
     list: list::Model<Project>,
-    //editor: Option<editor::Model>,
+    editor: Option<editor::Model>,
+}
+impl Model {
+    fn refresh(&self, orders: &mut impl Orders<Msg, root::GMsg>) {
+        orders.send_msg(
+            if let Some(id) = self.user_id {
+                Msg::GetUserProjects(id)
+            } else {
+                Msg::List(list::Msg::GetAll)
+            }
+        );
+    }
 }
 impl Config<Model> for list::Msg<Project> {
     fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
@@ -48,14 +67,12 @@ impl Config<Model> for Msg {
         orders.send_msg(self);
     }
 }
-impl Config<Model> for Vec<Entry<Project>> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-        Model {
-            list: Config::init(self, &mut orders.proxy(Msg::List)),
+impl From<Vec<Entry<Project>>> for Model {
+    fn from(entries: Vec<Entry<Project>>) -> Self {
+        Self {
+            list: list::Model::from(entries),
             ..Default::default()
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 impl Config<Model> for Id<User> {
@@ -76,8 +93,8 @@ pub enum Msg {
 
     List(list::Msg<Project>),
 
-    //OpenEditor,
-    //Editor(editor::Msg),
+    New,
+    Editor(editor::Msg),
 }
 
 impl Component for Model {
@@ -92,7 +109,7 @@ impl Component for Model {
             },
             Msg::UserProjects(res) => {
                 match res {
-                    Ok(entries) => self.list = Config::init(entries, &mut orders.proxy(Msg::List)),
+                    Ok(entries) => self.list = list::Model::from(entries),
                     Err(e) => { seed::log(e); },
                 }
             },
@@ -102,55 +119,67 @@ impl Component for Model {
                     &mut orders.proxy(Msg::List)
                 );
             },
-            //Msg::OpenEditor => {
-            //    self.editor = match self.user_id {
-            //        Some(id) => {
-            //            Some(Config::init(id, &mut orders.proxy(Msg::Editor)))
-            //        },
-            //        None => {
-            //            Some(editor::Model::default())
-            //        },
-            //    };
-            //},
-            //Msg::Editor(msg) => {
-            //    if let Some(editor) = &mut self.editor {
-            //        editor.update(
-            //            msg.clone(),
-            //            &mut orders.proxy(Msg::Editor)
-            //        );
-            //    }
-            //    match msg {
-            //        editor::Msg::Cancel => {
-            //            self.editor = None;
-            //        },
-            //        editor::Msg::Created(_) => {
-            //            orders.send_msg(
-            //                if let Some(id) = self.user_id {
-            //                    Msg::GetUserProjects(id)
-            //                } else {
-            //                    Msg::GetAll
-            //                }
-            //            );
-            //        },
-            //        _ => {},
-            //    }
-            //},
+            Msg::New => {
+                self.editor = match self.user_id {
+                    Some(id) => {
+                        Some(editor::Model::from(id))
+                    },
+                    None => {
+                        Some(editor::Model::default())
+                    },
+                };
+            },
+            Msg::Editor(msg) => {
+                if let Some(editor) = &mut self.editor {
+                    editor.update(
+                        msg.clone(),
+                        &mut orders.proxy(Msg::Editor)
+                    );
+                }
+                // TODO improve inter component messaging
+                match msg {
+                    editor::Msg::Editor(msg) =>
+                        match msg {
+                            g_editor::Msg::Cancel => {
+                                self.editor = None;
+                            },
+                            g_editor::Msg::New(msg) =>
+                                match msg {
+                                    newdata::Msg::Posted(_) =>
+                                        self.refresh(orders),
+                                    _ => {}
+                                },
+                            g_editor::Msg::Remote(msg) =>
+                                match msg {
+                                    remote::Msg::Entry(msg) =>
+                                        match msg {
+                                            entry::Msg::Updated(_) =>
+                                                self.refresh(orders),
+                                            _ => {}
+                                        },
+                                    _ => {}
+                                },
+                            _ => {},
+                        },
+                }
+            },
         }
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Msg> {
         div![
-            //if let Some(editor) = &self.editor {
-            //    editor.view().map_msg(Msg::Editor)
-            //} else {
-            //    if let Some(_) = api::auth::get_session() {
-            //        button![
-            //            simple_ev(Ev::Click, Msg::OpenEditor),
-            //            "New Project"
-            //        ]
-            //    } else { empty![] }
-            //},
+            h2!["Projects"],
+            if let Some(editor) = &self.editor {
+                editor.edit().map_msg(Msg::Editor)
+            } else {
+                if let Some(_) = api::auth::get_session() {
+                    button![
+                        simple_ev(Ev::Click, Msg::New),
+                        "New Project"
+                    ]
+                } else { empty![] }
+            },
             self.list.view().map_msg(Msg::List)
         ]
     }

@@ -24,6 +24,8 @@ pub mod list;
 pub mod preview;
 pub mod entry;
 pub mod newdata;
+pub mod editor;
+pub mod remote;
 
 pub mod page;
 pub mod login;

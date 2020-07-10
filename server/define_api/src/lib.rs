@@ -500,12 +500,13 @@ fn define_rest_api(input: TokenStream) -> TokenStream {
     let get_all = define_get_all(ty.clone(), ident.clone());
     let post = define_post(ty.clone(), ident.clone());
     let delete = define_delete(ty.clone(), ident.clone());
-    let _update = define_update(ty.clone(), ident.clone());
+    let update = define_update(ty.clone(), ident.clone());
     TokenStream::from(quote! {
         #get
         #get_all
         #post
         #delete
+        #update
     })
 }
 #[proc_macro]
@@ -523,13 +524,14 @@ pub fn rest_api_routes(input: TokenStream) -> TokenStream {
     let post_name = format_ident!("post_{}", ident);
     let get_all_name = format_ident!("get_{}s", ident);
     let delete_name = format_ident!("delete_{}", ident);
-    let _update_name = format_ident!("update_{}", ident);
+    let update_name = format_ident!("update_{}", ident);
     TokenStream::from(quote! {
         routes![
             api::routes::#get_name,
             api::routes::#post_name,
             api::routes::#get_all_name,
             api::routes::#delete_name,
+            api::routes::#update_name,
         ]
     })
 }
@@ -570,7 +572,7 @@ fn define_update(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("update_{}", ident);
     quote! {
         fn #name(id: Id<#ty>, update: <#ty as Updatable>::Update) -> Option<#ty> {
-            #ty::update(id, update)
+            <#ty as DatabaseTable>::update(id, update)
         }
     }
 }

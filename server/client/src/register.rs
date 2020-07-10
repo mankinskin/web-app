@@ -30,7 +30,7 @@ pub enum Msg {
     ChangePassword(String),
     Submit,
     RegistrationResponse(Result<UserSession, String>),
-    //Login,
+    Login,
 }
 impl Component for Model {
     type Msg = Msg;
@@ -61,17 +61,15 @@ impl Component for Model {
                     Err(e) => {seed::log!(e)}
                 }
             },
-            //Msg::Login => {
-            //    page::go_to(login::Config::default(), orders);
-            //},
+            Msg::Login => {
+                page::go_to(Route::Login, orders);
+            },
         }
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Msg> {
-        // registration form
         form![
-            // Username field
             label![
                 "Username"
             ],
@@ -85,7 +83,6 @@ impl View for Model {
             div![
                 self.user.credentials().username_invalid_text()
             ],
-            // Password field
             label![
                 "Password"
             ],
@@ -100,7 +97,6 @@ impl View for Model {
             div![
                 self.user.credentials().password_invalid_text()
             ],
-            // Submit Button
             button![
                 attrs!{
                     At::Type => "submit",
@@ -111,8 +107,7 @@ impl View for Model {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            // Login Button
-            //button![simple_ev(Ev::Click, Msg::Login), "Log In"],
+            button![simple_ev(Ev::Click, Msg::Login), "Log In"],
         ]
     }
 }

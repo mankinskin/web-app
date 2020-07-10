@@ -1,4 +1,5 @@
 use seed::{
+    *,
     prelude::*,
 };
 use plans::{
@@ -17,6 +18,14 @@ use crate::{
         self,
         GMsg,
     },
+    remote,
+    task::{
+        editor,
+    },
+    editor::{
+        self as g_editor,
+        Edit,
+    },
     entry,
 };
 use database::{
@@ -25,71 +34,99 @@ use database::{
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: entry::Model<Task>,
-    //pub editor: Option<editor::Model>,
+    pub entry: remote::Model<Task>,
+    pub editor: Option<editor::Model>,
+}
+impl Model {
+    fn refresh(&self, orders: &mut impl Orders<Msg, root::GMsg>) {
+        orders.send_msg(
+            Msg::Entry(remote::Msg::Get)
+        );
+    }
 }
 impl Config<Model> for Id<Task> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
-            //editor: None,
+            editor: None,
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
-impl Config<Model> for Entry<Task> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-        Model {
-            entry: Config::init(self, &mut orders.proxy(Msg::Entry)),
-            //editor: None,
+impl From<Entry<Task>> for Model {
+    fn from(entry: Entry<Task>) -> Self {
+        Self {
+            entry: remote::Model::from(entry),
+            editor: None,
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    //Edit,
-    //Editor(editor::Msg),
-
-    Entry(entry::Msg<Task>),
+    Entry(remote::Msg<Task>),
+    Edit,
+    Editor(editor::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
         match msg {
-            //Msg::Edit => {
-            //    model.editor = Some(Config::init(model.task.clone(), &mut orders.proxy(Msg::Editor)));
-            //},
-            //Msg::Editor(msg) => {
-            //    if let Some(model) = &mut model.editor {
-            //        editor::update(
-            //            msg,
-            //            model,
-            //            &mut orders.proxy(Msg::Editor),
-            //        );
-            //    }
-            //},
             Msg::Entry(msg) => {
                 self.entry.update(
                     msg,
                     &mut orders.proxy(Msg::Entry),
                 );
             },
+            Msg::Edit => {
+                self.editor = Some(editor::Model::from(self.entry.clone()));
+            },
+            Msg::Editor(msg) => {
+                if let Some(editor) = &mut self.editor {
+                    editor.update(
+                        msg.clone(),
+                        &mut orders.proxy(Msg::Editor)
+                    );
+                }
+                match msg {
+                    editor::Msg::Editor(msg) =>
+                        match msg {
+                            g_editor::Msg::Cancel => {
+                                self.editor = None;
+                            },
+                            g_editor::Msg::Remote(msg) =>
+                                match msg {
+                                    remote::Msg::Entry(msg) =>
+                                        match msg {
+                                            entry::Msg::Updated(_) => {
+                                                self.refresh(orders);
+                                                self.editor = None;
+                                            },
+                                            _ => {}
+                                        },
+                                    _ => {}
+                                },
+                            _ => {},
+                        },
+                }
+            },
         }
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Msg> {
-        //if let Some(model) = &self.editor {
-        //    div![
-        //        editor::view(&model)
-        //            .map_msg(Msg::Editor)
-        //    ]
-        //} else {
-            self.entry.view()
-                .map_msg(Msg::Entry)
-        //}
+        if let Some(editor) = &self.editor {
+            editor.edit().map_msg(Msg::Editor)
+        } else {
+            div![
+                if let Some(_) = api::auth::get_session() {
+                    button![
+                        simple_ev(Ev::Click, Msg::Edit),
+                        "Edit Task"
+                    ]
+                } else { empty![] },
+                self.entry.view().map_msg(Msg::Entry)
+            ]
+        }
     }
 }

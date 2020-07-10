@@ -5,7 +5,7 @@ pub use derive_updatable::*;
 pub trait Updatable: Clone {
     type Update: Update<Self>;
 }
-pub trait Update<T> : Clone
+pub trait Update<T> : Clone + From<T>
     where T: Clone + Updatable<Update=Self>,
 {
     fn update(&self, data: &mut T);
@@ -233,6 +233,20 @@ mod tests {
         let update = TupleUpdate::builder()
             .field_0(String::from("world"));
         let new1 = Tuple(String::from("world"), 40);
+        update.update(&mut tup);
+        assert_eq!(tup, new1);
+        let update = TupleUpdate::builder()
+            .field_1(42);
+        let new2 = Tuple(String::from("world"), 42);
+        update.update(&mut tup);
+        assert_eq!(tup, new2);
+    }
+    #[test]
+    fn from_self() {
+        let initial = Tuple(String::from("hello"), 40);
+        let mut tup = initial.clone();
+        let new1 = Tuple(String::from("world"), 40);
+        let update = TupleUpdate::from(new1);
         update.update(&mut tup);
         assert_eq!(tup, new1);
         let update = TupleUpdate::builder()

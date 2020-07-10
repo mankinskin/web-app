@@ -3,140 +3,95 @@ use seed::{
 };
 use plans::{
     task::*,
+    project::*,
 };
 use crate::{
     config::*,
     root::{
-        self,
         GMsg,
     },
     task::{*},
+    editor::{
+        self,
+        Edit,
+    },
+    newdata,
 };
-use std::result::Result;
 
-impl Component for Model {
-    type Msg = Msg;
-}
 #[derive(Clone, Default)]
 pub struct Model {
-    pub task: Task,
-    pub task_id: Option<Id<Task>>,
+    pub editor: editor::Model<Task>,
     pub project_id: Option<Id<Project>>,
 }
-impl Config<Model> for Id<Project> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+impl From<Id<Project>> for Model {
+    fn from(id: Id<Project>) -> Self {
         Model {
-            project_id: Some(self),
+            project_id: Some(id),
             ..Default::default()
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
-    }
 }
-impl Config<Model> for task::Model {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-        Model {
-            task: self.task.unwrap_or(Default::default()),
-            task_id: Some(self.task_id),
-            ..Default::default()
-        }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
-    }
-}
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
+impl<T: Into<editor::Model<Task>>> From<T> for Model {
+    fn from(t: T) -> Self {
         Self {
-            task_id: Some(entry.id().clone()),
-            task: entry.data().clone(),
+            editor: t.into(),
             ..Default::default()
         }
     }
 }
 #[derive(Clone)]
 pub enum Msg {
-    ChangeTitle(String),
-    ChangeDescription(String),
-    Cancel,
-    Submit,
-    Created(Result<Id<Task>, String>),
+    Editor(editor::Msg<Task>),
 }
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        Msg::ChangeTitle(n) => {
-            model.task.set_title(n);
-        },
-        Msg::ChangeDescription(d) => {
-            model.task.set_description(d);
-        },
-        Msg::Cancel => {},
-        Msg::Submit => {
-            let task = model.task.clone();
-            if let Some(id) = model.project_id {
-                orders.perform_cmd(
-                    api::project_create_subtask(id, task)
-                        .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
-                );
-            } else {
-                orders.perform_cmd(
-                    api::post_task(task)
-                        .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
-                );
-            }
-        },
-        Msg::Created(res) => {
-            match res {
-                Ok(id) => model.task_id = Some(id),
-                Err(e) => { seed::log(e); },
-            }
-        },
+impl Component for Model {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+        match msg {
+            Msg::Editor(msg) => {
+                match msg {
+                    editor::Msg::Submit => {
+                        match &self.editor {
+                            editor::Model::New(new) => {
+                                let task = new.data.clone();
+                                if let Some(id) = self.project_id {
+                                    orders.perform_cmd(
+                                            api::project_create_subtask(id, task)
+                                                .map(|res| Msg::Editor(
+                                                        editor::Msg::New(
+                                                            newdata::Msg::Posted(res.map_err(|e| format!("{:?}", e)))
+                                                        )))
+                                    );
+                                } else {
+                                    orders.perform_cmd(
+                                            api::post_task(task)
+                                                .map(|res| Msg::Editor(
+                                                        editor::Msg::New(
+                                                            newdata::Msg::Posted(res.map_err(|e| format!("{:?}", e)))
+                                                        )))
+                                    );
+                                }
+                            },
+                            editor::Model::Remote(_remote) => {
+                                self.editor.update(
+                                    msg,
+                                    &mut orders.proxy(Msg::Editor),
+                                );
+                            }
+                        };
+                    },
+                    _ => {
+                        self.editor.update(
+                            msg,
+                            &mut orders.proxy(Msg::Editor),
+                        );
+                    }
+                }
+            },
+        }
     }
 }
-pub fn view(model: &Model) -> Node<Msg> {
-    form![
-        style!{
-            St::Display => "grid",
-            St::GridTemplateColumns => "1fr",
-            St::GridGap => "10px",
-            St::MaxWidth => "20%",
-        },
-        if let Some(_) = model.task_id {
-            h1!["Edit Task"]
-        } else {
-            h1!["New Task"]
-        },
-        label![
-            "Title"
-        ],
-        input![
-            attrs!{
-                At::Placeholder => "Title",
-                At::Value => model.task.title(),
-            },
-            input_ev(Ev::Input, Msg::ChangeTitle)
-        ],
-        label![
-            "Description"
-        ],
-        textarea![
-            attrs!{
-                At::Placeholder => "Description...",
-                At::Value => model.task.description(),
-            },
-            input_ev(Ev::Input, Msg::ChangeDescription)
-        ],
-        // Submit Button
-        button![
-            attrs!{
-                At::Type => "submit",
-            },
-            "Create"
-        ],
-        ev(Ev::Submit, |ev| {
-            ev.prevent_default();
-            Msg::Submit
-        }),
-        // Cancel Button
-        button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
-    ]
+impl Edit for Model {
+    fn edit(&self) -> Node<Msg> {
+        self.editor.edit().map_msg(Msg::Editor)
+    }
 }

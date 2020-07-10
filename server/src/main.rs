@@ -92,6 +92,12 @@ fn project_page(id: &RawStr) -> Result<NamedFile> {
     let _ = id;
     get_file(format!("./{}/app.html", CLIENT_DIR))
 }
+#[get("/tasks/<id>")]
+fn task_page(id: &RawStr) -> Result<NamedFile> {
+    let _ = id;
+    get_file(format!("./{}/app.html", CLIENT_DIR))
+}
+
 #[get("/<dir>/styles/<file_name>")]
 fn get_style_css(dir: &RawStr, file_name: &RawStr) -> Result<NamedFile> {
     get_file(format!("./{}/styles/{}", dir, file_name))
@@ -117,8 +123,10 @@ fn main() {
                 routes![
                     get_root_html,
                     get_html,
+
                     user_page,
                     project_page,
+                    task_page,
 
                     token_valid,
 

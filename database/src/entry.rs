@@ -7,40 +7,46 @@ use updatable::*;
     serde::Serialize,
     serde::Deserialize,
 )]
-pub struct Entry<T>(Id<T>, T);
-
+pub struct Entry<T> {
+    pub id: Id<T>,
+    pub data: T,
+}
 impl<T> Entry<T> {
     pub fn new(id: Id<T>, data: T) -> Self {
-        Self(id, data)
+        Self {
+            id,
+            data,
+        }
     }
     pub fn id(&self) -> &Id<T> {
-        &self.0
+        &self.id
     }
     pub fn data(&self) -> &T {
-        &self.1
+        &self.data
     }
     pub fn data_mut(&mut self) -> &mut T {
-        &mut self.1
+        &mut self.data
     }
 }
 impl<T> Updatable for Entry<T>
-    where T: Updatable
+    where T: Updatable + From<Entry<T>>,
+          <T as Updatable>::Update: From<Entry<T>>
 {
      type Update = <T as Updatable>::Update;
 }
 impl<T> Update<Entry<T>> for <T as Updatable>::Update
-    where T: Updatable
+    where T: Updatable + From<Entry<T>>,
+          <T as Updatable>::Update: From<Entry<T>>
 {
-    fn update(&self, data: &mut Entry<T>) {
-        self.update(data.data_mut());
+    fn update(&self, entry: &mut Entry<T>) {
+        Update::<T>::update(self, &mut entry.data);
     }
 }
-
 impl<T> From<Row<'_, T>> for Entry<T>
     where T: Clone
 {
     fn from(row: Row<'_, T>) -> Self {
-        Self(row.id, (*row.data).clone())
+        Self::new(row.id, (*row.data).clone())
     }
 }
 impl<T> From<Id<T>> for Entry<T>
@@ -54,6 +60,6 @@ impl<T> From<(Id<T>, T)> for Entry<T>
     where T: Clone
 {
     fn from((id, data): (Id<T>, T)) -> Self {
-        Self(id, data)
+        Self::new(id, data)
     }
 }

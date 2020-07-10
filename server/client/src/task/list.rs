@@ -15,7 +15,17 @@ use crate::{
     root::{
         GMsg,
     },
+    editor as g_editor,
     list,
+    newdata,
+    remote,
+    entry,
+    editor::{
+        Edit,
+    },
+    task::{
+        editor,
+    },
 };
 use database::{
     Entry,
@@ -29,7 +39,18 @@ use std::result::Result;
 pub struct Model {
     project_id: Option<Id<Project>>,
     list: list::Model<Task>,
-    //editor: Option<editor::Model>,
+    editor: Option<editor::Model>,
+}
+impl Model {
+    fn refresh(&self, orders: &mut impl Orders<Msg, GMsg>) {
+        orders.send_msg(
+            if let Some(id) = self.project_id {
+                Msg::GetProjectTasks(id)
+            } else {
+                Msg::List(list::Msg::GetAll)
+            }
+        );
+    }
 }
 impl Config<Model> for Msg {
     fn into_model(self, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
@@ -39,14 +60,12 @@ impl Config<Model> for Msg {
         orders.send_msg(self);
     }
 }
-impl Config<Model> for Vec<Entry<Task>> {
-    fn into_model(self, orders: &mut impl Orders<Msg, GMsg>) -> Model {
-        Model {
-            list: Config::init(self, &mut orders.proxy(Msg::List)),
+impl From<Vec<Entry<Task>>> for Model {
+    fn from(entries: Vec<Entry<Task>>) -> Self {
+        Self {
+            list: list::Model::from(entries),
             ..Default::default()
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, GMsg>) {
     }
 }
 impl Config<Model> for Id<Project> {
@@ -67,8 +86,8 @@ pub enum Msg {
 
     List(list::Msg<Task>),
 
-    //OpenEditor,
-    //Editor(editor::Msg),
+    New,
+    Editor(editor::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
@@ -82,11 +101,7 @@ impl Component for Model {
             },
             Msg::ProjectTasks(res) => {
                 match res {
-                    Ok(entries) =>
-                        self.list = Config::init(
-                            entries,
-                            &mut orders.proxy(Msg::List)
-                        ),
+                    Ok(entries) => self.list = list::Model::from(entries),
                     Err(e) => { seed::log(e); },
                 }
             },
@@ -96,56 +111,67 @@ impl Component for Model {
                     &mut orders.proxy(Msg::List)
                 );
             },
-            //Msg::OpenEditor => {
-            //    model.editor = match model.project_id {
-            //        Some(id) => {
-            //            Some(Config::init(id, &mut orders.proxy(Msg::Editor)))
-            //        },
-            //        None => {
-            //            Some(editor::Model::default())
-            //        },
-            //    };
-            //},
-            //Msg::Editor(msg) => {
-            //    if let Some(editor) = &mut model.editor {
-            //        editor::update(
-            //            msg.clone(),
-            //            editor,
-            //            &mut orders.proxy(Msg::Editor)
-            //        );
-            //    }
-            //    match msg {
-            //        editor::Msg::Cancel => {
-            //            model.editor = None;
-            //        },
-            //        editor::Msg::Created(_) => {
-            //            orders.send_msg(
-            //                if let Some(id) = model.project_id {
-            //                    Msg::GetProjectTasks(id)
-            //                } else {
-            //                    Msg::GetAll
-            //                }
-            //            );
-            //        },
-            //        _ => {},
-            //    }
-            //},
+            Msg::New => {
+                self.editor = match self.project_id {
+                    Some(id) => {
+                        Some(editor::Model::from(id))
+                    },
+                    None => {
+                        Some(editor::Model::default())
+                    },
+                };
+            },
+            Msg::Editor(msg) => {
+                if let Some(editor) = &mut self.editor {
+                    editor.update(
+                        msg.clone(),
+                        &mut orders.proxy(Msg::Editor)
+                    );
+                }
+                // TODO improve inter component messaging
+                match msg {
+                    editor::Msg::Editor(msg) =>
+                        match msg {
+                            g_editor::Msg::Cancel => {
+                                self.editor = None;
+                            },
+                            g_editor::Msg::New(msg) =>
+                                match msg {
+                                    newdata::Msg::Posted(_) =>
+                                        self.refresh(orders),
+                                    _ => {}
+                                },
+                            g_editor::Msg::Remote(msg) =>
+                                match msg {
+                                    remote::Msg::Entry(msg) =>
+                                        match msg {
+                                            entry::Msg::Updated(_) =>
+                                                self.refresh(orders),
+                                            _ => {}
+                                        },
+                                    _ => {}
+                                },
+                            _ => {},
+                        },
+                }
+            },
         }
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Msg> {
         div![
-            //if let Some(model) = &model.editor {
-            //    editor::view(&model).map_msg(Msg::Editor)
-            //} else {
-            //    if let Some(_) = api::auth::get_session() {
-            //        button![
-            //            simple_ev(Ev::Click, Msg::OpenEditor),
-            //            "New Task"
-            //        ]
-            //    } else { empty![] }
-            //},
+            h2!["Tasks"],
+            if let Some(editor) = &self.editor {
+                editor.edit().map_msg(Msg::Editor)
+            } else {
+                if let Some(_) = api::auth::get_session() {
+                    button![
+                        simple_ev(Ev::Click, Msg::New),
+                        "New Task"
+                    ]
+                } else { empty![] }
+            },
             self.list.view()
                 .map_msg(Msg::List)
         ]
