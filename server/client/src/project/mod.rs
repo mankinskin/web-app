@@ -15,7 +15,13 @@ use crate::{
     route::{
         self,
     },
-    preview::{self, Preview},
+    preview::{
+        self,
+        Preview,
+    },
+    editor::{
+        Edit,
+    },
     entry::{
         self,
         TableItem,
@@ -26,13 +32,16 @@ use crate::{
         Child,
     },
 };
+use updatable::{
+    Updatable,
+};
 use database::{
     Entry,
 };
 use std::result::Result;
 use async_trait::async_trait;
 
-//pub mod editor;
+pub mod editor;
 pub mod list;
 pub mod profile;
 
@@ -56,6 +65,16 @@ impl TableItem for Project {
     }
     async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
         api::delete_project(id)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
+    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String> {
+        api::update_project(id, update)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, String> {
+        api::post_project(data)
             .map(|res| res.map_err(|e| format!("{:?}", e)))
             .await
     }
@@ -99,22 +118,68 @@ impl Child<entry::Model<Self>> for Project {
 impl Preview for Project {
     fn preview(&self) -> Node<Msg> {
         div![
-            a![
-                attrs!{
-                    At::Href => "";
+            style!{
+                St::Display => "grid",
+                St::GridTemplateColumns => "1fr 1fr",
+                St::GridGap => "10px",
+                St::MaxWidth => "20%",
+                St::Cursor => "pointer",
+            },
+            simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+            h3![
+                style!{
+                    St::Margin => "0",
                 },
                 self.name(),
-                simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             ],
-            p!["Preview"],
+            div![],
+
+            p![
+                style!{
+                    St::Margin => "0",
+                },
+                "Subtasks:"
+            ],
+            self.tasks().len(),
+
+            p![
+                style!{
+                    St::Margin => "0",
+                },
+                "Members:"
+            ],
+            self.members().len(),
+
             button![
                 simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Delete))),
                 "Delete"
             ],
-            //button![
-            //    simple_ev(Ev::Click, Msg::Task(task::Msg::Edit)),
-            //    "Edit"
-            //],
+        ]
+    }
+}
+impl Edit for Project {
+    fn edit(&self) -> Node<Msg> {
+        form![
+            label![
+                "Name"
+            ],
+            input![
+                attrs!{
+                    At::Placeholder => "Name",
+                    At::Value => self.name(),
+                },
+                input_ev(Ev::Input, Msg::SetName)
+            ],
+            label![
+                "Description"
+            ],
+            textarea![
+                attrs!{
+                    At::Placeholder => "Description...",
+                    At::Value => self.description(),
+                },
+                input_ev(Ev::Input, Msg::SetDescription)
+            ],
         ]
     }
 }

@@ -29,11 +29,13 @@ use seed::{
     *,
     prelude::*,
 };
+use updatable::{
+    Updatable,
+};
 use std::result::Result;
 use async_trait::async_trait;
 
 pub mod profile;
-//pub mod list;
 
 #[derive(Clone)]
 pub enum Msg {
@@ -76,6 +78,16 @@ impl TableItem for User {
     }
     async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
         api::delete_user(id)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
+    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String> {
+        api::update_user(id, update)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, String> {
+        api::post_user(data)
             .map(|res| res.map_err(|e| format!("{:?}", e)))
             .await
     }

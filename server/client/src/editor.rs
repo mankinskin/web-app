@@ -1,84 +1,106 @@
 use seed::{
+    *,
     prelude::*,
 };
-use plans::{
-    task::*,
+use rql::{
+    Id,
+};
+use database::{
+    Entry,
 };
 use crate::{
     config::{
-        Component,
-        View,
         Config,
+        Component,
     },
     root::{
-        self,
         GMsg,
     },
-    task::{*},
+    entry::{
+        self,
+        *,
+    },
+    newdata,
+    remote,
 };
-use std::result::Result;
-
+pub trait Edit : Component {
+    fn edit(&self) -> Node<Self::Msg>;
+}
 #[derive(Clone)]
-pub enum Model<T> {
-    Entry(entry::Model<T>),
+pub enum Model<T: TableItem> {
+    Remote(remote::Model<T>),
     New(newdata::Model<T>),
 }
-impl<T> Config<Model<T>> for entry::Model<T> {
-    fn into_model(self, _orders: &mut impl Orders<Msg<T>, root::GMsg>) -> Model<T> {
-        Model {
-            data: self.data.unwrap_or(Default::default()),
-            id: Some(self.id),
-        }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg<T>, root::GMsg>) {
+impl<T: TableItem + Default> Default for Model<T> {
+    fn default() -> Self {
+        Self::New(Default::default())
     }
 }
-impl From<Entry<Task>> for Model {
-    fn from(entry: Entry<Task>) -> Self {
-        Self {
-            task_id: Some(entry.id().clone()),
-            task: entry.data().clone(),
-            ..Default::default()
-        }
+impl<T: TableItem> From<entry::Model<T>> for Model<T> {
+    fn from(model: entry::Model<T>) -> Self {
+        Self::from(remote::Model::from(model))
+    }
+}
+impl<T: TableItem> From<remote::Model<T>> for Model<T> {
+    fn from(model: remote::Model<T>) -> Self {
+        Self::Remote(model)
+    }
+}
+impl<T: TableItem> From<Entry<T>> for Model<T> {
+    fn from(entry: Entry<T>) -> Self {
+        Model::Remote(remote::Model::from(entry))
+    }
+}
+impl<T: TableItem> Config<Model<T>> for Id<T> {
+    fn into_model(self, orders: &mut impl Orders<Msg<T>, GMsg>) -> Model<T> {
+        Model::Remote(Config::init(self, &mut orders.proxy(Msg::Remote)))
+    }
+    fn send_msg(self, _orders: &mut impl Orders<Msg<T>, GMsg>) {
     }
 }
 #[derive(Clone)]
-pub enum Msg<T> {
+pub enum Msg<T: Component + TableItem> {
     Cancel,
     Submit,
-    //Created(Result<Id<Task>, String>),
+    New(newdata::Msg<T>),
+    Remote(remote::Msg<T>),
 }
-impl<T> Component for Model<T> {
+impl<T: Component + TableItem> Component for Model<T> {
     type Msg = Msg<T>;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>, GMsg>) {
         match msg {
             Msg::Cancel => {},
-            Msg::Submit => {},
-            //    let task = model.task.clone();
-            //    if let Some(id) = model.project_id {
-            //        orders.perform_cmd(
-            //            api::project_create_subtask(id, task)
-            //                .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
-            //        );
-            //    } else {
-            //        orders.perform_cmd(
-            //            api::post_task(task)
-            //                .map(|res| Msg::Created(res.map_err(|e| format!("{:?}", e))))
-            //        );
-            //    }
-            //},
-            //Msg::Created(res) => {
-            //    match res {
-            //        Ok(id) => model.task_id = Some(id),
-            //        Err(e) => { seed::log(e); },
-            //    }
-            //},
+            Msg::Submit => {
+                match self {
+                    Model::New(new) =>
+                        new.update(
+                            newdata::Msg::Post,
+                            &mut orders.proxy(Msg::New)
+                            ),
+                    Model::Remote(remote) =>
+                        remote.update(
+                            remote::Msg::Entry(entry::Msg::Update),
+                            &mut orders.proxy(Msg::Remote)
+                            ),
+                }
+            },
+            Msg::New(msg) => {
+                match self {
+                    Model::New(new) => new.update(msg, &mut orders.proxy(Msg::New)),
+                    _ => {},
+                }
+            },
+            Msg::Remote(msg) => {
+                match self {
+                    Model::Remote(remote) => remote.update(msg, &mut orders.proxy(Msg::Remote)),
+                    _ => {},
+                }
+            },
         }
     }
 }
-
-impl<T> View for Model<T> {
-    fn view(&self) -> Node<Msg> {
+impl<T: Component + TableItem + Edit> Edit for Model<T> {
+    fn edit(&self) -> Node<Msg<T>> {
         form![
             style!{
                 St::Display => "grid",
@@ -86,44 +108,37 @@ impl<T> View for Model<T> {
                 St::GridGap => "10px",
                 St::MaxWidth => "20%",
             },
-            if let Some(_) = model.task_id {
-                h1!["Edit Task"]
-            } else {
-                h1!["New Task"]
-            },
-            label![
-                "Title"
-            ],
-            input![
-                attrs!{
-                    At::Placeholder => "Title",
-                    At::Value => model.task.title(),
-                },
-                input_ev(Ev::Input, Msg::ChangeTitle)
-            ],
-            label![
-                "Description"
-            ],
-            textarea![
-                attrs!{
-                    At::Placeholder => "Description...",
-                    At::Value => model.task.description(),
-                },
-                input_ev(Ev::Input, Msg::ChangeDescription)
-            ],
-            // Submit Button
-            button![
-                attrs!{
-                    At::Type => "submit",
-                },
-                "Create"
-            ],
-            ev(Ev::Submit, |ev| {
-                ev.prevent_default();
-                Msg::Submit
-            }),
             // Cancel Button
             button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
+            match self {
+                Model::New(new) =>
+                    div![
+                        h1!["New"],
+                        new.edit().map_msg(Msg::New),
+                        // Submit Button
+                        button![
+                            attrs!{
+                                At::Type => "submit",
+                            },
+                            "Create"
+                        ],
+                    ],
+                Model::Remote(entry) =>
+                    div![
+                        h1!["Edit"],
+                        entry.edit().map_msg(Msg::Remote),
+                        button![
+                            attrs!{
+                                At::Type => "submit",
+                            },
+                            "Update"
+                        ],
+                    ],
+            },
+            ev(Ev::Submit, |ev| {
+                ev.prevent_default();
+                Msg::<T>::Submit
+            }),
         ]
     }
 }

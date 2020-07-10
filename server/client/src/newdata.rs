@@ -1,4 +1,5 @@
 use seed::{
+    *,
     prelude::*,
 };
 use rql::{
@@ -9,8 +10,8 @@ use crate::{
         Component,
         View,
     },
-    route::{
-        Routable,
+    editor::{
+        Edit,
     },
     root::{
         GMsg,
@@ -18,12 +19,18 @@ use crate::{
     entry::{
         TableItem,
     },
+
 };
 use std::result::Result;
 
 #[derive(Clone)]
 pub struct Model<T> {
     pub data: T,
+}
+impl<T: Default> Default for Model<T> {
+    fn default() -> Self {
+        Self::from(T::default())
+    }
 }
 impl<T> From<T> for Model<T> {
     fn from(data: T) -> Self {
@@ -33,24 +40,19 @@ impl<T> From<T> for Model<T> {
     }
 }
 #[derive(Clone)]
-pub enum Msg<T: Component + TableItem>
-    where Id<T>: Routable
-{
+pub enum Msg<T: Component + TableItem> {
     Post,
     Posted(Result<Id<T>, String>),
     Data(<T as Component>::Msg),
 }
-impl<T: Component + TableItem> Component for Model<T>
-    where Id<T>: Routable
-{
+impl<T: Component + TableItem> Component for Model<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
         match msg {
             Msg::Post => {
-                //orders.perform_cmd(
-                //    api::get_task(id)
-                //        .map(|res| Msg::GotTask(res.map_err(|e| format!("{:?}", e))))
-                //);
+                orders.perform_cmd(
+                    T::post(self.data.clone()).map(|res| Msg::Posted(res))
+                );
             },
             Msg::Posted(res) => {
                 match res {
@@ -64,10 +66,13 @@ impl<T: Component + TableItem> Component for Model<T>
         }
     }
 }
-impl<T: View + TableItem> View for Model<T>
-    where Id<T>: Routable
-{
+impl<T: View + TableItem> View for Model<T> {
     fn view(&self) -> Node<Self::Msg> {
         self.data.view().map_msg(Msg::Data)
+    }
+}
+impl<T: Edit + TableItem> Edit for Model<T> {
+    fn edit(&self) -> Node<Self::Msg> {
+        self.data.edit().map_msg(Msg::Data)
     }
 }

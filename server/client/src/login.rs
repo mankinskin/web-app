@@ -20,7 +20,7 @@ use crate::{
         GMsg,
     },
 };
-/// credential input component
+
 #[derive(Clone, Default)]
 pub struct Model {
     pub credentials: Credentials,
@@ -31,7 +31,7 @@ pub enum Msg {
     ChangePassword(String),
     LoginResponse(Result<UserSession, String>),
     Submit,
-    //Register,
+    Register,
 }
 impl Component for Model {
     type Msg = Msg;
@@ -57,17 +57,15 @@ impl Component for Model {
                     Err(e) => {seed::log!(e)}
                 }
             },
-            //Msg::Register => {
-            //    page::go_to(register::Config::default(), orders);
-            //},
+            Msg::Register => {
+                page::go_to(Route::Register, orders);
+            },
         }
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Msg> {
-        // login form
         form![
-            // Username field
             label![
                 "Username"
             ],
@@ -81,7 +79,6 @@ impl View for Model {
             div![
                 self.credentials.username_invalid_text()
             ],
-            // Password field
             label![
                 "Password"
             ],
@@ -96,7 +93,6 @@ impl View for Model {
             div![
                 self.credentials.password_invalid_text()
             ],
-            // Login Button
             button![
                 attrs!{
                     At::Type => "submit",
@@ -107,8 +103,7 @@ impl View for Model {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            // Go to Register Button
-            // button![simple_ev(Ev::Click, Msg::Register), "Register"],
+            button![simple_ev(Ev::Click, Msg::Register), "Register"],
         ]
     }
 }

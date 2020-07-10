@@ -26,11 +26,17 @@ use crate::{
         View,
         Child,
     },
+    editor::{
+        Edit,
+    },
+};
+use updatable::{
+    Updatable,
 };
 use std::result::Result;
 use async_trait::async_trait;
 
-//pub mod editor;
+pub mod editor;
 pub mod profile;
 pub mod list;
 
@@ -84,6 +90,16 @@ impl TableItem for Task {
             .map(|res| res.map_err(|e| format!("{:?}", e)))
             .await
     }
+    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String> {
+        api::update_task(id, update)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, String> {
+        api::post_task(data)
+            .map(|res| res.map_err(|e| format!("{:?}", e)))
+            .await
+    }
 }
 
 impl Child<entry::Model<Self>> for Task {
@@ -98,22 +114,66 @@ impl Child<entry::Model<Self>> for Task {
 impl Preview for Task {
     fn preview(&self) -> Node<Msg> {
         div![
-            a![
-                attrs!{
-                    At::Href => "";
+            style!{
+                St::Display => "grid",
+                St::GridTemplateColumns => "1fr 1fr",
+                St::GridGap => "10px",
+                St::MaxWidth => "20%",
+                    St::Cursor => "pointer",
+            },
+            simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+            h3![
+                style!{
+                    St::Margin => "0",
                 },
                 self.title(),
-                simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             ],
-            p!["Preview"],
+            div![],
+            p![
+                style!{
+                    St::Margin => "0",
+                },
+                "Subtasks:"
+            ],
+            self.subtasks().len(),
+
+            p![
+                style!{
+                    St::Margin => "0",
+                },
+                "Assignees:"
+            ],
+            self.assignees().len(),
             button![
                 simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Delete))),
                 "Delete"
             ],
-            //button![
-            //    simple_ev(Ev::Click, Msg::Task(task::Msg::Edit)),
-            //    "Edit"
-            //],
+        ]
+    }
+}
+impl Edit for Task {
+    fn edit(&self) -> Node<Msg> {
+        form![
+            label![
+                "Title"
+            ],
+            input![
+                attrs!{
+                    At::Placeholder => "Title",
+                    At::Value => self.title(),
+                },
+                input_ev(Ev::Input, Msg::SetTitle)
+            ],
+            label![
+                "Description"
+            ],
+            textarea![
+                attrs!{
+                    At::Placeholder => "Description...",
+                    At::Value => self.description(),
+                },
+                input_ev(Ev::Input, Msg::SetDescription)
+            ],
         ]
     }
 }

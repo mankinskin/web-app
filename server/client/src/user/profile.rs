@@ -10,19 +10,19 @@ use crate::{
     },
     user::*,
     project,
-    entry,
+    remote,
 };
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: entry::Model<User>,
-    pub project: project::list::Model,
+    pub entry: remote::Model<User>,
+    pub projects: project::list::Model,
 }
 impl Config<Model> for Id<User> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
-            project: Config::init(self, &mut orders.proxy(Msg::ProjectList)),
+            projects: Config::init(self.clone(), &mut orders.proxy(Msg::ProjectList)),
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
@@ -30,8 +30,10 @@ impl Config<Model> for Id<User> {
 }
 impl Config<Model> for Entry<User> {
     fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
-        let id = self.id().clone();
-        Config::init(id, orders)
+        Model {
+            entry: remote::Model::from(self.clone()),
+            projects: Config::init(self.id, &mut orders.proxy(Msg::ProjectList)),
+        }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
     }
@@ -39,7 +41,7 @@ impl Config<Model> for Entry<User> {
 
 #[derive(Clone)]
 pub enum Msg {
-    Entry(entry::Msg<User>),
+    Entry(remote::Msg<User>),
     ProjectList(project::list::Msg),
 }
 impl Component for Model {
@@ -53,7 +55,7 @@ impl Component for Model {
                 )
             },
             Msg::ProjectList(msg) => {
-                self.project.update(
+                self.projects.update(
                     msg,
                     &mut orders.proxy(Msg::ProjectList)
                 )
@@ -66,7 +68,7 @@ impl View for Model {
         div![
             self.entry.view()
                 .map_msg(Msg::Entry),
-            self.project.view()
+            self.projects.view()
                 .map_msg(Msg::ProjectList),
         ]
     }

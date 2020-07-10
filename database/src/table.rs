@@ -50,8 +50,9 @@ pub trait DatabaseTable<'a>
         Self::table_mut()
           .get_mut(id)
           .map(move |entry| {
+              let prev = entry.clone();
               update.update(entry);
-              entry.clone()
+              prev
           })
     }
     fn get_all() -> Vec<Entry<Self>> {
