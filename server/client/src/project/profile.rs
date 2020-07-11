@@ -14,10 +14,6 @@ use crate::{
         View,
         Config,
     },
-    root::{
-        self,
-        GMsg,
-    },
     task,
     entry,
     remote,
@@ -40,32 +36,32 @@ pub struct Model {
     pub editor: Option<editor::Model>,
 }
 impl Model {
-    fn refresh(&self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn refresh(&self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(
             Msg::Entry(remote::Msg::Get)
         );
     }
 }
 impl Config<Model> for Id<Project> {
-    fn into_model(self, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
             tasks: Config::init(self, &mut orders.proxy(Msg::TaskList)),
             editor: None,
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 impl Config<Model> for Entry<Project> {
-    fn into_model(self, orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: remote::Model::from(self.clone()),
             tasks: Config::init(self.id, &mut orders.proxy(Msg::TaskList)),
             editor: None,
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 #[derive(Clone)]
@@ -77,7 +73,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Entry(msg) => {
                 self.entry.update(
@@ -134,7 +130,7 @@ impl View for Model {
             div![
                 if let Some(_) = api::auth::get_session() {
                     button![
-                        simple_ev(Ev::Click, Msg::Edit),
+                        ev(Ev::Click, |_| Msg::Edit),
                         "Edit Project"
                     ]
                 } else { empty![] },

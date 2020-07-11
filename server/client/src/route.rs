@@ -96,6 +96,13 @@ impl Into<Vec<String>> for Route {
         }
     }
 }
+impl ToString for Route {
+    fn to_string(&self) -> String {
+        let v: Vec<String> = self.clone().into();
+        v.iter()
+         .fold(String::new(), |a,x| format!("{}/{}", a, x))
+    }
+}
 impl From<&[String]> for Route {
     fn from(path: &[String]) -> Self {
         if path.is_empty() {

@@ -14,10 +14,6 @@ use crate::{
     },
     route::{
         Route,
-        Routable,
-    },
-    root::{
-        GMsg,
     },
 };
 
@@ -40,7 +36,7 @@ impl Default for Model {
     }
 }
 impl Config<Model> for Route {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         match self {
             Route::NotFound => Model::Home(Default::default()),
             Route::Home => Model::Home(Default::default()),
@@ -53,13 +49,8 @@ impl Config<Model> for Route {
             Route::Task(id) => Model::TaskProfile(Config::init(id, &mut orders.proxy(Msg::TaskProfile))),
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
-}
-pub fn go_to<R: Routable, Ms: 'static>(r: R, orders: &mut impl Orders<Ms, GMsg>) {
-    let route = r.route();
-    seed::push_route(route.clone());
-    orders.send_g_msg(GMsg::Root(root::Msg::SetPage(route)));
 }
 #[derive(Clone)]
 pub enum Msg {
@@ -71,14 +62,18 @@ pub enum Msg {
     ProjectList(project::list::Msg),
     ProjectProfile(project::profile::Msg),
     TaskProfile(task::profile::Msg),
+    GoTo(Route),
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
-        match self {
-            Model::Home(home) => {
-                match msg {
-                    Msg::Home(msg) => {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
+        match msg {
+            Msg::GoTo(route) => {
+                *self = Config::init(route, orders);
+            },
+            Msg::Home(msg) => {
+                match self {
+                    Model::Home(home) => {
                         home.update(
                             msg,
                             &mut orders.proxy(Msg::Home)
@@ -87,9 +82,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::Login(login) => {
-                match msg {
-                    Msg::Login(msg) => {
+            Msg::Login(msg) => {
+                match self {
+                    Model::Login(login) => {
                         login.update(
                             msg,
                             &mut orders.proxy(Msg::Login)
@@ -98,9 +93,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::Register(register) => {
-                match msg {
-                    Msg::Register(msg) => {
+            Msg::Register(msg) => {
+                match self {
+                    Model::Register(register) => {
                         register.update(
                             msg,
                             &mut orders.proxy(Msg::Register)
@@ -109,9 +104,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::UserList(list) => {
-                match msg {
-                    Msg::UserList(msg) => {
+            Msg::UserList(msg) => {
+                match self {
+                    Model::UserList(list) => {
                         list.update(
                             msg,
                             &mut orders.proxy(Msg::UserList)
@@ -120,9 +115,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::UserProfile(profile) => {
-                match msg {
-                    Msg::UserProfile(msg) => {
+            Msg::UserProfile(msg) => {
+                match self {
+                    Model::UserProfile(profile) => {
                         profile.update(
                             msg,
                             &mut orders.proxy(Msg::UserProfile)
@@ -131,9 +126,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::ProjectList(list) => {
-                match msg {
-                    Msg::ProjectList(msg) => {
+            Msg::ProjectList(msg) => {
+                match self {
+                    Model::ProjectList(list) => {
                         list.update(
                             msg,
                             &mut orders.proxy(Msg::ProjectList)
@@ -142,9 +137,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::ProjectProfile(profile) => {
-                match msg {
-                    Msg::ProjectProfile(msg) => {
+            Msg::ProjectProfile(msg) => {
+                match self {
+                    Model::ProjectProfile(profile) => {
                         profile.update(
                             msg,
                             &mut orders.proxy(Msg::ProjectProfile)
@@ -153,9 +148,9 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            Model::TaskProfile(profile) => {
-                match msg {
-                    Msg::TaskProfile(msg) => {
+            Msg::TaskProfile(msg) => {
+                match self {
+                    Model::TaskProfile(profile) => {
                         profile.update(
                             msg,
                             &mut orders.proxy(Msg::TaskProfile)
@@ -164,7 +159,6 @@ impl Component for Model {
                     _ => {}
                 }
             },
-            _ => {},
         }
     }
 }

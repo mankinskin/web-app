@@ -3,20 +3,16 @@ use seed::{
     prelude::*,
 };
 use crate::{
+    root,
     config::{
         Component,
         View,
-    },
-    root::{
-        self,
-        GMsg,
     },
 };
 
 #[derive(Clone, Default)]
 pub struct Model {
 }
-
 #[derive(Clone)]
 pub enum Msg {
     Logout,
@@ -24,10 +20,10 @@ pub enum Msg {
 
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Logout => {
-                orders.send_g_msg(root::GMsg::EndSession);
+                orders.notify(root::Msg::EndSession);
             },
         }
     }
@@ -63,7 +59,7 @@ impl View for Model {
                         },
                         "My Profile",
                     ],
-                    button![simple_ev(Ev::Click, Msg::Logout), "Log Out"],
+                    button![ev(Ev::Click, |_| Msg::Logout), "Log Out"],
                 ]
             } else {
                 div![

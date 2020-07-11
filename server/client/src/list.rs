@@ -8,9 +8,6 @@ use crate::{
         View,
         Config,
     },
-    root::{
-        GMsg,
-    },
     preview::{self, Preview},
     entry::{
         self,
@@ -28,10 +25,10 @@ pub struct Model<T: TableItem> {
 }
 impl<T: Component + TableItem + Default> Config<Model<T>> for Msg<T>
 {
-    fn into_model(self, _orders: &mut impl Orders<Msg<T>, GMsg>) -> Model<T> {
+    fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg<T>, GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg<T>>) {
         orders.send_msg(self);
     }
 }
@@ -58,7 +55,7 @@ pub enum Msg<T: Component + TableItem> {
 }
 impl<T: Component + TableItem> Component for Model<T> {
     type Msg = Msg<T>;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Msg<T>, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Msg<T>>) {
         match msg {
             Msg::GetAll => {
                 orders.perform_cmd(

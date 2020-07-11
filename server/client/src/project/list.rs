@@ -15,10 +15,6 @@ use crate::{
         Component,
         View,
     },
-    root::{
-        self,
-        GMsg,
-    },
     list,
     project::editor,
     editor::{
@@ -41,7 +37,7 @@ pub struct Model {
     editor: Option<editor::Model>,
 }
 impl Model {
-    fn refresh(&self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn refresh(&self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(
             if let Some(id) = self.user_id {
                 Msg::GetUserProjects(id)
@@ -52,18 +48,18 @@ impl Model {
     }
 }
 impl Config<Model> for list::Msg<Project> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(Msg::List(self));
     }
 }
 impl Config<Model> for Msg {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(self);
     }
 }
@@ -76,13 +72,13 @@ impl From<Vec<Entry<Project>>> for Model {
     }
 }
 impl Config<Model> for Id<User> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
         Model {
             user_id: Some(self),
             ..Default::default()
         }
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(Msg::GetUserProjects(self));
     }
 }
@@ -99,7 +95,7 @@ pub enum Msg {
 
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::GetUserProjects(id) => {
                 orders.perform_cmd(
@@ -175,7 +171,7 @@ impl View for Model {
             } else {
                 if let Some(_) = api::auth::get_session() {
                     button![
-                        simple_ev(Ev::Click, Msg::New),
+                        ev(Ev::Click, |_| Msg::New),
                         "New Project"
                     ]
                 } else { empty![] }

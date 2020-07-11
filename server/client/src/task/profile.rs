@@ -14,10 +14,6 @@ use crate::{
         View,
         Config,
     },
-    root::{
-        self,
-        GMsg,
-    },
     remote,
     task::{
         editor,
@@ -38,20 +34,20 @@ pub struct Model {
     pub editor: Option<editor::Model>,
 }
 impl Model {
-    fn refresh(&self, orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn refresh(&self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(
             Msg::Entry(remote::Msg::Get)
         );
     }
 }
 impl Config<Model> for Id<Task> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
             editor: None,
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 impl From<Entry<Task>> for Model {
@@ -70,7 +66,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::Entry(msg) => {
                 self.entry.update(
@@ -121,7 +117,7 @@ impl View for Model {
             div![
                 if let Some(_) = api::auth::get_session() {
                     button![
-                        simple_ev(Ev::Click, Msg::Edit),
+                        ev(Ev::Click, |_| Msg::Edit),
                         "Edit Task"
                     ]
                 } else { empty![] },
