@@ -13,9 +13,6 @@ use crate::{
     editor::{
         Edit,
     },
-    root::{
-        GMsg,
-    },
     entry::{
         TableItem,
     },
@@ -47,7 +44,7 @@ pub enum Msg<T: Component + TableItem> {
 }
 impl<T: Component + TableItem> Component for Model<T> {
     type Msg = Msg<T>;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Post => {
                 orders.perform_cmd(

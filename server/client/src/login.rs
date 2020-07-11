@@ -1,13 +1,14 @@
 use seed::{
     *,
     prelude::*,
+    browser::fetch::FetchError,
 };
 use plans::{
     credentials::*,
     user::*,
 };
 use crate::{
-    page,
+    root,
     config::{
         Component,
         View,
@@ -15,11 +16,8 @@ use crate::{
     route::{
         Route,
     },
-    root::{
-        self,
-        GMsg,
-    },
 };
+use std::result::Result;
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -35,7 +33,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::ChangeUsername(u) => self.credentials.username = u,
             Msg::ChangePassword(p) => self.credentials.password = p,
@@ -51,14 +49,14 @@ impl Component for Model {
             Msg::LoginResponse(result) => {
                 match result {
                     Ok(session) => {
-                        orders.send_g_msg(root::GMsg::SetSession(session));
-                        page::go_to(Route::Home, orders);
+                        orders.notify(root::Msg::SetSession(session));
+                        root::go_to(Route::Home, orders);
                     },
                     Err(e) => {seed::log!(e)}
                 }
             },
             Msg::Register => {
-                page::go_to(Route::Register, orders);
+                root::go_to(Route::Register, orders);
             },
         }
     }
@@ -103,7 +101,7 @@ impl View for Model {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            button![simple_ev(Ev::Click, Msg::Register), "Register"],
+            button![ev(Ev::Click, |_| Msg::Register), "Register"],
         ]
     }
 }

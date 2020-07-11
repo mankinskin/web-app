@@ -9,14 +9,10 @@ use rql::{
     *,
 };
 use crate::{
-    root::{
-        GMsg,
-    },
     route::{
         self,
     },
     preview::{
-        self,
         Preview,
     },
     editor::{
@@ -88,7 +84,7 @@ pub enum Msg {
 }
 impl Component for Project {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::SetName(n) => {
                 self.set_name(n);
@@ -107,7 +103,7 @@ impl View for Project {
         ]
     }
 }
-impl Child<entry::Model<Self>> for Project {
+impl Child<Entry<Self>> for Project {
     fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<Self>> {
         match msg {
             Msg::Entry(msg) => Some(*msg),
@@ -125,7 +121,7 @@ impl Preview for Project {
                 St::MaxWidth => "20%",
                 St::Cursor => "pointer",
             },
-            simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+            //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             h3![
                 style!{
                     St::Margin => "0",
@@ -151,7 +147,7 @@ impl Preview for Project {
             self.members().len(),
 
             button![
-                simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Delete))),
+                ev(Ev::Click, |_| Msg::Entry(Box::new(entry::Msg::Delete))),
                 "Delete"
             ],
         ]

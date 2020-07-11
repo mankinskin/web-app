@@ -4,7 +4,10 @@ use seed::{
 };
 use crate::{
     *,
-    route::*,
+    route::{
+        Route,
+        Routable,
+    },
     config::{
         Component,
         Config,
@@ -12,59 +15,75 @@ use crate::{
     },
 };
 use plans::{
-    user::*,
+    user::{
+        UserSession,
+    },
 };
 
 #[wasm_bindgen(start)]
 pub fn render() {
-    App::builder(move |msg, model, orders| model.update(msg, orders), Model::view)
-        .after_mount(after_mount)
-        .routes(routes)
-        .sink(sink)
-        .build_and_start();
-}
-fn after_mount(url: seed::Url, orders: &mut impl Orders<Msg, GMsg>) -> AfterMount<Model> {
-    AfterMount::new(Config::init(Route::from(url), orders))
-}
-fn routes(url: Url) -> Option<Msg> {
-    // needed to use Hrefs (because they only change the browser url)
-    Some(Msg::SetPage(Route::from(url.path())))
+    App::start("app",
+               |url, orders| Config::<Model>::init(Route::from(url), orders),
+               |msg, model, orders| model.update(msg, orders),
+               View::view,
+    );
 }
 #[derive(Clone, Default)]
 pub struct Model {
-    navbar: navbar::Model, // the navigation bar
-    page: page::Model, // the current page
+    navbar: navbar::Model,
+    page: page::Model,
 }
 impl Config<Model> for Route {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+        orders.subscribe(Msg::UrlRequested)
+              .subscribe(Msg::UrlChanged)
+              .subscribe(|route| Msg::Page(page::Msg::GoTo(route)))
+              .subscribe(|msg: Msg| msg);
         Model {
             navbar: Default::default(),
             page: Config::init(self, &mut orders.proxy(Msg::Page)),
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 #[derive(Clone)]
 pub enum Msg {
+    UrlRequested(subs::UrlRequested),
+    UrlChanged(subs::UrlChanged),
     NavBar(navbar::Msg),
     Page(page::Msg),
-    SetPage(Route),
+    SetSession(UserSession),
+    EndSession,
 }
-impl From<page::Msg> for Msg {
-    fn from(msg: page::Msg) -> Self {
-        Self::Page(msg)
+fn refresh_session() {
+    if let None = api::auth::get_session() {
+        if let Some(session) = api::auth::load_session() {
+            api::auth::set_session(session);
+        }
     }
 }
-impl From<navbar::Msg> for Msg {
-    fn from(msg: navbar::Msg) -> Self {
-        Self::NavBar(msg)
-    }
+pub fn go_to<R: Routable, Ms: 'static>(r: R, orders: &mut impl Orders<Ms>) {
+    orders.notify(Msg::Page(page::Msg::GoTo(r.route())));
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
+        refresh_session();
         match msg {
+            Msg::UrlChanged(subs::UrlChanged(url)) => {
+                orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
+            },
+            Msg::UrlRequested(subs::UrlRequested(url, _request)) => {
+                orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
+            },
+            Msg::SetSession(session) => {
+                api::auth::set_session(session);
+            },
+            Msg::EndSession => {
+                api::auth::end_session();
+                self.page = page::Model::default();
+            },
             Msg::Page(msg) => {
                 self.page.update(
                     msg.clone(),
@@ -77,43 +96,14 @@ impl Component for Model {
                     &mut orders.proxy(Msg::NavBar)
                 );
             },
-            Msg::SetPage(route) => {
-                if let None = api::auth::get_session() {
-                    if let Some(session) = api::auth::load_session() {
-                        api::auth::set_session(session);
-                    }
-                }
-                self.page = Config::init(route, &mut orders.proxy(Msg::Page));
-            },
         }
-    }
-}
-#[derive(Clone)]
-pub enum GMsg {
-    Root(Msg),
-    SetSession(UserSession),
-    EndSession,
-}
-fn sink(msg: GMsg, _model: &mut Model, orders: &mut impl Orders<Msg, GMsg>) {
-    match msg {
-        GMsg::Root(msg) => {
-            orders.send_msg(msg);
-        },
-        GMsg::SetSession(session) => {
-            api::auth::set_session(session.clone());
-        },
-        GMsg::EndSession => {
-            api::auth::end_session()
-        },
     }
 }
 impl View for Model {
     fn view(&self) -> Node<Self::Msg> {
         div![
-            self.navbar.view()
-                .map_msg(Msg::NavBar),
-            self.page.view()
-                .map_msg(Msg::Page),
+            self.navbar.view().map_msg(Msg::NavBar),
+            self.page.view().map_msg(Msg::Page),
         ]
     }
 }

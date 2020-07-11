@@ -12,9 +12,6 @@ use crate::{
         View,
         Child,
     },
-    root::{
-        GMsg,
-    },
     preview::{self, Preview},
     route::{
         Route,
@@ -36,24 +33,19 @@ use std::result::Result;
 #[derive(Clone)]
 pub enum Model<T: TableItem> {
     Loading(Id<T>),
-    Ready(entry::Model<T>),
+    Ready(Entry<T>),
 }
 impl<T: TableItem + Component> Config<Model<T>> for Id<T> {
-    fn into_model(self, _orders: &mut impl Orders<Msg<T>, GMsg>) -> Model<T> {
+    fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Loading(self)
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg<T>, GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg<T>>) {
         orders.send_msg(Msg::Get);
     }
 }
 impl<T: TableItem + Component> From<Entry<T>> for Model<T> {
     fn from(entry: Entry<T>) -> Model<T> {
-        Model::Ready(entry::Model::from(entry))
-    }
-}
-impl<T: TableItem + Component> From<entry::Model<T>> for Model<T> {
-    fn from(model: entry::Model<T>) -> Model<T> {
-        Model::Ready(model)
+        Model::Ready(entry)
     }
 }
 #[derive(Clone)]
@@ -65,7 +57,7 @@ pub enum Msg<T: TableItem + Component> {
 }
 impl<T: TableItem + Component> Component for Model<T> {
     type Msg = Msg<T>;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match self {
             Model::Loading(id) => {
                 match msg {
@@ -78,7 +70,7 @@ impl<T: TableItem + Component> Component for Model<T> {
                         match res {
                             Ok(r) =>
                                 if let Some(entry) = r {
-                                    *self = Model::Ready(entry::Model::from(entry));
+                                    *self = Model::Ready(entry);
                                 },
                             Err(e) => { seed::log(e); },
                         }

@@ -7,9 +7,6 @@ use plans::{
 };
 use crate::{
     config::*,
-    root::{
-        GMsg,
-    },
     task::{*},
     editor::{
         self,
@@ -45,7 +42,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Editor(msg) => {
                 match msg {

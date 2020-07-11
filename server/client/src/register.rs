@@ -6,17 +6,13 @@ use seed::{
     prelude::*,
 };
 use crate::{
-    page,
+    root,
     config::{
         Component,
         View,
     },
     route::{
         Route,
-    },
-    root::{
-        self,
-        GMsg,
     },
 };
 
@@ -34,7 +30,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::ChangeUsername(u) => {
                 self.user.credentials_mut().username = u;
@@ -55,14 +51,14 @@ impl Component for Model {
                 match result {
                     Ok(session) => {
                         seed::log!("Ok");
-                        orders.send_g_msg(root::GMsg::SetSession(session));
-                        page::go_to(Route::Home, orders);
+                        orders.notify(root::Msg::SetSession(session));
+                        root::go_to(Route::Home, orders);
                     },
                     Err(e) => {seed::log!(e)}
                 }
             },
             Msg::Login => {
-                page::go_to(Route::Login, orders);
+                root::go_to(Route::Login, orders);
             },
         }
     }
@@ -107,7 +103,7 @@ impl View for Model {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            button![simple_ev(Ev::Click, Msg::Login), "Log In"],
+            button![ev(Ev::Click, |_| Msg::Login), "Log In"],
         ]
     }
 }

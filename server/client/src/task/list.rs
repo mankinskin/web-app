@@ -12,9 +12,6 @@ use crate::{
         View,
         Config,
     },
-    root::{
-        GMsg,
-    },
     editor as g_editor,
     list,
     newdata,
@@ -42,7 +39,7 @@ pub struct Model {
     editor: Option<editor::Model>,
 }
 impl Model {
-    fn refresh(&self, orders: &mut impl Orders<Msg, GMsg>) {
+    fn refresh(&self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(
             if let Some(id) = self.project_id {
                 Msg::GetProjectTasks(id)
@@ -53,10 +50,10 @@ impl Model {
     }
 }
 impl Config<Model> for Msg {
-    fn into_model(self, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(self);
     }
 }
@@ -69,13 +66,13 @@ impl From<Vec<Entry<Task>>> for Model {
     }
 }
 impl Config<Model> for Id<Project> {
-    fn into_model(self, _orders: &mut impl Orders<Msg, GMsg>) -> Model {
+    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
         Model {
             project_id: Some(self),
             ..Default::default()
         }
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg, GMsg>) {
+    fn send_msg(self, orders: &mut impl Orders<Msg>) {
         orders.send_msg(Msg::GetProjectTasks(self));
     }
 }
@@ -91,7 +88,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::GetProjectTasks(id) => {
                 orders.perform_cmd(
@@ -167,7 +164,7 @@ impl View for Model {
             } else {
                 if let Some(_) = api::auth::get_session() {
                     button![
-                        simple_ev(Ev::Click, Msg::New),
+                        ev(Ev::Click, |_| Msg::New),
                         "New Task"
                     ]
                 } else { empty![] }

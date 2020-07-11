@@ -2,7 +2,6 @@ use rql::{
     *,
 };
 use crate::{
-    root,
     config::{
         Config,
         Component,
@@ -19,23 +18,23 @@ pub struct Model {
     pub projects: project::list::Model,
 }
 impl Config<Model> for Id<User> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
             projects: Config::init(self.clone(), &mut orders.proxy(Msg::ProjectList)),
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 impl Config<Model> for Entry<User> {
-    fn into_model(self, orders: &mut impl Orders<Msg, root::GMsg>) -> Model {
+    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: remote::Model::from(self.clone()),
             projects: Config::init(self.id, &mut orders.proxy(Msg::ProjectList)),
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg, root::GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 
@@ -46,7 +45,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Entry(msg) => {
                 self.entry.update(

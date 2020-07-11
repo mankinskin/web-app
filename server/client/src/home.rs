@@ -7,9 +7,6 @@ use crate::{
         Component,
         View,
     },
-    root::{
-        GMsg,
-    },
 };
 
 #[derive(Clone, Default)]
@@ -20,7 +17,7 @@ pub enum Msg {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg, GMsg>) {
+    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {
     }
 }
 impl View for Model {

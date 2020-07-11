@@ -2,9 +2,6 @@ use plans::{
     user::*,
 };
 use crate::{
-    root::{
-        GMsg,
-    },
     config::{
         Component,
         View,
@@ -14,7 +11,9 @@ use crate::{
         self,
         TableItem,
     },
-    preview::{self, *},
+    preview::{
+        *,
+    },
     route::{
         self,
     },
@@ -43,7 +42,7 @@ pub enum Msg {
 }
 impl Component for User {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::Entry(_) => {},
         }
@@ -93,7 +92,7 @@ impl TableItem for User {
     }
 }
 
-impl Child<entry::Model<Self>> for User {
+impl Child<Entry<Self>> for User {
     fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<Self>> {
         match msg {
             Msg::Entry(msg) => Some(*msg),
@@ -106,11 +105,8 @@ impl Preview for User {
         div![
             p!["Preview"],
             a![
-                attrs!{
-                    At::Href => "";
-                },
                 self.name(),
-                simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+                //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             ],
             self.followers().len(),
         ]

@@ -13,9 +13,6 @@ use crate::{
         Config,
         Component,
     },
-    root::{
-        GMsg,
-    },
     entry::{
         self,
         *,
@@ -25,6 +22,11 @@ use crate::{
 };
 pub trait Edit : Component {
     fn edit(&self) -> Node<Self::Msg>;
+}
+impl<T: TableItem + Edit> Edit for Entry<T> {
+    fn edit(&self) -> Node<Self::Msg> {
+        self.data.edit().map_msg(entry::Msg::Data)
+    }
 }
 #[derive(Clone)]
 pub enum Model<T: TableItem> {
@@ -36,8 +38,8 @@ impl<T: TableItem + Default> Default for Model<T> {
         Self::New(Default::default())
     }
 }
-impl<T: TableItem> From<entry::Model<T>> for Model<T> {
-    fn from(model: entry::Model<T>) -> Self {
+impl<T: TableItem> From<Entry<T>> for Model<T> {
+    fn from(model: Entry<T>) -> Self {
         Self::from(remote::Model::from(model))
     }
 }
@@ -46,16 +48,11 @@ impl<T: TableItem> From<remote::Model<T>> for Model<T> {
         Self::Remote(model)
     }
 }
-impl<T: TableItem> From<Entry<T>> for Model<T> {
-    fn from(entry: Entry<T>) -> Self {
-        Model::Remote(remote::Model::from(entry))
-    }
-}
 impl<T: TableItem> Config<Model<T>> for Id<T> {
-    fn into_model(self, orders: &mut impl Orders<Msg<T>, GMsg>) -> Model<T> {
+    fn into_model(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Remote(Config::init(self, &mut orders.proxy(Msg::Remote)))
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg<T>, GMsg>) {
+    fn send_msg(self, _orders: &mut impl Orders<Msg<T>>) {
     }
 }
 #[derive(Clone)]
@@ -67,7 +64,7 @@ pub enum Msg<T: Component + TableItem> {
 }
 impl<T: Component + TableItem> Component for Model<T> {
     type Msg = Msg<T>;
-    fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>, GMsg>) {
+    fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
         match msg {
             Msg::Cancel => {},
             Msg::Submit => {
@@ -109,7 +106,7 @@ impl<T: Component + TableItem + Edit> Edit for Model<T> {
                 St::MaxWidth => "20%",
             },
             // Cancel Button
-            button![simple_ev(Ev::Click, Msg::Cancel), "Cancel"],
+            button![ev(Ev::Click, |_| Msg::<T>::Cancel), "Cancel"],
             match self {
                 Model::New(new) =>
                     div![

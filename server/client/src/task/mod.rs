@@ -12,11 +12,10 @@ use rql::{
     *,
 };
 use crate::{
-    root::{
-        GMsg,
-    },
     route::{self},
-    preview::{self, Preview},
+    preview::{
+        Preview,
+    },
     entry::{
         self,
         TableItem,
@@ -48,7 +47,7 @@ pub enum Msg {
 }
 impl Component for Task {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg, GMsg>) {
+    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::SetTitle(n) => {
                 self.set_title(n);
@@ -102,7 +101,7 @@ impl TableItem for Task {
     }
 }
 
-impl Child<entry::Model<Self>> for Task {
+impl Child<Entry<Self>> for Task {
     fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<Self>> {
         match msg {
             Msg::Entry(msg) => Some(*msg),
@@ -119,9 +118,9 @@ impl Preview for Task {
                 St::GridTemplateColumns => "1fr 1fr",
                 St::GridGap => "10px",
                 St::MaxWidth => "20%",
-                    St::Cursor => "pointer",
+                St::Cursor => "pointer",
             },
-            simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+            //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             h3![
                 style!{
                     St::Margin => "0",
@@ -136,7 +135,6 @@ impl Preview for Task {
                 "Subtasks:"
             ],
             self.subtasks().len(),
-
             p![
                 style!{
                     St::Margin => "0",
@@ -145,7 +143,7 @@ impl Preview for Task {
             ],
             self.assignees().len(),
             button![
-                simple_ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Delete))),
+                ev(Ev::Click, |_| Msg::Entry(Box::new(entry::Msg::Delete))),
                 "Delete"
             ],
         ]
