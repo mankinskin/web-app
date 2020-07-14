@@ -251,7 +251,7 @@ pub fn api(input: TokenStream) -> TokenStream {
             #(#calls)*
         }
         #[cfg(not(target_arch="wasm32"))]
-        pub mod routes {
+        pub mod handlers {
             use super::*;
             use std::convert::TryFrom;
             #[post("/api/auth/login", data="<credentials>")]
@@ -514,7 +514,7 @@ pub fn rest_api(input: TokenStream) -> TokenStream {
     define_rest_api(input)
 }
 #[proc_macro]
-pub fn rest_api_routes(input: TokenStream) -> TokenStream {
+pub fn rest_handlers(input: TokenStream) -> TokenStream {
     let ty = parse_macro_input!(input as Type);
     let ident = Ident::new(
             &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
@@ -527,11 +527,11 @@ pub fn rest_api_routes(input: TokenStream) -> TokenStream {
     let update_name = format_ident!("update_{}", ident);
     TokenStream::from(quote! {
         routes![
-            api::routes::#get_name,
-            api::routes::#post_name,
-            api::routes::#get_all_name,
-            api::routes::#delete_name,
-            api::routes::#update_name,
+            api::handlers::#get_name,
+            api::handlers::#post_name,
+            api::handlers::#get_all_name,
+            api::handlers::#delete_name,
+            api::handlers::#update_name,
         ]
     })
 }

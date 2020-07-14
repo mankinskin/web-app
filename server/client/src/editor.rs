@@ -15,10 +15,12 @@ use crate::{
     },
     entry::{
         self,
-        *,
     },
     newdata,
     remote,
+};
+use api::{
+    TableItem,
 };
 pub trait Edit : Component {
     fn edit(&self) -> Node<Self::Msg>;
@@ -38,7 +40,7 @@ impl<T: TableItem + Default> Default for Model<T> {
         Self::New(Default::default())
     }
 }
-impl<T: TableItem> From<Entry<T>> for Model<T> {
+impl<T: TableItem + Component> From<Entry<T>> for Model<T> {
     fn from(model: Entry<T>) -> Self {
         Self::from(remote::Model::from(model))
     }
@@ -48,7 +50,7 @@ impl<T: TableItem> From<remote::Model<T>> for Model<T> {
         Self::Remote(model)
     }
 }
-impl<T: TableItem> Config<Model<T>> for Id<T> {
+impl<T: TableItem + Component> Config<Model<T>> for Id<T> {
     fn into_model(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Remote(Config::init(self, &mut orders.proxy(Msg::Remote)))
     }

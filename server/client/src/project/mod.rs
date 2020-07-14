@@ -5,13 +5,7 @@ use seed::{
 use plans::{
     project::*,
 };
-use rql::{
-    *,
-};
 use crate::{
-    route::{
-        self,
-    },
     preview::{
         Preview,
     },
@@ -20,61 +14,17 @@ use crate::{
     },
     entry::{
         self,
-        TableItem,
     },
     config::{
         Component,
         View,
-        Child,
     },
 };
-use updatable::{
-    Updatable,
-};
-use database::{
-    Entry,
-};
-use std::result::Result;
-use async_trait::async_trait;
 
 pub mod editor;
 pub mod list;
 pub mod profile;
 
-#[async_trait(?Send)]
-impl TableItem for Project {
-    fn table_route() -> route::Route {
-        route::Route::Projects
-    }
-    fn entry_route(id: Id<Self>) -> route::Route {
-        route::Route::Project(id)
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, String> {
-        api::get_projects()
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String> {
-        api::get_project(id)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
-        api::delete_project(id)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String> {
-        api::update_project(id, update)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, String> {
-        api::post_project(data)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-}
 
 #[derive(Clone)]
 pub enum Msg {
@@ -101,14 +51,6 @@ impl View for Project {
         div![
             p![self.name()],
         ]
-    }
-}
-impl Child<Entry<Self>> for Project {
-    fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<Self>> {
-        match msg {
-            Msg::Entry(msg) => Some(*msg),
-            _ => None
-        }
     }
 }
 impl Preview for Project {

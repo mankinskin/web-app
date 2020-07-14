@@ -12,8 +12,11 @@ use crate::{
         Config,
         View,
     },
-    route::{
+};
+use api::{
+    routes::{
         Route,
+        Routable,
     },
 };
 
@@ -50,6 +53,20 @@ impl Config<Model> for Route {
         }
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg>) {
+    }
+}
+impl From<page::Model> for Route {
+    fn from(config: page::Model) -> Self {
+        match config {
+            Model::Home(_) | page::Model::NotFound => Route::Home,
+            Model::Login(_) => Route::Login,
+            Model::Register(_) => Route::Register,
+            Model::UserList(_) => Route::Users,
+            Model::UserProfile(profile) => profile.entry.route(),
+            Model::ProjectProfile(profile) => profile.entry.route(),
+            Model::ProjectList(_) => Route::Projects,
+            Model::TaskProfile(profile) => profile.entry.route(),
+        }
     }
 }
 #[derive(Clone)]

@@ -4,14 +4,16 @@ use seed::{
 };
 use crate::{
     *,
-    route::{
-        Route,
-        Routable,
-    },
     config::{
         Component,
         Config,
         View,
+    },
+};
+use api::{
+    routes::{
+        Route,
+        Routable,
     },
 };
 use plans::{
