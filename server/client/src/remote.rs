@@ -13,17 +13,19 @@ use crate::{
         Child,
     },
     preview::{self, Preview},
-    route::{
-        Route,
-        Routable,
-    },
     editor::{
         Edit,
     },
     entry::{
         self,
-        TableItem,
     },
+};
+use api::{
+    routes::{
+        Route,
+        Routable,
+    },
+    TableItem,
 };
 use database::{
     Entry,
@@ -100,7 +102,7 @@ impl<T: TableItem + Component> Component for Model<T> {
         }
     }
 }
-impl<T: TableItem> Child<preview::Model<T>> for Model<T> {
+impl<T: TableItem + Component> Child<preview::Model<T>> for Model<T> {
     fn parent_msg(msg: Self::Msg) -> Option<preview::Msg<T>> {
         match msg {
             Msg::Preview(msg) => Some(*msg),

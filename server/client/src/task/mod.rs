@@ -5,35 +5,24 @@ use seed::{
 use plans::{
     task::*,
 };
-use database::{
-    Entry,
-};
 use rql::{
     *,
 };
 use crate::{
-    route::{self},
     preview::{
         Preview,
     },
     entry::{
         self,
-        TableItem,
     },
     config::{
         Component,
         View,
-        Child,
     },
     editor::{
         Edit,
     },
 };
-use updatable::{
-    Updatable,
-};
-use std::result::Result;
-use async_trait::async_trait;
 
 pub mod editor;
 pub mod profile;
@@ -66,50 +55,6 @@ impl View for Task {
         ]
     }
 }
-#[async_trait(?Send)]
-impl TableItem for Task {
-    fn table_route() -> route::Route {
-        route::Route::Home
-    }
-    fn entry_route(id: Id<Self>) -> route::Route {
-        route::Route::Task(id)
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, String> {
-        api::get_tasks()
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String> {
-        api::get_task(id)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
-        api::delete_task(id)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String> {
-        api::update_task(id, update)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, String> {
-        api::post_task(data)
-            .map(|res| res.map_err(|e| format!("{:?}", e)))
-            .await
-    }
-}
-
-impl Child<Entry<Self>> for Task {
-    fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<Self>> {
-        match msg {
-            Msg::Entry(msg) => Some(*msg),
-            _ => None
-        }
-    }
-}
-
 impl Preview for Task {
     fn preview(&self) -> Node<Msg> {
         div![

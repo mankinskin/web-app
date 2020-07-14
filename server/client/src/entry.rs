@@ -2,38 +2,20 @@ use seed::{
     *,
     prelude::*,
 };
-use rql::{
-    Id,
-};
-use updatable::{
-    Updatable,
-};
 use crate::{
     config::{
         Component,
         Child,
     },
     preview::{self},
-    route::{
-        self,
-    },
+};
+use api::{
+    TableItem,
 };
 use database::{
     Entry,
 };
 use std::result::Result;
-use async_trait::async_trait;
-
-#[async_trait(?Send)]
-pub trait TableItem: Clone + 'static + Child<Entry<Self>> + Updatable {
-    fn table_route() -> route::Route;
-    fn entry_route(id: Id<Self>) -> route::Route;
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String>;
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, String>;
-    async fn get_all() -> Result<Vec<Entry<Self>>, String>;
-    async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String>;
-    async fn post(data: Self) -> Result<Id<Self>, String>;
-}
 #[derive(Clone)]
 pub enum Msg<T: TableItem + Component> {
     Refresh,

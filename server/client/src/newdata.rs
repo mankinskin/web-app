@@ -13,12 +13,11 @@ use crate::{
     editor::{
         Edit,
     },
-    entry::{
-        TableItem,
-    },
-
 };
 use std::result::Result;
+use api::{
+    TableItem,
+};
 
 #[derive(Clone)]
 pub struct Model<T> {

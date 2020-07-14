@@ -81,7 +81,6 @@ fn get_html(app: &RawStr) -> Result<NamedFile> {
 fn get_root_html() -> Result<NamedFile> {
     get_html("".into())
 }
-
 #[get("/users/<id>")]
 fn user_page(id: &RawStr) -> Result<NamedFile> {
     let _ = id;
@@ -134,15 +133,15 @@ fn main() {
                     get_pkg_js,
                     get_img_file,
 
-                    api::routes::login,
-                    api::routes::register,
-                    api::routes::get_user_projects,
-                    api::routes::get_project_tasks,
-                    api::routes::project_create_subtask,
+                    api::handlers::login,
+                    api::handlers::register,
+                    api::handlers::get_user_projects,
+                    api::handlers::get_project_tasks,
+                    api::handlers::project_create_subtask,
                 ],
-                rest_api_routes!(Task),
-                rest_api_routes!(Project),
-                rest_api_routes!(User),
+                rest_handlers!(Task),
+                rest_handlers!(Project),
+                rest_handlers!(User),
             ].concat()
         )
         .launch();

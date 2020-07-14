@@ -17,7 +17,6 @@ extern crate api;
 extern crate async_trait;
 
 pub mod root;
-pub mod route;
 
 pub mod config;
 pub mod list;

@@ -11,16 +11,18 @@ use crate::{
     preview::{self, Preview},
     entry::{
         self,
-        TableItem,
     },
 };
 use database::{
     Entry,
 };
+use api::{
+    TableItem,
+};
 use std::result::Result;
 
 #[derive(Clone, Default)]
-pub struct Model<T: TableItem> {
+pub struct Model<T: TableItem + Component> {
     previews: Vec<preview::Model<T>>,
 }
 impl<T: Component + TableItem + Default> Config<Model<T>> for Msg<T>
