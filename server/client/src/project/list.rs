@@ -48,19 +48,24 @@ impl Model {
     }
 }
 impl Config<Model> for list::Msg<Project> {
-    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
-        Model::default()
-    }
-    fn send_msg(self, orders: &mut impl Orders<Msg>) {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         orders.send_msg(Msg::List(self));
+        Model::default()
     }
 }
 impl Config<Model> for Msg {
-    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
+        orders.send_msg(self);
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(self);
+}
+impl Config<Model> for Id<User> {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
+        orders.send_msg(Msg::GetUserProjects(self));
+        Model {
+            user_id: Some(self),
+            ..Default::default()
+        }
     }
 }
 impl From<Vec<Entry<Project>>> for Model {
@@ -69,17 +74,6 @@ impl From<Vec<Entry<Project>>> for Model {
             list: list::Model::from(entries),
             ..Default::default()
         }
-    }
-}
-impl Config<Model> for Id<User> {
-    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
-        Model {
-            user_id: Some(self),
-            ..Default::default()
-        }
-    }
-    fn send_msg(self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(Msg::GetUserProjects(self));
     }
 }
 #[derive(Clone, Debug)]

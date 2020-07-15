@@ -39,7 +39,7 @@ impl Default for Model {
     }
 }
 impl Config<Model> for Route {
-    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         match self {
             Route::NotFound => Model::Home(Default::default()),
             Route::Home => Model::Home(Default::default()),
@@ -51,8 +51,6 @@ impl Config<Model> for Route {
             Route::Project(id) => Model::ProjectProfile(Config::init(id, &mut orders.proxy(Msg::ProjectProfile))),
             Route::Task(id) => Model::TaskProfile(Config::init(id, &mut orders.proxy(Msg::TaskProfile))),
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 impl From<page::Model> for Route {

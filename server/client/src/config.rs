@@ -32,22 +32,15 @@ pub trait Config<C> : Clone
     where
         C: Component,
 {
-    fn into_model(self, orders: &mut impl Orders<<C as Component>::Msg>) -> C;
-    fn send_msg(self, orders: &mut impl Orders<<C as Component>::Msg>);
-    fn init(self, orders: &mut impl Orders<<C as Component>::Msg>) -> C {
-        self.clone().send_msg(orders);
-        self.into_model(orders)
-    }
+    fn init(self, orders: &mut impl Orders<<C as Component>::Msg>) -> C;
 }
 impl<C, T> Config<C> for T
     where
         C: Component,
         T: Into<C> + Into<<C as Component>::Msg> + Clone
 {
-    fn send_msg(self, orders: &mut impl Orders<<C as Component>::Msg>) {
-        orders.send_msg(self.into());
-    }
-    fn into_model(self, _orders: &mut impl Orders<<C as Component>::Msg>) -> C {
+    fn init(self, orders: &mut impl Orders<<C as Component>::Msg>) -> C {
+        orders.send_msg(self.clone().into());
         self.into()
     }
 }

@@ -37,7 +37,7 @@ pub struct Model {
     page: page::Model,
 }
 impl Config<Model> for Route {
-    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         orders
             .subscribe(|msg: Msg| msg)
             .subscribe(Msg::UrlRequested)
@@ -48,8 +48,6 @@ impl Config<Model> for Route {
             navbar: Default::default(),
             page: Config::init(self, &mut orders.proxy(Msg::Page)),
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 #[derive(Clone, Debug)]

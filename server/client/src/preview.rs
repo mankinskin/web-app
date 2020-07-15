@@ -22,6 +22,40 @@ use database::{
 };
 use std::fmt::Debug;
 
+#[derive(Clone, Debug)]
+pub struct Model<T: TableItem + Debug> {
+    pub entry: Entry<T>,
+}
+impl<T: Component + TableItem + Debug> From<Entry<T>> for Model<T> {
+    fn from(entry: Entry<T>) -> Self {
+        Model {
+            entry,
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub enum Msg<T: Component + TableItem + Debug> {
+    Entry(entry::Msg<T>),
+}
+impl<T: Component + TableItem + Debug> Component for Model<T> {
+    type Msg = Msg<T>;
+    fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
+        match msg {
+            Msg::Entry(msg) => {
+                self.entry.update(
+                    msg.clone(),
+                    &mut orders.proxy(Msg::Entry)
+                );
+            },
+        }
+    }
+}
+impl<T: TableItem + Preview + Debug> View for Model<T> {
+    fn view(&self) -> Node<Self::Msg> {
+        self.entry.preview().map_msg(Msg::Entry)
+    }
+}
+
 pub trait Preview : Component {
     fn preview(&self) -> Node<Self::Msg>;
 }
@@ -34,43 +68,5 @@ impl<T: Component + TableItem + Preview + Debug> Preview for Entry<T>
             },
             self.data.preview().map_msg(entry::Msg::Data)
         ]
-    }
-}
-#[derive(Clone, Debug)]
-pub struct Model<T: TableItem + Debug> {
-    pub entry: Entry<T>,
-}
-#[derive(Clone, Debug)]
-pub enum Msg<T: Component + TableItem + Debug> {
-    Entry(entry::Msg<T>),
-    //Open,
-}
-impl<T: Component + TableItem + Debug> From<Entry<T>> for Model<T> {
-    fn from(entry: Entry<T>) -> Self {
-        Model {
-            entry,
-        }
-    }
-}
-impl<T: Component + TableItem + Debug> Component for Model<T> {
-    type Msg = Msg<T>;
-    fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
-        match msg {
-            Msg::Entry(msg) => {
-                self.entry.update(
-                    msg.clone(),
-                    &mut orders.proxy(Msg::Entry)
-                );
-                //Entry::<T>::parent_msg(msg).map(|msg| orders.send_msg(msg));
-            },
-            //Msg::Open => {
-            //    page::go_to(self.entry.clone(), orders);
-            //},
-        }
-    }
-}
-impl<T: TableItem + Preview + Debug> View for Model<T> {
-    fn view(&self) -> Node<Self::Msg> {
-        self.entry.preview().map_msg(Msg::Entry)
     }
 }
