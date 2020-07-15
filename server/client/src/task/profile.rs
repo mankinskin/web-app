@@ -41,13 +41,11 @@ impl Model {
     }
 }
 impl Config<Model> for Id<Task> {
-    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
             editor: None,
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 impl From<Entry<Task>> for Model {

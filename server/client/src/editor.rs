@@ -53,10 +53,8 @@ impl<T: TableItem> From<remote::Model<T>> for Model<T> {
     }
 }
 impl<T: TableItem + Component + Debug> Config<Model<T>> for Id<T> {
-    fn into_model(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
+    fn init(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Remote(Config::init(self, &mut orders.proxy(Msg::Remote)))
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg<T>>) {
     }
 }
 #[derive(Debug,Clone)]

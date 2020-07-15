@@ -18,23 +18,19 @@ pub struct Model {
     pub projects: project::list::Model,
 }
 impl Config<Model> for Id<User> {
-    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: Config::init(self.clone(), &mut orders.proxy(Msg::Entry)),
             projects: Config::init(self.clone(), &mut orders.proxy(Msg::ProjectList)),
         }
     }
-    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
-    }
 }
 impl Config<Model> for Entry<User> {
-    fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
         Model {
             entry: remote::Model::from(self.clone()),
             projects: Config::init(self.id, &mut orders.proxy(Msg::ProjectList)),
         }
-    }
-    fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
 

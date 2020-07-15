@@ -28,11 +28,9 @@ pub struct Model<T: TableItem + Component + std::fmt::Debug> {
 }
 impl<T: Component + TableItem + Default + std::fmt::Debug + std::fmt::Debug + std::fmt::Debug> Config<Model<T>> for Msg<T>
 {
-    fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
-        Model::default()
-    }
-    fn send_msg(self, orders: &mut impl Orders<Msg<T>>) {
+    fn init(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         orders.send_msg(self);
+        Model::default()
     }
 }
 impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug> From<Vec<Entry<T>>> for Model<T> {

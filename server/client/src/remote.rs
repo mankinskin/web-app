@@ -41,11 +41,9 @@ pub enum Model<T: TableItem> {
     Ready(Entry<T>),
 }
 impl<T: TableItem + Component + Debug> Config<Model<T>> for Id<T> {
-    fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
-        Model::Loading(self)
-    }
-    fn send_msg(self, orders: &mut impl Orders<Msg<T>>) {
+    fn init(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         orders.send_msg(Msg::Get);
+        Model::Loading(self)
     }
 }
 impl<T: TableItem + Component> From<Entry<T>> for Model<T> {

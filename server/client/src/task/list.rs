@@ -50,11 +50,18 @@ impl Model {
     }
 }
 impl Config<Model> for Msg {
-    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
+        orders.send_msg(self);
         Model::default()
     }
-    fn send_msg(self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(self);
+}
+impl Config<Model> for Id<Project> {
+    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
+        orders.send_msg(Msg::GetProjectTasks(self));
+        Model {
+            project_id: Some(self),
+            ..Default::default()
+        }
     }
 }
 impl From<Vec<Entry<Task>>> for Model {
@@ -63,17 +70,6 @@ impl From<Vec<Entry<Task>>> for Model {
             list: list::Model::from(entries),
             ..Default::default()
         }
-    }
-}
-impl Config<Model> for Id<Project> {
-    fn into_model(self, _orders: &mut impl Orders<Msg>) -> Model {
-        Model {
-            project_id: Some(self),
-            ..Default::default()
-        }
-    }
-    fn send_msg(self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(Msg::GetProjectTasks(self));
     }
 }
 #[derive(Clone, Debug)]
