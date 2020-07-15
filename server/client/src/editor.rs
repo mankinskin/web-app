@@ -22,15 +22,17 @@ use crate::{
 use api::{
     TableItem,
 };
+use std::fmt::Debug;
+
 pub trait Edit : Component {
     fn edit(&self) -> Node<Self::Msg>;
 }
-impl<T: TableItem + Edit> Edit for Entry<T> {
+impl<T: TableItem + Edit + Debug> Edit for Entry<T> {
     fn edit(&self) -> Node<Self::Msg> {
         self.data.edit().map_msg(entry::Msg::Data)
     }
 }
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub enum Model<T: TableItem> {
     Remote(remote::Model<T>),
     New(newdata::Model<T>),
@@ -50,21 +52,21 @@ impl<T: TableItem> From<remote::Model<T>> for Model<T> {
         Self::Remote(model)
     }
 }
-impl<T: TableItem + Component> Config<Model<T>> for Id<T> {
+impl<T: TableItem + Component + Debug> Config<Model<T>> for Id<T> {
     fn into_model(self, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Remote(Config::init(self, &mut orders.proxy(Msg::Remote)))
     }
     fn send_msg(self, _orders: &mut impl Orders<Msg<T>>) {
     }
 }
-#[derive(Clone)]
-pub enum Msg<T: Component + TableItem> {
+#[derive(Debug,Clone)]
+pub enum Msg<T: Component + TableItem + std::fmt::Debug> {
     Cancel,
     Submit,
     New(newdata::Msg<T>),
     Remote(remote::Msg<T>),
 }
-impl<T: Component + TableItem> Component for Model<T> {
+impl<T: Component + TableItem + Debug> Component for Model<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
         match msg {
@@ -98,7 +100,7 @@ impl<T: Component + TableItem> Component for Model<T> {
         }
     }
 }
-impl<T: Component + TableItem + Edit> Edit for Model<T> {
+impl<T: Component + TableItem + Edit + Debug> Edit for Model<T> {
     fn edit(&self) -> Node<Msg<T>> {
         form![
             style!{

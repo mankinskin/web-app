@@ -1,6 +1,5 @@
 use crate::{
     entry,
-    preview,
 };
 use api::{
     TableItem,
@@ -11,30 +10,20 @@ use seed::{
 use database::{
     Entry,
 };
-pub trait Component {
-    type Msg: Clone + 'static;
+use std::fmt::Debug;
+pub trait ComponentMsg
+    : Clone + Debug + 'static
+{}
+impl<T: Clone + Debug + 'static> ComponentMsg for T
+{}
+pub trait Component{
+    type Msg: ComponentMsg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>);
-}
-pub trait Child<P: Component> : Component {
-    fn parent_msg(msg: Self::Msg) -> Option<P::Msg>;
-}
-impl<T: TableItem + Component> Child<Entry<T>> for T {
-    fn parent_msg(msg: Self::Msg) -> Option<entry::Msg<T>> {
-        Some(entry::Msg::Data(msg))
-    }
-}
-impl<T: TableItem + Component> Child<preview::Model<T>> for Entry<T> {
-    fn parent_msg(msg: Self::Msg) -> Option<preview::Msg<T>> {
-        match msg {
-            entry::Msg::Preview(msg) => Some(*msg),
-            _ => None
-        }
-    }
 }
 pub trait View : Component {
     fn view(&self) -> Node<Self::Msg>;
 }
-impl<T: TableItem + View> View for Entry<T> {
+impl<T: TableItem + View + Debug> View for Entry<T> {
     fn view(&self) -> Node<Self::Msg> {
         self.data.view().map_msg(entry::Msg::Data)
     }

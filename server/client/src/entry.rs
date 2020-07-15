@@ -5,9 +5,10 @@ use seed::{
 use crate::{
     config::{
         Component,
-        Child,
     },
-    preview::{self},
+    preview::{
+        self,
+    },
 };
 use api::{
     TableItem,
@@ -16,8 +17,10 @@ use database::{
     Entry,
 };
 use std::result::Result;
-#[derive(Clone)]
-pub enum Msg<T: TableItem + Component> {
+use std::fmt::Debug;
+
+#[derive(Clone, Debug)]
+pub enum Msg<T: TableItem + Component + Debug> {
     Refresh,
     Refreshed(Result<Option<Entry<T>>, String>),
 
@@ -30,7 +33,7 @@ pub enum Msg<T: TableItem + Component> {
     Data(<T as Component>::Msg),
     Preview(Box<preview::Msg<T>>),
 }
-impl<T: TableItem + Component> Component for Entry<T> {
+impl<T: TableItem + Component + Debug> Component for Entry<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
@@ -73,7 +76,6 @@ impl<T: TableItem + Component> Component for Entry<T> {
             },
             Msg::Data(msg) => {
                 self.data.update(msg.clone(), &mut orders.proxy(Msg::Data));
-                T::parent_msg(msg).map(|msg| orders.send_msg(msg));
             },
             Msg::Preview(_) => {
             },

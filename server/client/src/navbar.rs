@@ -10,10 +10,10 @@ use crate::{
     },
 };
 
-#[derive(Clone, Default)]
+#[derive(Debug,Clone, Default)]
 pub struct Model {
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Logout,
 }

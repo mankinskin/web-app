@@ -82,7 +82,7 @@ impl Config<Model> for Id<User> {
         orders.send_msg(Msg::GetUserProjects(self));
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     GetUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),

@@ -24,6 +24,7 @@ use plans::{
 
 #[wasm_bindgen(start)]
 pub fn render() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::start("app",
                |url, orders| Config::<Model>::init(Route::from(url), orders),
                |msg, model, orders| model.update(msg, orders),
@@ -51,7 +52,7 @@ impl Config<Model> for Route {
     fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     UrlRequested(subs::UrlRequested),
     UrlChanged(subs::UrlChanged),
@@ -74,6 +75,7 @@ impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         refresh_session();
+        seed::log!(msg);
         match msg {
             Msg::UrlChanged(subs::UrlChanged(url)) => {
                 orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));

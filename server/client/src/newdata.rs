@@ -14,12 +14,13 @@ use crate::{
         Edit,
     },
 };
-use std::result::Result;
 use api::{
     TableItem,
 };
+use std::result::Result;
+use std::fmt::Debug;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Model<T> {
     pub data: T,
 }
@@ -35,13 +36,13 @@ impl<T> From<T> for Model<T> {
         }
     }
 }
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Msg<T: Component + TableItem> {
     Post,
     Posted(Result<Id<T>, String>),
     Data(<T as Component>::Msg),
 }
-impl<T: Component + TableItem> Component for Model<T> {
+impl<T: Component + TableItem + Debug> Component for Model<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
@@ -62,12 +63,12 @@ impl<T: Component + TableItem> Component for Model<T> {
         }
     }
 }
-impl<T: View + TableItem> View for Model<T> {
+impl<T: View + TableItem + Debug> View for Model<T> {
     fn view(&self) -> Node<Self::Msg> {
         self.data.view().map_msg(Msg::Data)
     }
 }
-impl<T: Edit + TableItem> Edit for Model<T> {
+impl<T: Edit + TableItem + Debug> Edit for Model<T> {
     fn edit(&self) -> Node<Self::Msg> {
         self.data.edit().map_msg(Msg::Data)
     }

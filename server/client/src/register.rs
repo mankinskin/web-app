@@ -18,11 +18,11 @@ use api::{
     },
 };
 
-#[derive(Clone, Default)]
+#[derive(Debug,Clone, Default)]
 pub struct Model {
     user: User,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),

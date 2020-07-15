@@ -26,7 +26,7 @@ pub mod list;
 pub mod profile;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     SetName(String),
     SetDescription(String),
@@ -70,7 +70,6 @@ impl Preview for Project {
                 self.name(),
             ],
             div![],
-
             p![
                 style!{
                     St::Margin => "0",
@@ -78,7 +77,6 @@ impl Preview for Project {
                 "Subtasks:"
             ],
             self.tasks().len(),
-
             p![
                 style!{
                     St::Margin => "0",
@@ -86,7 +84,6 @@ impl Preview for Project {
                 "Members:"
             ],
             self.members().len(),
-
             button![
                 ev(Ev::Click, |_| Msg::Entry(Box::new(entry::Msg::Delete))),
                 "Delete"
@@ -96,7 +93,7 @@ impl Preview for Project {
 }
 impl Edit for Project {
     fn edit(&self) -> Node<Msg> {
-        form![
+        div![
             label![
                 "Name"
             ],
@@ -105,17 +102,17 @@ impl Edit for Project {
                     At::Placeholder => "Name",
                     At::Value => self.name(),
                 },
-                //input_ev(Ev::Input, Msg::SetName)
+                input_ev(Ev::Input, Msg::SetName)
             ],
             label![
                 "Description"
             ],
             textarea![
                 attrs!{
-                    At::Placeholder => "Description...",
+                    At::Placeholder => "Description",
                     At::Value => self.description(),
                 },
-                //input_ev(Ev::Input, Msg::SetDescription)
+                input_ev(Ev::Input, Msg::SetDescription)
             ],
         ]
     }

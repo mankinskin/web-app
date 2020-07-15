@@ -28,7 +28,7 @@ pub mod editor;
 pub mod profile;
 pub mod list;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     SetDescription(String),
     SetTitle(String),
@@ -95,7 +95,7 @@ impl Preview for Task {
 }
 impl Edit for Task {
     fn edit(&self) -> Node<Msg> {
-        form![
+        div![
             label![
                 "Title"
             ],
