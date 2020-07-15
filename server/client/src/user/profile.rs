@@ -38,7 +38,7 @@ impl Config<Model> for Entry<User> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(remote::Msg<User>),
     ProjectList(project::list::Msg),

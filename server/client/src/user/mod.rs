@@ -23,7 +23,7 @@ use seed::{
 
 pub mod profile;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(Box<entry::Msg<User>>),
 }

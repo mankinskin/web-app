@@ -76,7 +76,7 @@ impl Config<Model> for Id<Project> {
         orders.send_msg(Msg::GetProjectTasks(self));
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     GetProjectTasks(Id<Project>),
     ProjectTasks(Result<Vec<Entry<Task>>, String>),

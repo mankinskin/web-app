@@ -69,7 +69,7 @@ impl From<page::Model> for Route {
         }
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Home(home::Msg),
     Login(login::Msg),

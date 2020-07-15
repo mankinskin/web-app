@@ -21,11 +21,11 @@ use api::{
 };
 use std::result::Result;
 
-#[derive(Clone, Default)]
+#[derive(Debug,Clone, Default)]
 pub struct Model {
     pub credentials: Credentials,
 }
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub enum Msg {
     ChangeUsername(String),
     ChangePassword(String),

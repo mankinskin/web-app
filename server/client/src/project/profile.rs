@@ -15,8 +15,8 @@ use crate::{
         Config,
     },
     task,
-    entry,
     remote,
+    entry,
     project::{
         editor,
     },
@@ -64,7 +64,7 @@ impl Config<Model> for Entry<Project> {
     fn send_msg(self, _orders: &mut impl Orders<Msg>) {
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(remote::Msg<Project>),
     TaskList(task::list::Msg),

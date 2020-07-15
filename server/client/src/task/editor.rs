@@ -36,7 +36,7 @@ impl<T: Into<editor::Model<Task>>> From<T> for Model {
         }
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Editor(editor::Msg<Task>),
 }

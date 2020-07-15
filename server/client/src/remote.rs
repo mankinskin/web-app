@@ -10,9 +10,11 @@ use crate::{
         Config,
         Component,
         View,
-        Child,
     },
-    preview::{self, Preview},
+    preview::{
+        self,
+        Preview,
+    },
     editor::{
         Edit,
     },
@@ -31,13 +33,14 @@ use database::{
     Entry,
 };
 use std::result::Result;
+use std::fmt::Debug;
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub enum Model<T: TableItem> {
     Loading(Id<T>),
     Ready(Entry<T>),
 }
-impl<T: TableItem + Component> Config<Model<T>> for Id<T> {
+impl<T: TableItem + Component + Debug> Config<Model<T>> for Id<T> {
     fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::Loading(self)
     }
@@ -50,14 +53,14 @@ impl<T: TableItem + Component> From<Entry<T>> for Model<T> {
         Model::Ready(entry)
     }
 }
-#[derive(Clone)]
-pub enum Msg<T: TableItem + Component> {
+#[derive(Clone, Debug)]
+pub enum Msg<T: TableItem + Component + Debug> {
     Get,
     Got(Result<Option<Entry<T>>, String>),
     Entry(entry::Msg<T>),
     Preview(Box<preview::Msg<T>>),
 }
-impl<T: TableItem + Component> Component for Model<T> {
+impl<T: TableItem + Component + Debug> Component for Model<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match self {
@@ -102,15 +105,7 @@ impl<T: TableItem + Component> Component for Model<T> {
         }
     }
 }
-impl<T: TableItem + Component> Child<preview::Model<T>> for Model<T> {
-    fn parent_msg(msg: Self::Msg) -> Option<preview::Msg<T>> {
-        match msg {
-            Msg::Preview(msg) => Some(*msg),
-            _ => None
-        }
-    }
-}
-impl<T: TableItem + Preview + Child<Model<T>>> Preview for Model<T> {
+impl<T: TableItem + Preview + Debug> Preview for Model<T> {
     fn preview(&self) -> Node<Self::Msg> {
         match self {
             Model::Ready(entry) => {
@@ -125,7 +120,7 @@ impl<T: TableItem + Preview + Child<Model<T>>> Preview for Model<T> {
         }
     }
 }
-impl<T: TableItem + View> View for Model<T> {
+impl<T: TableItem + View + Debug> View for Model<T> {
     fn view(&self) -> Node<Self::Msg> {
         match self {
             Model::Ready(entry) => {
@@ -140,7 +135,7 @@ impl<T: TableItem + View> View for Model<T> {
         }
     }
 }
-impl<T: TableItem + Edit> Edit for Model<T> {
+impl<T: TableItem + Edit + Debug> Edit for Model<T> {
     fn edit(&self) -> Node<Self::Msg> {
         match self {
             Model::Ready(entry) => {

@@ -20,12 +20,13 @@ use api::{
     TableItem,
 };
 use std::result::Result;
+use std::fmt::Debug;
 
-#[derive(Clone, Default)]
-pub struct Model<T: TableItem + Component> {
+#[derive(Debug,Clone, Default)]
+pub struct Model<T: TableItem + Component + std::fmt::Debug> {
     previews: Vec<preview::Model<T>>,
 }
-impl<T: Component + TableItem + Default> Config<Model<T>> for Msg<T>
+impl<T: Component + TableItem + Default + std::fmt::Debug + std::fmt::Debug + std::fmt::Debug> Config<Model<T>> for Msg<T>
 {
     fn into_model(self, _orders: &mut impl Orders<Msg<T>>) -> Model<T> {
         Model::default()
@@ -34,28 +35,28 @@ impl<T: Component + TableItem + Default> Config<Model<T>> for Msg<T>
         orders.send_msg(self);
     }
 }
-impl<T: Component + TableItem> From<Vec<Entry<T>>> for Model<T> {
+impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug> From<Vec<Entry<T>>> for Model<T> {
     fn from(entries: Vec<Entry<T>>) -> Self {
         Self {
             previews: init_previews(entries),
         }
     }
 }
-fn init_previews<T: Component + TableItem>(entries: Vec<Entry<T>>) -> Vec<preview::Model<T>> {
+fn init_previews<T: Component + TableItem + Debug>(entries: Vec<Entry<T>>) -> Vec<preview::Model<T>> {
     entries
         .iter()
         .cloned()
         .map(preview::Model::from)
         .collect()
 }
-#[derive(Clone)]
-pub enum Msg<T: Component + TableItem> {
+#[derive(Clone, Debug)]
+pub enum Msg<T: Component + TableItem + std::fmt::Debug> {
     GetAll,
     All(Result<Vec<Entry<T>>, String>),
 
     Preview(usize, preview::Msg<T>),
 }
-impl<T: Component + TableItem> Component for Model<T> {
+impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug + std::fmt::Debug> Component for Model<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Msg<T>>) {
         match msg {
@@ -83,7 +84,7 @@ impl<T: Component + TableItem> Component for Model<T> {
         }
     }
 }
-impl <T: Component + Preview + TableItem> View for Model<T> {
+impl <T: Component + Preview + TableItem + std::fmt::Debug + std::fmt::Debug> View for Model<T> {
     fn view(&self) -> Node<Msg<T>> {
         div![
             ul![
