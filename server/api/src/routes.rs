@@ -121,7 +121,7 @@ impl ToString for Route {
     fn to_string(&self) -> String {
         let v: Vec<String> = self.clone().into();
         v.iter()
-         .fold(String::new(), |a,x| format!("{}/{}", a, x))
+         .fold(String::from("/"), |a,x| format!("{}{}/", a, x))
     }
 }
 mod client {

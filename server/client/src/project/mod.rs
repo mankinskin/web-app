@@ -63,7 +63,6 @@ impl Preview for Project {
                 St::MaxWidth => "20%",
                 St::Cursor => "pointer",
             },
-            //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             h3![
                 style!{
                     St::Margin => "0",
@@ -106,7 +105,7 @@ impl Edit for Project {
                     At::Placeholder => "Name",
                     At::Value => self.name(),
                 },
-                input_ev(Ev::Input, Msg::SetName)
+                //input_ev(Ev::Input, Msg::SetName)
             ],
             label![
                 "Description"
@@ -116,7 +115,7 @@ impl Edit for Project {
                     At::Placeholder => "Description...",
                     At::Value => self.description(),
                 },
-                input_ev(Ev::Input, Msg::SetDescription)
+                //input_ev(Ev::Input, Msg::SetDescription)
             ],
         ]
     }

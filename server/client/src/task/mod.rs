@@ -65,7 +65,6 @@ impl Preview for Task {
                 St::MaxWidth => "20%",
                 St::Cursor => "pointer",
             },
-            //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
             h3![
                 style!{
                     St::Margin => "0",
