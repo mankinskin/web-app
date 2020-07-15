@@ -37,10 +37,12 @@ pub struct Model {
 }
 impl Config<Model> for Route {
     fn into_model(self, orders: &mut impl Orders<Msg>) -> Model {
-        orders.subscribe(Msg::UrlRequested)
-              .subscribe(Msg::UrlChanged)
-              .subscribe(|route| Msg::Page(page::Msg::GoTo(route)))
-              .subscribe(|msg: Msg| msg);
+        orders
+            .subscribe(|msg: Msg| msg)
+            .subscribe(Msg::UrlRequested)
+            .subscribe(Msg::UrlChanged)
+            .subscribe(|route| Msg::Page(page::Msg::GoTo(route)))
+            ;
         Model {
             navbar: Default::default(),
             page: Config::init(self, &mut orders.proxy(Msg::Page)),
@@ -66,7 +68,7 @@ fn refresh_session() {
     }
 }
 pub fn go_to<R: Routable, Ms: 'static>(r: R, orders: &mut impl Orders<Ms>) {
-    orders.notify(Msg::Page(page::Msg::GoTo(r.route())));
+    orders.notify(subs::UrlRequested::new(r.route().into()));
 }
 impl Component for Model {
     type Msg = Msg;
