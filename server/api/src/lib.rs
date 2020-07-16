@@ -19,6 +19,8 @@ extern crate database;
 extern crate async_trait;
 extern crate futures;
 
+#[cfg(target_arch="wasm32")]
+pub mod auth;
 pub mod routes;
 use routes::{
     Route,
