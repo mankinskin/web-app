@@ -33,7 +33,6 @@ pub fn define_rest_api(input: TokenStream) -> TokenStream {
         #update
     })
 }
-
 fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("get_{}", ident);
     quote! {

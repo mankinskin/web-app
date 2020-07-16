@@ -133,8 +133,8 @@ fn main() {
                     get_pkg_js,
                     get_img_file,
 
-                    api::handlers::login,
-                    api::handlers::register,
+                    api::login,
+                    api::register,
                     api::handlers::get_user_projects,
                     api::handlers::get_project_tasks,
                     api::handlers::project_create_subtask,

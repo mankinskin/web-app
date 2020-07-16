@@ -72,6 +72,7 @@ fn fetch_call(item: ItemFn) -> TokenStream2 {
     let result_ident = format_ident!("{}Result", ident.clone());
 
     let route = format!("/api/call/{}", ident);
+
     let members: Punctuated<Ident, Comma> = inputs.iter().map(|arg| {
             match arg {
                 FnArg::Typed(ty) => {
@@ -93,7 +94,8 @@ fn fetch_call(item: ItemFn) -> TokenStream2 {
     quote! {
         #[cfg(target_arch="wasm32")]
         pub async fn #ident(#inputs) -> Result<#ret_ty, FetchError> {
-            let url = format!("{}{}", "http://localhost:8000", #route);
+            let host = "http://localhost:8000";
+            let url = format!("{}{}", host, #route);
             let mut req = seed::fetch::Request::new(&url)
                 .method(Method::Post);
             // authentication
