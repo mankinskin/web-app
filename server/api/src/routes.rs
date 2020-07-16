@@ -1,10 +1,3 @@
-#[cfg(target_arch="wasm32")]
-use crate::{
-    TableItem,
-};
-use crate::{
-    TableRoutable,
-};
 use rql::{
     *,
 };
@@ -23,6 +16,38 @@ use std::str::{
     FromStr,
 };
 use std::result::Result;
+pub trait TableRoutable
+    : Clone
+    + 'static
+    + Updatable
+{
+    fn table_route() -> Route;
+    fn entry_route(id: Id<Self>) -> Route;
+}
+impl TableRoutable for Project {
+    fn table_route() -> Route {
+        Route::Projects
+    }
+    fn entry_route(id: Id<Self>) -> Route {
+        Route::Project(id)
+    }
+}
+impl TableRoutable for Task {
+    fn table_route() -> Route {
+        Route::Home
+    }
+    fn entry_route(id: Id<Self>) -> Route {
+        Route::Task(id)
+    }
+}
+impl TableRoutable for User {
+    fn table_route() -> Route {
+        Route::Users
+    }
+    fn entry_route(id: Id<Self>) -> Route {
+        Route::User(id)
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Route {
     Home,
@@ -122,21 +147,5 @@ impl ToString for Route {
         let v: Vec<String> = self.clone().into();
         v.iter()
          .fold(String::from("/"), |a,x| format!("{}{}/", a, x))
-    }
-}
-mod client {
-    use seed::{
-        self,
-    };
-    use super::*;
-    impl From<Route> for seed::Url {
-        fn from(route: Route) -> Self {
-            Self::new().set_path(<Route as Into<Vec<String>>>::into(route))
-        }
-    }
-    impl From<seed::Url> for Route {
-        fn from(url: seed::Url) -> Self {
-            Self::from(url.path())
-        }
     }
 }
