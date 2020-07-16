@@ -78,12 +78,12 @@ authentication (this might need some improvement).
 
 ### Client
 
-The [client](client) is running as a WASM module in the browser, and is written using the
+The [client](server/client) is running as a WASM module in the browser, and is written using the
 Seed-rs framework. It handles different pages and components and provides a
 graphical UI to the database accessed by the server.
 
 - [ ] Styling
-- [Root](client/src/root.rs)
+- [Root](server/client/src/root.rs)
   - Pages
     - Home
     - User List
@@ -98,9 +98,9 @@ graphical UI to the database accessed by the server.
   - [ ] [SVG Graphs](https://cetra3.github.io/blog/drawing-svg-graphs-rust/) to visualize data
 
 ### Client/Server API
-  - [RPC calls](api/src/lib.rs)
+  - [RPC calls](server/api/src/lib.rs)
     - REST handlers for tables
-  - [Authentication](api/src/auth.rs)
+  - [Authentication](server/api/src/auth.rs)
     - [x] simple api for login/register
     - [ ] User Group system for controling authenticated routes
     - [ ] Define authentication strategy in api macro
