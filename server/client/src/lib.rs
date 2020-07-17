@@ -11,6 +11,7 @@ extern crate wasm_bindgen;
 extern crate rql;
 extern crate plans;
 extern crate database;
+extern crate interpreter;
 extern crate updatable;
 extern crate seed;
 extern crate api;

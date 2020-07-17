@@ -1,6 +1,9 @@
 use super::*;
-
-#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+use serde::{
+    Serialize,
+    Deserialize,
+};
+#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Word {
     chars: String,
 }

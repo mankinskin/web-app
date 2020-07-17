@@ -1,6 +1,9 @@
 use super::*;
-
-#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Hash)]
+use serde::{
+    Serialize,
+    Deserialize,
+};
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum TextElement {
     Word(Word),
     Punctuation(Punctuation),

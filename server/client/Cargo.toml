@@ -45,5 +45,8 @@ path = "../../database"
 [dependencies.updatable]
 path = "../../updatable"
 
+[dependencies.interpreter]
+path = "../../interpreter"
+
 [dependencies.api]
 path = "../api"
