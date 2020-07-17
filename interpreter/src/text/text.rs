@@ -8,12 +8,12 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Display, self};
 use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo, Deref};
+use nom::*;
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Text {
     elements: Vec<TextElement>,
 }
-use nom::*;
 impl<'a> Parse<'a> for Text {
     named!(
         parse(&'a str) -> Self,
@@ -79,7 +79,7 @@ impl Text {
     }
     pub fn to_sentences(self) -> Vec<Text> {
         self.elements
-            .split(|e| e.is_stop())
+            .split_inclusive(|e| e.is_stop())
             .map(|s| Text::from(s))
             .filter(|t| t.len() > 0)
             .collect()
@@ -90,6 +90,11 @@ impl From<Vec<TextElement>> for Text {
         Self {
             elements,
         }
+    }
+}
+impl Into<Vec<TextElement>> for Text {
+    fn into(self) -> Vec<TextElement> {
+        self.elements
     }
 }
 impl From<&[TextElement]> for Text {
@@ -211,9 +216,10 @@ mod tests {
         let b = TextElement::Word(Word::from("B"));
         let c = TextElement::Word(Word::from("C"));
         let d = TextElement::Word(Word::from("D"));
+        let dot = TextElement::Punctuation(Punctuation::Dot);
         assert_eq!(sentences, vec![
-            Text::from(vec![a.clone(), b.clone(), c.clone()]),
-            Text::from(vec![a.clone(), c.clone(), d]),
+            Text::from(vec![a.clone(), b.clone(), c.clone(), dot.clone()]),
+            Text::from(vec![a.clone(), c.clone(), d.clone(), dot.clone()]),
             Text::from(vec![c, b, a])
         ]);
     }

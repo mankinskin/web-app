@@ -54,7 +54,7 @@ impl<'a> Display for TextPath<'a> {
                 .fold(String::new(),
                 |acc, n| acc + &n.weight().element().to_string() + " ")
                 .trim_end()
-               )
+        )
     }
 }
 impl<'a> TextPath<'a> {
@@ -67,17 +67,12 @@ impl<'a> TextPath<'a> {
         }
         Some(res)
     }
+    pub fn from_text(graph: &'a TextGraph, t: Text) -> Option<Self> {
+        Self::from_elements(graph, t.into())
+    }
     pub fn from_elements(graph: &'a TextGraph, v: Vec<TextElement>) -> Option<Self> {
-        let mut res = Self {
-            graph,
-            nodes: Vec::new(),
-            mapping: EdgeMapping::new(),
-        };
-        res.nodes.reserve(v.len());
-        for e in &v {
-            res = Self::try_merge(res, Self::from_element(graph, e)?)?;
-        }
-        Some(res)
+        graph.find_nodes(&v)
+            .and_then(Self::from_nodes)
     }
     pub fn from_element(graph: &'a TextGraph, element: &TextElement) -> Option<Self> {
         graph.find_node(element)
@@ -432,7 +427,12 @@ pub mod tests {
             *,
             node::{
                 *,
-                tests::*,
+                tests::{
+                    *,
+                },
+            },
+            tests::{
+                *,
             },
         },
         text::{
@@ -492,6 +492,25 @@ pub mod tests {
         static ref C_INCOMING: Vec<MergingEdge> = load_edges_incoming(&TG, &C_PATH.mapping.incoming_edges);
         static ref C_OUTGOING: Vec<MergingEdge> = load_edges_outgoing(&TG, &C_PATH.mapping.outgoing_edges);
 
+    }
+    #[test]
+    fn find_text() {
+        assert!(
+            TG.get_text_path(vec![
+                B.clone(),
+                C.clone(),
+                D.clone(),
+                STOP.clone(),
+            ]).is_some()
+        );
+    }
+    #[test]
+    fn from_text() {
+        let text = Text::try_from("B C D.")
+                    .unwrap();
+        assert!(
+            TextPath::from_text(&TG, text).is_some()
+        );
     }
     pub mod incoming_edges {
         pub use super::*;
