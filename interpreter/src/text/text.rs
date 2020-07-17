@@ -1,5 +1,10 @@
 use super::*;
 use crate::sentence::*;
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::fmt::{Debug, Display, self};
+use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo, Deref};
+
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Text {
     elements: Vec<TextElement>,
@@ -20,7 +25,12 @@ impl<'a> Parse<'a> for Text {
         )
     );
 }
-use std::collections::HashMap;
+impl<'a> TryFrom<&'a str> for Text {
+    type Error = nom::Err<(&'a str, nom::error::ErrorKind)>;
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        Self::parse(s).map(|r| r.1)
+    }
+}
 
 impl Text {
     pub fn new() -> Self {
@@ -71,7 +81,6 @@ impl Text {
             .collect()
     }
 }
-
 impl From<Vec<TextElement>> for Text {
     fn from(elements: Vec<TextElement>) -> Self {
         Self {
@@ -86,20 +95,11 @@ impl From<&[TextElement]> for Text {
         )
     }
 }
-impl From<&str> for Text {
-    fn from(s: &str) -> Self {
-        Self::parse(s).unwrap().1
-    }
-}
-
-use std::fmt::{Debug, Display, self};
 impl Display for Text {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-
-use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo, Deref};
 impl Deref for Text {
     type Target = [TextElement];
     fn deref(&self) -> &Self::Target {
@@ -149,7 +149,7 @@ mod tests {
 
                     .";
 
-        assert_eq!(Text::parse(text).unwrap().1,
+        assert_eq!(Text::try_from(text).unwrap(),
                    Text::from(vec![
                            TextElement::Word(Word::from("Als")),
                            TextElement::Word(Word::from("Klasse")),
@@ -166,7 +166,7 @@ mod tests {
                     definiert durch eine logische Eigenschaft, die alle \
                     Objekte der Klasse erfuellen.";
 
-        assert_eq!(Text::parse(text).unwrap().1,
+        assert_eq!(Text::try_from(text).unwrap(),
                    Text::from(vec![
                            TextElement::Word(Word::from("Als")),
                            TextElement::Word(Word::from("Klasse")),
@@ -201,7 +201,7 @@ mod tests {
     }
     #[test]
     fn to_sentences() {
-        let text = Text::from("A B C. A C D. C B A");
+        let text = Text::try_from("A B C. A C D. C B A").unwrap();
         let sentences = text.to_sentences();
         let a = TextElement::Word(Word::from("A"));
         let b = TextElement::Word(Word::from("B"));
