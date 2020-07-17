@@ -2,20 +2,19 @@
 #![allow(unused)]
 #[macro_use] extern crate define_api;
 extern crate updatable;
-#[macro_use] extern crate lazy_static;
+extern crate plans;
+extern crate database;
+extern crate interpreter;
 
+#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rocket;
 extern crate rocket_contrib;
 extern crate seed;
 extern crate serde_json;
 extern crate serde;
-
 #[cfg(not(target_arch="wasm32"))]
 extern crate jwt;
-
 extern crate rql;
-extern crate plans;
-extern crate database;
 extern crate async_trait;
 extern crate futures;
 
@@ -49,6 +48,9 @@ use updatable::{
 use database::{
     *,
 };
+use interpreter::{
+    *,
+};
 use futures::future::FutureExt;
 
 api! {
@@ -65,6 +67,9 @@ api! {
         let id = <Task as DatabaseTable>::insert(task);
         <Project as DatabaseTable>::update(project, Project::update().tasks(vec![id.clone()]));
         id
+    }
+    fn interpret_text(text: Text) -> String {
+        "Interpreting".into()
     }
     rest_api!(User);
     rest_api!(Project);

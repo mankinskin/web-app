@@ -1,5 +1,9 @@
 use super::*;
-#[derive(Debug, PartialEq, Eq, Clone, Ord, PartialOrd, Hash)]
+use serde::{
+    Deserialize,
+    Serialize,
+};
+#[derive(Debug, PartialEq, Eq, Clone, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 pub enum Punctuation {
     Dot,
     Comma,

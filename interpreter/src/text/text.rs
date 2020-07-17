@@ -1,11 +1,15 @@
 use super::*;
 use crate::sentence::*;
+use serde::{
+    Serialize,
+    Deserialize,
+};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Display, self};
 use std::ops::{Index, Range, RangeFull, RangeFrom, RangeTo, Deref};
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Text {
     elements: Vec<TextElement>,
 }

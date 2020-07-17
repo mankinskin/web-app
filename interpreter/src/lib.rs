@@ -10,6 +10,7 @@ extern crate pretty_assertions;
 extern crate nalgebra;
 extern crate num_traits;
 #[macro_use] extern crate lalrpop_util;
+extern crate serde;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate linefeed;
@@ -24,6 +25,10 @@ pub mod sentence;
 pub mod graph;
 pub mod set;
 
+pub use text::{
+    Text,
+    TextElement,
+};
 use std::collections::{HashSet};
 
 lalrpop_mod!(pub parser);

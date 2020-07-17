@@ -23,6 +23,7 @@ nalgebra = "^0.20"
 num-traits = "^0.2"
 lalrpop-util = "^0.19"
 regex = "^1"
+serde = "^1"
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 termion = "1.5"
