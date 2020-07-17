@@ -7,6 +7,7 @@ use petgraph::{
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
+use std::convert::TryFrom;
 
 use crate::graph::edges::*;
 use crate::graph::*;
@@ -232,12 +233,15 @@ pub mod tests {
     lazy_static! {
         pub static ref TG: TextGraph = {
             let mut graph = TextGraph::new();
-            graph.read_text(Text::from("\
+            graph.read_text(
+                Text::try_from("\
                     A B C D.\
                     B B C C.
                     E A C F.\
                     E B D F.
-                    A A F A"));
+                    A A F A")
+                    .unwrap()
+            );
             graph
         };
         pub static ref EMPTY: GraphNode<'static> = TG.find_node(&TextElement::Empty).unwrap();
