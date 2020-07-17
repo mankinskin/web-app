@@ -173,7 +173,7 @@ impl<'a> Into<NodeIndex> for GraphNode<'a> {
 }
 impl<'a> Debug for GraphNode<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "GraphNode {{ {:?} }}", self.index)
+        writeln!(f, "GraphNode {{ {:?},\n {:?}}}", self.index, self.weight().element())
     }
 }
 impl<'a> Display for GraphNode<'a> {
@@ -225,25 +225,15 @@ pub mod tests {
         *,
         graph::{
             *,
+            tests::{
+                *,
+            },
         },
         text::{
             *,
         },
     };
     lazy_static! {
-        pub static ref TG: TextGraph = {
-            let mut graph = TextGraph::new();
-            graph.read_text(
-                Text::try_from("\
-                    A B C D.\
-                    B B C C.
-                    E A C F.\
-                    E B D F.
-                    A A F A")
-                    .unwrap()
-            );
-            graph
-        };
         pub static ref EMPTY: GraphNode<'static> = TG.find_node(&TextElement::Empty).unwrap();
         pub static ref START: GraphNode<'static> = TG.find_node(&TextElement::Start).unwrap();
         pub static ref STOP: GraphNode<'static> = TG.find_node(&TextElement::Stop).unwrap();

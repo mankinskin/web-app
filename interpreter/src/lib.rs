@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![feature(split_inclusive)]
 
 extern crate nom;
 #[macro_use] extern crate itertools;

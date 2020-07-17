@@ -31,6 +31,7 @@ use petgraph::{
 };
 use std::collections::{HashSet, HashMap};
 use std::path::PathBuf;
+use std::convert::TryFrom;
 
 
 type InternalTextGraph = DiGraph<TextGraphNodeWeight, TextGraphEdgeWeight>;
@@ -81,7 +82,11 @@ impl<'a> TextGraph {
         let mut sentence = sentence;
         sentence.push_front(TextElement::Start);
         sentence.push_front(TextElement::Empty);
-        sentence.push(TextElement::Stop);
+        if let Some(e) = sentence.last() {
+            if !e.is_stop() {
+                sentence.push(TextElement::Stop);
+            }
+        }
         sentence.push(TextElement::Empty);
         let len = sentence.len();
         //println!("reading: {}", sentence);
@@ -156,6 +161,9 @@ impl<'a> TextGraph {
     pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
         self.find_node_index(element).map(|n| self.get_node(n))
     }
+    pub fn find_nodes(&'a self, elems: &Vec<TextElement>) -> Option<Vec<GraphNode<'a>>> {
+        elems.iter().map(|e| self.find_node(e)).collect()
+    }
     pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
         self.find_edge_index(a, b, distance)
             .map(|i| GraphEdge::new(self, i))
@@ -171,6 +179,9 @@ impl<'a> TextGraph {
     }
     pub fn contains(&self, element: &TextElement) -> bool {
         self.find_node(element).is_some()
+    }
+    pub fn contains_text(&self, text: &Text) -> bool {
+        TextPath::from_text(&self, text.clone()).is_some()
     }
     pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
         GraphEdges::new(
@@ -206,8 +217,8 @@ impl<'a> TextGraph {
     pub fn get_text_path(&'a self, nodes: Vec<GraphNode<'a>>) -> Option<TextPath<'a>> {
         TextPath::from_nodes(nodes)
     }
-    pub fn find_text_path(&'a self, nodes: Vec<TextElement>) -> Option<TextPath<'a>> {
-        TextPath::from_elements(self, nodes)
+    pub fn find_text_path(&'a self, elems: Vec<TextElement>) -> Option<TextPath<'a>> {
+        TextPath::from_elements(self, elems)
     }
 
     pub fn element_info(&self, element: &TextElement) {
@@ -233,7 +244,20 @@ pub(crate) mod tests {
     use crate::text::*;
     use crate::parse::*;
     lazy_static! {
-        pub static ref gehen_text: Text = Text::parse(
+        pub static ref TG: TextGraph = {
+            let mut graph = TextGraph::new();
+            graph.read_text(
+                Text::try_from("\
+                    A B C D.\
+                    B B C C.
+                    E A C F.\
+                    E B D F.
+                    A A F A")
+                    .unwrap()
+            );
+            graph
+        };
+        pub static ref gehen_text: Text = Text::try_from(
         "Ich gehe.
         Du gehst.
         Er geht.
@@ -260,9 +284,9 @@ pub(crate) mod tests {
         Wir sind gegangen.
         Ihr seid gegangen.
         Sie sind gegangen.
-        ").unwrap().1;
+        ").unwrap();
 
-        pub static ref dornroeschen_text: Text = Text::parse("
+        pub static ref dornroeschen_text: Text = Text::try_from("
 Vor Zeiten war ein König und eine Königin, die sprachen jeden Tag 'ach, wenn wir doch ein Kind hätten!'
 und kriegten immer keins. Da trug sich zu, als die Königin einmal im Bade saß, daß ein Frosch aus dem
 Wasser ans Land kroch und zu ihr sprach, 'dein Wunsch wird erfüllt werden, ehe ein Jahr vergeht, wirst
@@ -333,12 +357,40 @@ sahen umher und flogen ins Feld: die Fliegen an den Wänden krochen weiter: das 
 sich, flackerte: und kochte das Essen: der Braten fieng wieder an zu brutzeln: und der Koch gab dem Jungen
 eine Ohrfeige daß er schrie: und die Magd rupfte das Huhn fertig. Und da wurde die Hochzeit des
 Königssohns mit dem Dornröschen in aller Pracht gefeiert, und sie lebten vergnügt bis an ihr Ende.
-").unwrap().1;
+").unwrap();
+        pub static ref abc_text: Text = Text::try_from("
+            A B C.
+        ").unwrap();
+        pub static ref efg_text: Text = Text::try_from("
+            E F G.
+        ").unwrap();
+        pub static ref aegc_text: Text = Text::try_from("
+             A E G C.
+        ").unwrap();
+    }
+    #[test]
+    fn contains_text() {
+        assert!(
+            TG.contains_text(
+                &Text::try_from("A B C D.")
+                    .unwrap()
+            )
+        );
     }
     #[test]
     fn read_text() {
         let mut tg = TextGraph::new();
-        //tg.read_text(gehen_text.clone());
-        //tg.write_to_file("graphs/gehen_graph");
+        tg.read_text(abc_text.clone());
+        assert!(tg.contains_text(&abc_text));
+    }
+    #[test]
+    fn read_texts() {
+        let mut tg = TextGraph::new();
+        tg.read_text(abc_text.clone());
+        tg.read_text(efg_text.clone());
+        tg.read_text(aegc_text.clone());
+        assert!(tg.contains_text(&abc_text));
+        assert!(tg.contains_text(&efg_text));
+        assert!(tg.contains_text(&aegc_text));
     }
 }
