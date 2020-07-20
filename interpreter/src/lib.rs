@@ -10,7 +10,6 @@ extern crate pretty_assertions;
 #[macro_use] extern crate lazy_static;
 extern crate nalgebra;
 extern crate num_traits;
-#[macro_use] extern crate lalrpop_util;
 extern crate serde;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -32,8 +31,6 @@ pub use text::{
 };
 use std::collections::{HashSet};
 
-lalrpop_mod!(pub parser);
-
 #[macro_export]
 macro_rules! set {
     ( $( $x:expr ),* $(,)? ) => {  // Match zero or more comma delimited items
@@ -45,12 +42,4 @@ macro_rules! set {
             temp_set // Return the populated HashSet
         }
     };
-}
-
-mod tests {
-    use super::*;
-    #[test]
-    fn lalrpop() {
-        assert!(parser::ExprParser::new().parse("22 + 2 * 3").is_ok());
-    }
 }
