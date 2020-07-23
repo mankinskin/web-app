@@ -73,7 +73,6 @@ impl<'a> TextGraph {
         let mut text = text;
         let len = text.len();
         let sentences = text.to_sentences();
-        //println!("sentences = {:#?}", sentences);
         for sentence in sentences {
             self.read_sentence(sentence);
         }

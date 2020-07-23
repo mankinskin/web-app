@@ -1,154 +1,86 @@
-#[macro_use] extern crate itertools;
+extern crate itertools;
 extern crate petgraph;
 extern crate pretty_assertions;
 #[macro_use] extern crate lazy_static;
 extern crate nalgebra;
 
-pub mod edge;
-pub mod node;
+pub mod graph;
 
-use petgraph::{
-    Direction,
-    graph::{
-        DiGraph,
-        EdgeIndex,
-        NodeIndex,
-        EdgeReference,
-    },
-    dot::{
-        Dot,
-    },
-    visit::{
-        EdgeRef
-    },
-};
 use std::fmt::{
+    self,
     Debug,
+    Display,
 };
-use node::{
-    NodeData,
-    NodeWeight,
-};
-use edge::{
-    EdgeData,
+use graph::{
+    Graph,
+    node::{
+        NodeData,
+    },
 };
 use std::ops::{
     Deref,
     DerefMut,
 };
-#[derive(Debug)]
-pub struct Graph<N, E>
-    where N: NodeData,
-          E: EdgeData,
-{
-    graph: DiGraph<NodeWeight<N>, E>,
-}
-impl<'a, N, E> Graph<N, E>
-    where N: NodeData,
-          E: EdgeData,
-{
-    pub fn new() -> Self {
-        Self {
-            graph: DiGraph::new(),
-        }
-    }
-
-    pub fn add_edge(&'a mut self, li: NodeIndex, ri: NodeIndex, w: E) -> EdgeIndex {
-        let e = self.find_edge(li, ri, &w);
-        let ei = if let Some(i) = e {
-            i
-        } else {
-            self.graph.add_edge(li, ri, w)
-        };
-        ei
-    }
-    fn find_node(&'a self, element: &N) -> Option<NodeIndex> {
-        self.graph
-            .node_indices()
-            .find(|i| self.graph[*i].data == *element)
-            .map(|i| i.clone())
-    }
-    pub fn find_edge(&'a self, li: NodeIndex, ri: NodeIndex, w: &E) -> Option<EdgeIndex> {
-        self.graph
-            .edges_connecting(li, ri)
-            .find(|e| *e.weight() == *w)
-            .map(|e| e.id())
-    }
-    pub fn find_nodes(&'a self, elems: &[N]) -> Option<Vec<NodeIndex>> {
-        elems.iter().map(|e| self.find_node(e)).collect()
-    }
-    pub fn add_node(&'a mut self, element: N) -> NodeIndex {
-        if let Some(i) = self.find_node(&element) {
-            i
-        } else {
-            self.graph.add_node(
-                NodeWeight::new(element)
-            )
-        }
-    }
-    pub fn contains(&self, element: &N) -> bool {
-        self.find_node(element).is_some()
-    }
-    //pub fn contains_seq(&self, seq: &[N]) -> bool {
-    //    TextPath::from_text(&self, text.clone()).is_some()
-    //}
-    //pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
-    //    GraphEdges::new(
-    //        self.graph
-    //            .edges_directed(index, d)
-    //            .map(|e| self.get_edge(e.id()))
-    //            .collect::<HashSet<_>>().iter().cloned()
-    //    )
-    //}
-    //pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-    //    self.get_edges_directed(index, Direction::Incoming)
-    //}
-    //pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-    //    self.get_edges_directed(index, Direction::Outgoing)
-    //}
-    //pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-    //    let edges = self.get_edges_incoming(index).into_iter()
-    //        .chain(self.get_edges_outgoing(index));
-    //    GraphEdges::new(edges)
-    //}
-    //pub fn get_text_path(&'a self, nodes: Vec<Node<'a>>) -> Option<TextPath<'a>> {
-    //    TextPath::from_nodes(nodes)
-    //}
-    //pub fn find_text_path(&'a self, elems: Vec<TextElement>) -> Option<TextPath<'a>> {
-    //    TextPath::from_elements(self, elems)
-    //}
-}
-impl<N: NodeData, E: EdgeData> Deref for Graph<N, E> {
-    type Target = DiGraph<NodeWeight<N>, E>;
-    fn deref(&self) -> &Self::Target {
-        &self.graph
+pub trait Sequencable: NodeData {
+    fn start() -> Self;
+    fn end() -> Self;
+    fn wrap_sequence<I: Iterator<Item=Self>>(seq: I) -> Vec<Self> {
+        let mut v: Vec<Self> = vec!(Self::start());
+        v.extend(seq);
+        v.push(Self::end());
+        v
     }
 }
-impl<N: NodeData, E: EdgeData> DerefMut for Graph<N, E> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.graph
+#[derive(Debug, PartialEq, Clone)]
+pub enum Sequenced<T: NodeData> {
+    Element(T),
+    Start,
+    End,
+}
+impl<T: NodeData + Display> Display for Sequenced<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            Sequenced::Element(t) => t.to_string(),
+            Sequenced::Start => "START".to_string(),
+            Sequenced::End => "END".to_string(),
+        })
+    }
+}
+impl<T: NodeData> Sequencable for Sequenced<T> {
+    fn start() -> Self {
+        Sequenced::Start
+    }
+    fn end() -> Self {
+        Sequenced::End
+    }
+}
+impl From<char> for Sequenced<char> {
+    fn from(c: char) -> Self {
+        Sequenced::Element(c)
     }
 }
 #[derive(Debug)]
 pub struct SequenceGraph<N>
-    where N: NodeData,
+    where N: NodeData + Sequencable,
 {
     graph: Graph<N, usize>,
 }
 impl<'a, N> SequenceGraph<N>
-    where N: NodeData,
+    where N: NodeData + Sequencable,
 {
     pub fn new() -> Self {
+        let graph = Graph::new();
         Self {
-            graph: Graph::new(),
+            graph,
         }
     }
-    pub fn read_sequence(&'a mut self, seq: &[N]) {
+    pub fn read_sequence<T: Into<N> + Clone>(&'a mut self, seq: &[T]) {
+        let seq = N::wrap_sequence(seq.iter().cloned().map(Into::into));
         for index in 0..seq.len() {
-            self.read_sequence_element(seq, index);
+            self.read_sequence_element(&seq[..], index);
         }
     }
-    pub fn read_sequence_element(&'a mut self, seq: &[N], index: usize) {
+    fn read_sequence_element(&'a mut self, seq: &[N], index: usize) {
         let element = &seq[index];
         let end = seq.len()-1;
         for pre in 0..index {
@@ -166,7 +98,7 @@ impl<'a, N> SequenceGraph<N>
             }
         }
     }
-    pub fn insert_element_neighborhood(&'a mut self,
+    fn insert_element_neighborhood(&'a mut self,
         l: N,
         ld: usize,
         x: N,
@@ -183,13 +115,13 @@ impl<'a, N> SequenceGraph<N>
             .add_transition(le, re);
     }
 }
-impl<N: NodeData> Deref for SequenceGraph<N> {
+impl<N: NodeData + Sequencable> Deref for SequenceGraph<N> {
     type Target = Graph<N, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
 }
-impl<N: NodeData> DerefMut for SequenceGraph<N> {
+impl<N: NodeData + Sequencable> DerefMut for SequenceGraph<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.graph
     }
@@ -198,16 +130,59 @@ impl<N: NodeData> DerefMut for SequenceGraph<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::{
+        assert_eq,
+    };
+    lazy_static!{
+        static ref ELEMS: Vec<char> = {
+            Vec::from(['a', 'b', 'c'])
+        };
+        static ref SEQS: Vec<&'static str> = {
+            Vec::from([
+                "abc",
+                "abb",
+                "bcb"
+            ])
+        };
+        static ref EDGES: Vec<(Sequenced<char>, Sequenced<char>, usize)> = {
+            Vec::from([
+                (Sequenced::Start, 'a'.into(), 1),
+                (Sequenced::Start, 'b'.into(), 1),
+                (Sequenced::Start, 'b'.into(), 2),
+                (Sequenced::Start, 'b'.into(), 3),
+                (Sequenced::Start, 'c'.into(), 2),
+                (Sequenced::Start, 'c'.into(), 3),
+
+                ('a'.into(), Sequenced::End, 3),
+                ('b'.into(), Sequenced::End, 3),
+                ('b'.into(), Sequenced::End, 2),
+                ('b'.into(), Sequenced::End, 1),
+                ('c'.into(), Sequenced::End, 2),
+                ('c'.into(), Sequenced::End, 1),
+
+                ('a'.into(), 'b'.into(), 1),
+                ('a'.into(), 'b'.into(), 1),
+                ('a'.into(), 'b'.into(), 1),
+                ('a'.into(), 'c'.into(), 2),
+
+                ('b'.into(), 'c'.into(), 1),
+                ('c'.into(), 'b'.into(), 1),
+                ('b'.into(), 'b'.into(), 1),
+                ('b'.into(), 'b'.into(), 2),
+            ])
+        };
+        static ref G: SequenceGraph<Sequenced<char>> = {
+            let mut g = SequenceGraph::new();
+            for &s in SEQS.iter() {
+                g.read_sequence(&s.chars().collect::<Vec<_>>()[..]);
+            }
+            g
+        };
+    }
     #[test]
-    fn add_node() {
-        let mut g = SequenceGraph::new();
-        g.add_node('a');
-        g.add_node('b');
-        g.add_node('c');
-        assert!(g.contains(&'a'));
-        assert!(g.contains(&'b'));
-        assert!(g.contains(&'c'));
-        assert!(!g.contains(&'d'));
-        assert!(!g.contains(&'e'));
+    fn has_read_seq() {
+        for (l, r, w) in EDGES.iter() {
+            assert!(G.has_node_edge(l, r, w), format!("({}, {}, {})", l, r, w));
+        }
     }
 }
