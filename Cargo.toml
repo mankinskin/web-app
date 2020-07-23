@@ -3,6 +3,7 @@ members = [
   "plans",
   "budget",
   "interpreter",
+  "interpreter/seqraph",
   "database",
   "updatable",
   "derive_updatable",
