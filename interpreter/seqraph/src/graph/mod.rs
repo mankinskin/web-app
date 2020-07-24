@@ -7,9 +7,17 @@ use petgraph::{
     visit::{
         EdgeRef
     },
+    dot::{
+        Dot,
+    },
 };
-use std::fmt::{
-    Debug,
+use std::{
+    fmt::{
+        Debug,
+    },
+    path::{
+        PathBuf,
+    },
 };
 use node::{
     NodeData,
@@ -90,11 +98,38 @@ impl<N, E> Graph<N, E>
         let ri = self.find_node(r)?;
         self.find_edge(li, ri, w)
     }
+    pub fn find_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<EdgeIndex> {
+        self.graph
+            .edges_connecting(li, ri)
+            .map(|e| e.id())
+            .collect()
+    }
+    pub fn find_node_edges(&self, l: &N, r: &N) -> Vec<EdgeIndex> {
+        let li = self.find_node(l);
+        let ri = self.find_node(r);
+        if let (Some(li), Some(ri)) = (li, ri) {
+            self.graph
+                .edges_connecting(li, ri)
+                .map(|e| e.id())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
     pub fn has_node_edge(&self, l: &N, r: &N, w: &E) -> bool {
         self.find_node_edge(l, r, w).is_some()
     }
     pub fn has_edge(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> bool {
         self.find_edge(li, ri, w).is_some()
+    }
+    pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
+        let mut path: PathBuf = name.into();
+        path.set_extension("dot");
+        //path.canonicalize()?;
+        path.parent().map(|p|
+            std::fs::create_dir_all(p.clone())
+        );
+        std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
     }
 }
 impl<N: NodeData, E: EdgeData> Deref for Graph<N, E> {
@@ -145,5 +180,9 @@ mod tests {
         for (l, r, w) in EDGES.iter() {
             assert!(G.has_node_edge(l, r, w));
         }
+    }
+    #[test]
+    fn write_to_file() {
+        G.write_to_file("test_graph").unwrap();
     }
 }
