@@ -1,6 +1,7 @@
 extern crate itertools;
 extern crate petgraph;
 extern crate pretty_assertions;
+#[allow(unused_imports)] // only used in tests
 #[macro_use] extern crate lazy_static;
 extern crate nalgebra;
 
@@ -21,23 +22,26 @@ use std::ops::{
     Deref,
     DerefMut,
 };
+pub trait Wide {
+    fn width(&self) -> usize;
+}
 pub trait Sequencable: NodeData {
-    fn start() -> Self;
-    fn end() -> Self;
-    fn wrap_sequence<I: Iterator<Item=Self>>(seq: I) -> Vec<Self> {
-        let mut v: Vec<Self> = vec!(Self::start());
-        v.extend(seq);
-        v.push(Self::end());
+    fn sequenced<T: Into<Self>, I: Iterator<Item=T>>(seq: I) -> Vec<Sequenced<Self>> {
+        let mut v = vec!(Sequenced::Start);
+        v.extend(seq.map(|t| Sequenced::Element(t.into())));
+        v.push(Sequenced::End);
         v
     }
 }
+impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {
+}
 #[derive(Debug, PartialEq, Clone)]
-pub enum Sequenced<T: NodeData> {
+pub enum Sequenced<T: NodeData + Sequencable> {
     Element(T),
     Start,
     End,
 }
-impl<T: NodeData + Display> Display for Sequenced<T> {
+impl<T: NodeData + Display + Sequencable> Display for Sequenced<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match self {
             Sequenced::Element(t) => t.to_string(),
@@ -46,12 +50,13 @@ impl<T: NodeData + Display> Display for Sequenced<T> {
         })
     }
 }
-impl<T: NodeData> Sequencable for Sequenced<T> {
-    fn start() -> Self {
-        Sequenced::Start
-    }
-    fn end() -> Self {
-        Sequenced::End
+impl<T: NodeData + Wide + Sequencable> Wide for Sequenced<T> {
+    fn width(&self) -> usize {
+        match self {
+            Sequenced::Element(t) => t.width(),
+            Sequenced::Start => 0,
+            Sequenced::End => 0,
+        }
     }
 }
 impl From<char> for Sequenced<char> {
@@ -63,7 +68,7 @@ impl From<char> for Sequenced<char> {
 pub struct SequenceGraph<N>
     where N: NodeData + Sequencable,
 {
-    graph: Graph<N, usize>,
+    graph: Graph<Sequenced<N>, usize>,
 }
 impl<'a, N> SequenceGraph<N>
     where N: NodeData + Sequencable,
@@ -74,13 +79,13 @@ impl<'a, N> SequenceGraph<N>
             graph,
         }
     }
-    pub fn read_sequence<T: Into<N> + Clone>(&'a mut self, seq: &[T]) {
-        let seq = N::wrap_sequence(seq.iter().cloned().map(Into::into));
+    pub fn read_sequence<T: Into<N>, I: Iterator<Item=T>>(&'a mut self, seq: I) {
+        let seq = N::sequenced(seq);
         for index in 0..seq.len() {
             self.read_sequence_element(&seq[..], index);
         }
     }
-    fn read_sequence_element(&'a mut self, seq: &[N], index: usize) {
+    fn read_sequence_element(&'a mut self, seq: &[Sequenced<N>], index: usize) {
         let element = &seq[index];
         let end = seq.len()-1;
         for pre in 0..index {
@@ -99,24 +104,25 @@ impl<'a, N> SequenceGraph<N>
         }
     }
     fn insert_element_neighborhood(&'a mut self,
-        l: N,
+        l: Sequenced<N>,
         ld: usize,
-        x: N,
+        x: Sequenced<N>,
         rd: usize,
-        r: N) {
+        r: Sequenced<N>) {
         let li = self.add_node(l);
         let xi = self.add_node(x);
         let ri = self.add_node(r);
         let le = self.add_edge(li, xi, ld);
         let re = self.add_edge(xi, ri, rd);
-        self.graph.node_weight_mut(xi)
+        self.graph
+            .node_weight_mut(xi)
             .unwrap()
             .mapping
             .add_transition(le, re);
     }
 }
 impl<N: NodeData + Sequencable> Deref for SequenceGraph<N> {
-    type Target = Graph<N, usize>;
+    type Target = Graph<Sequenced<N>, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
@@ -130,9 +136,6 @@ impl<N: NodeData + Sequencable> DerefMut for SequenceGraph<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::{
-        assert_eq,
-    };
     lazy_static!{
         static ref ELEMS: Vec<char> = {
             Vec::from(['a', 'b', 'c'])
@@ -171,10 +174,10 @@ mod tests {
                 ('b'.into(), 'b'.into(), 2),
             ])
         };
-        static ref G: SequenceGraph<Sequenced<char>> = {
+        static ref G: SequenceGraph<char> = {
             let mut g = SequenceGraph::new();
             for &s in SEQS.iter() {
-                g.read_sequence(&s.chars().collect::<Vec<_>>()[..]);
+                g.read_sequence(s.chars());
             }
             g
         };
