@@ -7,6 +7,7 @@ use std::fmt::{
     Debug,
 };
 use std::default::Default;
+
 pub type EdgeMappingMatrix =
     nalgebra::Matrix<
         bool,
@@ -18,6 +19,7 @@ pub type EdgeMappingMatrix =
             nalgebra::Dynamic
         >
     >;
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct EdgeMapping {
     pub matrix: EdgeMappingMatrix,
@@ -62,7 +64,9 @@ impl Default for EdgeMapping {
     }
 }
 
-pub trait NodeData : Debug + PartialEq + Clone {}
+pub trait NodeData : Debug + PartialEq + Clone
+{
+}
 impl<T: Debug + PartialEq + Clone> NodeData for T {}
 
 #[derive(PartialEq, Debug)]
