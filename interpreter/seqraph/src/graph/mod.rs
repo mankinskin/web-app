@@ -60,7 +60,13 @@ impl<N, E> Graph<N, E>
             )
         }
     }
-    fn find_node(&self, element: &N) -> Option<NodeIndex> {
+    pub fn get_node(&self, element: &N) -> Option<NodeWeight<N>> {
+        let i = self.find_node(element)?;
+        self.graph
+            .node_weight(i)
+            .map(Clone::clone)
+    }
+    pub fn find_node(&self, element: &N) -> Option<NodeIndex> {
         self.graph
             .node_indices()
             .find(|i| self.graph[*i].data == *element)
@@ -86,6 +92,23 @@ impl<N, E> Graph<N, E>
         let li = self.add_node(l);
         let ri = self.add_node(r);
         self.graph.add_edge(li, ri, w)
+    }
+    pub fn get_edge(&self, i: EdgeIndex) -> Option<E> {
+        self.graph
+            .edge_weight(i)
+            .map(Clone::clone)
+    }
+    pub(crate) fn map_to_edge_weights(&self, is: &Vec<EdgeIndex>) -> Vec<E> {
+        is.iter()
+          .filter_map(|i|
+            self.get_edge(*i)
+        ).collect()
+    }
+    pub fn get_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<E> {
+        self.map_to_edge_weights(&self.find_edges(li, ri))
+    }
+    pub fn get_node_edges(&self, l: &N, r: &N) -> Vec<E> {
+        self.map_to_edge_weights(&self.find_node_edges(l, r))
     }
     pub fn find_edge(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> Option<EdgeIndex> {
         self.graph
