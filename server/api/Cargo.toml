@@ -46,3 +46,6 @@ path = "../../updatable"
 
 [dependencies.interpreter]
 path = "../../interpreter"
+
+[dependencies.seqraph]
+path = "../../interpreter/seqraph"

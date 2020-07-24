@@ -139,6 +139,7 @@ fn main() {
                     api::handlers::get_project_tasks,
                     api::handlers::project_create_subtask,
                     api::handlers::interpret_text,
+                    api::handlers::query_text,
                 ],
                 rest_handlers!(Task),
                 rest_handlers!(Project),
