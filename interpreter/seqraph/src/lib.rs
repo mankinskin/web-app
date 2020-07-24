@@ -7,15 +7,26 @@ extern crate nalgebra;
 
 pub mod graph;
 
-use std::fmt::{
-    self,
-    Debug,
-    Display,
+use petgraph::{
+    graph::{
+        NodeIndex,
+    },
+};
+use std::{
+    fmt::{
+        self,
+        Debug,
+        Display,
+    },
+    collections::{
+        HashSet,
+    },
 };
 use graph::{
     Graph,
     node::{
         NodeData,
+        NodeWeight,
     },
 };
 use std::ops::{
@@ -59,9 +70,9 @@ impl<T: NodeData + Wide + Sequencable> Wide for Sequenced<T> {
         }
     }
 }
-impl From<char> for Sequenced<char> {
-    fn from(c: char) -> Self {
-        Sequenced::Element(c)
+impl<N: NodeData> From<N> for Sequenced<N> {
+    fn from(e: N) -> Self {
+        Sequenced::Element(e)
     }
 }
 #[derive(Debug)]
@@ -70,7 +81,7 @@ pub struct SequenceGraph<N>
 {
     graph: Graph<Sequenced<N>, usize>,
 }
-impl<'a, N> SequenceGraph<N>
+impl<N> SequenceGraph<N>
     where N: NodeData + Sequencable,
 {
     pub fn new() -> Self {
@@ -79,13 +90,17 @@ impl<'a, N> SequenceGraph<N>
             graph,
         }
     }
-    pub fn read_sequence<T: Into<N>, I: Iterator<Item=T>>(&'a mut self, seq: I) {
+    pub fn query<T: Into<N>, I: Iterator<Item=T> + Clone>(&self, seq: I) -> Option<String> {
+        let sym = seq.clone().next().unwrap();
+        self.get_node_info(&Sequenced::from(sym.into() as N))
+    }
+    pub fn read_sequence<T: Into<N>, I: Iterator<Item=T>>(&mut self, seq: I) {
         let seq = N::sequenced(seq);
         for index in 0..seq.len() {
             self.read_sequence_element(&seq[..], index);
         }
     }
-    fn read_sequence_element(&'a mut self, seq: &[Sequenced<N>], index: usize) {
+    fn read_sequence_element(&mut self, seq: &[Sequenced<N>], index: usize) {
         let element = &seq[index];
         let end = seq.len()-1;
         for pre in 0..index {
@@ -103,7 +118,7 @@ impl<'a, N> SequenceGraph<N>
             }
         }
     }
-    fn insert_element_neighborhood(&'a mut self,
+    fn insert_element_neighborhood(&mut self,
         l: Sequenced<N>,
         ld: usize,
         x: Sequenced<N>,
@@ -119,6 +134,13 @@ impl<'a, N> SequenceGraph<N>
             .unwrap()
             .mapping
             .add_transition(le, re);
+    }
+    pub fn get_node_info(&self, element: &Sequenced<N>) -> Option<String> {
+        let node = self.get_node(element)?;
+        let pre_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.incoming_groups(&self);
+        let post_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.outgoing_groups(&self);
+        Some(format!("Pre Groups: {:#?}\nPost Groups: {:#?}",
+                     pre_groups, post_groups))
     }
 }
 impl<N: NodeData + Sequencable> Deref for SequenceGraph<N> {

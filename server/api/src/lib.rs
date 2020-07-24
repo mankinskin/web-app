@@ -78,11 +78,13 @@ api! {
         id
     }
     fn interpret_text(text: String) -> String {
-        TG.lock().unwrap().read_sequence(text.chars());
+        let mut g = TG.lock().unwrap();
+        g.read_sequence(text.chars());
+        g.write_to_file("graphs/g1").unwrap();
         "Done".into()
     }
     fn query_text(query: String) -> String {
-        format!("{:#?}", TG.lock().unwrap())
+        format!("{}", TG.lock().unwrap().query(query.chars()).unwrap_or(String::new()))
     }
     rest_api!(User);
     rest_api!(Project);

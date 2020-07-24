@@ -3,6 +3,6 @@ use std::fmt::{
 };
 
 
-pub trait EdgeData : Debug + PartialEq {}
-impl<T: Debug + PartialEq> EdgeData for T {}
+pub trait EdgeData : Debug + PartialEq + Clone {}
+impl<T: Debug + PartialEq + Clone> EdgeData for T {}
 
