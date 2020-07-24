@@ -17,6 +17,7 @@ extern crate jwt;
 extern crate rql;
 extern crate async_trait;
 extern crate futures;
+extern crate seqraph;
 
 #[cfg(target_arch="wasm32")]
 pub mod auth;
@@ -51,8 +52,16 @@ use database::{
 use interpreter::{
     *,
 };
+use seqraph::{
+    *,
+};
 use futures::future::FutureExt;
+use std::sync::Mutex;
 
+#[cfg(not(target_arch="wasm32"))]
+lazy_static! {
+    static ref TG: Mutex<SequenceGraph<char>> = Mutex::new(SequenceGraph::new());
+}
 api! {
     fn get_project_tasks(id: Id<Project>) -> Vec<Entry<Task>> {
         let ids = Project::get(id)
@@ -68,8 +77,12 @@ api! {
         <Project as DatabaseTable>::update(project, Project::update().tasks(vec![id.clone()]));
         id
     }
-    fn interpret_text(text: Text) -> String {
-        "Interpreting".into()
+    fn interpret_text(text: String) -> String {
+        TG.lock().unwrap().read_sequence(text.chars());
+        "Done".into()
+    }
+    fn query_text(query: String) -> String {
+        format!("{:#?}", TG.lock().unwrap())
     }
     rest_api!(User);
     rest_api!(Project);
