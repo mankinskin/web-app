@@ -6,75 +6,36 @@ extern crate pretty_assertions;
 extern crate nalgebra;
 
 pub mod graph;
+pub mod mapping;
 
+use mapping::{
+    Mapped,
+    Mappable,
+    Sequenced,
+};
 use std::{
     fmt::{
-        self,
         Debug,
-        Display,
     },
 };
 use graph::{
     Graph,
     node::{
         NodeData,
-        NodeWeight,
     },
 };
 use std::ops::{
     Deref,
     DerefMut,
 };
-pub trait Wide {
-    fn width(&self) -> usize;
-}
-pub trait Sequencable: NodeData {
-    fn sequenced<T: Into<Self>, I: Iterator<Item=T>>(seq: I) -> Vec<Sequenced<Self>> {
-        let mut v = vec!(Sequenced::Start);
-        v.extend(seq.map(|t| Sequenced::Element(t.into())));
-        v.push(Sequenced::End);
-        v
-    }
-}
-impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {
-}
-#[derive(Debug, PartialEq, Clone)]
-pub enum Sequenced<T: NodeData + Sequencable> {
-    Element(T),
-    Start,
-    End,
-}
-impl<T: NodeData + Display + Sequencable> Display for Sequenced<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            Sequenced::Element(t) => t.to_string(),
-            Sequenced::Start => "START".to_string(),
-            Sequenced::End => "END".to_string(),
-        })
-    }
-}
-impl<T: NodeData + Wide + Sequencable> Wide for Sequenced<T> {
-    fn width(&self) -> usize {
-        match self {
-            Sequenced::Element(t) => t.width(),
-            Sequenced::Start => 0,
-            Sequenced::End => 0,
-        }
-    }
-}
-impl<N: NodeData> From<N> for Sequenced<N> {
-    fn from(e: N) -> Self {
-        Sequenced::Element(e)
-    }
-}
 #[derive(Debug)]
 pub struct SequenceGraph<N>
-    where N: NodeData + Sequencable,
+    where N: NodeData + Mappable,
 {
-    graph: Graph<Sequenced<N>, usize>,
+    graph: Graph<Mapped<N>, usize>,
 }
 impl<N> SequenceGraph<N>
-    where N: NodeData + Sequencable,
+    where N: NodeData + Mappable,
 {
     pub fn new() -> Self {
         let graph = Graph::new();
@@ -127,21 +88,21 @@ impl<N> SequenceGraph<N>
             .mapping
             .add_transition(le, re);
     }
-    pub fn get_node_info(&self, element: &Sequenced<N>) -> Option<String> {
+    pub fn get_node_info<T: PartialEq<Mapped<N>>>(&self, element: &T) -> Option<String> {
         let node = self.find_node_weight(element)?;
-        let pre_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.incoming_distance_groups(&self);
-        let post_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.outgoing_distance_groups(&self);
+        let pre_groups: Vec<Vec<Mapped<N>>> = node.mapping.incoming_distance_groups(&self);
+        let post_groups: Vec<Vec<Mapped<N>>> = node.mapping.outgoing_distance_groups(&self);
         Some(format!("Pre Groups: {:#?}\nPost Groups: {:#?}",
                      pre_groups, post_groups))
     }
 }
-impl<N: NodeData + Sequencable> Deref for SequenceGraph<N> {
-    type Target = Graph<Sequenced<N>, usize>;
+impl<N: NodeData + Mappable> Deref for SequenceGraph<N> {
+    type Target = Graph<Mapped<N>, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
 }
-impl<N: NodeData + Sequencable> DerefMut for SequenceGraph<N> {
+impl<N: NodeData + Mappable> DerefMut for SequenceGraph<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.graph
     }
@@ -198,6 +159,7 @@ mod tests {
     }
     #[test]
     fn has_read_seq() {
+        G.write_to_file("seq_graph").unwrap();
         for (l, r, w) in EDGES.iter() {
             assert!(G.has_node_edge(l, r, w), format!("({}, {}, {})", l, r, w));
         }
