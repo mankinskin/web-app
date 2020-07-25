@@ -21,7 +21,6 @@ use std::{
 };
 use node::{
     NodeData,
-    NodeWeight,
 };
 use edge::{
     EdgeData,
@@ -39,7 +38,7 @@ pub struct Graph<N, E>
     where N: NodeData,
           E: EdgeData,
 {
-    graph: DiGraph<NodeWeight<N>, E>,
+    graph: DiGraph<N, E>,
 }
 impl<'a, N, E> Graph<N, E>
     where N: NodeData,
@@ -53,52 +52,50 @@ impl<'a, N, E> Graph<N, E>
     /// Nodes
 
     /// Return a NodeIndex for a node with NodeData
-    pub fn add_node(&mut self, element: N) -> NodeIndex {
+    pub fn add_node<T: PartialEq<N> + Into<N>>(&mut self, element: T) -> NodeIndex {
         if let Some(i) = self.find_node_index(&element) {
             i
         } else {
-            self.graph.add_node(
-                NodeWeight::new(element)
-            )
+            self.graph.add_node(element.into())
         }
     }
     /// Get NodeWeight for NodeIndex
-    pub fn get_node_weight(&self, i: NodeIndex) -> Option<NodeWeight<N>> {
+    pub fn get_node_weight(&self, i: NodeIndex) -> Option<N> {
         self.graph
             .node_weight(i)
             .map(Clone::clone)
     }
     /// Find NodeIndex for NodeData, if any
-    pub fn find_node_index(&self, element: &N) -> Option<NodeIndex> {
+    pub fn find_node_index<T: PartialEq<N>>(&self, element: &T) -> Option<NodeIndex> {
         self.graph
             .node_indices()
-            .find(|i| self.graph[*i].data == *element)
+            .find(|i| *element == self.graph[*i])
             .map(|i| i.clone())
     }
     /// Return NodeWeight for NodeData, if any
-    pub fn find_node_weight(&self, element: &N) -> Option<NodeWeight<N>> {
+    pub fn find_node_weight<T: PartialEq<N>>(&self, element: &T) -> Option<N> {
         let i = self.find_node_index(element)?;
         self.graph
             .node_weight(i)
             .map(Clone::clone)
     }
     /// Return any NodeIndices for NodeDatas
-    pub fn find_node_indices(&'a self, es: impl Iterator<Item=&'a N> + 'a) -> Option<Vec<NodeIndex>> {
+    pub fn find_node_indices<T: PartialEq<N> + 'a>(&'a self, es: impl Iterator<Item=&'a T> + 'a) -> Option<Vec<NodeIndex>> {
         es.map(|e| self.find_node_index(e)).collect()
     }
     /// Return any NodeWeights for NodeDatas
-    pub fn find_node_weights(&'a self, es: impl Iterator<Item=&'a N> + 'a) -> Option<Vec<NodeWeight<N>>> {
+    pub fn find_node_weights<T: PartialEq<N> + 'a>(&'a self, es: impl Iterator<Item=&'a T> + 'a) -> Option<Vec<N>> {
         es.map(|e| self.find_node_weight(e)).collect()
     }
     /// True if NodeData has node in graph
-    pub fn has_node(&self, element: &N) -> bool {
+    pub fn has_node<T: PartialEq<N>>(&self, element: &T) -> bool {
         self.find_node_index(element).is_some()
     }
     /// Map NodeIndices to weights
     pub fn map_to_node_weights(
         &'a self,
         is: impl Iterator<Item=&'a NodeIndex> + 'a
-        ) -> impl Iterator<Item=NodeWeight<N>> + 'a {
+        ) -> impl Iterator<Item=N> + 'a {
         is.filter_map(move |i| self.get_node_weight(i.clone()))
     }
     /// Get all NodeIndices in the graph
@@ -106,7 +103,7 @@ impl<'a, N, E> Graph<N, E>
         self.node_indices().collect()
     }
     /// Get all NodeWeights in the graph
-    pub fn all_node_weights(&self) -> Vec<NodeWeight<N>> {
+    pub fn all_node_weights(&self) -> Vec<N> {
         self.raw_nodes().iter().map(|n| n.weight.clone()).collect()
     }
 
@@ -146,7 +143,7 @@ impl<'a, N, E> Graph<N, E>
         self.map_to_edge_weights(self.find_edge_indices(li, ri).iter()).collect()
     }
     /// Get all edge weights between NodeDatas
-    pub fn get_node_edges(&self, l: &N, r: &N) -> Vec<E> {
+    pub fn get_node_edges<T: PartialEq<N>>(&self, l: &T, r: &T) -> Vec<E> {
         self.map_to_edge_weights(self.find_node_edge_indices(l, r).iter()).collect()
     }
     /// Find edge index of edge with weight between NodeIndices
@@ -157,7 +154,7 @@ impl<'a, N, E> Graph<N, E>
             .map(|e| e.id())
     }
     /// Find edge index of edge with weight between NodeDatas
-    pub fn find_node_edge_index(&self, l: &N, r: &N, w: &E) -> Option<EdgeIndex> {
+    pub fn find_node_edge_index<T: PartialEq<N>>(&self, l: &T, r: &T, w: &E) -> Option<EdgeIndex> {
         let li = self.find_node_index(l)?;
         let ri = self.find_node_index(r)?;
         self.find_edge_index(li, ri, w)
@@ -170,7 +167,7 @@ impl<'a, N, E> Graph<N, E>
             .collect()
     }
     /// Find edge indices between NodeDatas
-    pub fn find_node_edge_indices(&self, l: &N, r: &N) -> Vec<EdgeIndex> {
+    pub fn find_node_edge_indices<T: PartialEq<N>>(&self, l: &T, r: &T) -> Vec<EdgeIndex> {
         let li = self.find_node_index(l);
         let ri = self.find_node_index(r);
         if let (Some(li), Some(ri)) = (li, ri) {
@@ -187,7 +184,7 @@ impl<'a, N, E> Graph<N, E>
         self.edge_indices().collect()
     }
     /// True if edge with weight between NodeDatas
-    pub fn has_node_edge(&self, l: &N, r: &N, w: &E) -> bool {
+    pub fn has_node_edge<T: PartialEq<N>>(&self, l: &T, r: &T, w: &E) -> bool {
         self.find_node_edge_index(l, r, w).is_some()
     }
     /// True if edge with weight between NodeIndices
@@ -241,7 +238,7 @@ impl<N: NodeData> Graph<N, usize> {
         r
     }
     /// Group NodeWeights by distances
-    pub fn group_weights_by_distance(&self, es: impl Iterator<Item=(usize, NodeIndex)>) -> Vec<Vec<NodeWeight<N>>> {
+    pub fn group_weights_by_distance(&self, es: impl Iterator<Item=(usize, NodeIndex)>) -> Vec<Vec<N>> {
         Self::group_indices_by_distance(es)
             .iter()
             .map(|is|
@@ -251,7 +248,7 @@ impl<N: NodeData> Graph<N, usize> {
     }
 }
 impl<N: NodeData, E: EdgeData> Deref for Graph<N, E> {
-    type Target = DiGraph<NodeWeight<N>, E>;
+    type Target = DiGraph<N, E>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
@@ -305,7 +302,7 @@ mod tests {
     fn has_node() {
         let g = init();
         for e in ELEMS.iter() {
-            assert!(g.has_node(&e));
+            assert!(g.has_node(e));
         }
     }
     #[test]
