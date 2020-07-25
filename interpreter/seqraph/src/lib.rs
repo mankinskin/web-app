@@ -7,19 +7,11 @@ extern crate nalgebra;
 
 pub mod graph;
 
-use petgraph::{
-    graph::{
-        NodeIndex,
-    },
-};
 use std::{
     fmt::{
         self,
         Debug,
         Display,
-    },
-    collections::{
-        HashSet,
     },
 };
 use graph::{
@@ -136,9 +128,9 @@ impl<N> SequenceGraph<N>
             .add_transition(le, re);
     }
     pub fn get_node_info(&self, element: &Sequenced<N>) -> Option<String> {
-        let node = self.get_node(element)?;
-        let pre_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.incoming_groups(&self);
-        let post_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.outgoing_groups(&self);
+        let node = self.find_node_weight(element)?;
+        let pre_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.incoming_distance_groups(&self);
+        let post_groups: Vec<Vec<NodeWeight<Sequenced<N>>>> = node.mapping.outgoing_distance_groups(&self);
         Some(format!("Pre Groups: {:#?}\nPost Groups: {:#?}",
                      pre_groups, post_groups))
     }

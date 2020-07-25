@@ -41,7 +41,7 @@ pub struct Graph<N, E>
 {
     graph: DiGraph<NodeWeight<N>, E>,
 }
-impl<N, E> Graph<N, E>
+impl<'a, N, E> Graph<N, E>
     where N: NodeData,
           E: EdgeData,
 {
@@ -50,9 +50,11 @@ impl<N, E> Graph<N, E>
             graph: DiGraph::new(),
         }
     }
+    /// Nodes
 
+    /// Return a NodeIndex for a node with NodeData
     pub fn add_node(&mut self, element: N) -> NodeIndex {
-        if let Some(i) = self.find_node(&element) {
+        if let Some(i) = self.find_node_index(&element) {
             i
         } else {
             self.graph.add_node(
@@ -60,76 +62,117 @@ impl<N, E> Graph<N, E>
             )
         }
     }
-    pub fn get_node(&self, element: &N) -> Option<NodeWeight<N>> {
-        let i = self.find_node(element)?;
+    /// Get NodeWeight for NodeIndex
+    pub fn get_node_weight(&self, i: NodeIndex) -> Option<NodeWeight<N>> {
         self.graph
             .node_weight(i)
             .map(Clone::clone)
     }
-    pub fn find_node(&self, element: &N) -> Option<NodeIndex> {
+    /// Find NodeIndex for NodeData, if any
+    pub fn find_node_index(&self, element: &N) -> Option<NodeIndex> {
         self.graph
             .node_indices()
             .find(|i| self.graph[*i].data == *element)
             .map(|i| i.clone())
     }
-    pub fn find_nodes(&self, elems: &[N]) -> Option<Vec<NodeIndex>> {
-        elems.iter().map(|e| self.find_node(e)).collect()
+    /// Return NodeWeight for NodeData, if any
+    pub fn find_node_weight(&self, element: &N) -> Option<NodeWeight<N>> {
+        let i = self.find_node_index(element)?;
+        self.graph
+            .node_weight(i)
+            .map(Clone::clone)
     }
+    /// Return any NodeIndices for NodeDatas
+    pub fn find_node_indices(&'a self, es: impl Iterator<Item=&'a N> + 'a) -> Option<Vec<NodeIndex>> {
+        es.map(|e| self.find_node_index(e)).collect()
+    }
+    /// Return any NodeWeights for NodeDatas
+    pub fn find_node_weights(&'a self, es: impl Iterator<Item=&'a N> + 'a) -> Option<Vec<NodeWeight<N>>> {
+        es.map(|e| self.find_node_weight(e)).collect()
+    }
+    /// True if NodeData has node in graph
     pub fn has_node(&self, element: &N) -> bool {
-        self.find_node(element).is_some()
+        self.find_node_index(element).is_some()
+    }
+    /// Map NodeIndices to weights
+    pub fn map_to_node_weights(
+        &'a self,
+        is: impl Iterator<Item=&'a NodeIndex> + 'a
+        ) -> impl Iterator<Item=NodeWeight<N>> + 'a {
+        is.filter_map(move |i| self.get_node_weight(i.clone()))
+    }
+    /// Get all NodeIndices in the graph
+    pub fn all_node_indices(&self) -> Vec<NodeIndex> {
+        self.node_indices().collect()
+    }
+    /// Get all NodeWeights in the graph
+    pub fn all_node_weights(&self) -> Vec<NodeWeight<N>> {
+        self.raw_nodes().iter().map(|n| n.weight.clone()).collect()
     }
 
+    /// Edges
+
+    /// Return an EdgeIndex for an edge with weight between NodeIndices
     pub fn add_edge(&mut self, li: NodeIndex, ri: NodeIndex, w: E) -> EdgeIndex {
-        let e = self.find_edge(li, ri, &w);
-        let ei = if let Some(i) = e {
+        let i = self.find_edge_index(li, ri, &w);
+        let i = if let Some(i) = i {
             i
         } else {
             self.graph.add_edge(li, ri, w)
         };
-        ei
+        i
     }
+    /// Add a new edge with weight between NodeDatas
     pub fn add_node_edge(&mut self, l: N, r: N, w: E) -> EdgeIndex {
         let li = self.add_node(l);
         let ri = self.add_node(r);
         self.graph.add_edge(li, ri, w)
     }
-    pub fn get_edge(&self, i: EdgeIndex) -> Option<E> {
+    /// Return weight of edge with index, if any
+    pub fn get_edge_weight(&self, i: EdgeIndex) -> Option<E> {
         self.graph
             .edge_weight(i)
             .map(Clone::clone)
     }
-    pub(crate) fn map_to_edge_weights(&self, is: &Vec<EdgeIndex>) -> Vec<E> {
-        is.iter()
-          .filter_map(|i|
-            self.get_edge(*i)
-        ).collect()
+    /// Map EdgeIndices to weights
+    pub fn map_to_edge_weights(
+        &'a self,
+        is: impl Iterator<Item=&'a EdgeIndex> + 'a
+        ) -> impl Iterator<Item=E> + 'a {
+        is.filter_map(move |i| self.get_edge_weight(i.clone()))
     }
+    /// Get all edge weights between NodeIndices
     pub fn get_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<E> {
-        self.map_to_edge_weights(&self.find_edges(li, ri))
+        self.map_to_edge_weights(self.find_edge_indices(li, ri).iter()).collect()
     }
+    /// Get all edge weights between NodeDatas
     pub fn get_node_edges(&self, l: &N, r: &N) -> Vec<E> {
-        self.map_to_edge_weights(&self.find_node_edges(l, r))
+        self.map_to_edge_weights(self.find_node_edge_indices(l, r).iter()).collect()
     }
-    pub fn find_edge(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> Option<EdgeIndex> {
+    /// Find edge index of edge with weight between NodeIndices
+    pub fn find_edge_index(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> Option<EdgeIndex> {
         self.graph
             .edges_connecting(li, ri)
             .find(|e| *e.weight() == *w)
             .map(|e| e.id())
     }
-    pub fn find_node_edge(&self, l: &N, r: &N, w: &E) -> Option<EdgeIndex> {
-        let li = self.find_node(l)?;
-        let ri = self.find_node(r)?;
-        self.find_edge(li, ri, w)
+    /// Find edge index of edge with weight between NodeDatas
+    pub fn find_node_edge_index(&self, l: &N, r: &N, w: &E) -> Option<EdgeIndex> {
+        let li = self.find_node_index(l)?;
+        let ri = self.find_node_index(r)?;
+        self.find_edge_index(li, ri, w)
     }
-    pub fn find_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<EdgeIndex> {
+    /// Find edge indices between NodeIndices
+    pub fn find_edge_indices(&self, li: NodeIndex, ri: NodeIndex) -> Vec<EdgeIndex> {
         self.graph
             .edges_connecting(li, ri)
             .map(|e| e.id())
             .collect()
     }
-    pub fn find_node_edges(&self, l: &N, r: &N) -> Vec<EdgeIndex> {
-        let li = self.find_node(l);
-        let ri = self.find_node(r);
+    /// Find edge indices between NodeDatas
+    pub fn find_node_edge_indices(&self, l: &N, r: &N) -> Vec<EdgeIndex> {
+        let li = self.find_node_index(l);
+        let ri = self.find_node_index(r);
         if let (Some(li), Some(ri)) = (li, ri) {
             self.graph
                 .edges_connecting(li, ri)
@@ -139,12 +182,39 @@ impl<N, E> Graph<N, E>
             Vec::new()
         }
     }
+    /// Get all EdgeIndices in the graph
+    pub fn all_edge_indices(&self) -> Vec<EdgeIndex> {
+        self.edge_indices().collect()
+    }
+    /// True if edge with weight between NodeDatas
     pub fn has_node_edge(&self, l: &N, r: &N, w: &E) -> bool {
-        self.find_node_edge(l, r, w).is_some()
+        self.find_node_edge_index(l, r, w).is_some()
     }
+    /// True if edge with weight between NodeIndices
     pub fn has_edge(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> bool {
-        self.find_edge(li, ri, w).is_some()
+        self.find_edge_index(li, ri, w).is_some()
     }
+    /// Get source of edge
+    pub fn edge_source(&self, i: EdgeIndex) -> Option<NodeIndex> {
+        self.edge_endpoints(i).map(|t| t.0)
+    }
+    /// Get sources of edges
+    pub fn edge_sources(&'a self, is: impl Iterator<Item=EdgeIndex> + 'a) -> impl Iterator<Item=NodeIndex> + 'a {
+        is.filter_map(move |i| self.edge_source(i))
+    }
+    /// Get target of edge
+    pub fn edge_target(&self, i: EdgeIndex) -> Option<NodeIndex> {
+        self.edge_endpoints(i).map(|t| t.1)
+    }
+    /// Get targets of edges
+    pub fn edge_targets(&'a self, is: impl Iterator<Item=EdgeIndex> + 'a) -> impl Iterator<Item=NodeIndex> + 'a {
+        is.filter_map(move |i| self.edge_target(i))
+    }
+    /// Get weights of edges
+    pub fn edge_weights(&'a self, is: impl Iterator<Item=EdgeIndex> + 'a) -> impl Iterator<Item=E> + 'a {
+        is.filter_map(move |i| self.get_edge_weight(i))
+    }
+    /// Write graph to dot file
     pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
         let mut path: PathBuf = name.into();
         path.set_extension("dot");
@@ -153,6 +223,31 @@ impl<N, E> Graph<N, E>
             std::fs::create_dir_all(p.clone())
         );
         std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
+    }
+}
+impl<N: NodeData> Graph<N, usize> {
+    /// Group NodeIndices by distances
+    pub fn group_indices_by_distance(es: impl Iterator<Item=(usize, NodeIndex)>) -> Vec<Vec<NodeIndex>> {
+        let es = es.collect::<Vec<_>>();
+        let max = es.iter().map(|(d, _)| d.clone()).max().unwrap_or(0);
+        let mut r = Vec::new();
+        for i in 1..=max {
+            r.push(
+                es.iter().filter(|(d, _)| *d == i)
+                    .map(|(_, n)| n.clone())
+                    .collect()
+            )
+        }
+        r
+    }
+    /// Group NodeWeights by distances
+    pub fn group_weights_by_distance(&self, es: impl Iterator<Item=(usize, NodeIndex)>) -> Vec<Vec<NodeWeight<N>>> {
+        Self::group_indices_by_distance(es)
+            .iter()
+            .map(|is|
+                 self.map_to_node_weights(is.iter()).collect()
+            )
+            .collect()
     }
 }
 impl<N: NodeData, E: EdgeData> Deref for Graph<N, E> {
@@ -170,6 +265,10 @@ impl<N: NodeData, E: EdgeData> DerefMut for Graph<N, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{
+        Mutex,
+        MutexGuard,
+    };
     lazy_static!{
         static ref ELEMS: Vec<char> = {
             Vec::from(['a', 'b', 'c'])
@@ -181,31 +280,44 @@ mod tests {
                 ('c', 'a', 3)
             ])
         };
-        static ref G: Graph<char, usize> = {
-            let mut g = Graph::new();
-            for e in ELEMS.iter() {
-                g.add_node(e.clone());
-            }
-            for (l, r, w) in EDGES.iter() {
-                g.add_node_edge(l.clone(), r.clone(), w.clone());
-            }
-            g
+        static ref G: Mutex<Graph<char, usize>> = Mutex::new(Graph::new());
+        static ref NODE_INDICES: Vec<NodeIndex> = {
+            let mut g = G.lock().unwrap();
+            ELEMS.iter()
+                .map(|e| g.add_node(e.clone()))
+                .collect()
         };
+        static ref EDGE_INDICES: Vec<EdgeIndex> = {
+            let mut g = G.lock().unwrap();
+            EDGES.iter()
+                .map(|(l, r, w)|
+                     g.add_node_edge(l.clone(), r.clone(), w.clone())
+                )
+                .collect()
+        };
+    }
+    fn init() -> MutexGuard<'static, Graph<char, usize>> {
+        format!("{:?}", *NODE_INDICES);
+        format!("{:?}", *EDGE_INDICES);
+        G.lock().unwrap()
     }
     #[test]
     fn has_node() {
+        let g = init();
         for e in ELEMS.iter() {
-            assert!(G.has_node(&e));
+            assert!(g.has_node(&e));
         }
     }
     #[test]
     fn has_node_edge() {
+        let g = init();
         for (l, r, w) in EDGES.iter() {
-            assert!(G.has_node_edge(l, r, w));
+            assert!(g.has_node_edge(l, r, w));
         }
     }
     #[test]
     fn write_to_file() {
-        G.write_to_file("test_graph").unwrap();
+        let g = init();
+        g.write_to_file("test_graph").unwrap();
     }
 }
