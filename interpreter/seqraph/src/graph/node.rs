@@ -8,10 +8,6 @@ use std::{
     fmt::{
         self,
         Debug,
-        Display,
-    },
-    collections::{
-        HashSet,
     },
 };
 use std::default::Default;
@@ -43,6 +39,7 @@ pub struct EdgeMapping {
     pub incoming: Vec<EdgeIndex>,
 }
 impl<'a> EdgeMapping {
+    /// New EdgeMapping
     pub fn new() -> Self {
         Self {
             matrix: EdgeMappingMatrix::from_element(0, 0, false.into()),
@@ -50,7 +47,8 @@ impl<'a> EdgeMapping {
             incoming: Vec::new(),
         }
     }
-    pub fn add_incoming_edge(&mut self, edge: EdgeIndex) -> usize {
+    /// Add an incoming edge
+    fn add_incoming_edge(&mut self, edge: EdgeIndex) -> usize {
         if let Some(i) = self.incoming.iter().position(|e| *e == edge) {
             i
         } else {
@@ -59,7 +57,8 @@ impl<'a> EdgeMapping {
             self.incoming.len() - 1
         }
     }
-    pub fn add_outgoing_edge(&mut self, edge: EdgeIndex) -> usize {
+    /// Add an outgoing edge
+    fn add_outgoing_edge(&mut self, edge: EdgeIndex) -> usize {
         if let Some(i) = self.outgoing.iter().position(|e| *e == edge) {
             i
         } else {
@@ -68,70 +67,35 @@ impl<'a> EdgeMapping {
             self.outgoing.len() - 1
         }
     }
+    /// Add a transition between two edges
     pub fn add_transition(&mut self, left_edge: EdgeIndex, right_edge: EdgeIndex) {
         let left_index = self.add_incoming_edge(left_edge);
         let right_index = self.add_outgoing_edge(right_edge);
         self.matrix[(right_index, left_index)] = true.into();
     }
-    pub fn incoming_targets<N: NodeData, E: EdgeData>(&self, graph: &Graph<N, E>) -> Vec<(E, NodeIndex)> {
-        self.incoming
-            .iter()
-            .filter_map(|i|
-                Some((
-                    graph.edge_weight(*i).map(Clone::clone)?,
-                    graph.edge_endpoints(*i)
-                        .map(|(source, _)| source.clone())?
-                ))
-            )
-            .collect()
+    /// Get weights and sources of incoming edges
+    pub fn incoming_sources<N: NodeData, E: EdgeData>(
+        &'a self,
+        graph: &'a Graph<N, E>
+        ) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
+        graph.edge_weights(self.incoming.iter().cloned())
+            .zip(graph.edge_sources(self.incoming.iter().cloned()))
     }
-    pub fn outgoing_targets<N: NodeData, E: EdgeData>(&self, graph: &Graph<N, E>) -> Vec<(E, NodeIndex)> {
-        self.outgoing
-            .iter()
-            .filter_map(|i|
-                Some((
-                    graph.edge_weight(*i).map(Clone::clone)?,
-                    graph.edge_endpoints(*i)
-                        .map(|(_, target)| target.clone())?
-                ))
-            )
-            .collect()
+    /// Get weights and targets of outgoing edges
+    pub fn outgoing_targets<N: NodeData, E: EdgeData>(
+        &'a self,
+        graph: &'a Graph<N, E>) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
+        graph.edge_weights(self.outgoing.iter().cloned())
+            .zip(graph.edge_targets(self.outgoing.iter().cloned()))
     }
-    fn group_by_distance(es: Vec<(usize, NodeIndex)>) -> Vec<Vec<NodeIndex>> {
-        let max = es.iter().map(|(d, _)| d.clone()).max().unwrap_or(0);
-        let mut r = Vec::new();
-        for i in 1..=max {
-            r.push(
-                es.clone()
-                    .into_iter()
-                    .filter(|(d, _)| *d == i)
-                    .map(|(_, n)| n.clone())
-                    .collect()
-            )
-        }
-        r
+
+    /// Get distance groups for incoming edges
+    pub fn incoming_distance_groups<N: NodeData>(&self, graph: &Graph<N, usize>) -> Vec<Vec<NodeWeight<N>>> {
+        graph.group_weights_by_distance(self.incoming_sources(graph))
     }
-    pub fn incoming_groups<N: NodeData>(&self, graph: &Graph<N, usize>) -> Vec<Vec<NodeWeight<N>>> {
-        Self::group_by_distance(self.incoming_targets(graph))
-            .iter()
-            .map(|set|
-                set.iter()
-                   .filter_map(|i| graph.node_weight(*i))
-                   .cloned()
-                   .collect()
-            )
-            .collect()
-    }
-    pub fn outgoing_groups<N: NodeData>(&self, graph: &Graph<N, usize>) -> Vec<Vec<NodeWeight<N>>> {
-        Self::group_by_distance(self.outgoing_targets(graph))
-            .iter()
-            .map(|set|
-                set.iter()
-                   .filter_map(|i| graph.node_weight(*i))
-                   .cloned()
-                   .collect()
-            )
-            .collect()
+    /// Get distance groups for outgoing edges
+    pub fn outgoing_distance_groups<N: NodeData>(&self, graph: &Graph<N, usize>) -> Vec<Vec<NodeWeight<N>>> {
+        graph.group_weights_by_distance(self.outgoing_targets(graph))
     }
 }
 impl Default for EdgeMapping {
