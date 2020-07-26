@@ -183,7 +183,7 @@ impl<'a, N, E> Graph<N, E>
         self.find_edge_index(li, ri, w)
     }
     /// Find edge indices connecting NodeIndices
-    pub fn edges_connecting(
+    pub fn find_edge_indices(
         &self,
         li: NodeIndex,
         ri: NodeIndex,
@@ -202,10 +202,7 @@ impl<'a, N, E> Graph<N, E>
         let li = self.find_node_index(l);
         let ri = self.find_node_index(r);
         if let (Some(li), Some(ri)) = (li, ri) {
-            self.graph
-                .edges_connecting(li, ri)
-                .map(|e| e.id())
-                .collect()
+            self.find_edge_indices(li, ri)
         } else {
             Vec::new()
         }
