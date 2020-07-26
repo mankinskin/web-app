@@ -1,3 +1,7 @@
+use serde::{
+    Serialize,
+    Deserialize,
+};
 use petgraph::{
     graph::{
         EdgeIndex,
@@ -118,7 +122,7 @@ impl Wide for char {
 }
 
 /// Type for storing elements of a sequence
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Sequenced<T: NodeData> {
     Element(T),
     Start,

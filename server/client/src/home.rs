@@ -9,13 +9,19 @@ use crate::{
     },
 };
 use std::result::Result;
+use seqraph::{
+    NodeInfo,
+    mapping::{
+        Sequenced,
+    },
+};
 
 #[derive(Debug,Clone, Default)]
 pub struct Model {
     text: String,
     interpreter_response: String,
     query: String,
-    query_response: String,
+    query_response: Option<NodeInfo<char>>,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -24,7 +30,7 @@ pub enum Msg {
     InterpreterResponse(Result<String, String>),
     SetQuery(String),
     Query,
-    QueryResponse(Result<String, String>),
+    QueryResponse(Result<Option<NodeInfo<char>>, String>),
 }
 impl Component for Model {
     type Msg = Msg;
@@ -58,10 +64,10 @@ impl Component for Model {
                 self.query = t;
             },
             Msg::Query => {
-                self.query_response.clear();
+                self.query_response = None;
                 orders.perform_cmd(
                     api::query_text(self.query.clone())
-                        .map(|result: Result<String, FetchError>| {
+                        .map(|result: Result<_, FetchError>| {
                             Msg::QueryResponse(result.map_err(|e| format!("{:?}", e)))
                         })
                 );
@@ -74,11 +80,56 @@ impl Component for Model {
                     },
                     Err(e) => {
                         log!(e);
-                        self.query_response = e;
                     }
                 }
             },
         }
+    }
+}
+fn view_distance_groups(groups: &Vec<Vec<Sequenced<char>>>) -> Node<Msg> {
+    div![
+        style!{
+            St::Display => "grid",
+            St::GridTemplateColumns => "min-content",
+            St::GridTemplateRows => "max-content",
+            St::GridGap => "20px",
+        },
+        groups.iter().map(view_distance_group)
+    ]
+}
+fn view_distance_group(group: &Vec<Sequenced<char>>) -> Node<Msg> {
+    div![
+        style!{
+            St::GridRow => "1",
+            St::AlignItems => "center",
+        },
+        group.iter().map(|elem|
+            p![elem.to_string()]
+        )
+    ]
+}
+fn view_node_info(info: &Option<NodeInfo<char>>) -> Node<Msg> {
+    if let Some(info) = info {
+        div![
+            style!{
+                St::Display => "grid",
+                St::GridTemplateColumns => "1fr 1fr 1fr",
+            },
+            div![
+                view_distance_groups(&info.left_groups),
+            ],
+            div![
+                info.element.to_string()
+            ],
+            div![
+                style!{
+                    St::Float => "left",
+                },
+                view_distance_groups(&info.right_groups),
+            ],
+        ]
+    } else {
+        empty![]
     }
 }
 impl View for Model {
@@ -117,7 +168,7 @@ impl View for Model {
                 style!{
                     St::WhiteSpace => "pre-wrap",
                 },
-                self.query_response.clone()
+                view_node_info(&self.query_response)
             ],
         ]
     }

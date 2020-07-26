@@ -83,8 +83,8 @@ api! {
         g.write_to_file("graphs/g1").unwrap();
         "Done".into()
     }
-    fn query_text(query: String) -> String {
-        format!("{}", TG.lock().unwrap().query(query.chars()).unwrap_or(String::new()))
+    fn query_text(query: String) -> Option<NodeInfo<char>> {
+        TG.lock().unwrap().query(query.chars())
     }
     rest_api!(User);
     rest_api!(Project);
