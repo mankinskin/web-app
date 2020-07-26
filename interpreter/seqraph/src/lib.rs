@@ -8,10 +8,16 @@ extern crate nalgebra;
 pub mod graph;
 pub mod mapping;
 
+use petgraph::{
+    graph::{
+        EdgeIndex,
+    },
+};
 use mapping::{
     Mapped,
     Mappable,
     Sequenced,
+    Wide,
 };
 use std::{
     fmt::{
@@ -71,12 +77,14 @@ impl<N> SequenceGraph<N>
             }
         }
     }
-    fn insert_element_neighborhood(&mut self,
+    fn insert_element_neighborhood(
+        &mut self,
         l: Sequenced<N>,
         ld: usize,
         x: Sequenced<N>,
         rd: usize,
-        r: Sequenced<N>) {
+        r: Sequenced<N>
+    ) {
         let li = self.add_node(l);
         let xi = self.add_node(x);
         let ri = self.add_node(r);
