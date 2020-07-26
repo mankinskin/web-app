@@ -83,24 +83,24 @@ impl<'a> EdgeMapping {
         &'a self,
         graph: &'a Graph<N, E>
         ) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.incoming.iter().cloned())
-            .zip(graph.edge_sources(self.incoming.iter().cloned()))
+        graph.edge_weights(self.incoming.iter())
+            .zip(graph.edge_sources(self.incoming.iter()))
     }
     /// Get weights and targets of outgoing edges
     pub fn outgoing_targets<N: NodeData, E: EdgeData>(
         &'a self,
         graph: &'a Graph<N, E>) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.outgoing.iter().cloned())
-            .zip(graph.edge_targets(self.outgoing.iter().cloned()))
+        graph.edge_weights(self.outgoing.iter())
+            .zip(graph.edge_targets(self.outgoing.iter()))
     }
 
     /// Get distance groups for incoming edges
     pub fn incoming_distance_groups<N: NodeData>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
-        graph.group_weights_by_distance(self.incoming_sources(graph))
+        graph.distance_group_source_weights(self.incoming.iter())
     }
     /// Get distance groups for outgoing edges
     pub fn outgoing_distance_groups<N: NodeData>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
-        graph.group_weights_by_distance(self.outgoing_targets(graph))
+        graph.distance_group_target_weights(self.outgoing.iter())
     }
 }
 impl Default for EdgeMapping {
@@ -110,6 +110,11 @@ impl Default for EdgeMapping {
 }
 pub trait Wide {
     fn width(&self) -> usize;
+}
+impl Wide for char {
+    fn width(&self) -> usize {
+        1
+    }
 }
 
 /// Type for storing elements of a sequence
@@ -207,6 +212,6 @@ pub trait Sequencable: NodeData {
 }
 impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {}
 /// Trait for data that can be mapped in a sequence
-pub trait Mappable: Sequencable {
+pub trait Mappable: Sequencable + Wide {
 }
-impl<T: NodeData + Into<Mapped<T>>> Mappable for T {}
+impl<T: NodeData + Wide + Into<Mapped<T>>> Mappable for T {}
