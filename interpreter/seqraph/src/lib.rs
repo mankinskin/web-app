@@ -96,12 +96,15 @@ impl<N> SequenceGraph<N>
             .mapping
             .add_transition(le, re);
     }
-    pub fn get_node_info<T: PartialEq<Mapped<N>>>(&self, element: &T) -> Option<String> {
+    pub fn get_node_info<T: PartialEq<Mapped<N>>>(
+        &self,
+        element: &T,
+    ) -> Option<String> {
         let node = self.find_node_weight(element)?;
-        let pre_groups: Vec<Vec<Mapped<N>>> = node.mapping.incoming_distance_groups(&self);
-        let post_groups: Vec<Vec<Mapped<N>>> = node.mapping.outgoing_distance_groups(&self);
+        let left_groups: Vec<Vec<Mapped<N>>> = node.mapping.left_distance_groups(&self);
+        let right_groups: Vec<Vec<Mapped<N>>> = node.mapping.right_distance_groups(&self);
         Some(format!("Pre Groups: {:#?}\nPost Groups: {:#?}",
-                     pre_groups, post_groups))
+                     left_groups, right_groups))
     }
 }
 impl<N: NodeData + Mappable> Deref for SequenceGraph<N> {
