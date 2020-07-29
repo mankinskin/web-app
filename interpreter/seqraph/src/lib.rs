@@ -5,6 +5,7 @@ extern crate pretty_assertions;
 #[macro_use] extern crate lazy_static;
 extern crate nalgebra;
 extern crate serde;
+extern crate serde_json;
 
 pub mod graph;
 pub mod mapping;

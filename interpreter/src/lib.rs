@@ -11,6 +11,7 @@ extern crate pretty_assertions;
 extern crate nalgebra;
 extern crate num_traits;
 extern crate serde;
+extern crate seqraph;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate linefeed;
@@ -20,15 +21,15 @@ extern crate termion;
 pub mod shell;
 
 pub mod parse;
-pub mod text;
-pub mod sentence;
-pub mod graph;
-pub mod set;
+//pub mod text;
+//pub mod sentence;
+//pub mod graph;
+//pub mod set;
 
-pub use text::{
-    Text,
-    TextElement,
-};
+//pub use text::{
+//    Text,
+//    TextElement,
+//};
 use std::collections::{HashSet};
 
 #[macro_export]

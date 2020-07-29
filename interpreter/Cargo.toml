@@ -22,3 +22,6 @@ serde = "^1"
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 termion = "1.5"
 linefeed = "0.6"
+
+[dependencies.seqraph]
+path = "./seqraph/"
