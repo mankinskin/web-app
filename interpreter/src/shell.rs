@@ -2,7 +2,6 @@ use std::io::{
     self,
     Write,
     stdin,
-    Stdout,
     stdout,
     BufRead,
 };
@@ -13,7 +12,6 @@ use itertools::*;
 
 pub struct Shell {
     prompt: String,
-    stdout: Stdout,
     exit: bool,
     graph: SequenceGraph<char>,
 }
@@ -47,17 +45,15 @@ impl Shell {
     pub fn new() -> Self {
         Self {
             prompt: "> ".into(),
-            stdout: stdout(),
             exit: false,
             graph: SequenceGraph::new()
         }
     }
     pub fn run(&mut self) -> io::Result<()> {
-        self.write_help()?;
+        self.print_help();
         loop {
-            self.stdout.flush()?;
             if self.exit { break }
-            self.write_prompt()?;
+            self.print_prompt()?;
             if let Some(line) = stdin().lock().lines().next() {
                 let line = line?;
                 if !line.is_empty() {
@@ -65,7 +61,7 @@ impl Shell {
                     self.exec_command(cmd)?
                 }
             }
-            self.stdout.flush()?;
+            stdout().flush()?;
         }
         Ok(())
     }
@@ -79,7 +75,7 @@ impl Shell {
     }
     fn exec_command(&mut self, cmd: Command) -> io::Result<()> {
         Ok(match cmd {
-            Command::Help => self.write_help()?,
+            Command::Help => self.print_help(),
             Command::Exit => { self.exit = true; },
             Command::Text(s) => {
                 self.graph.read_sequence(s.chars());
@@ -91,12 +87,12 @@ impl Shell {
     pub fn set_prompt<S: Into<String>>(&mut self, p: S) {
         self.prompt = p.into();
     }
-    fn write_prompt(&mut self) -> io::Result<()> {
-        write!(self.stdout, "{}", self.prompt)?;
-        self.stdout.flush()
+    fn print_prompt(&self) -> io::Result<()> {
+        print!("{}", self.prompt);
+        stdout().flush()
     }
-    fn write_help(&mut self) -> io::Result<()> {
-        write!(self.stdout, "Natural language interpreter\n")?;
+    fn print_help(&mut self) {
+        println!("Natural language interpreter");
         let mut lines = Vec::new();
         let mut max = 0;
         for (ts, _cmd, _desc) in COMMANDS.iter() {
@@ -111,11 +107,10 @@ impl Shell {
             line.push_str(&std::iter::repeat("\t").take(ts).collect::<String>());
         }
         for (ts, desc) in lines.iter().zip(COMMANDS.iter().map(|(_, _, desc)| desc)) {
-            write!(self.stdout, "{}\t{}\n",
+            println!("{}\t{}",
                 ts,
                 desc
-            )?;
+            );
         }
-        self.stdout.flush()
     }
 }
