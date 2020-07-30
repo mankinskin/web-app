@@ -20,7 +20,7 @@ use petgraph::{
     },
 };
 use mapping::{
-    Mapped,
+    Symbol,
     Mappable,
     Sequenced,
     Wide,
@@ -44,7 +44,7 @@ use std::ops::{
 pub struct SequenceGraph<N>
     where N: NodeData + Mappable,
 {
-    graph: Graph<Mapped<N>, usize>,
+    graph: Graph<Symbol<N>, usize>,
 }
 impl<N> SequenceGraph<N>
     where N: NodeData + Mappable,
@@ -107,7 +107,7 @@ impl<N> SequenceGraph<N>
             .mapping
             .add_transition(le, re);
     }
-    fn groups_to_string(groups: Vec<Vec<Mapped<N>>>) -> String {
+    fn groups_to_string(groups: Vec<Vec<Symbol<N>>>) -> String {
         let mut lines = Vec::new();
         let max = groups.iter().map(Vec::len).max().unwrap_or(0);
         for i in 0..max {
@@ -133,17 +133,17 @@ impl<N> SequenceGraph<N>
                 )
             )
     }
-    fn map_to_data(groups: Vec<Vec<Mapped<N>>>) -> Vec<Vec<Sequenced<N>>> {
+    fn map_to_data(groups: Vec<Vec<Symbol<N>>>) -> Vec<Vec<Sequenced<N>>> {
         groups.iter().map(|g| g.iter().map(|m| m.data.clone()).collect()).collect()
     }
-    pub fn get_node_info<T: PartialEq<Mapped<N>>>(
+    pub fn get_node_info<T: PartialEq<Symbol<N>>>(
         &self,
         element: &T,
     ) -> Option<NodeInfo<N>> {
         let node = self.find_node_weight(element)?;
-        let mut incoming_groups: Vec<Vec<Mapped<N>>> = node.mapping.incoming_distance_groups(&self);
+        let mut incoming_groups: Vec<Vec<Symbol<N>>> = node.mapping.incoming_distance_groups(&self);
         incoming_groups.reverse();
-        let outgoing_groups: Vec<Vec<Mapped<N>>> = node.mapping.outgoing_distance_groups(&self);
+        let outgoing_groups: Vec<Vec<Symbol<N>>> = node.mapping.outgoing_distance_groups(&self);
         Some(NodeInfo {
             element: node.data,
             incoming_groups: Self::map_to_data(incoming_groups),
@@ -151,7 +151,7 @@ impl<N> SequenceGraph<N>
         })
     }
     ///// Join two EdgeMappings to a new EdgeMapping
-    pub fn join_mappings(&self, lhs: &Mapped<N>, rhs: &Mapped<N>) -> Option<Mapped<N>> {
+    pub fn join_mappings(&self, lhs: &Symbol<N>, rhs: &Symbol<N>) -> Option<Symbol<N>> {
         // TODO: make lhs and rhs contain indices
         //let left_index = self.find_node_index(&lhs.data)?;
         //let right_index = self.find_node_index(&rhs.data)?;
@@ -195,7 +195,7 @@ pub struct NodeInfo<N: NodeData> {
     pub outgoing_groups: Vec<Vec<Sequenced<N>>>,
 }
 impl<N: NodeData + Mappable> Deref for SequenceGraph<N> {
-    type Target = Graph<Mapped<N>, usize>;
+    type Target = Graph<Symbol<N>, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
