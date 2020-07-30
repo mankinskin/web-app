@@ -4,7 +4,7 @@ extern crate seqraph;
 pub mod shell;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use shell::*;
-
+extern crate itertools;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 fn main() {
     let mut shell = Shell::new();
