@@ -6,11 +6,16 @@ use std::io::{
     stdout,
     BufRead,
 };
+use seqraph::{
+    SequenceGraph,
+    mapping::Sequenced,
+};
 
 pub struct Shell {
     prompt: String,
     stdout: Stdout,
     exit: bool,
+    graph: SequenceGraph<char>,
 }
 
 #[derive(Clone)]
@@ -44,6 +49,7 @@ impl Shell {
             prompt: "> ".into(),
             stdout: stdout(),
             exit: false,
+            graph: SequenceGraph::new()
         }
     }
     pub fn run(&mut self) -> io::Result<()> {
@@ -75,15 +81,15 @@ impl Shell {
         Ok(match cmd {
             Command::Help => self.write_help()?,
             Command::Exit => { self.exit = true; },
-            Command::Text(s) => self.write_line(&s)?,
+            Command::Text(s) => {
+                self.graph.read_sequence(s.chars());
+                let info = self.graph.get_node_info(&s.chars().next().unwrap());
+                println!("{:#?}", info);
+            },
         })
     }
     pub fn set_prompt<S: Into<String>>(&mut self, p: S) {
         self.prompt = p.into();
-    }
-    fn write_line(&mut self, line: &str) -> io::Result<()> {
-        write!(self.stdout, "{}", line)?;
-        self.stdout.flush()
     }
     fn write_prompt(&mut self) -> io::Result<()> {
         write!(self.stdout, "{}", self.prompt)?;
