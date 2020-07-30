@@ -156,20 +156,37 @@ impl<N: NodeData> PartialEq<Mapped<N>> for Sequenced<N> {
         *self == rhs.data
     }
 }
+
 /// Stores sequenced data with an edge map
 #[derive(PartialEq, Clone)]
 pub struct Mapped<N: NodeData>  {
     pub data: Sequenced<N>,
     pub mapping: EdgeMapping,
 }
-impl<N: NodeData> PartialEq<Mapped<N>> for &Mapped<N> {
-    fn eq(&self, rhs: &Mapped<N>) -> bool {
-        *self == rhs
+impl PartialEq<Mapped<char>> for char {
+    fn eq(&self, rhs: &Mapped<char>) -> bool {
+        *self == rhs.data
     }
 }
-impl<N: NodeData> PartialEq<Sequenced<N>> for Mapped<N> {
-    fn eq(&self, rhs: &Sequenced<N>) -> bool {
+impl PartialEq<Sequenced<char>> for char {
+    fn eq(&self, rhs: &Sequenced<char>) -> bool {
+        match rhs {
+            Sequenced::Element(e) => e == self,
+            _ => false,
+        }
+    }
+}
+impl<N: NodeData> PartialEq<N> for Mapped<N> {
+    fn eq(&self, rhs: &N) -> bool {
         self.data == *rhs
+    }
+}
+impl<N: NodeData> PartialEq<N> for Sequenced<N> {
+    fn eq(&self, rhs: &N) -> bool {
+        match self {
+            Sequenced::Element(e) => e == rhs,
+            _ => false,
+        }
     }
 }
 impl<N: NodeData> Debug for Mapped<N> {
