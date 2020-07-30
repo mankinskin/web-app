@@ -8,8 +8,8 @@ use std::io::{
 };
 use seqraph::{
     SequenceGraph,
-    mapping::Sequenced,
 };
+use itertools::*;
 
 pub struct Shell {
     prompt: String,
@@ -100,12 +100,7 @@ impl Shell {
         let mut lines = Vec::new();
         let mut max = 0;
         for (ts, _cmd, _desc) in COMMANDS.iter() {
-            let mut strs =
-                   ts.iter()
-                     .fold(String::new(),
-                     |acc, x| format!("{}{} | ", acc, x));
-            strs.pop();
-            strs.pop();
+            let strs = ts.iter().join(" | ");
             max = strs.len().max(max);
             lines.push(strs);
         }
