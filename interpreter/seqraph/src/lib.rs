@@ -141,13 +141,13 @@ impl<N> SequenceGraph<N>
         element: &T,
     ) -> Option<NodeInfo<N>> {
         let node = self.find_node_weight(element)?;
-        let mut left_groups: Vec<Vec<Mapped<N>>> = node.mapping.left_distance_groups(&self);
-        left_groups.reverse();
-        let right_groups: Vec<Vec<Mapped<N>>> = node.mapping.right_distance_groups(&self);
+        let mut incoming_groups: Vec<Vec<Mapped<N>>> = node.mapping.incoming_distance_groups(&self);
+        incoming_groups.reverse();
+        let outgoing_groups: Vec<Vec<Mapped<N>>> = node.mapping.outgoing_distance_groups(&self);
         Some(NodeInfo {
             element: node.data,
-            left_groups: Self::map_to_data(left_groups),
-            right_groups: Self::map_to_data(right_groups),
+            incoming_groups: Self::map_to_data(incoming_groups),
+            outgoing_groups: Self::map_to_data(outgoing_groups),
         })
     }
     ///// Join two EdgeMappings to a new EdgeMapping
@@ -191,8 +191,8 @@ impl<N> SequenceGraph<N>
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeInfo<N: NodeData> {
     pub element: Sequenced<N>,
-    pub left_groups: Vec<Vec<Sequenced<N>>>,
-    pub right_groups: Vec<Vec<Sequenced<N>>>,
+    pub incoming_groups: Vec<Vec<Sequenced<N>>>,
+    pub outgoing_groups: Vec<Vec<Sequenced<N>>>,
 }
 impl<N: NodeData + Mappable> Deref for SequenceGraph<N> {
     type Target = Graph<Mapped<N>, usize>;
