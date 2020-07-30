@@ -44,67 +44,67 @@ pub type EdgeMappingMatrix =
 #[derive(PartialEq, Clone, Debug)]
 pub struct EdgeMapping {
     pub matrix: EdgeMappingMatrix,
-    pub left: Vec<EdgeIndex>,
-    pub right: Vec<EdgeIndex>,
+    pub incoming: Vec<EdgeIndex>,
+    pub outgoing: Vec<EdgeIndex>,
 }
 impl<'a> EdgeMapping {
     /// New EdgeMapping
     pub fn new() -> Self {
         Self {
             matrix: EdgeMappingMatrix::from_element(0, 0, false.into()),
-            left: Vec::new(),
-            right: Vec::new(),
+            incoming: Vec::new(),
+            outgoing: Vec::new(),
         }
     }
     /// Add an incoming edge
-    fn add_left_edge(&mut self, edge: EdgeIndex) -> usize {
-        if let Some(i) = self.left.iter().position(|e| *e == edge) {
+    fn add_incoming_edge(&mut self, edge: EdgeIndex) -> usize {
+        if let Some(i) = self.incoming.iter().position(|e| *e == edge) {
             i
         } else {
-            self.left.push(edge);
+            self.incoming.push(edge);
             self.matrix = self.matrix.clone().insert_column(self.matrix.ncols(), false.into());
-            self.left.len() - 1
+            self.incoming.len() - 1
         }
     }
     /// Add an outgoing edge
-    fn add_right_edge(&mut self, edge: EdgeIndex) -> usize {
-        if let Some(i) = self.right.iter().position(|e| *e == edge) {
+    fn add_outgoing_edge(&mut self, edge: EdgeIndex) -> usize {
+        if let Some(i) = self.outgoing.iter().position(|e| *e == edge) {
             i
         } else {
-            self.right.push(edge);
+            self.outgoing.push(edge);
             self.matrix = self.matrix.clone().insert_row(self.matrix.nrows(), false.into());
-            self.right.len() - 1
+            self.outgoing.len() - 1
         }
     }
     /// Add a transition between two edges
     pub fn add_transition(&mut self, l: EdgeIndex, r: EdgeIndex) {
-        let li = self.add_left_edge(l);
-        let ri = self.add_right_edge(r);
+        let li = self.add_incoming_edge(l);
+        let ri = self.add_outgoing_edge(r);
         self.matrix[(ri, li)] = true.into();
     }
     /// Get weights and sources of incoming edges
-    pub fn left_sources<N: NodeData, E: EdgeData>(
+    pub fn incoming_sources<N: NodeData, E: EdgeData>(
         &'a self,
         graph: &'a Graph<N, E>
         ) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.left.iter())
-            .zip(graph.edge_sources(self.left.iter()))
+        graph.edge_weights(self.incoming.iter())
+            .zip(graph.edge_sources(self.incoming.iter()))
     }
     /// Get weights and targets of outgoing edges
-    pub fn right_targets<N: NodeData, E: EdgeData>(
+    pub fn outgoing_targets<N: NodeData, E: EdgeData>(
         &'a self,
         graph: &'a Graph<N, E>) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.right.iter())
-            .zip(graph.edge_targets(self.right.iter()))
+        graph.edge_weights(self.outgoing.iter())
+            .zip(graph.edge_targets(self.outgoing.iter()))
     }
 
     /// Get distance groups for incoming edges
-    pub fn left_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
-        graph.distance_group_source_weights(self.left.iter())
+    pub fn incoming_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
+        graph.distance_group_source_weights(self.incoming.iter())
     }
     /// Get distance groups for outgoing edges
-    pub fn right_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
-        graph.distance_group_target_weights(self.right.iter())
+    pub fn outgoing_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Mapped<N>>> {
+        graph.distance_group_target_weights(self.outgoing.iter())
     }
 }
 impl Default for EdgeMapping {
