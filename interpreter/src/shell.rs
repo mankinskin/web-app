@@ -7,8 +7,25 @@ use std::io::{
 };
 use seqraph::{
     SequenceGraph,
+    mapping::{
+        Symbol,
+        EdgeMapping,
+    },
+    graph::{
+        node::{
+            NodeData,
+        },
+    },
 };
 use itertools::*;
+use crate::{
+    parse::{
+        Parse,
+    },
+};
+use regex_syntax::{
+    ast::parse::Parser,
+};
 
 pub struct Shell {
     prompt: String,
@@ -20,7 +37,8 @@ pub struct Shell {
 enum Command {
     Exit,
     Help,
-    Text(String),
+    Learn(String),
+    Match(String),
 }
 
 lazy_static!{
@@ -59,16 +77,33 @@ impl Shell {
                 return Ok(cmd.clone());
             }
         }
-        Ok(Command::Text(line.to_string()))
+        if line.starts_with("match ") {
+            Ok(Command::Match(line.strip_prefix("match ").unwrap().to_string()))
+        } else {
+            Ok(Command::Learn(line.to_string()))
+        }
     }
     fn exec_command(&mut self, cmd: Command) -> io::Result<()> {
         Ok(match cmd {
             Command::Help => self.print_help(),
             Command::Exit => { self.exit = true; },
-            Command::Text(s) => {
-                self.graph.read_sequence(s.chars());
+                // Different actions:
+                // - learn new parser
+                // - try to parse sequence
+                //  - show errors
+            Command::Learn(s) => {
+                self.graph.learn_sequence(s.chars());
                 let info = self.graph.get_node_info(&s.chars().next().unwrap());
                 println!("{:#?}", info);
+            },
+            Command::Match(s) => {
+                match Parser::new().parse(&s) {
+                    Err(e) => { println!("{:#?}", e); },
+                    Ok(re) => {
+                        //let captures = re.captures_iter().collect::<Vec<_>>();
+                        println!("{:#?}", re);
+                    }
+                }
             },
         })
     }
