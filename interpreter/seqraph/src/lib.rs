@@ -24,6 +24,7 @@ use mapping::{
     Mappable,
     Sequenced,
     Wide,
+    Mapped,
 };
 use std::{
     fmt::{
@@ -104,7 +105,7 @@ impl<N> SequenceGraph<N>
         self.graph
             .node_weight_mut(xi)
             .unwrap()
-            .mapping
+            .mapping_mut()
             .add_transition(le, re);
     }
     fn groups_to_string(groups: Vec<Vec<Symbol<N>>>) -> String {
@@ -141,9 +142,9 @@ impl<N> SequenceGraph<N>
         element: &T,
     ) -> Option<NodeInfo<N>> {
         let node = self.find_node_weight(element)?;
-        let mut incoming_groups: Vec<Vec<Symbol<N>>> = node.mapping.incoming_distance_groups(&self);
+        let mut incoming_groups: Vec<Vec<Symbol<N>>> = node.mapping().incoming_distance_groups(&self);
         incoming_groups.reverse();
-        let outgoing_groups: Vec<Vec<Symbol<N>>> = node.mapping.outgoing_distance_groups(&self);
+        let outgoing_groups: Vec<Vec<Symbol<N>>> = node.mapping().outgoing_distance_groups(&self);
         Some(NodeInfo {
             element: node.data,
             incoming_groups: Self::map_to_data(incoming_groups),
@@ -151,42 +152,42 @@ impl<N> SequenceGraph<N>
         })
     }
     ///// Join two EdgeMappings to a new EdgeMapping
-    pub fn join_mappings(&self, lhs: &Symbol<N>, rhs: &Symbol<N>) -> Option<Symbol<N>> {
-        // TODO: make lhs and rhs contain indices
-        //let left_index = self.find_node_index(&lhs.data)?;
-        //let right_index = self.find_node_index(&rhs.data)?;
-        let left_outgoing = &lhs.mapping.outgoing;
-        let right_incoming = &rhs.mapping.incoming;
+    //pub fn join_mappings(&self, lhs: &Symbol<N>, rhs: &Symbol<N>) -> Option<Symbol<N>> {
+    //    // TODO: make lhs and rhs contain indices
+    //    //let left_index = self.find_node_index(&lhs.data)?;
+    //    //let right_index = self.find_node_index(&rhs.data)?;
+    //    let left_outgoing = &lhs.mapping().outgoing;
+    //    let right_incoming = &rhs.mapping().incoming;
 
-        // find all edges connecting left to right with their indices
-        // in the matrices
-        let connecting_edges: Vec<(usize, usize, EdgeIndex)> = left_outgoing
-            .iter()
-            .enumerate()
-            .filter_map(|(li, e)| Some((li, right_incoming.iter().position(|r| r == e)?, e.clone())))
-            .collect();
-
-
-        // take left rows and right columns of matrix for connecting edges
-        let left_matrix = &lhs.mapping.matrix;
-        let right_matrix = &rhs.mapping.matrix;
-
-        //let incoming_context = left_matrix.row(left_matrix_index);
-        //let outgoing_context = right_matrix.column(right_matrix_index);
+    //    // find all edges connecting left to right with their indices
+    //    // in the matrices
+    //    let connecting_edges: Vec<(usize, usize, EdgeIndex)> = left_outgoing
+    //        .iter()
+    //        .enumerate()
+    //        .filter_map(|(li, e)| Some((li, right_incoming.iter().position(|r| r == e)?, e.clone())))
+    //        .collect();
 
 
-        // intersect left incoming groups i with right incoming groups i + left.width
-        let left_width = lhs.data.width();
-        let left_incoming_groups = lhs.mapping.incoming_distance_groups(&self);
-        let right_incoming_groups = rhs.mapping.incoming_distance_groups(&self);
+    //    // take left rows and right columns of matrix for connecting edges
+    //    let left_matrix = &lhs.mapping().matrix;
+    //    let right_matrix = &rhs.mapping().matrix;
 
-        // intersect left outgoing groups i + right.width with right outgoing groups i
-        let right_width = rhs.data.width();
-        let left_outgoing_groups = lhs.mapping.outgoing_distance_groups(&self);
-        let right_outgoing_groups = rhs.mapping.outgoing_distance_groups(&self);
-        //
-        Some(lhs.clone())
-    }
+    //    //let incoming_context = left_matrix.row(left_matrix_index);
+    //    //let outgoing_context = right_matrix.column(right_matrix_index);
+
+
+    //    // intersect left incoming groups i with right incoming groups i + left.width
+    //    let left_width = lhs.data.width();
+    //    let left_incoming_groups = lhs.mapping().incoming_distance_groups(&self);
+    //    let right_incoming_groups = rhs.mapping().incoming_distance_groups(&self);
+
+    //    // intersect left outgoing groups i + right.width with right outgoing groups i
+    //    let right_width = rhs.data.width();
+    //    let left_outgoing_groups = lhs.mapping().outgoing_distance_groups(&self);
+    //    let right_outgoing_groups = rhs.mapping().outgoing_distance_groups(&self);
+    //    //
+    //    Some(lhs.clone())
+    //}
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeInfo<N: NodeData> {

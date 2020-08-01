@@ -28,7 +28,6 @@ use crate::{
         },
     },
 };
-
 pub type EdgeMappingMatrix =
     nalgebra::Matrix<
         bool,
@@ -40,7 +39,6 @@ pub type EdgeMappingMatrix =
             nalgebra::Dynamic
         >
     >;
-
 #[derive(PartialEq, Clone, Debug)]
 pub struct EdgeMapping {
     pub matrix: EdgeMappingMatrix,
@@ -161,7 +159,7 @@ impl<N: NodeData> PartialEq<Symbol<N>> for Sequenced<N> {
 #[derive(PartialEq, Clone)]
 pub struct Symbol<N: NodeData>  {
     pub data: Sequenced<N>,
-    pub mapping: EdgeMapping,
+    mapping: EdgeMapping,
 }
 impl PartialEq<Symbol<char>> for char {
     fn eq(&self, rhs: &Symbol<char>) -> bool {
@@ -233,6 +231,18 @@ pub trait Sequencable: NodeData {
 }
 impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {}
 /// Trait for data that can be mapped in a sequence
-pub trait Mappable: Sequencable + Wide {
-}
+pub trait Mappable: Sequencable + Wide { }
 impl<T: NodeData + Wide + Into<Symbol<T>>> Mappable for T {}
+
+pub trait Mapped: Wide {
+    fn mapping(&self) -> &EdgeMapping;
+    fn mapping_mut(&mut self) -> &mut EdgeMapping;
+}
+impl<N: NodeData + Wide> Mapped for Symbol<N> {
+    fn mapping(&self) -> &EdgeMapping {
+        &self.mapping
+    }
+    fn mapping_mut(&mut self) -> &mut EdgeMapping {
+        &mut self.mapping
+    }
+}
