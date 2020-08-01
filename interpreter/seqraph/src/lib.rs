@@ -65,7 +65,7 @@ impl<N> SequenceGraph<N>
         };
         self.get_node_info(&sym)
     }
-    pub fn read_sequence<T: Into<N>, I: Iterator<Item=T>>(&mut self, seq: I) {
+    pub fn learn_sequence<T: Into<N>, I: Iterator<Item=T>>(&mut self, seq: I) {
         let seq = N::sequenced(seq);
         for index in 0..seq.len() {
             self.read_sequence_element(&seq[..], index);
