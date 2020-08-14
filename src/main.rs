@@ -1,3 +1,4 @@
+
 extern crate reqwest;
 extern crate telegram_bot;
 extern crate serde;
@@ -7,6 +8,10 @@ extern crate tokio;
 extern crate futures;
 extern crate async_std;
 extern crate futures_core;
+extern crate async_tls;
+extern crate rustls;
+extern crate async_h1;
+extern crate http_types;
 
 use futures_core::{
     stream::{
@@ -46,27 +51,48 @@ use std::{
 use async_std::{
     io::{
         BufReader,
-        prelude::BufReadExt,
+        prelude::{
+            BufReadExt,
+            WriteExt,
+            ReadExt,
+        },
+    },
+    net::{
+        TcpListener,
+        Incoming,
+        TcpStream,
+        SocketAddr,
+    },
+    fs::{
+        File,
     },
 };
+use rustls::{
+    ServerConfig,
+    NoClientAuth,
+};
+use async_tls::{
+    TlsAcceptor,
+};
+use std::sync::{
+    Arc,
+};
+use std::pin::Pin;
+use std::task::Poll;
+use http_types::{
+    Request,
+    Response,
+    StatusCode,
+    Body,
+    url::{
+        Url,
+    },
+};
+
 fn read_key_file<P: AsRef<Path>>(path: P) -> String {
     std::fs::read_to_string(path.as_ref())
         .map(|s| s.trim_end_matches("\n").to_string())
         .expect(&format!("Failed to read {}", path.as_ref().display()))
-}
-fn setup_binance_market() -> Market {
-    let binance_api_key = read_key_file("keys/binance_api");
-    let binance_secret_key = read_key_file("keys/binance_secret");
-
-    Market::new(Some(binance_api_key), Some(binance_secret_key))
-}
-fn setup_telegram_api() -> Api {
-    let telegram_key = read_key_file("keys/telegram");
-    Api::new(telegram_key)
-}
-struct Context {
-    binance: Market,
-    telegram: Api,
 }
 #[derive(Clone, Debug)]
 enum CommandContext {
@@ -87,12 +113,14 @@ impl From<String> for CommandContext {
 enum Update {
     Telegram(TelegramUpdate),
     CommandLine(String),
+    TcpStream(TcpStream),
 }
 #[derive(Debug)]
 enum Error {
     Telegram(TelegramError),
     Binance(BinanceError),
-    CommandLine(async_std::io::Error),
+    AsyncIO(async_std::io::Error),
+    Http(http_types::Error),
 }
 impl From<TelegramError> for Error {
     fn from(err: TelegramError) -> Self {
@@ -106,60 +134,138 @@ impl From<BinanceError> for Error {
 }
 impl From<async_std::io::Error> for Error {
     fn from(err: async_std::io::Error) -> Self {
-        Self::CommandLine(err)
+        Self::AsyncIO(err)
     }
 }
-struct CommandStream {
+impl From<http_types::Error> for Error {
+    fn from(err: http_types::Error) -> Self {
+        Self::Http(err)
+    }
+}
+struct CommandStream<'a> {
     pub telegram_stream: UpdatesStream,
     pub stdin: async_std::io::Stdin,
+    pub incoming: Incoming<'a>,
 }
-use std::pin::Pin;
-use std::task::Poll;
-impl Stream for CommandStream {
+impl<'a> Stream for CommandStream<'a> {
     type Item = Result<Update, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         let rself = self.get_mut();
         let stdin = BufReader::new(&mut rself.stdin);
         let mut lines = stdin.lines();
         let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
-        if let Poll::Ready(opt) = cli_poll {
-            Poll::Ready(
-                opt.map(|result| result.map(|line| Update::CommandLine(line))
-                   .map_err(|err| Error::from(err)))
-            )
-        } else {
-            Stream::poll_next(Pin::new(&mut rself.telegram_stream), cx)
-                .map(|opt|
-                    opt.map(|result|
-                        result.map(|update| Update::Telegram(update))
-                              .map_err(|err| Error::Telegram(err))
-                    )
+        if cli_poll.is_ready() {
+            return cli_poll.map(|opt|
+                opt.map(|result|
+                    result.map(|line| Update::CommandLine(line))
+                          .map_err(|err| Error::from(err))
                 )
+            );
         }
+        let telegram_poll = Stream::poll_next(Pin::new(&mut rself.telegram_stream), cx);
+        if telegram_poll.is_ready() {
+            return telegram_poll.map(|opt|
+                opt.map(|result|
+                    result.map(|update| Update::Telegram(update))
+                          .map_err(|err| Error::from(err))
+                )
+            );
+        }
+        let incoming_poll = Stream::poll_next(Pin::new(&mut rself.incoming), cx);
+        if incoming_poll.is_ready() {
+            return incoming_poll.map(|opt|
+                opt.map(|result|
+                    result.map(|stream| Update::TcpStream(stream))
+                          .map_err(|err| Error::from(err))
+                )
+            );
+        }
+        Poll::Pending
     }
+}
+fn setup_binance_market() -> Market {
+    let binance_api_key = read_key_file("keys/binance_api");
+    let binance_secret_key = read_key_file("keys/binance_secret");
+
+    Market::new(Some(binance_api_key), Some(binance_secret_key))
+}
+fn setup_telegram_api() -> Api {
+    let telegram_key = read_key_file("keys/telegram");
+    Api::new(telegram_key)
+}
+async fn open_wasm_file() -> Result<File, Error> {
+    Ok(File::open("client/target/wasm32-unknown-unknown/debug/client.wasm").await?)
+}
+struct Context {
+    binance: Market,
+    telegram: Api,
 }
 impl Context {
     pub fn new() -> Self {
+        let binance = setup_binance_market();
+        let telegram = setup_telegram_api();
         Self {
-            binance: setup_binance_market(),
-            telegram: setup_telegram_api(),
+            binance,
+            telegram,
         }
     }
     pub async fn run(&mut self) -> Result<(), Error> {
+        let config = ServerConfig::new(NoClientAuth::new());
+        let mut acceptor = TlsAcceptor::from(Arc::new(config));
+        let addr = SocketAddr::from(([0,0,0,0], 8000));
+        let listener = TcpListener::bind(addr).await?;
+
         let mut stream = CommandStream {
             telegram_stream: self.telegram.stream(),
             stdin: async_std::io::stdin(),
+            incoming: listener.incoming(),
         };
         while let Some(result) = stream.next().await {
             match result {
                 Ok(update) => match update {
                     Update::Telegram(update) => self.telegram_update(update).await?,
                     Update::CommandLine(text) => self.run_command(CommandContext::from(text)).await?,
+                    Update::TcpStream(stream) => self.handle_connection(&mut acceptor, stream).await?,
                 },
                 Err(err) => println!("{:#?}", err),
             }
         }
         Ok(())
+    }
+    async fn handle_connection(&mut self, acceptor: &mut TlsAcceptor, mut stream: TcpStream) -> Result<(), Error> {
+        println!("starting new connection from {}", stream.peer_addr()?);
+        let stream = stream.clone();
+        async_std::task::spawn(async {
+            async_h1::accept(stream, |req| async move {
+                Self::handle_request(req).await
+            })
+            .await
+        });
+        Ok(())
+    }
+    async fn file_response<P: AsRef<Path>>(path: P) -> Result<Response, http_types::Error> {
+        let mut res = Response::new(StatusCode::Ok);
+        let content_ty = match path.as_ref().extension().and_then(|e| e.to_str()) {
+            Some(extension) => match extension {
+                "html" => "text/html",
+                "js" => "application/javascript",
+                "wasm" => "application/wasm",
+                _ => "text/plain",
+            },
+            _ => "text/plain",
+        };
+        res.insert_header("Content-Type", content_ty);
+        res.set_body(Body::from_file(path).await?);
+        Ok(res)
+    }
+    async fn handle_request(req: Request) -> Result<Response, http_types::Error> {
+        let req_path = req.url().path();
+        let file_path = match req_path {
+            path if path.is_empty() || path == "/" => "client/app.html".to_string(),
+            path => format!("client{}", path),
+        };
+        //println!("{}", file_path);
+        Self::file_response(file_path).await
     }
     async fn get_price(&mut self, symbol: String) -> Result<SymbolPrice, BinanceError> {
         let binance = self.binance.clone();
