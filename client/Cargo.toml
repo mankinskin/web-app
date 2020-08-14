@@ -17,7 +17,17 @@ futures = "^0.3"
 wasm-bindgen-futures = "^0.4"
 url = "^2"
 async-tls = "^0.9"
+console_error_panic_hook = "^0.1"
 
 [dependencies.seed]
 git = "https://github.com/seed-rs/seed"
 branch = "master"
+
+[dependencies.components]
+path = "../../components"
+
+[dependencies.wasm-bindgen]
+version = "^0.2"
+features = [
+  'serde-serialize',
+]
