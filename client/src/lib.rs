@@ -42,8 +42,57 @@ impl Component for Model {
 }
 impl View for Model {
     fn view(&self) -> Node<Self::Msg> {
+        let width = 100;
+        let height = 100;
+        let points: Vec<(_, _)> = (0..10)
+            .zip(vec![10, 20, 25, 13, 26, 17, 18, 15, 20, 19])
+            .collect();
         div![
-            p!["Hello from Seed!"]
+            p!["Hello from Seed!"],
+            svg![
+                attrs!{
+                    At::Width => "50%",
+                    At::Height => "50%",
+                    At::ViewBox => format!("0 0 {} {}", width, height),
+                    At::PreserveAspectRatio => "xMidYMid meet",
+                },
+                text![
+                    attrs!{
+                        At::X => (width/2).to_string(),
+                        At::Y => (height/2).to_string(),
+                        At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
+                        At::DominantBaseline => "middle",
+                        At::TextAnchor => "middle",
+                        At::FontSize => "18",
+                        At::Fill => "#74838f",
+                        At::FontWeight => "700",
+                    },
+                    "Example SVG"
+                ],
+                points.windows(2).map(|window| {
+                    if let [(ax, ay), (bx, by)] = window {
+                        vec![
+                            path![
+                                attrs!{
+                                    At::D => format!("M {} {} L {} {}", ax*10, ay, bx*10, by)
+                                    At::Stroke => "black"
+                                }
+                            ],
+                            circle![
+                                attrs!{
+                                    At::Cx => format!("{}", bx*10)
+                                    At::Cy => format!("{}", by)
+                                    At::R => "1",
+                                    At::Fill => "black",
+                                    At::Stroke => "red",
+                                }
+                            ],
+                        ]
+                    } else {
+                        vec![]
+                    }
+                })
+            ]
         ]
     }
 }
