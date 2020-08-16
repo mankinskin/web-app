@@ -53,8 +53,6 @@ use async_std::{
         BufReader,
         prelude::{
             BufReadExt,
-            WriteExt,
-            ReadExt,
         },
     },
     net::{
@@ -74,18 +72,21 @@ use rustls::{
 use async_tls::{
     TlsAcceptor,
 };
-use std::sync::{
-    Arc,
+use std::{
+    sync::{
+        Arc,
+    },
+    pin::Pin,
+    task::Poll,
+    str::FromStr,
 };
-use std::pin::Pin;
-use std::task::Poll;
 use http_types::{
     Request,
     Response,
     StatusCode,
     Body,
-    url::{
-        Url,
+    mime::{
+        Mime,
     },
 };
 
@@ -193,9 +194,6 @@ fn setup_telegram_api() -> Api {
     let telegram_key = read_key_file("keys/telegram");
     Api::new(telegram_key)
 }
-async fn open_wasm_file() -> Result<File, Error> {
-    Ok(File::open("client/target/wasm32-unknown-unknown/debug/client.wasm").await?)
-}
 struct Context {
     binance: Market,
     telegram: Api,
@@ -236,35 +234,40 @@ impl Context {
         println!("starting new connection from {}", stream.peer_addr()?);
         let stream = stream.clone();
         async_std::task::spawn(async {
-            async_h1::accept(stream, |req| async move {
+            if let Err(e) = async_h1::accept(stream, |req| async move {
                 Self::handle_request(req).await
             })
-            .await
+            .await {
+                eprintln!("{}", e);
+            }
         });
         Ok(())
     }
     async fn file_response<P: AsRef<Path>>(path: P) -> Result<Response, http_types::Error> {
         let mut res = Response::new(StatusCode::Ok);
-        let content_ty = match path.as_ref().extension().and_then(|e| e.to_str()) {
-            Some(extension) => match extension {
-                "html" => "text/html",
-                "js" => "application/javascript",
-                "wasm" => "application/wasm",
-                _ => "text/plain",
-            },
-            _ => "text/plain",
-        };
-        res.insert_header("Content-Type", content_ty);
+        let mime = path.as_ref()
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .and_then(|ext| match ext {
+                "wasm" => Some("application/wasm".to_string()),
+                _ => Mime::from_extension(ext)
+                    .map(|mime| mime.to_string())
+            })
+            .unwrap_or("text/plain".to_string());
+        res.insert_header("Content-Type", mime);
         res.set_body(Body::from_file(path).await?);
         Ok(res)
     }
     async fn handle_request(req: Request) -> Result<Response, http_types::Error> {
         let req_path = req.url().path();
+        //let pkg_path = "/home/linusb/.woz/rubot/pkg/app";
+        let pkg_path = "/home/linusb/git/binance-bot/client/pkg";
         let file_path = match req_path {
-            path if path.is_empty() || path == "/" => "client/app.html".to_string(),
-            path => format!("client{}", path),
+            path if path.is_empty() || path == "/" => "/index.html".to_string(),
+            path => path.to_string(),
         };
-        //println!("{}", file_path);
+        let file_path = async_std::path::PathBuf::from(format!("{}{}", pkg_path, file_path));
+        println!("{}", file_path.to_string_lossy());
         Self::file_response(file_path).await
     }
     async fn get_price(&mut self, symbol: String) -> Result<SymbolPrice, BinanceError> {
