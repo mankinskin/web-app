@@ -10,6 +10,8 @@ extern crate wasm_bindgen;
 extern crate seed;
 extern crate console_error_panic_hook;
 extern crate components;
+extern crate rand;
+
 use seed::{
     *,
     prelude::*,
@@ -18,6 +20,9 @@ use components::{
     Component,
     Config,
     View,
+};
+use rand::{
+    prelude::*,
 };
 
 #[wasm_bindgen(start)]
@@ -44,16 +49,18 @@ impl View for Model {
     fn view(&self) -> Node<Self::Msg> {
         let width = 100;
         let height = 100;
-        let points: Vec<(_, _)> = (0..10)
-            .zip(vec![10, 20, 25, 13, 26, 17, 18, 15, 20, 19])
+        let mut rng = rand::thread_rng();
+        let points: Vec<(_, _)> = (0..width)
+            .zip(rand::seq::index::sample(&mut rng, 100, width).iter())
             .collect();
+
         div![
             p!["Hello from Seed!"],
             svg![
                 attrs!{
                     At::Width => "50%",
                     At::Height => "50%",
-                    At::ViewBox => format!("0 0 {} {}", width, height),
+                    //At::ViewBox => format!("0 0 {} {}", width, height),
                     At::PreserveAspectRatio => "xMidYMid meet",
                 },
                 text![
