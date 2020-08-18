@@ -34,7 +34,7 @@ is realized.
 ### Server
 
 The server accepts requests by clients and accesses the database tables
-through the DatabaseTable trait. It also generates access tokens for
+through the [`DatabaseTable`](database/src/table.rs#L25) trait. It also generates access tokens for
 authentication (this might need some improvement).
 
 - [routes](server/src/main.rs)
