@@ -38,8 +38,8 @@ version = "^1.6"
 [dependencies.futures-core]
 version = "^0.3"
 
-[dependencies.binance]
-git = "https://github.com/wisespace-io/binance-rs.git"
+[dependencies.openlimits]
+path = "../openlimits"
 
 [dependencies.serde]
 version = "^1"

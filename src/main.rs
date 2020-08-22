@@ -1,9 +1,8 @@
-
 extern crate reqwest;
 extern crate telegram_bot;
 extern crate serde;
 extern crate serde_json;
-extern crate binance;
+extern crate openlimits;
 extern crate tokio;
 extern crate futures;
 extern crate async_std;
@@ -26,20 +25,21 @@ use telegram_bot::{
     Error as TelegramError,
     Update as TelegramUpdate,
 };
-use binance::{
-    model::{
-        SymbolPrice,
-    },
-    market::{
-        Market,
-    },
-    api::{
-        Binance,
-    },
+use openlimits::{
     errors::{
-        Error as BinanceError,
+        OpenLimitError as BinanceError,
+    },
+    shared::{
+        Result as OpenLimitResult,
+    },
+    binance::Binance,
+    exchange::Exchange,
+    model::{
+        GetPriceTickerRequest,
+        Ticker,
     },
 };
+
 use std::{
     convert::{
         AsRef,
@@ -61,9 +61,6 @@ use async_std::{
         TcpStream,
         SocketAddr,
     },
-    fs::{
-        File,
-    },
 };
 use rustls::{
     ServerConfig,
@@ -78,7 +75,6 @@ use std::{
     },
     pin::Pin,
     task::Poll,
-    str::FromStr,
 };
 use http_types::{
     Request,
@@ -184,18 +180,18 @@ impl<'a> Stream for CommandStream<'a> {
         Poll::Pending
     }
 }
-fn setup_binance_market() -> Market {
+fn setup_binance_market() -> Binance {
     let binance_api_key = read_key_file("keys/binance_api");
     let binance_secret_key = read_key_file("keys/binance_secret");
 
-    Market::new(Some(binance_api_key), Some(binance_secret_key))
+    Binance::with_credential(&binance_api_key, &binance_secret_key, false)
 }
 fn setup_telegram_api() -> Api {
     let telegram_key = read_key_file("keys/telegram");
     Api::new(telegram_key)
 }
 struct Context {
-    binance: Market,
+    binance: Binance,
     telegram: Api,
 }
 impl Context {
@@ -230,7 +226,7 @@ impl Context {
         }
         Ok(())
     }
-    async fn handle_connection(&mut self, acceptor: &mut TlsAcceptor, mut stream: TcpStream) -> Result<(), Error> {
+    async fn handle_connection(&mut self, _acceptor: &mut TlsAcceptor, stream: TcpStream) -> Result<(), Error> {
         println!("starting new connection from {}", stream.peer_addr()?);
         let stream = stream.clone();
         async_std::task::spawn(async {
@@ -270,12 +266,11 @@ impl Context {
         println!("{}", file_path.to_string_lossy());
         Self::file_response(file_path).await
     }
-    async fn get_price(&mut self, symbol: String) -> Result<SymbolPrice, BinanceError> {
-        let binance = self.binance.clone();
-        tokio::task::spawn_blocking(move || {
-            binance.get_price(symbol.to_uppercase())
-        })
-        .await.unwrap()
+    async fn get_price(&mut self, symbol: String) -> OpenLimitResult<Ticker> {
+        self.binance.get_price_ticker(&GetPriceTickerRequest {
+            symbol,
+            ..Default::default()
+        }).await
     }
     async fn run_command(&mut self, context: CommandContext) -> Result<(), Error> {
         Ok(match context {
@@ -285,6 +280,7 @@ impl Context {
                         // Print received text message to stdout.
                         println!("<{}>: {}", &message.from.first_name, data);
                         let btc_price = self.get_price(data).await;
+            
                         self.telegram.send(message.text_reply(format!(
                             "{:#?}", btc_price,
                         )))
