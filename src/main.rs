@@ -12,6 +12,11 @@ extern crate rustls;
 extern crate async_h1;
 extern crate http_types;
 
+mod server;
+use server::{
+    TcpServer,
+};
+
 use futures_core::{
     stream::{
         Stream,
@@ -56,34 +61,13 @@ use async_std::{
         },
     },
     net::{
-        TcpListener,
         Incoming,
         TcpStream,
-        SocketAddr,
     },
-};
-use rustls::{
-    ServerConfig,
-    NoClientAuth,
-};
-use async_tls::{
-    TlsAcceptor,
 };
 use std::{
-    sync::{
-        Arc,
-    },
     pin::Pin,
     task::Poll,
-};
-use http_types::{
-    Request,
-    Response,
-    StatusCode,
-    Body,
-    mime::{
-        Mime,
-    },
 };
 
 fn read_key_file<P: AsRef<Path>>(path: P) -> String {
@@ -113,7 +97,7 @@ enum Update {
     TcpStream(TcpStream),
 }
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     Telegram(TelegramError),
     Binance(BinanceError),
     AsyncIO(async_std::io::Error),
@@ -193,22 +177,21 @@ fn setup_telegram_api() -> Api {
 struct Context {
     binance: Binance,
     telegram: Api,
+    tcp_server: TcpServer,
 }
 impl Context {
     pub fn new() -> Self {
         let binance = setup_binance_market();
         let telegram = setup_telegram_api();
+        let tcp_server = TcpServer::new();
         Self {
             binance,
             telegram,
+            tcp_server,
         }
     }
     pub async fn run(&mut self) -> Result<(), Error> {
-        let config = ServerConfig::new(NoClientAuth::new());
-        let mut acceptor = TlsAcceptor::from(Arc::new(config));
-        let addr = SocketAddr::from(([0,0,0,0], 8000));
-        let listener = TcpListener::bind(addr).await?;
-
+        let listener = self.tcp_server.create_listener().await?;
         let mut stream = CommandStream {
             telegram_stream: self.telegram.stream(),
             stdin: async_std::io::stdin(),
@@ -219,52 +202,12 @@ impl Context {
                 Ok(update) => match update {
                     Update::Telegram(update) => self.telegram_update(update).await?,
                     Update::CommandLine(text) => self.run_command(CommandContext::from(text)).await?,
-                    Update::TcpStream(stream) => self.handle_connection(&mut acceptor, stream).await?,
+                    Update::TcpStream(stream) => self.tcp_server.handle_connection(stream).await?,
                 },
                 Err(err) => println!("{:#?}", err),
             }
         }
         Ok(())
-    }
-    async fn handle_connection(&mut self, _acceptor: &mut TlsAcceptor, stream: TcpStream) -> Result<(), Error> {
-        println!("starting new connection from {}", stream.peer_addr()?);
-        let stream = stream.clone();
-        async_std::task::spawn(async {
-            if let Err(e) = async_h1::accept(stream, |req| async move {
-                Self::handle_request(req).await
-            })
-            .await {
-                eprintln!("{}", e);
-            }
-        });
-        Ok(())
-    }
-    async fn file_response<P: AsRef<Path>>(path: P) -> Result<Response, http_types::Error> {
-        let mut res = Response::new(StatusCode::Ok);
-        let mime = path.as_ref()
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .and_then(|ext| match ext {
-                "wasm" => Some("application/wasm".to_string()),
-                _ => Mime::from_extension(ext)
-                    .map(|mime| mime.to_string())
-            })
-            .unwrap_or("text/plain".to_string());
-        res.insert_header("Content-Type", mime);
-        res.set_body(Body::from_file(path).await?);
-        Ok(res)
-    }
-    async fn handle_request(req: Request) -> Result<Response, http_types::Error> {
-        let req_path = req.url().path();
-        //let pkg_path = "/home/linusb/.woz/rubot/pkg/app";
-        let pkg_path = "/home/linusb/git/binance-bot/client/pkg";
-        let file_path = match req_path {
-            path if path.is_empty() || path == "/" => "/index.html".to_string(),
-            path => path.to_string(),
-        };
-        let file_path = async_std::path::PathBuf::from(format!("{}{}", pkg_path, file_path));
-        println!("{}", file_path.to_string_lossy());
-        Self::file_response(file_path).await
     }
     async fn get_price(&mut self, symbol: String) -> OpenLimitResult<Ticker> {
         self.binance.get_price_ticker(&GetPriceTickerRequest {
