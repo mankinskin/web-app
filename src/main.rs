@@ -17,6 +17,10 @@ use server::{
     TcpServer,
 };
 
+use serde::{
+    Serialize,
+    Deserialize,
+};
 use futures_core::{
     stream::{
         Stream,
@@ -70,6 +74,19 @@ use std::{
     task::Poll,
 };
 
+#[derive(Serialize, Deserialize)]
+pub struct BinanceCredential {
+    secret_key: String,
+    api_key: String,
+}
+impl BinanceCredential {
+    pub fn new() -> Self {
+        Self {
+            api_key: read_key_file("keys/binance_api"),
+            secret_key: read_key_file("keys/binance_secret"),
+        }
+    }
+}
 fn read_key_file<P: AsRef<Path>>(path: P) -> String {
     std::fs::read_to_string(path.as_ref())
         .map(|s| s.trim_end_matches("\n").to_string())
@@ -165,10 +182,8 @@ impl<'a> Stream for CommandStream<'a> {
     }
 }
 fn setup_binance_market() -> Binance {
-    let binance_api_key = read_key_file("keys/binance_api");
-    let binance_secret_key = read_key_file("keys/binance_secret");
-
-    Binance::with_credential(&binance_api_key, &binance_secret_key, false)
+    let credential = BinanceCredential::new();
+    Binance::with_credential(&credential.api_key, &credential.secret_key, false)
 }
 fn setup_telegram_api() -> Api {
     let telegram_key = read_key_file("keys/telegram");
