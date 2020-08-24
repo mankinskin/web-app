@@ -224,9 +224,9 @@ impl Context {
         }
         Ok(())
     }
-    async fn get_price(&mut self, symbol: String) -> OpenLimitResult<Ticker> {
+    async fn get_symbol_price(&mut self, symbol: String) -> OpenLimitResult<Ticker> {
         self.binance.get_price_ticker(&GetPriceTickerRequest {
-            symbol,
+            symbol: symbol.to_uppercase(),
             ..Default::default()
         }).await
     }
@@ -237,7 +237,7 @@ impl Context {
                     MessageKind::Text { data, .. } => {
                         // Print received text message to stdout.
                         println!("<{}>: {}", &message.from.first_name, data);
-                        let btc_price = self.get_price(data).await;
+                        let btc_price = self.get_symbol_price(data).await;
             
                         self.telegram.send(message.text_reply(format!(
                             "{:#?}", btc_price,
@@ -249,7 +249,7 @@ impl Context {
             },
             CommandContext::CommandLine(text) => {
                 // Print received text message to stdout.
-                let btc_price = self.get_price(text).await;
+                let btc_price = self.get_symbol_price(text).await;
                 println!("{:#?}", btc_price);
             },
         })
