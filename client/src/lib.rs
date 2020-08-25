@@ -33,7 +33,10 @@ use rand_distr::{
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::start("app",
-               |_url, _orders| Model::default(),
+                |_url, orders| {
+                    orders.send_msg(Msg::GetHistory); 
+                    Model::default()
+               },
                |msg, model, orders| model.update(msg, orders),
                View::view,
     );
@@ -45,11 +48,18 @@ pub struct Model {
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
+    GetHistory,
+    GotHistory,
 }
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         match msg {
+            Msg::GetHistory => {
+
+            },
+            Msg::GotHistory => {
+            },
         }
     }
 }

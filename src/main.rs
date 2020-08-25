@@ -1,4 +1,3 @@
-extern crate reqwest;
 extern crate telegram_bot;
 extern crate serde;
 extern crate serde_json;
@@ -11,15 +10,25 @@ extern crate async_tls;
 extern crate rustls;
 extern crate async_h1;
 extern crate http_types;
+extern crate lazy_static;
 
-mod server;
-use server::{
-    TcpServer,
+mod socket;
+use socket::{
+    TcpSocket,
 };
-
-use serde::{
-    Serialize,
-    Deserialize,
+mod telegram;
+use telegram::{
+    Telegram,
+    TelegramError,
+    TelegramUpdate,
+};
+use telegram_bot::{
+    UpdatesStream,
+};
+mod shared;
+mod binance;
+use binance::{
+    Binance,
 };
 use futures_core::{
     stream::{
@@ -29,32 +38,9 @@ use futures_core::{
 use futures::{
     StreamExt,
 };
-use telegram_bot::{
-    *,
-    Error as TelegramError,
-    Update as TelegramUpdate,
-};
 use openlimits::{
     errors::{
         OpenLimitError as BinanceError,
-    },
-    shared::{
-        Result as OpenLimitResult,
-    },
-    binance::Binance,
-    exchange::Exchange,
-    model::{
-        GetPriceTickerRequest,
-        Ticker,
-    },
-};
-
-use std::{
-    convert::{
-        AsRef,
-    },
-    path::{
-        Path,
     },
 };
 use async_std::{
@@ -67,43 +53,40 @@ use async_std::{
     net::{
         Incoming,
         TcpStream,
+        TcpListener,
+        SocketAddr,
+    },
+    sync::{
+        Arc,
+        Mutex,
+        MutexGuard,
     },
 };
 use std::{
     pin::Pin,
     task::Poll,
 };
+use rustls::{
+    ServerConfig,
+    NoClientAuth,
+};
+use async_tls::{
+    TlsAcceptor,
+};
+use lazy_static::lazy_static;
 
-#[derive(Serialize, Deserialize)]
-pub struct BinanceCredential {
-    secret_key: String,
-    api_key: String,
-}
-impl BinanceCredential {
-    pub fn new() -> Self {
-        Self {
-            api_key: read_key_file("keys/binance_api"),
-            secret_key: read_key_file("keys/binance_secret"),
-        }
-    }
-}
-fn read_key_file<P: AsRef<Path>>(path: P) -> String {
-    std::fs::read_to_string(path.as_ref())
-        .map(|s| s.trim_end_matches("\n").to_string())
-        .expect(&format!("Failed to read {}", path.as_ref().display()))
-}
 #[derive(Clone, Debug)]
-enum CommandContext {
-    Message(Message),
+enum MessageContext {
+    Telegram(telegram_bot::Message),
     CommandLine(String),
 }
-impl From<Message> for CommandContext {
-    fn from(m: Message) -> CommandContext {
-        Self::Message(m)
+impl From<telegram_bot::Message> for MessageContext {
+    fn from(m: telegram_bot::Message) -> MessageContext {
+        Self::Telegram(m)
     }
 }
-impl From<String> for CommandContext {
-    fn from(m: String) -> CommandContext {
+impl From<String> for MessageContext {
+    fn from(m: String) -> MessageContext {
         Self::CommandLine(m)
     }
 }
@@ -140,12 +123,12 @@ impl From<http_types::Error> for Error {
         Self::Http(err)
     }
 }
-struct CommandStream<'a> {
+struct MessageStream<'a> {
     pub telegram_stream: UpdatesStream,
     pub stdin: async_std::io::Stdin,
     pub incoming: Incoming<'a>,
 }
-impl<'a> Stream for CommandStream<'a> {
+impl<'a> Stream for MessageStream<'a> {
     type Item = Result<Update, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         let rself = self.get_mut();
@@ -181,97 +164,65 @@ impl<'a> Stream for CommandStream<'a> {
         Poll::Pending
     }
 }
-fn setup_binance_market() -> Binance {
-    let credential = BinanceCredential::new();
-    Binance::with_credential(&credential.api_key, &credential.secret_key, false)
-}
-fn setup_telegram_api() -> Api {
-    let telegram_key = read_key_file("keys/telegram");
-    Api::new(telegram_key)
-}
-struct Context {
-    binance: Binance,
-    telegram: Api,
-    tcp_server: TcpServer,
-}
-impl Context {
-    pub fn new() -> Self {
-        let binance = setup_binance_market();
-        let telegram = setup_telegram_api();
-        let tcp_server = TcpServer::new();
-        Self {
-            binance,
-            telegram,
-            tcp_server,
-        }
-    }
-    pub async fn run(&mut self) -> Result<(), Error> {
-        let listener = self.tcp_server.create_listener().await?;
-        let mut stream = CommandStream {
-            telegram_stream: self.telegram.stream(),
-            stdin: async_std::io::stdin(),
-            incoming: listener.incoming(),
-        };
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(update) => match update {
-                    Update::Telegram(update) => self.telegram_update(update).await?,
-                    Update::CommandLine(text) => self.run_command(CommandContext::from(text)).await?,
-                    Update::TcpStream(stream) => self.tcp_server.handle_connection(stream).await?,
-                },
-                Err(err) => println!("{:#?}", err),
-            }
-        }
+struct CommandLine;
+impl CommandLine {
+    async fn run_command(text: String) -> Result<(), Error> {
+        // Print received text message to stdout.
+        let btc_price = binance().await.get_symbol_price(text).await;
+        println!("{:#?}", btc_price);
         Ok(())
     }
-    async fn get_symbol_price(&mut self, symbol: String) -> OpenLimitResult<Ticker> {
-        self.binance.get_price_ticker(&GetPriceTickerRequest {
-            symbol: symbol.to_uppercase(),
-            ..Default::default()
-        }).await
-    }
-    async fn run_command(&mut self, context: CommandContext) -> Result<(), Error> {
-        Ok(match context {
-            CommandContext::Message(message) => {
-                match message.kind.clone() {
-                    MessageKind::Text { data, .. } => {
-                        // Print received text message to stdout.
-                        println!("<{}>: {}", &message.from.first_name, data);
-                        let btc_price = self.get_symbol_price(data).await;
-            
-                        self.telegram.send(message.text_reply(format!(
-                            "{:#?}", btc_price,
-                        )))
-                        .await?;
-                    },
-                    _ => {},
-                }
-            },
-            CommandContext::CommandLine(text) => {
-                // Print received text message to stdout.
-                let btc_price = self.get_symbol_price(text).await;
-                println!("{:#?}", btc_price);
-            },
+}
+pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
+    println!("starting new connection from {}", stream.peer_addr()?);
+    let stream = stream.clone();
+        if let Err(e) = async_h1::accept(stream, |req| async move {
+            TcpSocket::handle_request(req).await
         })
+        .await {
+            eprintln!("{}", e);
+        }
+    Ok(())
+}
+async fn handle_update(update: Update) -> Result<(), Error> {
+    match update {
+        Update::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
+        Update::CommandLine(text) => CommandLine::run_command(text).await,
+        Update::TcpStream(stream) => handle_connection(stream).await,
     }
-    async fn telegram_update(&mut self, update: TelegramUpdate) -> Result<(), Error> {
-        Ok(
-            match update.kind {
-                UpdateKind::Message(message) => {
-                    self.run_command(CommandContext::from(message)).await?
-                },
-                UpdateKind::EditedMessage(_message) => {},
-                UpdateKind::ChannelPost(_post) => { },
-                UpdateKind::EditedChannelPost(_post) => { },
-                UpdateKind::InlineQuery(_query) => { },
-                UpdateKind::CallbackQuery(_query) => { },
-                UpdateKind::Error(_error) => { },
-                UpdateKind::Unknown => { },
-            }
-        )
-    }
+}
+pub async fn telegram() -> MutexGuard<'static, Telegram> {
+    TELEGRAM.lock().await
+}
+pub async fn binance() -> MutexGuard<'static, Binance> {
+    BINANCE.lock().await
+}
+lazy_static! {
+    pub static ref TELEGRAM: Arc<Mutex<Telegram>> = Arc::new(Mutex::new(Telegram::new()));
+    pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    Context::new().run().await
+    let config = ServerConfig::new(NoClientAuth::new());
+    let mut _acceptor = TlsAcceptor::from(Arc::new(config));
+    let addr = SocketAddr::from(([0,0,0,0], 8000));
+    let listener = TcpListener::bind(addr).await?;
+
+    let mut stream = MessageStream {
+        telegram_stream: telegram().await.stream(),
+        stdin: async_std::io::stdin(),
+        incoming: listener.incoming(),
+    };
+
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(update) => {
+                tokio::spawn(async {
+                    handle_update(update).await.unwrap()
+                }).await.unwrap();
+            },
+            Err(err) => println!("{:#?}", err),
+        }
+    }
+    Ok(())
 }
