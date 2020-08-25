@@ -12,6 +12,7 @@ rustls = "^0.18"
 async-h1 = "^2"
 http-types = "^2"
 lazy_static = "^1.4"
+clap = "^2"
 
 [dependencies.futures]
 version = "0.3"

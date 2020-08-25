@@ -11,6 +11,7 @@ extern crate rustls;
 extern crate async_h1;
 extern crate http_types;
 extern crate lazy_static;
+extern crate clap;
 
 mod socket;
 use socket::{
@@ -78,6 +79,12 @@ pub enum Error {
     Binance(BinanceError),
     AsyncIO(async_std::io::Error),
     Http(http_types::Error),
+    Clap(clap::Error),
+}
+impl From<clap::Error> for Error {
+    fn from(err: clap::Error) -> Self {
+        Self::Clap(err)
+    }
 }
 impl From<TelegramError> for Error {
     fn from(err: TelegramError) -> Self {
@@ -140,9 +147,50 @@ impl<'a> Stream for MessageStream<'a> {
         Poll::Pending
     }
 }
+use clap::{
+    App,
+    Arg,
+};
 async fn run_command(text: String) -> Result<String, Error> {
-    let btc_price = binance().await.get_symbol_price(text).await;
-    Ok(format!("{:#?}", btc_price))
+    let mut args = vec![""];
+    args.extend(text.split(" "));
+    let app = App::new("")
+        .subcommand(
+            App::new("price")
+                .arg(
+                    Arg::with_name("symbol")
+                        .help("The Market Symbol to get the price of")
+                )
+        )
+        .subcommand(
+            App::new("history")
+                .arg(
+                    Arg::with_name("symbol")
+                        .help("The Market symbol to get the history of")
+                )
+        )
+        .get_matches_from_safe(args);
+    Ok(match app {
+        Ok(app) =>
+            if let Some(price_app) = app.subcommand_matches("price") {
+                if let Some(symbol) = price_app.value_of("symbol") {
+                    let price = binance().await.get_symbol_price(symbol.to_string()).await;
+                    format!("{:#?}", price)
+                } else {
+                    price_app.usage().to_string() 
+                }
+            } else if let Some(history_app) = app.subcommand_matches("history") {
+                if let Some(symbol) = history_app.value_of("symbol") {
+                    let price_history = binance().await.get_symbol_price_history(symbol.to_string()).await;
+                    format!("{:#?}", price_history)
+                } else {
+                    history_app.usage().to_string() 
+                }
+            } else {
+                app.usage().to_string() 
+            },
+        Err(err) => format!("{}", err),
+    })
 }
 pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
     println!("starting new connection from {}", stream.peer_addr()?);
