@@ -12,6 +12,7 @@ extern crate async_h1;
 extern crate http_types;
 extern crate lazy_static;
 extern crate clap;
+extern crate regex;
 
 mod socket;
 use socket::{

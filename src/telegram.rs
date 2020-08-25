@@ -1,12 +1,16 @@
 use crate::shared;
 use telegram_bot::{
-    *,
+    Api,
     UpdateKind,
+    MessageKind,
+    Message,
+    CanReplySendMessage,
 };
 pub use telegram_bot::{
     Error as TelegramError,
     Update as TelegramUpdate,
 };
+use crate::Error;
 use lazy_static::lazy_static;
 
 #[derive(Clone)]
@@ -15,6 +19,10 @@ pub struct Telegram {
 }
 lazy_static! {
     pub static ref TELEGRAM: Telegram = Telegram::new();
+}
+fn remove_coloring(text: String) -> String {
+    let reg = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+    reg.replace_all(&text, "").to_string()
 }
 impl Telegram {
     pub fn new() -> Self {
@@ -29,11 +37,15 @@ impl Telegram {
             MessageKind::Text { data, .. } => {
                 let cmd = data;
                 println!("<{}>: {}", &message.from.first_name, cmd);
-                let btc_price = crate::run_command(cmd).await;
-                self.api.send(message.text_reply(format!(
-                    "{:#?}", btc_price,
-                )))
-                .await?;
+                let output = crate::run_command(cmd).await?;
+                let result = self.api.send(message.text_reply(format!(
+                    "{}", remove_coloring(output),
+                ))).await;
+                if let Err(e) = result {
+                    self.api.send(message.text_reply(format!(
+                        "{:#?}", e,
+                    ))).await?;
+                }
             },
             _ => {},
         }
