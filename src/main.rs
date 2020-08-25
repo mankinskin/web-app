@@ -58,8 +58,6 @@ use async_std::{
     },
     sync::{
         Arc,
-        Mutex,
-        MutexGuard,
     },
 };
 use std::{
@@ -73,7 +71,6 @@ use rustls::{
 use async_tls::{
     TlsAcceptor,
 };
-use lazy_static::lazy_static;
 
 #[derive(Clone, Debug)]
 enum MessageContext {
@@ -191,15 +188,11 @@ async fn handle_update(update: Update) -> Result<(), Error> {
         Update::TcpStream(stream) => handle_connection(stream).await,
     }
 }
-pub async fn telegram() -> MutexGuard<'static, Telegram> {
-    TELEGRAM.lock().await
+pub async fn telegram() -> Telegram {
+    telegram::TELEGRAM.clone()
 }
-pub async fn binance() -> MutexGuard<'static, Binance> {
-    BINANCE.lock().await
-}
-lazy_static! {
-    pub static ref TELEGRAM: Arc<Mutex<Telegram>> = Arc::new(Mutex::new(Telegram::new()));
-    pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
+pub async fn binance() -> Binance {
+    binance::BINANCE.clone()
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {

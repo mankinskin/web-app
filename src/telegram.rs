@@ -7,9 +7,14 @@ pub use telegram_bot::{
     Error as TelegramError,
     Update as TelegramUpdate,
 };
+use lazy_static::lazy_static;
 
+#[derive(Clone)]
 pub struct Telegram {
     api: Api,
+}
+lazy_static! {
+    pub static ref TELEGRAM: Telegram = Telegram::new();
 }
 impl Telegram {
     pub fn new() -> Self {

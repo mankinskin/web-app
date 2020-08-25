@@ -20,7 +20,11 @@ use openlimits::{
         Ticker,
     },
 };
+use lazy_static::lazy_static;
 
+lazy_static! {
+    pub static ref BINANCE: Binance = Binance::new();
+}
 #[derive(Serialize, Deserialize)]
 pub struct BinanceCredential {
     secret_key: String,
@@ -35,6 +39,7 @@ impl BinanceCredential {
     }
 }
 
+#[derive(Clone)]
 pub struct Binance {
     api: Api,
 }
