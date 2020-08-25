@@ -161,14 +161,11 @@ impl<'a> Stream for MessageStream<'a> {
         Poll::Pending
     }
 }
-struct CommandLine;
-impl CommandLine {
-    async fn run_command(text: String) -> Result<(), Error> {
-        // Print received text message to stdout.
-        let btc_price = binance().await.get_symbol_price(text).await;
-        println!("{:#?}", btc_price);
-        Ok(())
-    }
+async fn run_command(text: String) -> Result<(), Error> {
+    // Print received text message to stdout.
+    let btc_price = binance().await.get_symbol_price(text).await;
+    println!("{:#?}", btc_price);
+    Ok(())
 }
 pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
     println!("starting new connection from {}", stream.peer_addr()?);
@@ -184,7 +181,7 @@ pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
 async fn handle_update(update: Update) -> Result<(), Error> {
     match update {
         Update::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
-        Update::CommandLine(text) => CommandLine::run_command(text).await,
+        Update::CommandLine(text) => run_command(text).await,
         Update::TcpStream(stream) => handle_connection(stream).await,
     }
 }
