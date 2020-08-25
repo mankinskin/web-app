@@ -72,27 +72,6 @@ use async_tls::{
     TlsAcceptor,
 };
 
-#[derive(Clone, Debug)]
-enum MessageContext {
-    Telegram(telegram_bot::Message),
-    CommandLine(String),
-}
-impl From<telegram_bot::Message> for MessageContext {
-    fn from(m: telegram_bot::Message) -> MessageContext {
-        Self::Telegram(m)
-    }
-}
-impl From<String> for MessageContext {
-    fn from(m: String) -> MessageContext {
-        Self::CommandLine(m)
-    }
-}
-#[derive(Clone, Debug)]
-enum Update {
-    Telegram(TelegramUpdate),
-    CommandLine(String),
-    TcpStream(TcpStream),
-}
 #[derive(Debug)]
 pub enum Error {
     Telegram(TelegramError),
@@ -175,6 +154,12 @@ pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
             eprintln!("{}", e);
         }
     Ok(())
+}
+#[derive(Clone, Debug)]
+enum Update {
+    Telegram(TelegramUpdate),
+    CommandLine(String),
+    TcpStream(TcpStream),
 }
 async fn handle_update(update: Update) -> Result<(), Error> {
     match update {
