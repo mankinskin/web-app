@@ -27,10 +27,9 @@ impl Telegram {
     pub async fn handle_message(&mut self, message: Message) -> Result<(), Error> {
         match message.kind.clone() {
             MessageKind::Text { data, .. } => {
-                // Print received text message to stdout.
-                println!("<{}>: {}", &message.from.first_name, data);
-                let btc_price = crate::binance().await.get_symbol_price(data).await;
-        
+                let cmd = data;
+                println!("<{}>: {}", &message.from.first_name, cmd);
+                let btc_price = crate::run_command(cmd).await;
                 self.api.send(message.text_reply(format!(
                     "{:#?}", btc_price,
                 )))
