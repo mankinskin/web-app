@@ -3,7 +3,6 @@ use openlimits::{
     binance::{
         model::{
             KlineSummary,
-            KlineSummaries,
         },
     },
 };
@@ -44,9 +43,7 @@ impl SymbolModel {
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
-        self.klines = match crate::binance().await.get_symbol_price_history(&self.symbol).await? {
-            KlineSummaries::AllKlineSummaries(v) => v,
-        };
+        self.klines = crate::binance().await.get_symbol_price_history(&self.symbol).await?;
         println!("{}: {}", self.symbol, self.klines.last()
             .map(|summary| summary.close.to_string())
             .unwrap_or("-".to_string()));

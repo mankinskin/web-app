@@ -12,6 +12,7 @@ use openlimits::{
         model::{
             KlineParams,
             KlineSummaries,
+            KlineSummary,
         },
     },
     exchange::Exchange,
@@ -61,11 +62,13 @@ impl Binance {
     pub async fn symbol_available(&self, symbol: &str) -> bool {
         self.get_symbol_price(symbol).await.is_ok()
     }
-    pub async fn get_symbol_price_history(&self, symbol: &str) -> OpenLimitResult<KlineSummaries> {
-        self.api.get_klines(&KlineParams {
+    pub async fn get_symbol_price_history(&self, symbol: &str) -> OpenLimitResult<Vec<KlineSummary>> {
+        match self.api.get_klines(&KlineParams {
             symbol: symbol.to_string().to_uppercase(),
             interval: "1m".to_string(),
             paginator: None,
-        }).await
+        }).await? {
+            KlineSummaries::AllKlineSummaries(v) => Ok(v),
+        }
     }
 }
