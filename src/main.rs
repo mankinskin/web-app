@@ -32,6 +32,11 @@ mod binance;
 use binance::{
     Binance,
 };
+mod model;
+use model::{
+    Model,
+};
+
 use futures_core::{
     stream::{
         Stream,
@@ -81,6 +86,7 @@ pub enum Error {
     AsyncIO(async_std::io::Error),
     Http(http_types::Error),
     Clap(clap::Error),
+    Model(model::Error),
 }
 impl From<clap::Error> for Error {
     fn from(err: clap::Error) -> Self {
@@ -175,14 +181,14 @@ async fn run_command(text: String) -> Result<String, Error> {
         Ok(app) =>
             if let Some(price_app) = app.subcommand_matches("price") {
                 if let Some(symbol) = price_app.value_of("symbol") {
-                    let price = binance().await.get_symbol_price(symbol.to_string()).await;
+                    let price = binance().await.get_symbol_price(symbol).await;
                     format!("{:#?}", price)
                 } else {
                     price_app.usage().to_string() 
                 }
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
-                    let price_history = binance().await.get_symbol_price_history(symbol.to_string()).await;
+                    let price_history = binance().await.get_symbol_price_history(symbol).await;
                     format!("{:#?}", price_history)
                 } else {
                     history_app.usage().to_string() 
@@ -222,6 +228,9 @@ pub async fn telegram() -> Telegram {
 }
 pub async fn binance() -> Binance {
     binance::BINANCE.clone()
+}
+pub async fn model() -> MutexGuard<'static, Model> {
+    model::MODEL.lock().await
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {

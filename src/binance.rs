@@ -52,15 +52,18 @@ impl Binance {
             api,
         }
     }
-    pub async fn get_symbol_price(&self, symbol: String) -> OpenLimitResult<Ticker> {
+    pub async fn get_symbol_price(&self, symbol: &str) -> OpenLimitResult<Ticker> {
         self.api.get_price_ticker(&GetPriceTickerRequest {
-            symbol: symbol.to_uppercase(),
+            symbol: symbol.to_string().to_uppercase(),
             ..Default::default()
         }).await
     }
-    pub async fn get_symbol_price_history(&self, symbol: String) -> OpenLimitResult<KlineSummaries> {
+    pub async fn symbol_available(&self, symbol: &str) -> bool {
+        self.get_symbol_price(symbol).await.is_ok()
+    }
+    pub async fn get_symbol_price_history(&self, symbol: &str) -> OpenLimitResult<KlineSummaries> {
         self.api.get_klines(&KlineParams {
-            symbol: symbol.to_uppercase(),
+            symbol: symbol.to_string().to_uppercase(),
             interval: "1m".to_string(),
             paginator: None,
         }).await
