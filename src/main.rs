@@ -65,11 +65,19 @@ use async_std::{
     },
     sync::{
         Arc,
+        MutexGuard,
+        RwLock,
+        RwLockWriteGuard,
+    },
+    stream::{
+        Interval,
+        interval,
     },
 };
 use std::{
     pin::Pin,
     task::Poll,
+    time::Duration,
 };
 use rustls::{
     ServerConfig,
@@ -113,15 +121,29 @@ impl From<http_types::Error> for Error {
         Self::Http(err)
     }
 }
+impl From<model::Error> for Error {
+    fn from(err: model::Error) -> Self {
+        Self::Model(err)
+    }
+}
 struct MessageStream<'a> {
     pub telegram_stream: UpdatesStream,
     pub stdin: async_std::io::Stdin,
     pub incoming: Incoming<'a>,
+    pub interval: Arc<RwLock<Option<Interval>>>,
 }
 impl<'a> Stream for MessageStream<'a> {
     type Item = Result<Update, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         let rself = self.get_mut();
+        if let Some(mut interval) = rself.interval.try_write() {
+            if let Some(interval) = &mut *interval {
+                let interval_poll = Stream::poll_next(Pin::new(interval), cx);
+                if interval_poll.is_ready() {
+                    return Poll::Ready(Some(Ok(Update::Interval)));
+                }
+            }
+        }
         let stdin = BufReader::new(&mut rself.stdin);
         let mut lines = stdin.lines();
         let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
@@ -176,6 +198,13 @@ async fn run_command(text: String) -> Result<String, Error> {
                         .help("The Market symbol to get the history of")
                 )
         )
+        .subcommand(
+            App::new("watch")
+                .arg(
+                    Arg::with_name("symbol")
+                        .help("The Market symbol to watch")
+                )
+        )
         .get_matches_from_safe(args);
     Ok(match app {
         Ok(app) =>
@@ -192,6 +221,18 @@ async fn run_command(text: String) -> Result<String, Error> {
                     format!("{:#?}", price_history)
                 } else {
                     history_app.usage().to_string() 
+                }
+            } else if let Some(watch_app) = app.subcommand_matches("watch") {
+                if let Some(symbol) = watch_app.value_of("symbol") {
+                    if let Err(e) = model().await.add_symbol(symbol.to_string()).await {
+                        format!("{:#?}", e)
+                    } else {
+                        INTERVAL.try_write().unwrap()
+                            .get_or_insert_with(|| interval(Duration::from_secs(1)));    
+                        String::new()
+                    }
+                } else {
+                    watch_app.usage().to_string() 
                 }
             } else {
                 app.usage().to_string() 
@@ -215,12 +256,14 @@ enum Update {
     Telegram(TelegramUpdate),
     CommandLine(String),
     TcpStream(TcpStream),
+    Interval,
 }
 async fn handle_update(update: Update) -> Result<(), Error> {
     match update {
         Update::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
         Update::CommandLine(text) => Ok(println!("{}", run_command(text).await?)),
         Update::TcpStream(stream) => handle_connection(stream).await,
+        Update::Interval => crate::model().await.update().await,
     }
 }
 pub async fn telegram() -> Telegram {
@@ -231,6 +274,10 @@ pub async fn binance() -> Binance {
 }
 pub async fn model() -> MutexGuard<'static, Model> {
     model::MODEL.lock().await
+}
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref INTERVAL: Arc<RwLock<Option<Interval>>> = Arc::new(RwLock::new(None));
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -243,6 +290,7 @@ async fn main() -> Result<(), Error> {
         telegram_stream: telegram().await.stream(),
         stdin: async_std::io::stdin(),
         incoming: listener.incoming(),
+        interval: INTERVAL.clone(),
     };
 
     while let Some(result) = stream.next().await {
