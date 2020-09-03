@@ -13,6 +13,7 @@ extern crate http_types;
 extern crate lazy_static;
 extern crate clap;
 extern crate regex;
+extern crate chrono;
 
 mod socket;
 use socket::{
@@ -71,7 +72,7 @@ use clap::{
 #[derive(Debug)]
 pub enum Error {
     Telegram(TelegramError),
-    Binance(BinanceError),
+    OpenLimits(OpenLimitError),
     AsyncIO(async_std::io::Error),
     Http(http_types::Error),
     Clap(clap::Error),
@@ -87,9 +88,9 @@ impl From<TelegramError> for Error {
         Self::Telegram(err)
     }
 }
-impl From<BinanceError> for Error {
-    fn from(err: BinanceError) -> Self {
-        Self::Binance(err)
+impl From<OpenLimitError> for Error {
+    fn from(err: OpenLimitError) -> Self {
+        Self::OpenLimits(err)
     }
 }
 impl From<async_std::io::Error> for Error {
@@ -137,27 +138,30 @@ async fn run_command(text: String) -> Result<String, Error> {
         Ok(app) =>
             if let Some(price_app) = app.subcommand_matches("price") {
                 if let Some(symbol) = price_app.value_of("symbol") {
-                    let price = binance().await.get_symbol_price(symbol).await;
+                    let price = binance().await.get_symbol_price(symbol).await?;
                     format!("{:#?}", price)
                 } else {
                     price_app.usage().to_string() 
                 }
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
-                    let price_history = binance().await.get_symbol_price_history(symbol).await;
+                let price_history = crate::binance().await.get_symbol_price_history(
+                        binance::PriceHistoryRequest {
+                            market_pair: symbol.to_string().clone(),
+                            interval: None,
+                            paginator: None,
+                        }
+                    ).await?;
                     format!("{:#?}", price_history)
                 } else {
                     history_app.usage().to_string() 
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    if let Err(e) = model().await.add_symbol(symbol.to_string()).await {
-                        format!("{:#?}", e)
-                    } else {
-                        INTERVAL.try_write().unwrap()
-                            .get_or_insert_with(|| interval(Duration::from_secs(1)));    
-                        String::new()
-                    }
+                    model().await.add_symbol(symbol.to_string()).await?;
+                    INTERVAL.try_write().unwrap()
+                        .get_or_insert_with(|| interval(Duration::from_secs(1)));    
+                    String::new()
                 } else {
                     watch_app.usage().to_string() 
                 }
@@ -196,8 +200,8 @@ async fn handle_update(update: Update) -> Result<(), Error> {
 pub async fn telegram() -> Telegram {
     telegram::TELEGRAM.clone()
 }
-pub async fn binance() -> Binance {
-    binance::BINANCE.clone()
+pub async fn binance() -> MutexGuard<'static, Binance> {
+    binance::BINANCE.lock().await
 }
 pub async fn model() -> MutexGuard<'static, Model> {
     model::MODEL.lock().await
@@ -208,6 +212,7 @@ lazy_static! {
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    binance().await.init().await;
     let mut stream = MessageStream::init().await?;
     while let Some(result) = stream.next().await {
         match result {

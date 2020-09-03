@@ -4,27 +4,34 @@ use serde::{
     Deserialize,
 };
 use openlimits::{
-    shared::{
-        Result as OpenLimitResult,
+    errors::{
+        OpenLimitError,
     },
     binance::{
         Binance as Api,
-        model::{
-            KlineParams,
-            KlineSummaries,
-            KlineSummary,
-        },
     },
-    exchange::Exchange,
     model::{
         GetPriceTickerRequest,
+        GetHistoricRatesRequest,
         Ticker,
+        Interval,
+        Candle
+    },
+    exchange::{
+        OpenLimits,
     },
 };
+use async_std::sync::{
+    Arc,
+    Mutex,
+};
 use lazy_static::lazy_static;
+use crate::{
+    Error,
+};
 
 lazy_static! {
-    pub static ref BINANCE: Binance = Binance::new();
+    pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
 }
 #[derive(Serialize, Deserialize)]
 pub struct BinanceCredential {
@@ -40,35 +47,51 @@ impl BinanceCredential {
     }
 }
 
-#[derive(Clone)]
 pub struct Binance {
-    api: Api,
+    api: Option<OpenLimits<Api>>,
 }
 
 impl Binance {
     pub fn new() -> Self {
-        let credential = BinanceCredential::new();
-        let api = Api::with_credential(&credential.api_key, &credential.secret_key, false);
         Self {
-            api,
+            api: None,
         }
     }
-    pub async fn get_symbol_price(&self, symbol: &str) -> OpenLimitResult<Ticker> {
-        self.api.get_price_ticker(&GetPriceTickerRequest {
-            symbol: symbol.to_string().to_uppercase(),
+    pub async fn init(&mut self) {
+        println!("Initializing Binance API...");
+        let credential = BinanceCredential::new();
+        let api = Api::with_credential(&credential.api_key, &credential.secret_key, false).await;
+        self.api = Some(OpenLimits::new(api));
+        println!("Inititalized Binance API.");
+    }
+    fn api<'a>(&'a self) -> Result<&'a OpenLimits<Api>, Error> {
+        self.api.as_ref().ok_or(Error::from(OpenLimitError::NoApiKeySet()))
+    }
+    fn api_mut<'a>(&'a mut self) -> Result<&'a mut OpenLimits<Api>, Error> {
+        self.api.as_mut().ok_or(Error::from(OpenLimitError::NoApiKeySet()))
+    }
+    pub async fn get_symbol_price(&self, symbol: &str) -> Result<Ticker, Error> {
+        self.api()?.get_price_ticker(&GetPriceTickerRequest {
+            market_pair: symbol.to_string().to_uppercase(),
             ..Default::default()
-        }).await
+        }).await.map_err(Into::into)
     }
     pub async fn symbol_available(&self, symbol: &str) -> bool {
         self.get_symbol_price(symbol).await.is_ok()
     }
-    pub async fn get_symbol_price_history(&self, symbol: &str) -> OpenLimitResult<Vec<KlineSummary>> {
-        match self.api.get_klines(&KlineParams {
-            symbol: symbol.to_string().to_uppercase(),
-            interval: "1m".to_string(),
-            paginator: None,
-        }).await? {
-            KlineSummaries::AllKlineSummaries(v) => Ok(v),
-        }
+    pub async fn get_symbol_price_history(&self, req: PriceHistoryRequest) -> Result<Vec<Candle>, Error> {
+        self.api()?.get_historic_rates(&GetHistoricRatesRequest {
+            market_pair: req.market_pair.to_uppercase(),
+            interval: req.interval.unwrap_or(Interval::OneMinute),
+            paginator: req.paginator,
+        }).await.map_err(Into::into)
     }
 }
+#[derive(Debug)]
+pub struct PriceHistoryRequest {
+    pub market_pair: String,
+    pub interval: Option<openlimits::model::Interval>,
+    pub paginator: Option<openlimits::model::Paginator<u64>>,
+}
+
+

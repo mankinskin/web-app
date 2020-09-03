@@ -1,9 +1,7 @@
 use lazy_static::lazy_static;
 use openlimits::{
-    binance::{
-        model::{
-            KlineSummary,
-        },
+    model::{
+        Candle,
     },
 };
 use async_std::{
@@ -17,9 +15,18 @@ use std::{
         HashMap,
     },
 };
+use chrono::{
+    DateTime,
+    Utc,
+};
+use crate::binance::{
+    PriceHistoryRequest,
+};
+use std::convert::TryInto;
 
 #[derive(Debug)]
 pub struct Error(String);
+
 impl From<String> for Error {
     fn from(s: String) -> Self {
         Self(s)
@@ -32,21 +39,36 @@ lazy_static! {
 #[derive(Default)]
 pub struct SymbolModel {
     symbol: String,
-    klines: Vec<KlineSummary>,
+    prices: Vec<Candle>,
+    last_update: Option<DateTime<Utc>>,
 }
 
 impl SymbolModel {
     pub fn from_symbol(symbol: String) -> Self {
         Self{
             symbol,
-            klines: Vec::new(),
+            prices: Vec::new(),
+            last_update: None,
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
-        self.klines = crate::binance().await.get_symbol_price_history(&self.symbol).await?;
-        println!("{}: {}", self.symbol, self.klines.last()
-            .map(|summary| summary.close.to_string())
-            .unwrap_or("-".to_string()));
+        let paginator = self.last_update.and_then(|date_time|
+                date_time.timestamp().try_into().ok()
+            ).map(|timestamp: u64| 
+                        openlimits::model::Paginator {
+                            start_time: Some(timestamp),
+                            ..Default::default()
+                        }
+                    );
+        let prices = crate::binance().await.get_symbol_price_history(
+                PriceHistoryRequest {
+                    market_pair: self.symbol.clone(),
+                    interval: None,
+                    paginator,
+                }
+            ).await?;
+        self.prices = prices;
+        self.last_update = Some(Utc::now());
         Ok(())
     }
 }
@@ -66,6 +88,7 @@ impl Model {
         }
     }
     pub async fn add_symbol(&mut self, symbol: String) -> Result<(), crate::Error> {
+        let symbol = symbol.to_uppercase();
         if self.symbols.contains_key(&symbol) {
             Err(Error::from(format!("Symbol {} already in Model", symbol)).into())
         } else if !crate::binance().await.symbol_available(&symbol).await {
