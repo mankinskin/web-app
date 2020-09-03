@@ -24,9 +24,6 @@ use telegram::{
     TelegramError,
     TelegramUpdate,
 };
-use telegram_bot::{
-    UpdatesStream,
-};
 mod shared;
 mod binance;
 use binance::{
@@ -36,38 +33,27 @@ mod model;
 use model::{
     Model,
 };
-
-use futures_core::{
-    stream::{
-        Stream,
-    },
+mod message_stream;
+use message_stream::{
+    MessageStream,
 };
+
 use futures::{
     StreamExt,
 };
 use openlimits::{
     errors::{
-        OpenLimitError as BinanceError,
+        OpenLimitError,
     },
 };
 use async_std::{
-    io::{
-        BufReader,
-        prelude::{
-            BufReadExt,
-        },
-    },
     net::{
-        Incoming,
         TcpStream,
-        TcpListener,
-        SocketAddr,
     },
     sync::{
         Arc,
         MutexGuard,
         RwLock,
-        RwLockWriteGuard,
     },
     stream::{
         Interval,
@@ -75,16 +61,11 @@ use async_std::{
     },
 };
 use std::{
-    pin::Pin,
-    task::Poll,
     time::Duration,
 };
-use rustls::{
-    ServerConfig,
-    NoClientAuth,
-};
-use async_tls::{
-    TlsAcceptor,
+use clap::{
+    App,
+    Arg,
 };
 
 #[derive(Debug)]
@@ -126,60 +107,6 @@ impl From<model::Error> for Error {
         Self::Model(err)
     }
 }
-struct MessageStream<'a> {
-    pub telegram_stream: UpdatesStream,
-    pub stdin: async_std::io::Stdin,
-    pub incoming: Incoming<'a>,
-    pub interval: Arc<RwLock<Option<Interval>>>,
-}
-impl<'a> Stream for MessageStream<'a> {
-    type Item = Result<Update, Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        let rself = self.get_mut();
-        if let Some(mut interval) = rself.interval.try_write() {
-            if let Some(interval) = &mut *interval {
-                let interval_poll = Stream::poll_next(Pin::new(interval), cx);
-                if interval_poll.is_ready() {
-                    return Poll::Ready(Some(Ok(Update::Interval)));
-                }
-            }
-        }
-        let stdin = BufReader::new(&mut rself.stdin);
-        let mut lines = stdin.lines();
-        let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
-        if cli_poll.is_ready() {
-            return cli_poll.map(|opt|
-                opt.map(|result|
-                    result.map(|line| Update::CommandLine(line))
-                          .map_err(|err| Error::from(err))
-                )
-            );
-        }
-        let telegram_poll = Stream::poll_next(Pin::new(&mut rself.telegram_stream), cx);
-        if telegram_poll.is_ready() {
-            return telegram_poll.map(|opt|
-                opt.map(|result|
-                    result.map(|update| Update::Telegram(update))
-                          .map_err(|err| Error::from(err))
-                )
-            );
-        }
-        let incoming_poll = Stream::poll_next(Pin::new(&mut rself.incoming), cx);
-        if incoming_poll.is_ready() {
-            return incoming_poll.map(|opt|
-                opt.map(|result|
-                    result.map(|stream| Update::TcpStream(stream))
-                          .map_err(|err| Error::from(err))
-                )
-            );
-        }
-        Poll::Pending
-    }
-}
-use clap::{
-    App,
-    Arg,
-};
 async fn run_command(text: String) -> Result<String, Error> {
     let mut args = vec![""];
     args.extend(text.split(" "));
@@ -252,7 +179,7 @@ pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
     Ok(())
 }
 #[derive(Clone, Debug)]
-enum Update {
+pub enum Update {
     Telegram(TelegramUpdate),
     CommandLine(String),
     TcpStream(TcpStream),
@@ -281,18 +208,7 @@ lazy_static! {
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let config = ServerConfig::new(NoClientAuth::new());
-    let mut _acceptor = TlsAcceptor::from(Arc::new(config));
-    let addr = SocketAddr::from(([0,0,0,0], 8000));
-    let listener = TcpListener::bind(addr).await?;
-
-    let mut stream = MessageStream {
-        telegram_stream: telegram().await.stream(),
-        stdin: async_std::io::stdin(),
-        incoming: listener.incoming(),
-        interval: INTERVAL.clone(),
-    };
-
+    let mut stream = MessageStream::init().await?;
     while let Some(result) = stream.next().await {
         match result {
             Ok(update) => {
