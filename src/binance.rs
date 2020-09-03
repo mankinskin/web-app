@@ -58,11 +58,9 @@ impl Binance {
         }
     }
     pub async fn init(&mut self) {
-        println!("Initializing Binance API...");
         let credential = BinanceCredential::new();
         let api = Api::with_credential(&credential.api_key, &credential.secret_key, false).await;
         self.api = Some(OpenLimits::new(api));
-        println!("Inititalized Binance API.");
     }
     fn api<'a>(&'a self) -> Result<&'a OpenLimits<Api>, Error> {
         self.api.as_ref().ok_or(Error::from(OpenLimitError::NoApiKeySet()))
