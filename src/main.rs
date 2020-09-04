@@ -174,12 +174,12 @@ async fn run_command(text: String) -> Result<String, Error> {
 pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
     println!("starting new connection from {}", stream.peer_addr()?);
     let stream = stream.clone();
-        if let Err(e) = async_h1::accept(stream, |req| async move {
-            TcpSocket::handle_request(req).await
-        })
-        .await {
-            eprintln!("{}", e);
-        }
+    if let Err(e) = async_h1::accept(stream, |req| async move {
+        TcpSocket::handle_request(req).await
+    })
+    .await {
+        eprintln!("{}", e);
+    }
     Ok(())
 }
 #[derive(Clone, Debug)]

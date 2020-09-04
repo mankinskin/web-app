@@ -11,11 +11,10 @@ use http_types::{
     mime::{
         Mime,
     },
-    Error as HttpError,
 };
 pub struct TcpSocket;
 impl TcpSocket {
-    async fn file_response<P: AsRef<Path>>(path: P) -> Result<Response, HttpError> {
+    async fn file_response<P: AsRef<Path>>(path: P) -> Result<Response, http_types::Error> {
         let mut res = Response::new(StatusCode::Ok);
         let mime = path.as_ref()
             .extension()
@@ -30,7 +29,7 @@ impl TcpSocket {
         res.set_body(Body::from_file(path).await?);
         Ok(res)
     }
-    async fn handle_file_request(path: String) -> Result<Response, HttpError> {
+    async fn handle_file_request(path: String) -> Result<Response, http_types::Error> {
         let pkg_path = "/home/linusb/git/binance-bot/client/pkg";
         let file_path = match &path {
             path if path.is_empty() || path == "/" => "/index.html".to_string(),
@@ -41,18 +40,35 @@ impl TcpSocket {
         Self::file_response(file_path).await
     }
     async fn get_price_history_response() -> Result<Response, http_types::Error> {
-        let res = Response::new(StatusCode::Ok);
-        //res.set_body(Body::from_json()?);
+        let mut res = Response::new(StatusCode::Ok);
+        res.set_body(
+            Body::from_json(
+                &crate::binance()
+                    .await
+                    .get_symbol_price_history(crate::binance::PriceHistoryRequest {
+                        market_pair: "SOLBTC".to_string(),
+                        interval: None,
+                        paginator: None,
+                    })
+                    .await
+                    .map_err(|e|
+                        http_types::Error::from_str(
+                            StatusCode::InternalServerError,
+                            format!("{:?}", e)
+                        )
+                    )?
+            )?
+        );
         Ok(res)
     }
-    async fn handle_api_request(path: String) -> Result<Response, HttpError> {
+    async fn handle_api_request(path: String) -> Result<Response, http_types::Error> {
         let path = path.strip_prefix("/api").unwrap();
         match path {
             "/price_history" => Self::get_price_history_response().await,
-            _ => Err(http_types::Error::from_str(http_types::StatusCode::NotFound, "Invalid api call")),
+            _ => Err(http_types::Error::from_str(http_types::StatusCode::NotFound, "Invalid api call").into()),
         }
     }
-    pub async fn handle_request(req: Request) -> Result<Response, HttpError> {
+    pub async fn handle_request(req: Request) -> Result<Response, http_types::Error> {
         let req_path = req.url().path();
         match req_path {
             path if path.starts_with("/api") => {

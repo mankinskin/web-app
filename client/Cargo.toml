@@ -20,10 +20,14 @@ async-tls = "^0.9"
 console_error_panic_hook = "^0.1"
 rand = "^0.7"
 rand_distr = "^0.2"
+rust_decimal = "^1"
 
 [dependencies.seed]
 git = "https://github.com/seed-rs/seed"
 branch = "master"
+
+[dependencies.openlimits]
+path = "../../openlimits"
 
 [dependencies.components]
 path = "../../components"

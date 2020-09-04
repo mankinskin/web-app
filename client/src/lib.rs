@@ -13,6 +13,8 @@ extern crate console_error_panic_hook;
 extern crate components;
 extern crate rand;
 extern crate rand_distr;
+extern crate openlimits;
+extern crate rust_decimal;
 
 use seed::{
     *,
@@ -28,6 +30,12 @@ use rand::{
 use rand_distr::{
     Normal,
 };
+use openlimits::{
+    model::{
+        Candle,
+    },
+};
+use rust_decimal::prelude::ToPrimitive;
 
 #[wasm_bindgen(start)]
 pub fn render() {
@@ -45,20 +53,47 @@ pub fn render() {
 pub struct Model {
     width: usize,
     height: usize,
+    data: Vec<Candle>,
+    error: Option<String>,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
     GetHistory,
-    GotHistory,
+    GotHistory(Result<Vec<Candle>, String>),
+}
+async fn fetch_candles() -> Result<Vec<Candle>, FetchError> {
+    let host = "http://localhost:8000";
+    let url = format!("{}{}", host, "/api/price_history");
+    let mut req = seed::fetch::Request::new(&url)
+        .method(Method::Get);
+    seed::fetch::fetch(req)
+        .await?
+        .check_status()?
+        .json().await
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::GetHistory => {
-
+                log!("Requesting Candles...");
+                orders.perform_cmd(
+                    async {
+                        fetch_candles()
+                        .await
+                        .map_err(|e| format!("{:#?}", e))
+                    }
+                    .map(Msg::GotHistory)
+                );
+                log!("Request done.");
             },
-            Msg::GotHistory => {
+            Msg::GotHistory(res) => {
+                log!("Response:");
+                log!(res);
+                match res {
+                    Ok(candles) => self.data = candles,
+                    Err(e) => self.error = Some(e),
+                }
             },
         }
     }
@@ -68,12 +103,34 @@ impl View for Model {
         let width = 1000;
         let height = 400;
         let mut rng = rand::thread_rng();
-        let points: Vec<(_, _)> = (0..width)
-            .zip(Normal::new(height as f32/2.0, 20.0).unwrap().sample_iter(&mut rng).take(width))
-            .collect();
+        let points: Vec<(_, _)> =
+                if self.data.is_empty() {
+            (0..width).zip(
+                    Normal::new(height as f32/2.0, 20.0).unwrap().sample_iter(&mut rng).take(width)
+            )
+            .collect()
+                } else {
+            (0..width).zip(
+                    self.data.iter().map(|candle| candle.open.to_f32().unwrap()*1000000 as f32)
+            )
+            .collect()
+                };
+
 
         div![
             p!["Hello from Seed!"],
+            button![
+                ev(Ev::Click, |_| Msg::GetHistory),
+                "Update!"
+            ],
+            if let Some(e) = &self.error {
+                p![
+                    style!{
+                        St::Color => "red",
+                    },
+                    e
+                ]
+            } else { empty![] },
             div![
                 style!{
                     St::Resize => "horizontal",
