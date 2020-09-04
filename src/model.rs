@@ -22,6 +22,10 @@ use chrono::{
 use crate::binance::{
     PriceHistoryRequest,
 };
+use serde::{
+    Serialize,
+    Deserialize,
+};
 use std::convert::TryInto;
 
 #[derive(Debug)]
@@ -36,13 +40,12 @@ impl From<String> for Error {
 lazy_static! {
     pub static ref MODEL: Arc<Mutex<Model>> = Arc::new(Mutex::new(Model::new()));
 }
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct SymbolModel {
     symbol: String,
     prices: Vec<Candle>,
     last_update: Option<DateTime<Utc>>,
 }
-
 impl SymbolModel {
     pub fn from_symbol(symbol: String) -> Self {
         Self{
@@ -86,6 +89,10 @@ impl Model {
                 .map(|symbol| (symbol.clone(), SymbolModel::from_symbol(symbol)))
                 .collect()
         }
+    }
+    pub async fn get_symbol_model<'a>(&'a self, symbol: String) -> Result<&'a SymbolModel, crate::Error> {
+        self.symbols.get(&symbol.to_uppercase())
+            .ok_or(crate::Error::from(Error::from(format!("No Model for Symbol: {}", symbol))))
     }
     pub async fn add_symbol(&mut self, symbol: String) -> Result<(), crate::Error> {
         let symbol = symbol.to_uppercase();
