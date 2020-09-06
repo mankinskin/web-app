@@ -30,7 +30,7 @@ impl TcpSocket {
         Ok(res)
     }
     async fn handle_file_request(path: String) -> Result<Response, http_types::Error> {
-        let pkg_path = "/home/linusb/git/binance-bot/client/pkg";
+        let pkg_path = "/home/linusb/git/binance-bot/pkg";
         let file_path = match &path {
             path if path.is_empty() || path == "/" => "/index.html".to_string(),
             path => path.to_string(),
