@@ -2,9 +2,6 @@ use crate::{
     Error,
     telegram,
     INTERVAL,
-    //socket::{
-    //    Socket,
-    //},
     telegram::{
         TelegramUpdate,
     },
@@ -14,13 +11,8 @@ use telegram_bot::{
     UpdatesStream,
 };
 use futures::{
-    stream::{
-        StreamExt,
-    },
-    future::{
-        Future,
-        FutureExt,
-    },
+    StreamExt,
+    FutureExt,
 };
 use futures_core::{
     stream::{
@@ -36,8 +28,6 @@ use async_std::{
     },
     net::{
         SocketAddr,
-        TcpListener,
-        TcpStream,
     },
     sync::{
         Arc,
@@ -51,22 +41,8 @@ use std::{
     pin::Pin,
     task::Poll,
 };
-use rustls::{
-    ServerConfig,
-    NoClientAuth,
-};
-use async_tls::{
-    TlsAcceptor,
-};
-use tokio::{
-    net::{
-    },
-};
 use warp::{
     Filter,
-    path::{
-        FullPath,
-    },
 };
 
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";

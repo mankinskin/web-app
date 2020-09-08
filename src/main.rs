@@ -4,23 +4,17 @@ extern crate serde;
 extern crate serde_json;
 extern crate openlimits;
 extern crate tokio;
-extern crate futures;
 extern crate async_std;
-extern crate futures_core;
-extern crate async_tls;
-extern crate rustls;
 extern crate async_h1;
-extern crate http_types;
+extern crate futures;
+extern crate futures_core;
 extern crate lazy_static;
 extern crate clap;
 extern crate regex;
 extern crate chrono;
-extern crate tokio_tungstenite;
 extern crate telegram_bot;
-extern crate tokio_util;
 extern crate warp;
 
-//mod socket;
 mod telegram;
 use telegram::{
     Telegram,
@@ -69,10 +63,8 @@ pub enum Error {
     Telegram(TelegramError),
     OpenLimits(OpenLimitError),
     AsyncIO(async_std::io::Error),
-    Http(http_types::Error),
     Clap(clap::Error),
     Model(model::Error),
-    Tungstenite(tokio_tungstenite::tungstenite::Error),
     Tokio(tokio::task::JoinError),
 }
 impl From<clap::Error> for Error {
@@ -93,16 +85,6 @@ impl From<OpenLimitError> for Error {
 impl From<async_std::io::Error> for Error {
     fn from(err: async_std::io::Error) -> Self {
         Self::AsyncIO(err)
-    }
-}
-impl From<tokio_tungstenite::tungstenite::Error> for Error {
-    fn from(err: tokio_tungstenite::tungstenite::Error) -> Self {
-        Self::Tungstenite(err)
-    }
-}
-impl From<http_types::Error> for Error {
-    fn from(err: http_types::Error) -> Self {
-        Self::Http(err)
     }
 }
 impl From<model::Error> for Error {

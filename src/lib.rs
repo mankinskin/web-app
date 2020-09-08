@@ -1,5 +1,4 @@
 #![feature(clamp)]
-extern crate async_tls;
 extern crate lazy_static;
 extern crate chrono;
 extern crate serde;
