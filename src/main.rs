@@ -1,4 +1,5 @@
-extern crate telegram_bot;
+#![feature(async_closure)]
+
 extern crate serde;
 extern crate serde_json;
 extern crate openlimits;
@@ -14,16 +15,16 @@ extern crate lazy_static;
 extern crate clap;
 extern crate regex;
 extern crate chrono;
+extern crate tokio_tungstenite;
+extern crate telegram_bot;
+extern crate tokio_util;
+extern crate warp;
 
-mod socket;
-use socket::{
-    TcpSocket,
-};
+//mod socket;
 mod telegram;
 use telegram::{
     Telegram,
     TelegramError,
-    TelegramUpdate,
 };
 mod shared;
 mod binance;
@@ -39,18 +40,12 @@ use message_stream::{
     MessageStream,
 };
 
-use futures::{
-    StreamExt,
-};
 use openlimits::{
     errors::{
         OpenLimitError,
     },
 };
 use async_std::{
-    net::{
-        TcpStream,
-    },
     sync::{
         Arc,
         MutexGuard,
@@ -77,6 +72,8 @@ pub enum Error {
     Http(http_types::Error),
     Clap(clap::Error),
     Model(model::Error),
+    Tungstenite(tokio_tungstenite::tungstenite::Error),
+    Tokio(tokio::task::JoinError),
 }
 impl From<clap::Error> for Error {
     fn from(err: clap::Error) -> Self {
@@ -98,6 +95,11 @@ impl From<async_std::io::Error> for Error {
         Self::AsyncIO(err)
     }
 }
+impl From<tokio_tungstenite::tungstenite::Error> for Error {
+    fn from(err: tokio_tungstenite::tungstenite::Error) -> Self {
+        Self::Tungstenite(err)
+    }
+}
 impl From<http_types::Error> for Error {
     fn from(err: http_types::Error) -> Self {
         Self::Http(err)
@@ -108,7 +110,12 @@ impl From<model::Error> for Error {
         Self::Model(err)
     }
 }
-async fn run_command(text: String) -> Result<String, Error> {
+impl From<tokio::task::JoinError> for Error {
+    fn from(err: tokio::task::JoinError) -> Self {
+        Self::Tokio(err)
+    }
+}
+pub async fn run_command(text: String) -> Result<String, Error> {
     let mut args = vec![""];
     args.extend(text.split(" "));
     let app = App::new("")
@@ -171,32 +178,6 @@ async fn run_command(text: String) -> Result<String, Error> {
         Err(err) => format!("{}", err),
     })
 }
-pub async fn handle_connection(stream: TcpStream) -> Result<(), Error> {
-    println!("starting new connection from {}", stream.peer_addr()?);
-    let stream = stream.clone();
-    if let Err(e) = async_h1::accept(stream, |req| async move {
-        TcpSocket::handle_request(req).await
-    })
-    .await {
-        eprintln!("{}", e);
-    }
-    Ok(())
-}
-#[derive(Clone, Debug)]
-pub enum Update {
-    Telegram(TelegramUpdate),
-    CommandLine(String),
-    TcpStream(TcpStream),
-    Interval,
-}
-async fn handle_update(update: Update) -> Result<(), Error> {
-    match update {
-        Update::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
-        Update::CommandLine(text) => Ok(println!("{}", run_command(text).await?)),
-        Update::TcpStream(stream) => handle_connection(stream).await,
-        Update::Interval => crate::model().await.update().await,
-    }
-}
 pub async fn telegram() -> Telegram {
     telegram::TELEGRAM.clone()
 }
@@ -213,16 +194,8 @@ lazy_static! {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     binance().await.init().await;
-    let mut stream = MessageStream::init().await?;
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(update) => {
-                tokio::spawn(async {
-                    handle_update(update).await.unwrap()
-                }).await.unwrap();
-            },
-            Err(err) => println!("{:#?}", err),
-        }
-    }
-    Ok(())
+    MessageStream::init()
+        .await?
+        .handle_messages()
+        .await
 }
