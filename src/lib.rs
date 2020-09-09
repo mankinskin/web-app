@@ -16,6 +16,9 @@ extern crate openlimits;
 extern crate rust_decimal;
 extern crate web_sys;
 extern crate js_sys;
+extern crate tracing;
+extern crate tracing_subscriber;
+extern crate tracing_wasm;
 
 use seed::{
     *,
@@ -35,12 +38,20 @@ use serde::{
     Deserialize,
 };
 use rust_decimal::prelude::ToPrimitive;
+use tracing::{
+    debug,
+};
 
 const WS_URL: &str = "ws://localhost:8000/ws";
 
+fn init_tracing() {
+    tracing_wasm::set_as_global_default();
+    debug!("Tracing initialized.");
+}
 #[wasm_bindgen(start)]
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    init_tracing();
     App::start("app",
                 |_url, orders| {
                     orders.send_msg(Msg::GetHistory); 

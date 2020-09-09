@@ -26,6 +26,9 @@ use serde::{
     Serialize,
     Deserialize,
 };
+use tracing::{
+    debug,
+};
 use std::convert::TryInto;
 
 #[derive(Debug)]
@@ -55,6 +58,7 @@ impl SymbolModel {
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
+        debug!("SymbolModel update");
         let paginator = self.last_update.and_then(|date_time|
                 date_time.timestamp().try_into().ok()
             ).map(|timestamp: u64| 
@@ -95,6 +99,7 @@ impl Model {
             .ok_or(crate::Error::from(Error::from(format!("No Model for Symbol: {}", symbol))))
     }
     pub async fn add_symbol(&mut self, symbol: String) -> Result<(), crate::Error> {
+        debug!("Adding symbol to model...");
         let symbol = symbol.to_uppercase();
         if self.symbols.contains_key(&symbol) {
             Err(Error::from(format!("Symbol {} already in Model", symbol)).into())
@@ -106,6 +111,7 @@ impl Model {
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error>{
+        debug!("Model update");
         for (_, model) in &mut self.symbols {
             model.update().await?
         }

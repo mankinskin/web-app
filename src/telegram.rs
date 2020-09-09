@@ -12,6 +12,9 @@ pub use telegram_bot::{
 };
 use crate::Error;
 use lazy_static::lazy_static;
+use tracing::{
+    debug,
+};
 
 #[derive(Clone)]
 pub struct Telegram {
@@ -52,6 +55,7 @@ impl Telegram {
         Ok(())
     }
     pub async fn update(&mut self, update: TelegramUpdate) -> Result<(), Error> {
+        debug!("Telegram Update");
         Ok(
             match update.kind {
                 UpdateKind::Message(message) => {

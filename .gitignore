@@ -7,3 +7,5 @@
 */*.gml
 */*.gv
 /keys
+Cargo.lock
+/logs

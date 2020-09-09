@@ -11,14 +11,19 @@ use futures::{
 use warp::{
     Filter,
 };
+use tracing::{
+    debug,
+    error,
+};
 
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 
 pub async fn websocket_connection(websocket: warp::ws::WebSocket) {
+    debug!("Starting WebSocket connection");
     let (tx, rx) = websocket.split();
     rx.forward(tx).map(|result| {
         if let Err(e) = result {
-            eprintln!("websocket error: {:?}", e);
+            error!("websocket error: {:?}", e);
         }
     }).await
 }
@@ -49,5 +54,6 @@ pub async fn run() -> Result<(), tokio::task::JoinError> {
         .or(pkg_dir);
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes);
+    debug!("Starting Server");
     tokio::spawn(server.run(addr)).await
 }

@@ -37,6 +37,10 @@ use std::{
     pin::Pin,
     task::Poll,
 };
+use tracing::{
+    debug,
+    error,
+};
 
 #[derive(Debug)]
 pub enum Message {
@@ -51,6 +55,7 @@ pub struct MessageStream {
 }
 impl MessageStream {
     pub async fn init() -> Result<Self, Error> {
+        debug!("Initializing MessageStream...");
         Ok(MessageStream {
             stdin: async_std::io::stdin(),
             telegram_stream: Some(telegram().await.stream()),
@@ -65,7 +70,8 @@ impl MessageStream {
         }
     }
     async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
-        Ok(println!("{:#?}", error))
+        error!("MessageStream Error: {:#?}", error);
+        Ok(())
     }
     pub async fn handle_messages(&mut self) -> Result<(), Error> {
         while let Some(result) = self.next().await {
@@ -84,11 +90,13 @@ impl MessageStream {
 impl Stream for MessageStream {
     type Item = Result<Message, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        debug!("Polling MessageStream...");
         let rself = self.get_mut();
         if let Some(mut interval) = rself.interval.try_write() {
             if let Some(interval) = &mut *interval {
                 let interval_poll = Stream::poll_next(Pin::new(interval), cx);
                 if interval_poll.is_ready() {
+                    debug!("Interval poll ready");
                     return Poll::Ready(Some(Ok(Message::Model)));
                 }
             }
@@ -97,6 +105,7 @@ impl Stream for MessageStream {
         let mut lines = stdin.lines();
         let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
         if cli_poll.is_ready() {
+            debug!("CLI poll ready");
             return cli_poll.map(|opt|
                 opt.map(|result|
                     result.map(|line| Message::CommandLine(line))
@@ -107,6 +116,7 @@ impl Stream for MessageStream {
         if let Some(telegram) = &mut rself.telegram_stream {
             let telegram_poll = Stream::poll_next(Pin::new(telegram), cx);
             if telegram_poll.is_ready() {
+                debug!("Telegram poll ready");
                 return telegram_poll.map(|opt|
                     opt.map(|result|
                         match result {
@@ -120,6 +130,7 @@ impl Stream for MessageStream {
                 );
             }
         }
+        debug!("Poll pending.");
         Poll::Pending
     }
 }
