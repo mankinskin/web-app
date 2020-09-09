@@ -43,7 +43,7 @@ pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::start("app",
                 |_url, orders| {
-                    //orders.send_msg(Msg::GetHistory); 
+                    orders.send_msg(Msg::GetHistory); 
                     orders.after_next_render(|_| Msg::Init); 
                     Model {
                         view_x: 0,
@@ -153,6 +153,42 @@ pub struct ServerMessage {
     pub text: String,
 }
 impl Model {
+    fn graph_view(&self) -> Node<<Self as Component>::Msg> {
+        div![
+            style!{
+                St::Overflow => "scroll",
+                //St::OverflowY => "auto",
+                //St::Height => "auto",
+                //St::Cursor => "move",
+                //St::Resize => "horizontal",
+            },
+            ev(Ev::Click, |event| {
+                event.prevent_default();
+                let event = to_mouse_event(&event);
+                let x = event.movement_x();
+                let y = event.movement_y();
+                log!("Panning {} {}", x, y);
+                Msg::Panning(x, y)
+            }),
+            svg![
+                attrs!{
+                    At::ViewBox => format!("{} {} {} {}", self.view_x, self.view_y, self.width, self.height),
+                    At::PreserveAspectRatio => "xMinYMin meet",
+                    At::Width => self.width,
+                    At::Height => self.height,
+                    At::Id => "graph-svg",
+                    At::Overflow => "scroll",
+                },
+                style!{
+                    St::BackgroundColor => "gray";
+                    St::Width => "100%",
+                },
+                self.plot_view(),
+                //self.vertical_lines(),
+                //self.horizontal_lines(),
+            ],
+        ]
+    }
     pub fn create_websocket(orders: &impl Orders<Msg>) -> WebSocket {
         let msg_sender = orders.msg_sender();
         WebSocket::builder(WS_URL, orders)
@@ -197,10 +233,7 @@ impl Model {
         }
     }
     async fn fetch_candles() -> Result<Vec<Candle>, FetchError> {
-
-        let host = "http://localhost:8000";
-        let url = format!("{}{}", host, "/api/price_history");
-        let req = seed::fetch::Request::new(&url)
+        let req = seed::fetch::Request::new("http://localhost:8000/api/price_history")
             .method(Method::Get);
         seed::fetch::fetch(req)
             .await?
@@ -312,83 +345,52 @@ impl Model {
                     .iter()
                     .enumerate()
                     .collect();
-        candles.iter().fold(Vec::with_capacity(self.data.len()*2), |mut acc, (i, candle)| {
-            let open = candle.open.to_f32().unwrap();
-            let close = candle.close.to_f32().unwrap();
-            let high = candle.high.to_f32().unwrap();
-            let low = candle.low.to_f32().unwrap();
-            let height = self.to_y_pixels((open - close).abs());
-            let top = open.max(close);
-            let x_px = *i as u32*self.x_interval;
-            let y_px = self.height - self.to_y_pixels(top - self.data_min) as u32;
-            let color = if open > close {
-                            "red"
-                        } else if open == close {
-                            "gray"
-                        } else {
-                            "green"
-                        };
-            acc.push(
-                rect![
-                    attrs!{
-                        At::X => x_px,
-                        At::Y => y_px,
-                        At::Width => self.x_interval,
-                        At::Height => height,
-                        At::Fill => color,
-                    },
-                ]
-            );
-            let x_px = x_px + self.x_interval/2;
-            let y_px = self.height - self.to_y_pixels(high - self.data_min) as u32;
-            let height = self.to_y_pixels(high - low);
-            acc.push(
-                path![
-                    attrs!{
-                        At::D => format!("M {} {} v {}", x_px, y_px, height),
-                        At::Stroke => color,
-                        At::StrokeWidth => 1,
-                    },
-                ]
-            );
-            acc
-        })
-    }
-    fn graph_view(&self) -> Node<<Self as Component>::Msg> {
-        div![
-            style!{
-                St::Overflow => "scroll",
-                St::OverflowY => "auto",
-                St::Height => "auto",
-                St::Cursor => "move",
-                St::Resize => "horizontal",
-            },
-            ev(Ev::Click, |event| {
-                event.prevent_default();
-                let event = to_mouse_event(&event);
-                let x = event.movement_x();
-                let y = event.movement_y();
-                log!("Panning {} {}", x, y);
-                Msg::Panning(x, y)
-            }),
-            svg![
-                attrs!{
-                    At::ViewBox => format!("{} {} {} {}", self.view_x, self.view_y, self.width, self.height),
-                    At::PreserveAspectRatio => "xMinYMin meet",
-                    At::Width => self.width,
-                    At::Height => self.height,
-                    At::Id => "graph-svg",
-                },
-                style!{
-                    St::BackgroundColor => "gray";
-                    St::Width => "100%",
-                    St::Overflow => "auto",
-                },
-                self.plot_view(),
-                self.vertical_lines(),
-                self.horizontal_lines(),
-            ],
-        ]
+        candles
+            .iter()
+            .fold(
+                Vec::with_capacity(self.data.len()*2),
+                |mut acc, (i, candle)| {
+                    let open = candle.open.to_f32().unwrap();
+                    let close = candle.close.to_f32().unwrap();
+                    let high = candle.high.to_f32().unwrap();
+                    let low = candle.low.to_f32().unwrap();
+                    let height = self.to_y_pixels((open - close).abs());
+                    let top = open.max(close);
+                    let x_px = *i as u32*self.x_interval;
+                    let y_px = self.height - self.to_y_pixels(top - self.data_min) as u32;
+                    let color = if open > close {
+                                    "red"
+                                } else if open == close {
+                                    "gray"
+                                } else {
+                                    "green"
+                                };
+                    acc.push(
+                        rect![
+                            attrs!{
+                                At::X => x_px,
+                                At::Y => y_px,
+                                At::Width => self.x_interval,
+                                At::Height => height,
+                                At::Fill => color,
+                            },
+                        ]
+                    );
+                    let x_px = x_px + self.x_interval/2;
+                    let y_px = self.height - self.to_y_pixels(high - self.data_min) as u32;
+                    let height = self.to_y_pixels(high - low);
+                    acc.push(
+                        path![
+                            attrs!{
+                                At::D => format!("M {} {} v {}", x_px, y_px, height),
+                                At::Stroke => color,
+                                At::StrokeWidth => 1,
+                            },
+                        ]
+                    );
+                    acc
+                }
+            )
     }
 }
 impl View for Model {
