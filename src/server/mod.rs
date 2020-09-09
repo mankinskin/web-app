@@ -18,6 +18,7 @@ use warp::{
     Filter,
 };
 use tracing::{
+    trace,
     debug,
     error,
 };
@@ -46,7 +47,8 @@ pub async fn websocket_connection(websocket: warp::ws::WebSocket) -> Result<(), 
 }
 pub async fn handle_message(msg: warp::ws::Message) -> Result<Option<ClientMessage>, Error> {
     let msg = decode_message(msg).await?;
-    debug!("Received websocket msg: {:#?}", msg);
+    debug!("Received websocket msg");
+    //debug!("{:#?}", msg);
     Ok(match msg {
         ServerMessage::GetPriceHistory(req) => {
             Some(ClientMessage::PriceHistory(crate::binance().await.get_symbol_price_history(req).await?))

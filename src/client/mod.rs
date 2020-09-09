@@ -9,9 +9,14 @@ use components::{
 use openlimits::{
     model::{
         Candle,
+        Paginator,
+        Interval,
     },
 };
 use rust_decimal::prelude::ToPrimitive;
+use chrono::{
+    Duration,
+};
 use crate::{
     shared::{
         self,
@@ -35,34 +40,38 @@ pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_tracing();
     App::start("app",
-                |_url, orders| {
-                    orders.after_next_render(|_| Msg::Init); 
-                    Model {
-                        view_x: 0,
-                        view_y: 0,
-                        width: 500,
-                        height: 200,
-                        data: Vec::new(),
-                        error: None,
-                        data_min: 0.0,
-                        data_max: 0.0,
-                        x_interval: 2,
-                        y_interval: 0,
-                        y_factor: 0.0,
-                        svg_node: None,
-                        websocket_reconnector: None,
-                        websocket: Model::create_websocket(orders),
-                        data_range: 0.0,
-                    }
-               },
-               |msg, model, orders| model.update(msg, orders),
-               View::view,
+        |_url, orders| {
+            orders.after_next_render(|_| Msg::Init); 
+            Model {
+                view_x: 0,
+                view_y: 0,
+                width: 500,
+                height: 200,
+                data: Vec::new(),
+                error: None,
+                data_min: 0.0,
+                data_max: 0.0,
+                x_interval: 2,
+                y_interval: 0,
+                y_factor: 0.0,
+                svg_node: None,
+                websocket_reconnector: None,
+                websocket: Some(Model::create_websocket(orders)),
+                data_range: 0.0,
+                last_candle_update: None,
+                time_interval: Interval::OneMinute,
+                update_poll_interval: None,
+            }
+        },
+        |msg, model, orders| model.update(msg, orders),
+        View::view,
     );
 }
 #[derive(Debug)]
 pub struct Model {
-    pub websocket: WebSocket,
+    pub websocket: Option<WebSocket>,
     pub websocket_reconnector: Option<StreamHandle>,
+    pub update_poll_interval: Option<StreamHandle>,
     pub view_x: i32,
     pub view_y: i32,
     pub width: u32,
@@ -76,6 +85,8 @@ pub struct Model {
     pub x_interval: u32,
     pub svg_node: Option<web_sys::Node>,
     pub data: Vec<Candle>,
+    pub last_candle_update: Option<u64>,
+    pub time_interval: Interval
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -83,21 +94,13 @@ pub enum Msg {
     Panning(i32, i32),
     WebSocketOpened,
     WebSocketClosed(CloseEvent),
-    WebSocketError,
+    WebSocketError(String),
     ServerMessageReceived(ClientMessage),
     SendWebSocketMessage(ServerMessage),
-}
-impl Msg {
-
-    pub fn get_price_history() -> Self {
-        Msg::SendWebSocketMessage(ServerMessage::GetPriceHistory(
-            PriceHistoryRequest {
-                market_pair: "SOLBTC".into(),
-                interval: Some(openlimits::model::Interval::OneHour),
-                paginator: None,
-            }
-        ))
-    }
+    PollUpdate,
+    ReconnectWebSocket,
+    GetPriceHistory,
+    SetTimeInterval(Interval),
 }
 impl Component for Model {
     type Msg = Msg;
@@ -111,34 +114,130 @@ impl Component for Model {
                 self.view_x += x;
                 self.view_y += y;
             },
+            Msg::SetTimeInterval(interval) => {
+                if self.time_interval != interval {
+                    self.time_interval = interval;
+                    self.last_candle_update = None;
+                    self.data.clear();
+                    orders.send_msg(Msg::PollUpdate);
+                }
+            },
             Msg::WebSocketOpened => {
                 debug!("WebSocket opened");
-                orders.send_msg(Msg::get_price_history());
+                orders.send_msg(Msg::PollUpdate);
+            },
+            Msg::GetPriceHistory => {
+                debug!("GetPriceHistory");
+                orders.send_msg(self.price_history_request());
+            },
+            Msg::PollUpdate => {
+                debug!("Update Chart");
+                orders.send_msg(self.price_history_request());
+                self.update_poll_interval = Some(orders.stream_with_handle(
+                    streams::interval(
+                        self.time_interval
+                            .to_duration()
+                            .num_milliseconds()
+                            .max(
+                                Duration::minutes(1)
+                                .num_milliseconds()
+                            ) as u32,
+                        || Msg::PollUpdate
+                    )
+                ));
             },
             Msg::WebSocketClosed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
+                self.websocket = None;
+                if !event.was_clean() && self.websocket_reconnector.is_none() {
+                    self.websocket_reconnector = Some(
+                        orders.stream_with_handle(streams::backoff(None, |_| Msg::ReconnectWebSocket))
+                    );
+                }
             },
-            Msg::WebSocketError => {
-                debug!("WebSocket failed");
+            Msg::WebSocketError(err) => {
+                debug!("WebSocket error: {:#?}", err);
+            },
+            Msg::ReconnectWebSocket => {
+                self.websocket = Some(Self::create_websocket(orders));
             },
             Msg::ServerMessageReceived(msg) => {
                 debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
                 match msg {
                     ClientMessage::PriceHistory(candles) => {
-                        self.data = candles;
-                        self.update_values();
+                        self.append_price_history(candles);
                     },
                 }
             }
             Msg::SendWebSocketMessage(msg) => {
-                debug!("Send ServerMessage: {:#?}", msg);
-                self.websocket.send_json(&msg).unwrap();
+                debug!("Send ServerMessage");
+                //debug!("{:#?}", msg);
+                self.websocket.as_ref().map(|ws|
+                    ws.send_json(&msg)
+                        .unwrap_or_else(|err| {
+                            orders.send_msg(Msg::WebSocketError(format!("{:?}", err)));
+                        })
+                );
             }
         }
     }
 }
 impl Model {
+    fn append_price_history(&mut self, candles: Vec<Candle>) {
+        if let Some(timestamp) = self.last_candle_update {
+            let new_candles = candles.iter().skip_while(|candle| candle.time <= timestamp);
+            debug!("Appending {} new candles.", new_candles.clone().count());
+            self.data.extend(new_candles.cloned());
+        } else {
+            debug!("Setting {} initial candles.", candles.len());
+            self.data = candles;
+        }
+        self.update_values();
+        self.last_candle_update = self.data.last().map(|candle| candle.time);
+    }
+    pub fn price_history_request(&self) -> Msg {
+        let paginator = self.last_candle_update.map(|timestamp| Paginator {
+            start_time: Some(timestamp),
+            ..Default::default()
+        });
+        Msg::SendWebSocketMessage(ServerMessage::GetPriceHistory(
+            PriceHistoryRequest {
+                market_pair: "SOLBTC".into(),
+                interval: Some(self.time_interval),
+                paginator,
+            }
+        ))
+    }
+    pub fn create_websocket(orders: &impl Orders<Msg>) -> WebSocket {
+        let msg_sender = orders.msg_sender();
+        WebSocket::builder(WS_URL, orders)
+            .on_open(|| Msg::WebSocketOpened)
+            .on_message(move |msg| Self::decode_message(msg, msg_sender))
+            .on_close(Msg::WebSocketClosed)
+            .on_error(|| Msg::WebSocketError("WebSocket failed.".to_string()))
+            .build_and_open()
+            .unwrap()
+    }
+    fn decode_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
+        if message.contains_text() {
+            let msg = message
+                .json::<shared::ClientMessage>()
+                .expect("Failed to decode WebSocket text message");
+    
+            msg_sender(Some(Msg::ServerMessageReceived(msg)));
+        } else {
+            spawn_local(async move {
+                let bytes = message
+                    .bytes()
+                    .await
+                    .expect("WebsocketError on binary data");
+    
+                let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
+                msg_sender(Some(Msg::ServerMessageReceived(msg)));
+            });
+        }
+    }
     fn graph_view(&self) -> Node<<Self as Component>::Msg> {
         div![
             style!{
@@ -175,144 +274,10 @@ impl Model {
             ],
         ]
     }
-    pub fn create_websocket(orders: &impl Orders<Msg>) -> WebSocket {
-        let msg_sender = orders.msg_sender();
-        WebSocket::builder(WS_URL, orders)
-            .on_open(|| Msg::WebSocketOpened)
-            .on_message(move |msg| Self::decode_message(msg, msg_sender))
-            .on_close(Msg::WebSocketClosed)
-            .on_error(|| Msg::WebSocketError)
-            .build_and_open()
-            .unwrap()
-    }
-    fn decode_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
-        if message.contains_text() {
-            let msg = message
-                .json::<shared::ClientMessage>()
-                .expect("Failed to decode WebSocket text message");
-    
-            msg_sender(Some(Msg::ServerMessageReceived(msg)));
-        } else {
-            spawn_local(async move {
-                let bytes = message
-                    .bytes()
-                    .await
-                    .expect("WebsocketError on binary data");
-    
-                let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
-                msg_sender(Some(Msg::ServerMessageReceived(msg)));
-            });
-        }
-    }
-    #[allow(unused)]
-    fn mutation_observer(&self) {
-        if let Some(node) = web_sys::window()
-            .and_then(|w| w.document())
-            .and_then(|document| document.get_element_by_id("graph-svg")) {
-            log!("found node");
-            let closure = wasm_bindgen::closure::Closure::new(|record: web_sys::MutationRecord| {
-                log!("Mutation {}", record);
-            });
-            let function = js_sys::Function::from(closure.into_js_value());
-            let observer = web_sys::MutationObserver::new(&function).unwrap();
-            observer.observe(&node).unwrap();
-        }
-    }
-    async fn fetch_candles() -> Result<Vec<Candle>, FetchError> {
-        let req = seed::fetch::Request::new("http://localhost:8000/api/price_history")
-            .method(Method::Get);
-        seed::fetch::fetch(req)
-            .await?
-            .check_status()?
-            .json()
-            .await
-    }
-    fn update_values(&mut self) {
-        self.data_max = self.data.iter().map(|candle| candle.high).max().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
-        self.data_min = self.data.iter().map(|candle| candle.low).min().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
-        self.data_range = self.data_max-self.data_min;
-        if self.data_range != 0.0 {
-            self.y_factor = self.height as f32/self.data_range;
-        }
-        self.y_interval = (0.000001*self.y_factor).round() as u32;
-        //log!(self)
-    }
-    fn vertical_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
-        (0..(self.width/10)).fold(Vec::with_capacity(self.width as usize/10*2), |mut acc, index| {
-            let x = index*10;
-            let y = self.height as i32;
-            let h = 10;
-            let padding = 10;
-
-            let center_dir = (-1 * self.height as i32/2).clamp(-1, 1);
-            acc.push(path![
-                    attrs!{
-                        At::D => format!("M {} {} V {}", x, y, y + center_dir * h)
-                        At::Stroke => "black"
-                    }
-                ]);
-            if index % 10 == 0 {
-                acc.push(text![
-                    attrs!{
-                        At::X => x,
-                        At::Y => y + center_dir * (h + padding),
-                        At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
-                        At::DominantBaseline => "middle",
-                        At::TextAnchor => "middle",
-                        At::FontSize => "9",
-                        At::Fill => "black",
-                    },
-                    index.to_string()
-                ])
-            }
-            acc
-        })
-    }
-    fn to_y_pixels(&self, d: f32) -> i32 {
-        (d * self.y_factor).round() as i32
-    }
-    fn horizontal_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
-        let count: usize = self.height as usize/self.y_interval.max(1) as usize;
-        (0..count)
-            .fold(Vec::with_capacity(count*2), |mut acc, index| {
-            let y: i32 = self.height as i32 - index as i32*self.y_interval as i32;
-            let x: i32 = 0;
-            let l = self.width as i32;
-            let xp: i32 = 10;
-            let yp: i32 = 10;
-
-            let center_dir = (self.width as i32/2 - x).clamp(-1, 1);
-            let emphathize = index % 10 == 0;
-            let opacity = if emphathize { 0.3 } else { 0.1 };
-            acc.push(path![
-                    attrs!{
-                        At::D => format!("M {} {} h {}", x, y, center_dir * l),
-                        At::Stroke => "black",
-                        At::StrokeWidth => 1,
-                        At::Opacity => opacity,
-                    }
-            ]);
-            if emphathize {
-                acc.push(text![
-                    attrs!{
-                        At::X => x + xp,
-                        At::Y => y + yp,
-                        At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
-                        At::DominantBaseline => "middle",
-                        At::TextAnchor => "middle",
-                        At::FontSize => "9",
-                        At::Fill => "black",
-                    },
-                    ((self.height as i32 - y)/10).to_string()
-                ]);
-            }
-            acc
-        })
-    }
     fn update_button(&self) -> Node<<Self as Component>::Msg> {
         div![
             button![
-                ev(Ev::Click, |_| Msg::get_price_history()),
+                ev(Ev::Click, |_| Msg::GetPriceHistory),
                 "Update!"
             ],
             if let Some(e) = &self.error {
@@ -323,6 +288,54 @@ impl Model {
                     e
                 ]
             } else { empty![] },
+        ]
+    }
+    fn interval_selection(&self) -> Node<<Self as Component>::Msg> {
+        div![
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneMinute)),
+                "1m"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::ThreeMinutes)),
+                "3m"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::FifteenMinutes)),
+                "15m"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneHour)),
+                "1h"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::FourHours)),
+                "4h"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::SixHours)),
+                "6h"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::TwelveHours)),
+                "12h"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneDay)),
+                "1d"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::ThreeDays)),
+                "3d"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneWeek)),
+                "1w"
+            ],
+            button![
+                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneMonth)),
+                "1M"
+            ],
         ]
     }
     fn plot_view(&self) -> Vec<Node<<Self as Component>::Msg>> {
@@ -378,11 +391,122 @@ impl Model {
                 }
             )
     }
+    fn update_values(&mut self) {
+        self.data_max = self.data.iter().map(|candle| candle.high).max().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
+        self.data_min = self.data.iter().map(|candle| candle.low).min().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
+        self.data_range = self.data_max-self.data_min;
+        if self.data_range != 0.0 {
+            self.y_factor = self.height as f32/self.data_range;
+        }
+        self.y_interval = (0.000001*self.y_factor).round() as u32;
+        //log!(self)
+    }
+    fn to_y_pixels(&self, d: f32) -> i32 {
+        (d * self.y_factor).round() as i32
+    }
+    #[allow(unused)]
+    fn vertical_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
+        (0..(self.width/10)).fold(Vec::with_capacity(self.width as usize/10*2), |mut acc, index| {
+            let x = index*10;
+            let y = self.height as i32;
+            let h = 10;
+            let padding = 10;
+
+            let center_dir = (-1 * self.height as i32/2).clamp(-1, 1);
+            acc.push(path![
+                    attrs!{
+                        At::D => format!("M {} {} V {}", x, y, y + center_dir * h)
+                        At::Stroke => "black"
+                    }
+                ]);
+            if index % 10 == 0 {
+                acc.push(text![
+                    attrs!{
+                        At::X => x,
+                        At::Y => y + center_dir * (h + padding),
+                        At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
+                        At::DominantBaseline => "middle",
+                        At::TextAnchor => "middle",
+                        At::FontSize => "9",
+                        At::Fill => "black",
+                    },
+                    index.to_string()
+                ])
+            }
+            acc
+        })
+    }
+    #[allow(unused)]
+    fn horizontal_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
+        let count: usize = self.height as usize/self.y_interval.max(1) as usize;
+        (0..count)
+            .fold(Vec::with_capacity(count*2), |mut acc, index| {
+            let y: i32 = self.height as i32 - index as i32*self.y_interval as i32;
+            let x: i32 = 0;
+            let l = self.width as i32;
+            let xp: i32 = 10;
+            let yp: i32 = 10;
+
+            let center_dir = (self.width as i32/2 - x).clamp(-1, 1);
+            let emphathize = index % 10 == 0;
+            let opacity = if emphathize { 0.3 } else { 0.1 };
+            acc.push(path![
+                    attrs!{
+                        At::D => format!("M {} {} h {}", x, y, center_dir * l),
+                        At::Stroke => "black",
+                        At::StrokeWidth => 1,
+                        At::Opacity => opacity,
+                    }
+            ]);
+            if emphathize {
+                acc.push(text![
+                    attrs!{
+                        At::X => x + xp,
+                        At::Y => y + yp,
+                        At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
+                        At::DominantBaseline => "middle",
+                        At::TextAnchor => "middle",
+                        At::FontSize => "9",
+                        At::Fill => "black",
+                    },
+                    ((self.height as i32 - y)/10).to_string()
+                ]);
+            }
+            acc
+        })
+    }
+    #[allow(unused)]
+    fn mutation_observer(&self) {
+        if let Some(node) = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|document| document.get_element_by_id("graph-svg")) {
+            log!("found node");
+            let closure = wasm_bindgen::closure::Closure::new(|record: web_sys::MutationRecord| {
+                log!("Mutation {}", record);
+            });
+            let function = js_sys::Function::from(closure.into_js_value());
+            let observer = web_sys::MutationObserver::new(&function).unwrap();
+            observer.observe(&node).unwrap();
+        }
+    }
+    #[allow(unused)]
+    async fn fetch_candles() -> Result<Vec<Candle>, FetchError> {
+        let url = "http://localhost:8000/api/price_history";
+        seed::fetch::fetch(
+            Request::new(url)
+                .method(Method::Get)
+            )
+            .await?
+            .check_status()?
+            .json()
+            .await
+    }
 }
 impl View for Model {
     fn view(&self) -> Node<Self::Msg> {
         div![
             self.update_button(),
+            self.interval_selection(),
             self.graph_view(),
         ]
     }
