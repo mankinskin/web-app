@@ -30,6 +30,9 @@ use crate::{
     server::{
         keys,
     },
+    shared::{
+        PriceHistoryRequest,
+    },
 };
 use tracing::{
     debug,
@@ -94,11 +97,4 @@ impl Binance {
         }).await.map_err(Into::into)
     }
 }
-#[derive(Debug)]
-pub struct PriceHistoryRequest {
-    pub market_pair: String,
-    pub interval: Option<openlimits::model::Interval>,
-    pub paginator: Option<openlimits::model::Paginator<u64>>,
-}
-
 

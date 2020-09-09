@@ -20,9 +20,7 @@ use chrono::{
     Utc,
 };
 use crate::{
-    server::binance::{
-        PriceHistoryRequest,
-    },
+    shared,
 };
 use serde::{
     Serialize,
@@ -70,7 +68,7 @@ impl SymbolModel {
                         }
                     );
         let prices = crate::binance().await.get_symbol_price_history(
-                PriceHistoryRequest {
+                shared::PriceHistoryRequest {
                     market_pair: self.symbol.clone(),
                     interval: None,
                     paginator,
