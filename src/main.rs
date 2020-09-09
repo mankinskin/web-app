@@ -15,6 +15,7 @@ extern crate chrono;
 extern crate telegram_bot;
 extern crate warp;
 
+mod server;
 mod telegram;
 use telegram::{
     Telegram,
@@ -176,6 +177,7 @@ lazy_static! {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     binance().await.init().await;
+    server::run().await?;
     MessageStream::init()
         .await?
         .handle_messages()

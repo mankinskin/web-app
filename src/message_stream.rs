@@ -12,7 +12,6 @@ use telegram_bot::{
 };
 use futures::{
     StreamExt,
-    FutureExt,
 };
 use futures_core::{
     stream::{
@@ -26,9 +25,6 @@ use async_std::{
             BufReadExt,
         },
     },
-    net::{
-        SocketAddr,
-    },
     sync::{
         Arc,
         RwLock,
@@ -41,33 +37,7 @@ use std::{
     pin::Pin,
     task::Poll,
 };
-use warp::{
-    Filter,
-};
 
-const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
-async fn run_server() {
-    warp::serve(
-        warp::path("ws")
-            .and(warp::ws())
-            .map(|ws: warp::ws::Ws| {
-                // And then our closure will be called when it completes...
-                ws.on_upgrade(|websocket| {
-                    // Just echo all messages back...
-                    let (tx, rx) = websocket.split();
-                    rx.forward(tx).map(|result| {
-                        if let Err(e) = result {
-                            eprintln!("websocket error: {:?}", e);
-                        }
-                    })
-                })
-            })
-            .or(warp::fs::dir(PKG_PATH.to_string()))
-
-        )
-        .run(SocketAddr::from(([0,0,0,0], 8000)))
-        .await
-}
 #[derive(Debug)]
 pub enum Message {
     Telegram(TelegramUpdate),
@@ -81,7 +51,6 @@ pub struct MessageStream {
 }
 impl MessageStream {
     pub async fn init() -> Result<Self, Error> {
-        tokio::spawn(run_server());
         Ok(MessageStream {
             stdin: async_std::io::stdin(),
             telegram_stream: Some(telegram().await.stream()),
