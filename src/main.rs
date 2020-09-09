@@ -64,6 +64,19 @@ use clap::{
 };
 use tracing::{
     debug,
+    Subscriber,
+};
+use tracing_subscriber::{
+    prelude::*,
+    fmt,
+    layer::{
+        SubscriberExt,
+    },
+};
+use tracing_appender::{
+    non_blocking::{
+        WorkerGuard,
+    },
 };
 
 #[derive(Debug)]
@@ -195,21 +208,23 @@ use lazy_static::lazy_static;
 lazy_static! {
     static ref INTERVAL: Arc<RwLock<Option<Interval>>> = Arc::new(RwLock::new(None));
 }
-fn init_tracing() {
-    //let file_appender = tracing_appender::rolling::hourly("./logs", "log");
-    //let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
-    //tracing_subscriber::fmt()
-    //    .with_writer(file_writer)
-    //    .init();
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_env_filter("server")
-        .init();
+
+fn init_tracing() -> WorkerGuard {
+    let file_appender = tracing_appender::rolling::hourly("./logs", "log");
+    let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::fmt::Subscriber::builder()
+            .with_env_filter("server")
+            .with_max_level(tracing::Level::DEBUG)
+            .finish()
+            .with(fmt::Layer::default().with_writer(file_writer))
+    ).expect("Unable to set global tracing subscriber");
     debug!("Tracing initialized.");
+    guard
 }
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    init_tracing();
+    let _guard = init_tracing();
     binance().await.init().await;
     server::run().await?;
     MessageStream::init()
