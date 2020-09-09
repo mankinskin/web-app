@@ -1,4 +1,3 @@
-use crate::shared;
 use serde::{
     Serialize,
     Deserialize,
@@ -28,6 +27,9 @@ use async_std::sync::{
 use lazy_static::lazy_static;
 use crate::{
     Error,
+    server::{
+        keys,
+    },
 };
 use tracing::{
     debug,
@@ -44,8 +46,8 @@ pub struct BinanceCredential {
 impl BinanceCredential {
     pub fn new() -> Self {
         Self {
-            api_key: shared::read_key_file("keys/binance_api"),
-            secret_key: shared::read_key_file("keys/binance_secret"),
+            api_key: keys::read_key_file("keys/binance_api"),
+            secret_key: keys::read_key_file("keys/binance_secret"),
         }
     }
 }

@@ -35,6 +35,7 @@ features = [
 
 [lib]
 crate-type = ["cdylib"]
+path = "src/lib.rs"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-std = "^1"

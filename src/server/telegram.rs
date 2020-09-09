@@ -1,4 +1,3 @@
-use crate::shared;
 use telegram_bot::{
     Api,
     UpdateKind,
@@ -10,7 +9,12 @@ pub use telegram_bot::{
     Error as TelegramError,
     Update as TelegramUpdate,
 };
-use crate::Error;
+use crate::{
+    Error,
+    server::{
+        keys,
+    },
+};
 use lazy_static::lazy_static;
 use tracing::{
     debug,
@@ -29,7 +33,7 @@ fn remove_coloring(text: String) -> String {
 }
 impl Telegram {
     pub fn new() -> Self {
-        let telegram_key = shared::read_key_file("keys/telegram");
+        let telegram_key = keys::read_key_file("keys/telegram");
         let api = Api::new(telegram_key);
         Self {
             api,

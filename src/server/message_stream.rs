@@ -2,8 +2,10 @@ use crate::{
     Error,
     telegram,
     INTERVAL,
-    telegram::{
-        TelegramUpdate,
+    server::{
+        telegram::{
+            TelegramUpdate,
+        },
     },
     run_command,
 };

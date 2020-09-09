@@ -19,8 +19,10 @@ use chrono::{
     DateTime,
     Utc,
 };
-use crate::binance::{
-    PriceHistoryRequest,
+use crate::{
+    server::binance::{
+        PriceHistoryRequest,
+    },
 };
 use serde::{
     Serialize,
