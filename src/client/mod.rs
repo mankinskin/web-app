@@ -29,8 +29,6 @@ use tracing::{
     debug,
 };
 
-const WS_URL: &str = "ws://localhost:8000/ws";
-
 fn init_tracing() {
     tracing_wasm::set_as_global_default();
     debug!("Tracing initialized.");
@@ -42,7 +40,10 @@ pub fn render() {
     App::start("app",
         |_url, orders| {
             orders.after_next_render(|_| Msg::Init); 
+            let host = web_sys::window().unwrap().location().host().unwrap();
+            debug!("Host: {}", host);
             Model {
+                host: host.clone(),
                 view_x: 0,
                 view_y: 0,
                 width: 500,
@@ -56,7 +57,7 @@ pub fn render() {
                 y_factor: 0.0,
                 svg_node: None,
                 websocket_reconnector: None,
-                websocket: Some(Model::create_websocket(orders)),
+                websocket: Some(Model::create_websocket(&host, orders)),
                 data_range: 0.0,
                 last_candle_update: None,
                 time_interval: Interval::OneMinute,
@@ -69,6 +70,7 @@ pub fn render() {
 }
 #[derive(Debug)]
 pub struct Model {
+    pub host: String,
     pub websocket: Option<WebSocket>,
     pub websocket_reconnector: Option<StreamHandle>,
     pub update_poll_interval: Option<StreamHandle>,
@@ -159,7 +161,7 @@ impl Component for Model {
                 debug!("WebSocket error: {:#?}", err);
             },
             Msg::ReconnectWebSocket => {
-                self.websocket = Some(Self::create_websocket(orders));
+                self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
             Msg::ServerMessageReceived(msg) => {
                 debug!("ClientMessage received");
@@ -209,9 +211,10 @@ impl Model {
             }
         ))
     }
-    pub fn create_websocket(orders: &impl Orders<Msg>) -> WebSocket {
+    pub fn create_websocket(url: &str, orders: &impl Orders<Msg>) -> WebSocket {
         let msg_sender = orders.msg_sender();
-        WebSocket::builder(WS_URL, orders)
+        let url = format!("ws://{}/ws", url);
+        WebSocket::builder(url, orders)
             .on_open(|| Msg::WebSocketOpened)
             .on_message(move |msg| Self::decode_message(msg, msg_sender))
             .on_close(Msg::WebSocketClosed)
@@ -490,8 +493,8 @@ impl Model {
         }
     }
     #[allow(unused)]
-    async fn fetch_candles() -> Result<Vec<Candle>, FetchError> {
-        let url = "http://localhost:8000/api/price_history";
+    async fn fetch_candles(url: &str) -> Result<Vec<Candle>, FetchError> {
+        let url = format!("http://{}/api/price_history", url);
         seed::fetch::fetch(
             Request::new(url)
                 .method(Method::Get)
