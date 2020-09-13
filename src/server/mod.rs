@@ -104,9 +104,19 @@ pub async fn run() -> Result<(), tokio::task::JoinError> {
         });
     let api_routes = price_history;
     let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
+    let logger = warp::log::custom(|info|
+        debug!("request from {:?}: {} {} {}ms {}",
+            info.remote_addr(),
+            info.method(),
+            info.path(),
+            info.elapsed().as_millis(),
+            info.status(),
+        )
+    );
     let routes = websocket
         .or(api_routes)
-        .or(pkg_dir);
+        .or(pkg_dir)
+        .with(logger);
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes);
     debug!("Starting Server");
