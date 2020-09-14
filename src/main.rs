@@ -34,9 +34,7 @@ use server::{
         self,
         Model,
     },
-    message_stream::{
-        MessageStream,
-    },
+    message_stream,
 };
 use async_std::{
     sync::{
@@ -90,12 +88,9 @@ fn init_tracing() -> WorkerGuard {
     guard
 }
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() {
     let _guard = init_tracing();
     binance().await.init().await;
-    tokio::spawn(server::run());
-    MessageStream::init()
-        .await?
-        .handle_messages()
-        .await
+    tokio::spawn(server::listen());
+    message_stream::handle_messages().await;
 }

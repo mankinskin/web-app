@@ -32,7 +32,6 @@ use crate::{
 };
 use std::convert::TryFrom;
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
-
 pub async fn websocket_connection(websocket: warp::ws::WebSocket) -> Result<(), Error> {
     debug!("Starting WebSocket connection");
     let (mut ws_tx, mut ws_rx) = websocket.split();
@@ -79,7 +78,7 @@ pub async fn websocket_closed() -> Result<(), Error> {
     debug!("Closing WebSocket connection");
     Ok(())
 }
-pub async fn run() {
+pub async fn listen() {
     let websocket = warp::path("ws")
                 .and(warp::ws())
                 .map(|ws: warp::ws::Ws| {
@@ -92,7 +91,8 @@ pub async fn run() {
     let api = warp::path("api");
     let price_history = api.and(warp::path("price_history"))
         .and_then(|| async {
-            crate::binance().await.get_symbol_price_history(shared::PriceHistoryRequest {
+            crate::binance().await
+                .get_symbol_price_history(shared::PriceHistoryRequest {
                 market_pair: "SOLBTC".into(),
                 interval: Some(openlimits::model::Interval::OneHour),
                 paginator: None,

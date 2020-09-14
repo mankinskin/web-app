@@ -58,26 +58,15 @@ pub struct MessageStream {
     pub interval: Arc<RwLock<Option<Interval>>>,
 }
 impl MessageStream {
-    pub async fn init() -> Result<Self, Error> {
+    pub async fn init() -> Self {
         debug!("Initializing MessageStream...");
-        Ok(MessageStream {
+        MessageStream {
             stdin: async_std::io::stdin(),
             telegram_stream: Some(telegram().await.stream()),
             interval: INTERVAL.clone(),
-        })
-    }
-    async fn handle_message(msg: Message) -> Result<(), Error> {
-        match msg {
-            Message::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
-            Message::CommandLine(text) => Ok(println!("{}", run_command(text).await?)),
-            Message::Model => crate::model().await.update().await,
         }
     }
-    async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
-        error!("Error: {:#?}", error);
-        Ok(())
-    }
-    pub async fn handle_messages(&mut self) -> Result<(), Error> {
+    pub async fn handle_messages(&mut self) {
         while let Some(result) = self.next().await {
             match result {
                 Ok(message) => {
@@ -88,6 +77,16 @@ impl MessageStream {
                 Err(err) => self.handle_error(err).await.unwrap(),
             }
         }
+    }
+    async fn handle_message(msg: Message) -> Result<(), Error> {
+        match msg {
+            Message::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
+            Message::CommandLine(text) => Ok(println!("{}", run_command(text).await?)),
+            Message::Model => crate::model().await.update().await,
+        }
+    }
+    async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
+        error!("{:#?}", error);
         Ok(())
     }
 }
@@ -137,4 +136,10 @@ impl Stream for MessageStream {
         //debug!("Poll pending.");
         Poll::Pending
     }
+}
+pub async fn handle_messages() {
+    MessageStream::init()
+        .await
+        .handle_messages()
+        .await
 }
