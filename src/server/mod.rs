@@ -77,7 +77,7 @@ pub async fn websocket_closed() -> Result<(), Error> {
     debug!("Closing WebSocket connection");
     Ok(())
 }
-pub async fn run() -> Result<(), tokio::task::JoinError> {
+pub async fn run() {
     let websocket = warp::path("ws")
                 .and(warp::ws())
                 .map(|ws: warp::ws::Ws| {
@@ -119,5 +119,5 @@ pub async fn run() -> Result<(), tokio::task::JoinError> {
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes);
     debug!("Starting Server");
-    tokio::spawn(server.run(addr)).await
+    server.run(addr).await
 }

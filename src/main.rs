@@ -93,7 +93,7 @@ fn init_tracing() -> WorkerGuard {
 async fn main() -> Result<(), Error> {
     let _guard = init_tracing();
     binance().await.init().await;
-    server::run().await?;
+    tokio::spawn(server::run());
     MessageStream::init()
         .await?
         .handle_messages()
