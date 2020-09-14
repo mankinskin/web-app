@@ -12,6 +12,7 @@ pub use telegram_bot::{
 use crate::{
     server::{
         keys,
+        command::run_command,
     },
 };
 use lazy_static::lazy_static;
@@ -43,7 +44,7 @@ impl Telegram {
             MessageKind::Text { data, .. } => {
                 let cmd = data;
                 println!("<{}>: {}", &message.from.first_name, cmd);
-                let output = crate::run_command(cmd).await?;
+                let output = run_command(cmd).await?;
                 let result = self.api.send(message.text_reply(format!(
                     "{}", remove_coloring(output),
                 ))).await;

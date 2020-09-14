@@ -4,6 +4,7 @@ pub mod keys;
 pub mod binance;
 pub mod model;
 pub mod message_stream;
+pub mod command;
 
 use async_std::{
     net::{

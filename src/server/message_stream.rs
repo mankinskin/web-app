@@ -6,8 +6,10 @@ use crate::{
         telegram::{
             Update,
         },
+        command::{
+            run_command,
+        },
     },
-    run_command,
 };
 use telegram_bot::{
     UpdatesStream,
@@ -72,7 +74,7 @@ impl MessageStream {
         }
     }
     async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
-        error!("MessageStream Error: {:#?}", error);
+        error!("Error: {:#?}", error);
         Ok(())
     }
     pub async fn handle_messages(&mut self) -> Result<(), Error> {
