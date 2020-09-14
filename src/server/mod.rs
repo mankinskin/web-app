@@ -30,7 +30,7 @@ use crate::{
     },
     Error,
 };
-
+use std::convert::TryFrom;
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 
 pub async fn websocket_connection(websocket: warp::ws::WebSocket) -> Result<(), Error> {
@@ -45,31 +45,33 @@ pub async fn websocket_connection(websocket: warp::ws::WebSocket) -> Result<(), 
     websocket_closed().await
 }
 pub async fn handle_message(msg: warp::ws::Message) -> Result<Option<ClientMessage>, Error> {
-    let msg = decode_message(msg).await?;
     debug!("Received websocket msg");
     //debug!("{:#?}", msg);
-    Ok(match msg {
+    Ok(match ServerMessage::try_from(msg)? {
         ServerMessage::GetPriceHistory(req) => {
             Some(ClientMessage::PriceHistory(crate::binance().await.get_symbol_price_history(req).await?))
         },
         _ => None,
     })
 }
-pub async fn decode_message(msg: warp::ws::Message) -> Result<ServerMessage, Error> {
-    if let Ok(text) = msg.to_str() {
-        serde_json::de::from_str(text).map_err(Into::into)
-    } else {
-        if msg.is_close() {
-            Ok(ServerMessage::Close)
-        } else if msg.is_ping() {
-            Ok(ServerMessage::Ping)
-        } else if msg.is_pong() {
-            Ok(ServerMessage::Pong)
-        } else if msg.is_binary() {
-            let bytes = msg.as_bytes().to_vec();
-            Ok(ServerMessage::Binary(bytes))
+impl TryFrom<warp::ws::Message> for ServerMessage {
+    type Error = Error;
+    fn try_from(msg: warp::ws::Message) -> Result<Self, Self::Error> {
+        if let Ok(text) = msg.to_str() {
+            serde_json::de::from_str(text).map_err(Into::into)
         } else {
-            Err(Error::WebSocket(format!("Unable to read message: {:#?}", msg)))
+            if msg.is_close() {
+                Ok(ServerMessage::Close)
+            } else if msg.is_ping() {
+                Ok(ServerMessage::Ping)
+            } else if msg.is_pong() {
+                Ok(ServerMessage::Pong)
+            } else if msg.is_binary() {
+                let bytes = msg.as_bytes().to_vec();
+                Ok(ServerMessage::Binary(bytes))
+            } else {
+                Err(Error::WebSocket(format!("Unable to read message: {:#?}", msg)))
+            }
         }
     }
 }
