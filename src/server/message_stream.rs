@@ -4,7 +4,7 @@ use crate::{
     INTERVAL,
     server::{
         telegram::{
-            TelegramUpdate,
+            Update,
         },
     },
     run_command,
@@ -46,7 +46,7 @@ use tracing::{
 
 #[derive(Debug)]
 pub enum Message {
-    Telegram(TelegramUpdate),
+    Telegram(Update),
     CommandLine(String),
     Model,
 }

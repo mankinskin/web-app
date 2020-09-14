@@ -6,11 +6,10 @@ use telegram_bot::{
     CanReplySendMessage,
 };
 pub use telegram_bot::{
-    Error as TelegramError,
-    Update as TelegramUpdate,
+    Error,
+    Update,
 };
 use crate::{
-    Error,
     server::{
         keys,
     },
@@ -39,7 +38,7 @@ impl Telegram {
             api,
         }
     }
-    pub async fn handle_message(&mut self, message: Message) -> Result<(), Error> {
+    pub async fn handle_message(&mut self, message: Message) -> Result<(), crate::Error> {
         match message.kind.clone() {
             MessageKind::Text { data, .. } => {
                 let cmd = data;
@@ -58,7 +57,7 @@ impl Telegram {
         }
         Ok(())
     }
-    pub async fn update(&mut self, update: TelegramUpdate) -> Result<(), Error> {
+    pub async fn update(&mut self, update: Update) -> Result<(), crate::Error> {
         debug!("Telegram Update");
         Ok(
             match update.kind {

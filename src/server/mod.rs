@@ -1,3 +1,4 @@
+pub mod error;
 pub mod telegram;
 pub mod keys;
 pub mod binance;
@@ -10,7 +11,6 @@ use async_std::{
     },
 };
 use futures::{
-    FutureExt,
     StreamExt,
     SinkExt,
 };
@@ -18,7 +18,6 @@ use warp::{
     Filter,
 };
 use tracing::{
-    trace,
     debug,
     error,
 };
@@ -27,7 +26,6 @@ use crate::{
         self,
         ServerMessage,
         ClientMessage,
-        PriceHistoryRequest,
     },
     Error,
 };

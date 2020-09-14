@@ -21,10 +21,10 @@ extern crate tracing_appender;
 mod server;
 mod shared;
 use server::{
+    error::Error,
     telegram::{
         self,
         Telegram,
-        TelegramError,
     },
     binance::{
         self,
@@ -36,12 +36,6 @@ use server::{
     },
     message_stream::{
         MessageStream,
-    },
-};
-
-use openlimits::{
-    errors::{
-        OpenLimitError,
     },
 };
 use async_std::{
@@ -77,58 +71,6 @@ use tracing_appender::{
     },
 };
 
-#[derive(Debug)]
-pub enum Error {
-    Telegram(TelegramError),
-    OpenLimits(OpenLimitError),
-    AsyncIO(async_std::io::Error),
-    Clap(clap::Error),
-    Model(model::Error),
-    Tokio(tokio::task::JoinError),
-    SerdeJson(serde_json::Error),
-    WebSocket(String),
-    Warp(warp::Error),
-}
-impl From<warp::Error> for Error {
-    fn from(err: warp::Error) -> Self {
-        Self::Warp(err)
-    }
-}
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
-        Self::SerdeJson(err)
-    }
-}
-impl From<clap::Error> for Error {
-    fn from(err: clap::Error) -> Self {
-        Self::Clap(err)
-    }
-}
-impl From<TelegramError> for Error {
-    fn from(err: TelegramError) -> Self {
-        Self::Telegram(err)
-    }
-}
-impl From<OpenLimitError> for Error {
-    fn from(err: OpenLimitError) -> Self {
-        Self::OpenLimits(err)
-    }
-}
-impl From<async_std::io::Error> for Error {
-    fn from(err: async_std::io::Error) -> Self {
-        Self::AsyncIO(err)
-    }
-}
-impl From<model::Error> for Error {
-    fn from(err: model::Error) -> Self {
-        Self::Model(err)
-    }
-}
-impl From<tokio::task::JoinError> for Error {
-    fn from(err: tokio::task::JoinError) -> Self {
-        Self::Tokio(err)
-    }
-}
 pub async fn run_command(text: String) -> Result<String, Error> {
     debug!("Running command...");
     let mut args = vec![""];
