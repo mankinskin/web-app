@@ -31,14 +31,17 @@ fn init_tracing() {
     tracing_wasm::set_as_global_default();
     debug!("Tracing initialized.");
 }
+fn get_host() -> Result<String, JsValue> {
+    web_sys::window().unwrap().location().host()
+}
 #[wasm_bindgen(start)]
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_tracing();
     App::start("app",
         |_url, orders| {
-            orders.after_next_render(|_| Msg::Init); 
-            let host = web_sys::window().unwrap().location().host().unwrap();
+            orders.subscribe(Msg::SendWebSocketMessage); 
+            let host = get_host().unwrap();
             debug!("Host: {}", host);
             Model {
                 host: host.clone(),
@@ -60,30 +63,24 @@ pub struct Model {
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Init,
     WebSocketOpened,
     WebSocketClosed(CloseEvent),
     WebSocketError(String),
     ServerMessageReceived(ClientMessage),
     SendWebSocketMessage(ServerMessage),
     ReconnectWebSocket,
-    PollUpdate,
     Chart(chart::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
-            Msg::PollUpdate => {
-                self.chart.update(chart::Msg::PollUpdate, &mut orders.proxy(Msg::Chart));
+            Msg::Chart(msg) => {
+                self.chart.update(msg, &mut orders.proxy(Msg::Chart));
             },
-            Msg::Init => {
-                debug!("Init");
-                //self.mutation_observer();
-            }
             Msg::WebSocketOpened => {
                 debug!("WebSocket opened");
-                orders.send_msg(Msg::PollUpdate);
+                orders.send_msg(Msg::Chart(chart::Msg::PollUpdate));
             },
             Msg::WebSocketClosed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
@@ -100,15 +97,6 @@ impl Component for Model {
             Msg::ReconnectWebSocket => {
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
-            Msg::ServerMessageReceived(msg) => {
-                debug!("ClientMessage received");
-                //debug!("{:#?}", msg);
-                match msg {
-                    ClientMessage::PriceHistory(candles) => {
-                        self.chart.append_price_history(candles);
-                    },
-                }
-            }
             Msg::SendWebSocketMessage(msg) => {
                 debug!("Send ServerMessage");
                 //debug!("{:#?}", msg);
@@ -119,10 +107,13 @@ impl Component for Model {
                         })
                 );
             },
-            Msg::Chart(msg) => {
+            Msg::ServerMessageReceived(msg) => {
+                debug!("ClientMessage received");
+                //debug!("{:#?}", msg);
                 match msg {
-                    chart::Msg::Client(msg) => { self.update(*msg, orders); },
-                    _ => { self.chart.update(msg, &mut orders.proxy(Msg::Chart)); },
+                    ClientMessage::PriceHistory(candles) => {
+                        self.chart.append_price_history(candles);
+                    },
                 }
             }
         }

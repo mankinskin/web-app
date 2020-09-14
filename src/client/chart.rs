@@ -32,9 +32,6 @@ use crate::{
 pub struct Chart {
     pub svg_node: Option<web_sys::Node>,
     pub data: Vec<Candle>,
-    pub last_candle_update: Option<u64>,
-    pub update_poll_interval: Option<StreamHandle>,
-    pub time_interval: Interval,
     pub data_min: f32,
     pub data_max: f32,
     pub y_interval: u32,
@@ -45,20 +42,21 @@ pub struct Chart {
     pub view_y: i32,
     pub width: u32,
     pub height: u32,
+
+    pub last_candle_update: Option<u64>,
+    pub update_poll_interval: Option<StreamHandle>,
+    pub time_interval: Interval,
     pub error: Option<String>,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Init,
     Panning(i32, i32),
     SetTimeInterval(Interval),
     PollUpdate,
     GetPriceHistory,
-    Client(Box<client::Msg>),
 }
 impl Init<()> for Chart {
-    fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
-        orders.send_msg(Msg::Init);
+    fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         Self {
             view_x: 0,
             view_y: 0,
@@ -83,9 +81,6 @@ impl Component for Chart {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
-            Msg::Init => {
-                debug!("Init");
-            }
             Msg::Panning(x, y) => {
                 self.view_x += x;
                 self.view_y += y;
@@ -100,7 +95,7 @@ impl Component for Chart {
             },
             Msg::PollUpdate => {
                 debug!("Update Chart");
-                orders.send_msg(Msg::Client(Box::new(client::Msg::SendWebSocketMessage(self.price_history_request()))));
+                orders.notify(self.price_history_request());
                 self.update_poll_interval = Some(orders.stream_with_handle(
                     streams::interval(
                         self.time_interval
@@ -116,9 +111,8 @@ impl Component for Chart {
             },
             Msg::GetPriceHistory => {
                 debug!("GetPriceHistory");
-                orders.send_msg(Msg::Client(Box::new(client::Msg::SendWebSocketMessage(self.price_history_request()))));
+                orders.notify(client::Msg::SendWebSocketMessage(self.price_history_request()));
             },
-            Msg::Client(_) => {},
         }
     }
 }
