@@ -3,6 +3,10 @@ use crate::{
     telegram,
     INTERVAL,
     server::{
+        websocket::{
+            self,
+            WEBSOCKETS,
+        },
         telegram::{
             Update,
         },
@@ -29,13 +33,6 @@ use async_std::{
             BufReadExt,
         },
     },
-    sync::{
-        Arc,
-        RwLock,
-    },
-    stream::{
-        Interval,
-    },
 };
 use std::{
     pin::Pin,
@@ -50,12 +47,12 @@ use tracing::{
 pub enum Message {
     Telegram(Update),
     CommandLine(String),
+    WebSocket(usize, warp::ws::Message),
     Model,
 }
 pub struct MessageStream {
     pub stdin: async_std::io::Stdin,
     pub telegram_stream: Option<UpdatesStream>,
-    pub interval: Arc<RwLock<Option<Interval>>>,
 }
 impl MessageStream {
     pub async fn init() -> Self {
@@ -63,7 +60,6 @@ impl MessageStream {
         MessageStream {
             stdin: async_std::io::stdin(),
             telegram_stream: Some(telegram().await.stream()),
-            interval: INTERVAL.clone(),
         }
     }
     pub async fn handle_messages(&mut self) {
@@ -83,6 +79,7 @@ impl MessageStream {
             Message::Telegram(update) => telegram().await.update(update).await.map_err(Into::into),
             Message::CommandLine(text) => Ok(println!("{}", run_command(text).await?)),
             Message::Model => crate::model().await.update().await,
+            Message::WebSocket(id, msg) => websocket::handle_message(id, msg).await,
         }
     }
     async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
@@ -95,13 +92,25 @@ impl Stream for MessageStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         //debug!("Polling MessageStream...");
         let rself = self.get_mut();
-        if let Some(mut interval) = rself.interval.try_write() {
+        if let Some(mut interval) = INTERVAL.try_write() {
             if let Some(interval) = &mut *interval {
                 let interval_poll = Stream::poll_next(Pin::new(interval), cx);
                 if interval_poll.is_ready() {
                     //debug!("Interval poll ready");
                     return Poll::Ready(Some(Ok(Message::Model)));
                 }
+            }
+        }
+        for (id, (_, receiver)) in WEBSOCKETS.try_write().unwrap().iter_mut() {
+            let receiver_poll = Stream::poll_next(Pin::new(receiver), cx);
+            if receiver_poll.is_ready() {
+                //debug!("WebSocket poll ready");
+                return receiver_poll.map(|opt|
+                    opt.map(|result|
+                        result.map(|msg| Message::WebSocket(id.clone(), msg))
+                        .map_err(Into::into)
+                    )
+                );
             }
         }
         let stdin = BufReader::new(&mut rself.stdin);

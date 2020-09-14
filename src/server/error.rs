@@ -22,6 +22,14 @@ pub enum Error {
     SerdeJson(serde_json::Error),
     WebSocket(String),
     Warp(warp::Error),
+    Mpsc(futures::channel::mpsc::SendError),
+
+}
+
+impl From<futures::channel::mpsc::SendError> for Error {
+    fn from(err: futures::channel::mpsc::SendError) -> Self {
+        Self::Mpsc(err)
+    }
 }
 impl From<warp::Error> for Error {
     fn from(err: warp::Error) -> Self {
