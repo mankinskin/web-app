@@ -3,10 +3,7 @@ use crate::{
     telegram,
     INTERVAL,
     server::{
-        websocket::{
-            self,
-            WebSocketSession,
-        },
+        websocket,
         telegram::{
             Update,
         },
@@ -15,7 +12,6 @@ use crate::{
         },
     },
     shared::{
-        ClientMessage,
         ServerMessage,
     },
 };
@@ -24,7 +20,6 @@ use telegram_bot::{
 };
 use futures::{
     StreamExt,
-    SinkExt,
 };
 use futures_core::{
     stream::{

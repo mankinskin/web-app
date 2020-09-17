@@ -40,7 +40,8 @@ pub fn render() {
     init_tracing();
     App::start("app",
         |_url, orders| {
-            orders.subscribe(Msg::SendWebSocketMessage); 
+            orders.subscribe(|msg: ServerMessage|
+                Msg::SendWebSocketMessage(msg)); 
             let host = get_host().unwrap();
             debug!("Host: {}", host);
             Model {
@@ -80,11 +81,16 @@ impl Component for Model {
             },
             Msg::WebSocketOpened => {
                 debug!("WebSocket opened");
-                orders.send_msg(Msg::Chart(chart::Msg::PollUpdate));
+                orders.notify(chart::Msg::SubscribePriceHistory);
             },
             Msg::WebSocketClosed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
                 self.websocket = None;
+                if !event.was_clean() && self.websocket_reconnector.is_none() {
+                    self.websocket_reconnector = Some(
+                        orders.stream_with_handle(streams::backoff(None, |_| Msg::ReconnectWebSocket))
+                    );
+                }
             },
             Msg::WebSocketError(err) => {
                 debug!("WebSocket error: {:#?}", err);

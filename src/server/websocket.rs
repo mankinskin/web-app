@@ -7,12 +7,14 @@ use crate::{
     shared::{
         ServerMessage,
         ClientMessage,
+        PriceHistory,
+        PriceHistoryRequest,
     },
     Error,
 };
+use openlimits::model::Paginator;
 use tracing::{
     debug,
-    error,
 };
 use futures::{
     Stream,
@@ -28,24 +30,28 @@ use futures::{
         SplitSink,
     },
 };
-use std::convert::{
-    TryFrom,
-    TryInto,
-};
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use std::{
+    collections::HashMap,
     sync::{
         atomic::{
             AtomicUsize,
             Ordering,
         },
     },
+    convert::{
+        TryFrom,
+        TryInto,
+    },
+    time::Duration,
 };
 use async_std::{
     sync::{
         Arc,
         RwLock,
+    },
+    stream::{
+        interval,
     },
 };
 use std::pin::Pin;
@@ -57,26 +63,73 @@ lazy_static! {
 pub struct WebSocketSession {
     sender: SplitSink<WebSocket, warp::ws::Message>,
     receiver: SplitStream<WebSocket>,
+    subscriptions: Vec<PriceSubscription>,
 }
+#[derive(Debug, Clone)]
+struct PriceSubscription {
+    market_pair: String,
+    time_interval: openlimits::model::Interval,
+    last_update: Option<chrono::DateTime<chrono::Utc>>,
+}
+impl From<String> for PriceSubscription {
+    fn from(market_pair: String) -> Self {
+        Self {
+            market_pair,
+            time_interval: openlimits::model::Interval::OneMinute,
+            last_update: None,
+        }
+    }
+}
+impl PriceSubscription {
+    pub async fn latest_price_history(&self) -> Result<PriceHistory, Error> {
+        let paginator = self.last_update.map(|datetime| Paginator {
+            start_time: Some(datetime.timestamp_millis() as u64),
+            ..Default::default()
+        });
+        let req = PriceHistoryRequest {
+            market_pair: self.market_pair.clone(),
+            interval: Some(self.time_interval),
+            paginator,
+        };
+        let candles = crate::binance().await.get_symbol_price_history(req).await?;
+        Ok(PriceHistory {
+            market_pair: self.market_pair.clone(),
+            time_interval: self.time_interval,
+            candles,
+        })
+    }
+}
+
 impl WebSocketSession {
     pub fn new(sender: SplitSink<WebSocket, warp::ws::Message>, receiver: SplitStream<WebSocket>) -> Self {
         Self {
             sender,
             receiver,
+            subscriptions: Vec::new(),
         }
     }
     fn new_socket_id() -> usize {
         SOCKET_COUNT.fetch_add(1, Ordering::Relaxed)
     }
     pub async fn send_update(&mut self) -> Result<(), Error> {
-        self.send(ClientMessage::PriceHistory(Vec::new())).await
+        debug!("Sending updates");
+        for subscription in self.subscriptions.clone().iter() {
+            debug!("Updating subscription {}", &subscription.market_pair);
+            self.send(ClientMessage::PriceHistory(subscription.latest_price_history().await?)).await?;
+        }
+        Ok(())
     }
     pub async fn receive_message(&mut self, msg: ServerMessage) -> Result<(), Error> {
         debug!("Received websocket msg");
         //debug!("{:#?}", msg);
         let response = match msg {
-            ServerMessage::GetPriceHistory(req) => {
-                Some(ClientMessage::PriceHistory(crate::binance().await.get_symbol_price_history(req).await?))
+            ServerMessage::SubscribePrice(market_pair) => {
+                debug!("Subscribing to market pair {}", &market_pair);
+                self.subscriptions.push(PriceSubscription::from(market_pair.clone()));
+                crate::model().await.add_symbol(market_pair).await?;
+                crate::INTERVAL.write().await
+                    .get_or_insert_with(|| interval(Duration::from_secs(1)));    
+                None
             },
             _ => None,
         };

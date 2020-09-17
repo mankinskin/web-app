@@ -5,6 +5,7 @@ use serde::{
 use openlimits::{
     model::{
         Candle,
+        Interval,
     },
 };
 
@@ -14,10 +15,16 @@ pub struct PriceHistoryRequest {
     pub interval: Option<openlimits::model::Interval>,
     pub paginator: Option<openlimits::model::Paginator<u64>>,
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PriceHistory {
+    pub market_pair: String,
+    pub candles: Vec<Candle>,
+    pub time_interval: Interval,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
-    GetPriceHistory(PriceHistoryRequest),
+    SubscribePrice(String),
     Close,
     Ping,
     Pong,
@@ -25,5 +32,5 @@ pub enum ServerMessage {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
-    PriceHistory(Vec<Candle>),
+    PriceHistory(PriceHistory),
 }

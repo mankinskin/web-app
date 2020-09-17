@@ -1,7 +1,6 @@
 use openlimits::{
     model::{
         Candle,
-        Paginator,
         Interval,
     },
 };
@@ -18,15 +17,10 @@ use tracing::{
     debug,
 };
 use rust_decimal::prelude::ToPrimitive;
-use chrono::{
-    Duration,
-};
 use crate::{
-    client,
     shared::{
         ClientMessage,
         ServerMessage,
-        PriceHistoryRequest,
     },
 };
 #[derive(Debug)]
@@ -52,15 +46,20 @@ pub struct Chart {
 pub enum Msg {
     Panning(i32, i32),
     SetTimeInterval(Interval),
-    PollUpdate,
-    GetPriceHistory,
+    SubscribePriceHistory,
     AppendCandles(Vec<Candle>),
 }
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         orders.subscribe(|msg: ClientMessage| {
             match msg {
-                ClientMessage::PriceHistory(candles) => Some(Msg::AppendCandles(candles)),
+                ClientMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
+            }
+        });
+        orders.subscribe(|msg: Msg| {
+            match msg {
+                Msg::SubscribePriceHistory => Some(msg),
+                _ => None
             }
         });
         Self {
@@ -95,16 +94,11 @@ impl Component for Chart {
                     self.time_interval = interval;
                     self.last_candle_update = None;
                     self.data.clear();
-                    orders.send_msg(Msg::PollUpdate);
                 }
             },
-            Msg::PollUpdate => {
-                debug!("Update Chart");
-                orders.notify(self.price_history_request());
-            },
-            Msg::GetPriceHistory => {
-                debug!("GetPriceHistory");
-                orders.notify(client::Msg::SendWebSocketMessage(self.price_history_request()));
+            Msg::SubscribePriceHistory => {
+                debug!("SubscribePriceHistory");
+                orders.notify(self.subscribe_price_history_request());
             },
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
@@ -113,18 +107,8 @@ impl Component for Chart {
     }
 }
 impl Chart {
-    pub fn price_history_request(&self) -> ServerMessage {
-        let paginator = self.last_candle_update.map(|timestamp| Paginator {
-            start_time: Some(timestamp),
-            ..Default::default()
-        });
-        ServerMessage::GetPriceHistory(
-            PriceHistoryRequest {
-                market_pair: "SOLBTC".into(),
-                interval: Some(self.time_interval),
-                paginator,
-            }
-        )
+    pub fn subscribe_price_history_request(&self) -> ServerMessage {
+        ServerMessage::SubscribePrice("SOLBTC".into())
     }
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
         if let Some(timestamp) = self.last_candle_update {
@@ -172,22 +156,6 @@ impl Chart {
                 //self.vertical_lines(),
                 //self.horizontal_lines(),
             ],
-        ]
-    }
-    fn update_button(&self) -> Node<<Self as Component>::Msg> {
-        div![
-            button![
-                ev(Ev::Click, |_| Msg::GetPriceHistory),
-                "Update!"
-            ],
-            if let Some(e) = &self.error {
-                p![
-                    style!{
-                        St::Color => "red",
-                    },
-                    e
-                ]
-            } else { empty![] },
         ]
     }
     fn interval_selection(&self) -> Node<<Self as Component>::Msg> {
@@ -379,7 +347,6 @@ impl Chart {
 impl View for Chart {
     fn view(&self) -> Node<Self::Msg> {
         div![
-            self.update_button(),
             self.interval_selection(),
             self.graph_view(),
         ]
