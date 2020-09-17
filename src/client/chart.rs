@@ -24,6 +24,7 @@ use chrono::{
 use crate::{
     client,
     shared::{
+        ClientMessage,
         ServerMessage,
         PriceHistoryRequest,
     },
@@ -44,7 +45,6 @@ pub struct Chart {
     pub height: u32,
 
     pub last_candle_update: Option<u64>,
-    pub update_poll_interval: Option<StreamHandle>,
     pub time_interval: Interval,
     pub error: Option<String>,
 }
@@ -54,9 +54,15 @@ pub enum Msg {
     SetTimeInterval(Interval),
     PollUpdate,
     GetPriceHistory,
+    AppendCandles(Vec<Candle>),
 }
 impl Init<()> for Chart {
-    fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+    fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+        orders.subscribe(|msg: ClientMessage| {
+            match msg {
+                ClientMessage::PriceHistory(candles) => Some(Msg::AppendCandles(candles)),
+            }
+        });
         Self {
             view_x: 0,
             view_y: 0,
@@ -72,7 +78,6 @@ impl Init<()> for Chart {
             data_range: 0.0,
             last_candle_update: None,
             time_interval: Interval::OneMinute,
-            update_poll_interval: None,
             error: None,
         }
     }
@@ -96,23 +101,14 @@ impl Component for Chart {
             Msg::PollUpdate => {
                 debug!("Update Chart");
                 orders.notify(self.price_history_request());
-                self.update_poll_interval = Some(orders.stream_with_handle(
-                    streams::interval(
-                        self.time_interval
-                            .to_duration()
-                            .num_milliseconds()
-                            .max(
-                                Duration::minutes(1)
-                                .num_milliseconds()
-                            ) as u32,
-                        || Msg::PollUpdate
-                    )
-                ));
             },
             Msg::GetPriceHistory => {
                 debug!("GetPriceHistory");
                 orders.notify(client::Msg::SendWebSocketMessage(self.price_history_request()));
             },
+            Msg::AppendCandles(candles) => {
+                self.append_price_history(candles);
+            }
         }
     }
 }

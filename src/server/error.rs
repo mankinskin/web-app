@@ -23,7 +23,6 @@ pub enum Error {
     WebSocket(String),
     Warp(warp::Error),
     Mpsc(futures::channel::mpsc::SendError),
-
 }
 
 impl From<futures::channel::mpsc::SendError> for Error {

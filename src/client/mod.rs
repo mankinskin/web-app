@@ -85,11 +85,6 @@ impl Component for Model {
             Msg::WebSocketClosed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
                 self.websocket = None;
-                if !event.was_clean() && self.websocket_reconnector.is_none() {
-                    self.websocket_reconnector = Some(
-                        orders.stream_with_handle(streams::backoff(None, |_| Msg::ReconnectWebSocket))
-                    );
-                }
             },
             Msg::WebSocketError(err) => {
                 debug!("WebSocket error: {:#?}", err);
@@ -110,11 +105,7 @@ impl Component for Model {
             Msg::ServerMessageReceived(msg) => {
                 debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
-                match msg {
-                    ClientMessage::PriceHistory(candles) => {
-                        self.chart.append_price_history(candles);
-                    },
-                }
+                orders.notify(msg);
             }
         }
     }

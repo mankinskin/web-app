@@ -28,8 +28,8 @@ pub async fn listen() {
                 .and(warp::ws())
                 .map(|ws: warp::ws::Ws| {
                     ws.on_upgrade(move |websocket| async {
-                        if let Err(e) = websocket::open(websocket).await {
-                            error!("WebSocket error: {:#?}", e);
+                        if let Err(e) = websocket::open_connection(websocket).await {
+                            error!("{:#?}", e);
                         }
                     })
                 });

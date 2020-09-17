@@ -88,9 +88,9 @@ fn init_tracing() -> WorkerGuard {
     guard
 }
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     let _guard = init_tracing();
     binance().await.init().await;
     tokio::spawn(server::listen());
-    message_stream::handle_messages().await;
+    message_stream::handle_messages().await
 }
