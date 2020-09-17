@@ -125,11 +125,13 @@ impl WebSocketSession {
         let response = match msg {
             ServerMessage::SubscribePrice(market_pair) => {
                 debug!("Subscribing to market pair {}", &market_pair);
-                self.subscriptions.push(PriceSubscription::from(market_pair.clone()));
-                crate::model().await.add_symbol(market_pair).await?;
+                crate::model().await.add_symbol(market_pair.clone()).await?;
                 crate::INTERVAL.write().await
                     .get_or_insert_with(|| interval(Duration::from_secs(1)));    
-                None
+                let subscription = PriceSubscription::from(market_pair);
+                let response = ClientMessage::PriceHistory(subscription.latest_price_history().await?);
+                self.subscriptions.push(subscription);
+                Some(response)
             },
             _ => None,
         };
