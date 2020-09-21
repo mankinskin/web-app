@@ -113,8 +113,12 @@ impl Chart {
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
         if let Some(timestamp) = self.last_candle_update {
             let new_candles = candles.iter().skip_while(|candle| candle.time <= timestamp);
-            debug!("Appending {} new candles.", new_candles.clone().count());
-            self.data.extend(new_candles.cloned());
+            let count = new_candles.clone().count();
+            if count > 0 {
+                let candle_plural = if count == 1 { "" } else { "s" };
+                debug!("Appending {} new candle{}.", count, candle_plural);
+                self.data.extend(new_candles.cloned());
+            }
         } else {
             debug!("Setting {} initial candles.", candles.len());
             self.data = candles;
@@ -153,8 +157,8 @@ impl Chart {
                     St::Width => "100%",
                 },
                 self.plot_view(),
-                //self.vertical_lines(),
-                //self.horizontal_lines(),
+                self.vertical_lines(),
+                self.horizontal_lines(),
             ],
         ]
     }

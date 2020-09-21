@@ -112,19 +112,19 @@ impl WebSocketSession {
         SOCKET_COUNT.fetch_add(1, Ordering::Relaxed)
     }
     pub async fn send_update(&mut self) -> Result<(), Error> {
-        debug!("Sending updates");
+        //debug!("Sending updates");
         for subscription in self.subscriptions.clone().iter() {
-            debug!("Updating subscription {}", &subscription.market_pair);
+            //debug!("Updating subscription {}", &subscription.market_pair);
             self.send(ClientMessage::PriceHistory(subscription.latest_price_history().await?)).await?;
         }
         Ok(())
     }
     pub async fn receive_message(&mut self, msg: ServerMessage) -> Result<(), Error> {
-        debug!("Received websocket msg");
+        //debug!("Received websocket msg");
         //debug!("{:#?}", msg);
         let response = match msg {
             ServerMessage::SubscribePrice(market_pair) => {
-                debug!("Subscribing to market pair {}", &market_pair);
+                //debug!("Subscribing to market pair {}", &market_pair);
                 crate::model().await.add_symbol(market_pair.clone()).await?;
                 crate::INTERVAL.write().await
                     .get_or_insert_with(|| interval(Duration::from_secs(1)));    

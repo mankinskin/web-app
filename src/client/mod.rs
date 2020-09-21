@@ -99,7 +99,7 @@ impl Component for Model {
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
             Msg::SendWebSocketMessage(msg) => {
-                debug!("Send ServerMessage");
+                //debug!("Send ServerMessage");
                 //debug!("{:#?}", msg);
                 self.websocket.as_ref().map(|ws|
                     ws.send_json(&msg)
@@ -109,7 +109,7 @@ impl Component for Model {
                 );
             },
             Msg::ServerMessageReceived(msg) => {
-                debug!("ClientMessage received");
+                //debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
             }

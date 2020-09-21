@@ -58,7 +58,7 @@ impl SymbolModel {
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
-        debug!("SymbolModel update");
+        //debug!("SymbolModel update");
         let paginator = self.last_update.and_then(|date_time|
                 date_time.timestamp().try_into().ok()
             ).map(|timestamp: u64| 
@@ -101,17 +101,17 @@ impl Model {
     pub async fn add_symbol(&mut self, symbol: String) -> Result<(), crate::Error> {
         debug!("Adding symbol to model...");
         let symbol = symbol.to_uppercase();
-        if self.symbols.contains_key(&symbol) {
-            Err(Error::from(format!("Symbol {} already in Model", symbol)).into())
-        } else if !crate::binance().await.symbol_available(&symbol).await {
+        if !crate::binance().await.symbol_available(&symbol).await {
             Err(Error::from(format!("Symbol {} not found on Binance", symbol)).into())
         } else {
-            self.symbols.insert(symbol.clone(), SymbolModel::from_symbol(symbol));
+            if !self.symbols.contains_key(&symbol) {
+                self.symbols.insert(symbol.clone(), SymbolModel::from_symbol(symbol));
+            }
             Ok(())
         }
     }
     pub async fn update(&mut self) -> Result<(), crate::Error>{
-        debug!("Model update");
+        //debug!("Model update");
         for (_, model) in &mut self.symbols {
             model.update().await?
         }
