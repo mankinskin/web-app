@@ -1,0 +1,18 @@
+[package]
+name = "components"
+version = "0.1.0"
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+
+[dependencies.seed]
+git = "https://github.com/seed-rs/seed"
+branch = "master"
+
+[dependencies.app-model]
+path = "../app-model"
