@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [dependencies]
+lazy_static = "^1"
 
 [dependencies.seed]
 git = "https://github.com/seed-rs/seed"
