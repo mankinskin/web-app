@@ -350,6 +350,7 @@ impl Chart {
 }
 impl View for Chart {
     fn view(&self) -> Node<Self::Msg> {
+        //seed::log!("Chart redraw!");
         div![
             self.interval_selection(),
             self.graph_view(),

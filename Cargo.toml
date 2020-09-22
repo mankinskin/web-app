@@ -32,6 +32,8 @@ version = "^1"
 features = [
   "derive",
 ]
+[dependencies.app-model]
+path = "../app-model"
 
 [lib]
 crate-type = ["cdylib"]

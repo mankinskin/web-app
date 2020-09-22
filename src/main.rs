@@ -17,6 +17,7 @@ extern crate warp;
 extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_appender;
+extern crate app_model;
 
 mod server;
 mod shared;

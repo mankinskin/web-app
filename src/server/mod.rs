@@ -22,6 +22,18 @@ use tracing::{
 use crate::{
     shared,
 };
+use app_model::{
+    user::{
+        User,
+    },
+    auth::{
+        login,
+        register,
+        credentials::Credentials,
+    },
+};
+use warp::reply::Reply;
+
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 pub async fn listen() {
     let websocket = warp::path("ws")
@@ -33,8 +45,8 @@ pub async fn listen() {
                         }
                     })
                 });
-    let api = warp::path("api");
-    let price_history = api.and(warp::path("price_history"))
+    let price_history = warp::get()
+        .and(warp::path!("api"/"price_history"))
         .and_then(|| async {
             crate::binance().await
                 .get_symbol_price_history(shared::PriceHistoryRequest {
@@ -48,7 +60,27 @@ pub async fn listen() {
                 warp::reject::not_found()
             )
         });
-    let api_routes = price_history;
+    let login = warp::post()
+        .and(warp::path!("api"/"login"))
+        .and(warp::body::json())
+        .and_then(|credentials: Credentials| async {
+            Ok(match login(credentials).await {
+                Ok(session) => warp::reply::json(&session).into_response(),
+                Err(status) => warp::reply::with_status("", status).into_response(),
+            }) as Result<warp::reply::Response, core::convert::Infallible>
+        });
+    let register = warp::post()
+        .and(warp::path!("api"/"register"))
+        .and(warp::body::json())
+        .and_then(|user: User| async {
+            Ok(match register(user).await {
+                Ok(session) => warp::reply::json(&session).into_response(),
+                Err(status) => warp::reply::with_status("", status).into_response(),
+            }) as Result<warp::reply::Response, core::convert::Infallible>
+        });
+    let api = price_history
+        .or(login)
+        .or(register);
     let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
     let logger = warp::log::custom(|info|
         debug!("request from {:?}: {} {} {}ms {}",
@@ -60,7 +92,7 @@ pub async fn listen() {
         )
     );
     let routes = websocket
-        .or(api_routes)
+        .or(api)
         .or(pkg_dir)
         .with(logger);
     let addr = SocketAddr::from(([0,0,0,0], 8000));

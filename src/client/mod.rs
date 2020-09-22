@@ -6,6 +6,10 @@ use components::{
     Component,
     View,
     Init,
+    auth::{
+        *,
+        self,
+    },
 };
 use openlimits::{
     model::{
@@ -49,6 +53,7 @@ pub fn render() {
                 websocket_reconnector: None,
                 websocket: Some(Model::create_websocket(&host, orders)),
                 chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
+                auth: Auth::init((), &mut orders.proxy(Msg::Auth)),
             }
         },
         |msg, model, orders| model.update(msg, orders),
@@ -61,6 +66,7 @@ pub struct Model {
     pub websocket: Option<WebSocket>,
     pub websocket_reconnector: Option<StreamHandle>,
     pub chart: Chart,
+    pub auth: Auth,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -71,6 +77,7 @@ pub enum Msg {
     SendWebSocketMessage(ServerMessage),
     ReconnectWebSocket,
     Chart(chart::Msg),
+    Auth(auth::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
@@ -78,6 +85,9 @@ impl Component for Model {
         match msg {
             Msg::Chart(msg) => {
                 self.chart.update(msg, &mut orders.proxy(Msg::Chart));
+            },
+            Msg::Auth(msg) => {
+                self.auth.update(msg, &mut orders.proxy(Msg::Auth));
             },
             Msg::WebSocketOpened => {
                 debug!("WebSocket opened");
@@ -112,7 +122,7 @@ impl Component for Model {
                 //debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
-            }
+            },
         }
     }
 }
@@ -176,7 +186,9 @@ impl Model {
 }
 impl View for Model {
     fn view(&self) -> Node<Self::Msg> {
+        //seed::log!("App redraw!");
         div![
+            self.auth.view().map_msg(Msg::Auth),
             self.chart.view().map_msg(Msg::Chart),
         ]
     }
