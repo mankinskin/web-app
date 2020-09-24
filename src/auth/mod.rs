@@ -7,7 +7,7 @@ use login::Login;
 use register::Register;
 use session::Session;
 use crate::{
-    View,
+    Viewable,
     Component,
     Init,
 };
@@ -55,7 +55,7 @@ impl Component for Auth {
         }
     }
 }
-impl View for Auth {
+impl Viewable for Auth {
     fn view(&self) -> Node<Msg> {
         match self {
             Auth::Login(login) => login.view().map_msg(Msg::Login),

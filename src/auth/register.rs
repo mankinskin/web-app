@@ -1,6 +1,6 @@
 use crate::{
     Component,
-    View,
+    Viewable,
     auth::{
         self,
         Auth,
@@ -72,7 +72,7 @@ impl Component for Register {
         }
     }
 }
-impl View for Register {
+impl Viewable for Register {
     fn view(&self) -> Node<Msg> {
         form![
             label!["Username"],

@@ -11,12 +11,11 @@ use seed::{
     },
 };
 use app_model::{
-    user::*,
     auth::UserSession,
 };
 use crate::{
     Component,
-    View,
+    Viewable,
 };
 const STORAGE_KEY: &str = "session";
 lazy_static! {
@@ -50,7 +49,7 @@ pub struct Session;
 
 impl From<UserSession> for Session {
     fn from(session: UserSession) -> Self {
-        //set(session);
+        set(session);
         Self
     }
 }
@@ -59,16 +58,16 @@ pub enum Msg {
 }
 impl Component for Session {
     type Msg = Msg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
-        match msg {
-        }
+    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {
     }
 }
-impl View for Session {
+impl Viewable for Session {
     fn view(&self) -> Node<Msg> {
         if let Some(session) = get() {
-            p!["logged in"]
-            //p![format!("{:#?}", session.user_id)]
+            div![
+                p!["logged in"],
+                p![format!("{:#?}", session.user_id)],
+            ]
         } else { empty![] }
     }
 }

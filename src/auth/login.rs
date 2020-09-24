@@ -1,8 +1,7 @@
 use crate::{
     Component,
-    View,
+    Viewable,
     auth::{
-        self,
         Auth,
         register::Register,
         session::Session,
@@ -78,7 +77,7 @@ impl Component for Login {
         }
     }
 }
-impl View for Login {
+impl Viewable for Login {
     fn view(&self) -> Node<Msg> {
         //seed::log!("Login redraw");
         form![
