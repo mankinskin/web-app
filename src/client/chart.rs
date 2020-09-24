@@ -10,7 +10,7 @@ use seed::{
 };
 use components::{
     Component,
-    View,
+    Viewable,
     Init,
 };
 use tracing::{
@@ -57,6 +57,7 @@ impl Init<()> for Chart {
             }
         });
         orders.subscribe(|msg: Msg| {
+            debug!("Subscriber received message");
             match msg {
                 Msg::SubscribePriceHistory => Some(msg),
                 _ => None
@@ -84,6 +85,7 @@ impl Init<()> for Chart {
 impl Component for Chart {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
+        debug!("Chart update");
         match msg {
             Msg::Panning(x, y) => {
                 self.view_x += x;
@@ -348,7 +350,7 @@ impl Chart {
         })
     }
 }
-impl View for Chart {
+impl Viewable for Chart {
     fn view(&self) -> Node<Self::Msg> {
         //seed::log!("Chart redraw!");
         div![

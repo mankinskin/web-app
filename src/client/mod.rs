@@ -4,7 +4,7 @@ use seed::{
 };
 use components::{
     Component,
-    View,
+    Viewable,
     Init,
     auth::{
         *,
@@ -57,7 +57,7 @@ pub fn render() {
             }
         },
         |msg, model, orders| model.update(msg, orders),
-        View::view,
+        Viewable::view,
     );
 }
 #[derive(Debug)]
@@ -82,6 +82,7 @@ pub enum Msg {
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
+        debug!("Root update");
         match msg {
             Msg::Chart(msg) => {
                 self.chart.update(msg, &mut orders.proxy(Msg::Chart));
@@ -184,7 +185,7 @@ impl Model {
             .await
     }
 }
-impl View for Model {
+impl Viewable for Model {
     fn view(&self) -> Node<Self::Msg> {
         //seed::log!("App redraw!");
         div![
