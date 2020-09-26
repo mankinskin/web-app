@@ -6,6 +6,7 @@ pub mod model;
 pub mod message_stream;
 pub mod command;
 pub mod websocket;
+pub mod interval;
 
 use async_std::{
     net::{

@@ -1,5 +1,9 @@
 use crate::{
+    Error,
     shared,
+    server::{
+        message_stream::Message,
+    },
 };
 use async_std::{
     stream::{
@@ -15,6 +19,23 @@ use clap::{
 };
 use tracing::{
     debug,
+};
+use async_std::{
+    io::{
+        BufReader,
+        prelude::{
+            BufReadExt,
+        },
+    },
+};
+use futures_core::{
+    stream::{
+        Stream,
+    },
+};
+use std::{
+    pin::Pin,
+    task::Poll,
 };
 
 pub async fn run_command(text: String) -> Result<String, crate::Error> {
@@ -69,8 +90,7 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
                     crate::model().await.add_symbol(symbol.to_string()).await?;
-                    crate::INTERVAL.try_write().unwrap()
-                        .get_or_insert_with(|| interval(Duration::from_secs(1)));    
+                    crate::server::interval::set(interval(Duration::from_secs(1)));    
                     String::new()
                 } else {
                     watch_app.usage().to_string() 
@@ -80,4 +100,33 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
             },
         Err(err) => format!("{}", err),
     })
+}
+
+pub struct CommandLineStream {
+    pub stdin: async_std::io::Stdin,
+}
+impl CommandLineStream {
+    pub fn new() -> Self {
+        Self {
+            stdin: async_std::io::stdin(),
+        }
+    }
+}
+impl Stream for CommandLineStream {
+    type Item = Result<Message, Error>;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        let stdin = BufReader::new(&mut self.stdin);
+        let mut lines = stdin.lines();
+        let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
+        if cli_poll.is_ready() {
+            //debug!("CLI poll ready");
+            return cli_poll.map(|opt|
+                opt.map(|result|
+                    result.map(|line| Message::CommandLine(line))
+                          .map_err(|err| Error::from(err))
+                )
+            );
+        }
+        Poll::Pending
+    }
 }

@@ -34,9 +34,6 @@ use crate::{
         PriceHistoryRequest,
     },
 };
-use tracing::{
-    debug,
-};
 
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));

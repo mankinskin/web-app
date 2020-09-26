@@ -1,22 +1,21 @@
 use crate::{
     Error,
     telegram,
-    INTERVAL,
     server::{
         websocket,
+        interval,
         telegram::{
             Update,
+            TelegramStream,
         },
         command::{
             run_command,
+            CommandLineStream,
         },
     },
     shared::{
         ServerMessage,
     },
-};
-use telegram_bot::{
-    UpdatesStream,
 };
 use futures::{
     StreamExt,
@@ -24,14 +23,6 @@ use futures::{
 use futures_core::{
     stream::{
         Stream,
-    },
-};
-use async_std::{
-    io::{
-        BufReader,
-        prelude::{
-            BufReadExt,
-        },
     },
 };
 use std::{
@@ -51,18 +42,18 @@ pub enum Message {
     Interval,
 }
 pub struct MessageStream {
-    pub stdin: async_std::io::Stdin,
-    pub telegram_stream: Option<UpdatesStream>,
+    pub command_line: CommandLineStream,
+    pub telegram_stream: TelegramStream,
 }
 impl MessageStream {
-    pub async fn init() -> Self {
+    pub fn init() -> Self {
         debug!("Initializing MessageStream...");
         MessageStream {
-            stdin: async_std::io::stdin(),
-            telegram_stream: Some(telegram().await.stream()),
+            command_line: CommandLineStream::new(),
+            telegram_stream: TelegramStream::new(),
         }
     }
-    pub async fn handle_messages(&mut self) -> Result<(), Error> {
+    pub async fn run(&mut self) -> Result<(), Error> {
         while let Some(result) = self.next().await {
             match result {
                 Ok(message) => {
@@ -80,7 +71,7 @@ impl MessageStream {
     async fn handle_message(msg: Message) -> Result<(), Error> {
         match msg {
             Message::Telegram(update) => {
-                telegram().await.update(update).await?
+                telegram().update(update).await?
             },
             Message::CommandLine(text) => {
                 match run_command(text).await {
@@ -110,77 +101,25 @@ impl Stream for MessageStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         //debug!("Polling MessageStream...");
         let rself = self.get_mut();
-        if let Some(mut interval) = INTERVAL.try_write() {
-            if let Some(interval) = &mut *interval {
-                let interval_poll = Stream::poll_next(Pin::new(interval), cx);
-                if interval_poll.is_ready() {
-                    //debug!("Interval poll ready");
-                    return Poll::Ready(Some(Ok(Message::Interval)));
-                }
-            }
+        let interval_poll = Stream::poll_next(Pin::new(&mut interval::IntervalStream), cx);
+        if interval_poll.is_ready() {
+            return interval_poll;
         }
-        if let Some(mut sessions) = websocket::sessions().try_write() {
-            let mut close = None;
-            let mut item = None;
-            for (id, session) in sessions.iter_mut() {
-                if let Some(mut session) = session.try_write() {
-                    let session_poll = Stream::poll_next(Pin::new(&mut *session), cx);
-                    if let Poll::Ready(opt) = session_poll {
-                        if let Some(result) = opt {
-                            item = Some(result
-                                    .map(|msg| Message::WebSocket(id.clone(), msg))
-                                    .map_err(Error::from));
-                        } else {
-                            close = Some(id.clone());
-                        }
-                        break;
-                    }
-                }
-            }
-            if let Some(id) = close {
-                debug!("Closing WebSocket connection");
-                sessions.remove(&id);
-            }
-            if item.is_some() {
-                return Poll::Ready(item);
-            }
+        let websocket_poll = Stream::poll_next(Pin::new(&mut websocket::SessionsStream), cx);
+        if websocket_poll.is_ready() {
+            return websocket_poll;
         }
-        let stdin = BufReader::new(&mut rself.stdin);
-        let mut lines = stdin.lines();
-        let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
+        let cli_poll = Stream::poll_next(Pin::new(&mut rself.command_line), cx);
         if cli_poll.is_ready() {
-            //debug!("CLI poll ready");
-            return cli_poll.map(|opt|
-                opt.map(|result|
-                    result.map(|line| Message::CommandLine(line))
-                          .map_err(|err| Error::from(err))
-                )
-            );
+            return cli_poll;
         }
-        if let Some(telegram) = &mut rself.telegram_stream {
-            let telegram_poll = Stream::poll_next(Pin::new(telegram), cx);
-            if telegram_poll.is_ready() {
-                //debug!("Telegram poll ready");
-                return telegram_poll.map(|opt|
-                    opt.map(|result|
-                        match result {
-                            Ok(update) => Ok(Message::Telegram(update)),
-                            Err(err) => {
-                                rself.telegram_stream = None;
-                                Err(Error::from(err))
-                            },
-                        }
-                    )
-                );
-            }
+        let telegram_poll = Stream::poll_next(Pin::new(&mut rself.telegram_stream), cx);
+        if telegram_poll.is_ready() {
+            return websocket_poll;
         }
-        //debug!("Poll pending.");
         Poll::Pending
     }
 }
-pub async fn handle_messages() -> Result<(), Error> {
-    MessageStream::init()
-        .await
-        .handle_messages()
-        .await
+pub async fn run() -> Result<(), Error> {
+    MessageStream::init().run().await
 }

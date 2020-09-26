@@ -10,12 +10,10 @@ use crate::{
         PriceHistory,
         PriceHistoryRequest,
     },
+    message_stream::Message,
     Error,
 };
 use openlimits::model::Paginator;
-use tracing::{
-    debug,
-};
 use futures::{
     Stream,
     Sink,
@@ -54,6 +52,9 @@ use async_std::{
         interval,
     },
 };
+use tracing::{
+    debug,
+};
 use std::pin::Pin;
 pub type SessionMap = HashMap<usize, Arc<RwLock<WebSocketSession>>>;
 lazy_static! {
@@ -64,6 +65,39 @@ pub struct WebSocketSession {
     sender: SplitSink<WebSocket, warp::ws::Message>,
     receiver: SplitStream<WebSocket>,
     subscriptions: Vec<PriceSubscription>,
+}
+pub struct SessionsStream;
+impl Stream for SessionsStream {
+    type Item = Result<Message, Error>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        if let Some(mut sessions) = sessions().try_write() {
+            let mut close = None;
+            let mut item = None;
+            for (id, session) in sessions.iter_mut() {
+                if let Some(mut session) = session.try_write() {
+                    let session_poll = Stream::poll_next(Pin::new(&mut *session), cx);
+                    if let Poll::Ready(opt) = session_poll {
+                        if let Some(result) = opt {
+                            item = Some(result
+                                    .map(|msg| Message::WebSocket(id.clone(), msg))
+                                    .map_err(Error::from));
+                        } else {
+                            close = Some(id.clone());
+                        }
+                        break;
+                    }
+                }
+            }
+            if let Some(id) = close {
+                debug!("Closing WebSocket connection");
+                sessions.remove(&id);
+            }
+            if item.is_some() {
+                return Poll::Ready(item);
+            }
+        }
+        Poll::Pending
+    }
 }
 #[derive(Debug, Clone)]
 struct PriceSubscription {
@@ -126,8 +160,7 @@ impl WebSocketSession {
             ServerMessage::SubscribePrice(market_pair) => {
                 //debug!("Subscribing to market pair {}", &market_pair);
                 crate::model().await.add_symbol(market_pair.clone()).await?;
-                crate::INTERVAL.write().await
-                    .get_or_insert_with(|| interval(Duration::from_secs(1)));    
+                crate::server::interval::set(interval(Duration::from_secs(1)));    
                 let subscription = PriceSubscription::from(market_pair);
                 let response = ClientMessage::PriceHistory(subscription.latest_price_history().await?);
                 self.subscriptions.push(subscription);

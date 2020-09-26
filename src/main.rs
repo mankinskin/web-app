@@ -39,12 +39,7 @@ use server::{
 };
 use async_std::{
     sync::{
-        Arc,
         MutexGuard,
-        RwLock,
-    },
-    stream::{
-        Interval,
     },
 };
 use tracing::{
@@ -62,7 +57,7 @@ use tracing_appender::{
     },
 };
 
-pub async fn telegram() -> Telegram {
+pub fn telegram() -> Telegram {
     telegram::TELEGRAM.clone()
 }
 pub async fn binance() -> MutexGuard<'static, Binance> {
@@ -70,10 +65,6 @@ pub async fn binance() -> MutexGuard<'static, Binance> {
 }
 pub async fn model() -> MutexGuard<'static, Model> {
     model::MODEL.lock().await
-}
-use lazy_static::lazy_static;
-lazy_static! {
-    static ref INTERVAL: Arc<RwLock<Option<Interval>>> = Arc::new(RwLock::new(None));
 }
 
 fn init_tracing() -> WorkerGuard {
@@ -93,5 +84,5 @@ async fn main() -> Result<(), Error> {
     let _guard = init_tracing();
     binance().await.init().await;
     tokio::spawn(server::listen());
-    message_stream::handle_messages().await
+    message_stream::run().await
 }

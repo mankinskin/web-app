@@ -19,6 +19,18 @@ use lazy_static::lazy_static;
 use tracing::{
     debug,
 };
+use telegram_bot::{
+    UpdatesStream,
+};
+use futures_core::{
+    stream::{
+        Stream,
+    },
+};
+use std::{
+    pin::Pin,
+    task::Poll,
+};
 
 #[derive(Clone)]
 pub struct Telegram {
@@ -80,5 +92,38 @@ impl std::ops::Deref for Telegram {
     type Target = Api;
     fn deref(&self) -> &Self::Target {
         &self.api
+    }
+}
+pub struct TelegramStream {
+    stream: Option<UpdatesStream>,
+}
+impl TelegramStream {
+    pub fn new() -> Self {
+        Self {
+            stream: Some(TELEGRAM.stream()),
+        }
+    }
+}
+impl Stream for TelegramStream {
+    type Item = Result<crate::message_stream::Message, Error>;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        if let Some(stream) = &mut self.stream {
+            let telegram_poll = Stream::poll_next(Pin::new(stream), cx);
+            if telegram_poll.is_ready() {
+                //debug!("Telegram poll ready");
+                return telegram_poll.map(|opt|
+                    opt.map(|result|
+                        match result {
+                            Ok(update) => Ok(crate::message_stream::Message::Telegram(update)),
+                            Err(err) => {
+                                self.stream = None;
+                                Err(Error::from(err))
+                            },
+                        }
+                    )
+                );
+            }
+        }
+        Poll::Pending
     }
 }
