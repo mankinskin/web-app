@@ -1,6 +1,6 @@
 use crate::{
     Error,
-    telegram,
+    telegram::telegram,
     server::{
         websocket,
         interval,
@@ -10,15 +10,12 @@ use crate::{
         },
         command::{
             run_command,
-            CommandLineStream,
+            CommandLine,
         },
     },
     shared::{
         ServerMessage,
     },
-};
-use futures::{
-    StreamExt,
 };
 use futures_core::{
     stream::{
@@ -30,8 +27,10 @@ use std::{
     task::Poll,
 };
 use tracing::{
-    debug,
     error,
+};
+use parallel_stream::{
+    ParallelStream,
 };
 
 #[derive(Debug)]
@@ -41,66 +40,53 @@ pub enum Message {
     WebSocket(usize, ServerMessage),
     Interval,
 }
-pub struct MessageStream {
-    pub command_line: CommandLineStream,
-    pub telegram_stream: TelegramStream,
+pub struct MessageStream;
+pub async fn run() -> Result<(), Error> {
+    while let Some(result) = parallel_stream::from_stream(MessageStream).next().await {
+        match result {
+            Ok(message) => {
+                tokio::spawn(async {
+                    if let Err(e) = handle_message(message).await {
+                        error!("{:#?}", e);
+                    }
+                });
+            },
+            Err(err) => handle_error(err).await?,
+        }
+    }
+    Ok(())
 }
-impl MessageStream {
-    pub fn init() -> Self {
-        debug!("Initializing MessageStream...");
-        MessageStream {
-            command_line: CommandLineStream::new(),
-            telegram_stream: TelegramStream::new(),
-        }
-    }
-    pub async fn run(&mut self) -> Result<(), Error> {
-        while let Some(result) = self.next().await {
-            match result {
-                Ok(message) => {
-                    tokio::spawn(async {
-                        if let Err(e) = Self::handle_message(message).await {
-                            error!("{:#?}", e);
-                        }
-                    });
-                },
-                Err(err) => self.handle_error(err).await?,
+async fn handle_message(msg: Message) -> Result<(), Error> {
+    match msg {
+        Message::Telegram(update) => {
+            telegram().update(update).await?
+        },
+        Message::CommandLine(text) => {
+            match run_command(text).await {
+                Ok(ok) => println!("{}", ok),
+                Err(err) => error!("{:#?}", err),
+            };
+        },
+        Message::Interval => {
+            crate::model().await.update().await?;
+            for (_, session) in websocket::sessions().read().await.iter() {
+                session.clone().write().await.send_update().await?;
             }
+        },
+        Message::WebSocket(id, msg) => {
+            websocket::handle_message(id, msg).await?;
         }
-        Ok(())
     }
-    async fn handle_message(msg: Message) -> Result<(), Error> {
-        match msg {
-            Message::Telegram(update) => {
-                telegram().update(update).await?
-            },
-            Message::CommandLine(text) => {
-                match run_command(text).await {
-                    Ok(ok) => println!("{}", ok),
-                    Err(err) => error!("{:#?}", err),
-                };
-            },
-            Message::Interval => {
-                crate::model().await.update().await?;
-                for (_, session) in websocket::sessions().read().await.iter() {
-                    session.clone().write().await.send_update().await?;
-                }
-            },
-            Message::WebSocket(id, msg) => {
-                websocket::handle_message(id, msg).await?;
-            }
-        }
-        Ok(())
-    }
-    async fn handle_error(&mut self, error: Error) -> Result<(), Error> {
-        error!("{:#?}", error);
-        Ok(())
-    }
+    Ok(())
+}
+async fn handle_error(error: Error) -> Result<(), Error> {
+    error!("{:#?}", error);
+    Ok(())
 }
 impl Stream for MessageStream {
     type Item = Result<Message, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         //debug!("Polling MessageStream...");
-        let rself = self.get_mut();
         let interval_poll = Stream::poll_next(Pin::new(&mut interval::IntervalStream), cx);
         if interval_poll.is_ready() {
             return interval_poll;
@@ -109,17 +95,14 @@ impl Stream for MessageStream {
         if websocket_poll.is_ready() {
             return websocket_poll;
         }
-        let cli_poll = Stream::poll_next(Pin::new(&mut rself.command_line), cx);
+        let cli_poll = Stream::poll_next(Pin::new(&mut CommandLine), cx);
         if cli_poll.is_ready() {
             return cli_poll;
         }
-        let telegram_poll = Stream::poll_next(Pin::new(&mut rself.telegram_stream), cx);
+        let telegram_poll = Stream::poll_next(Pin::new(&mut TelegramStream), cx);
         if telegram_poll.is_ready() {
-            return websocket_poll;
+            return telegram_poll;
         }
         Poll::Pending
     }
-}
-pub async fn run() -> Result<(), Error> {
-    MessageStream::init().run().await
 }

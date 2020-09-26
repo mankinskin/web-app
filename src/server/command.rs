@@ -22,10 +22,15 @@ use tracing::{
 };
 use async_std::{
     io::{
+        Stdin,
         BufReader,
         prelude::{
             BufReadExt,
         },
+    },
+    sync::{
+        Arc,
+        RwLock,
     },
 };
 use futures_core::{
@@ -38,6 +43,10 @@ use std::{
     task::Poll,
 };
 
+use lazy_static::lazy_static;
+lazy_static! {
+    pub static ref STREAM: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
+}
 pub async fn run_command(text: String) -> Result<String, crate::Error> {
     debug!("Running command...");
     let mut args = vec![""];
@@ -102,30 +111,23 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
     })
 }
 
-pub struct CommandLineStream {
-    pub stdin: async_std::io::Stdin,
-}
-impl CommandLineStream {
-    pub fn new() -> Self {
-        Self {
-            stdin: async_std::io::stdin(),
-        }
-    }
-}
-impl Stream for CommandLineStream {
+pub struct CommandLine;
+impl Stream for CommandLine {
     type Item = Result<Message, Error>;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        let stdin = BufReader::new(&mut self.stdin);
-        let mut lines = stdin.lines();
-        let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
-        if cli_poll.is_ready() {
-            //debug!("CLI poll ready");
-            return cli_poll.map(|opt|
-                opt.map(|result|
-                    result.map(|line| Message::CommandLine(line))
-                          .map_err(|err| Error::from(err))
-                )
-            );
+    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        if let Some(mut stream) = STREAM.try_write() {
+            let stdin = BufReader::new(&mut *stream);
+            let mut lines = stdin.lines();
+            let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
+            if cli_poll.is_ready() {
+                //debug!("CLI poll ready");
+                return cli_poll.map(|opt|
+                    opt.map(|result|
+                        result.map(|line| Message::CommandLine(line))
+                              .map_err(|err| Error::from(err))
+                    )
+                );
+            }
         }
         Poll::Pending
     }

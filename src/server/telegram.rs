@@ -1,11 +1,11 @@
 use telegram_bot::{
-    Api,
     UpdateKind,
     MessageKind,
     Message,
     CanReplySendMessage,
 };
 pub use telegram_bot::{
+    Api,
     Error,
     Update,
 };
@@ -19,9 +19,6 @@ use lazy_static::lazy_static;
 use tracing::{
     debug,
 };
-use telegram_bot::{
-    UpdatesStream,
-};
 use futures_core::{
     stream::{
         Stream,
@@ -31,13 +28,36 @@ use std::{
     pin::Pin,
     task::Poll,
 };
+use async_std::{
+    sync::{
+        Arc,
+        RwLock,
+        Receiver,
+        channel,
+    },
+};
+use futures::{
+    StreamExt,
+};
 
 #[derive(Clone)]
 pub struct Telegram {
-    api: Api,
+    pub api: Api,
 }
 lazy_static! {
     pub static ref TELEGRAM: Telegram = Telegram::new();
+    pub static ref STREAM: Arc<RwLock<Option<Receiver<Result<Update, Error>>>>> = Arc::new(RwLock::new(None));
+}
+pub async fn run() {
+    let (tx, rx) = channel(100);
+    *STREAM.try_write().unwrap() = Some(rx);
+    let mut stream = telegram().api.stream();
+    while let Some(msg) = stream.next().await {
+        tx.send(msg).await
+    }
+}
+pub fn telegram() -> Telegram {
+    TELEGRAM.clone()
 }
 fn remove_coloring(text: String) -> String {
     let reg = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
@@ -94,36 +114,30 @@ impl std::ops::Deref for Telegram {
         &self.api
     }
 }
-pub struct TelegramStream {
-    stream: Option<UpdatesStream>,
-}
-impl TelegramStream {
-    pub fn new() -> Self {
-        Self {
-            stream: Some(TELEGRAM.stream()),
-        }
-    }
-}
+pub struct TelegramStream;
 impl Stream for TelegramStream {
-    type Item = Result<crate::message_stream::Message, Error>;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        if let Some(stream) = &mut self.stream {
-            let telegram_poll = Stream::poll_next(Pin::new(stream), cx);
-            if telegram_poll.is_ready() {
-                //debug!("Telegram poll ready");
-                return telegram_poll.map(|opt|
-                    opt.map(|result|
-                        match result {
-                            Ok(update) => Ok(crate::message_stream::Message::Telegram(update)),
-                            Err(err) => {
-                                self.stream = None;
-                                Err(Error::from(err))
-                            },
-                        }
+    type Item = Result<crate::message_stream::Message, crate::Error>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        //debug!("Polling TelegramStream...");
+        if let Some(mut stream_opt) = STREAM.try_write() {
+            let poll = if let Some(stream) = &mut *stream_opt {
+                let mut stream = stream;
+                let telegram_poll = Stream::poll_next(Pin::new(&mut stream), cx);
+                if telegram_poll.is_ready() {
+                    telegram_poll.map(|opt|
+                        opt.map(|result|
+                            result.map(crate::message_stream::Message::Telegram)
+                                .map_err(Into::into)
+                        )
                     )
-                );
+                } else { Poll::Pending }
+            } else { Poll::Pending };
+            if let Poll::Ready(Some(Err(_))) = poll {
+                *stream_opt = None;
             }
+            poll
+        } else {
+            Poll::Pending
         }
-        Poll::Pending
     }
 }

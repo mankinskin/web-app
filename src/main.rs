@@ -18,6 +18,7 @@ extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_appender;
 extern crate app_model;
+extern crate parallel_stream;
 
 mod server;
 mod shared;
@@ -25,7 +26,6 @@ use server::{
     error::Error,
     telegram::{
         self,
-        Telegram,
     },
     binance::{
         self,
@@ -57,9 +57,6 @@ use tracing_appender::{
     },
 };
 
-pub fn telegram() -> Telegram {
-    telegram::TELEGRAM.clone()
-}
 pub async fn binance() -> MutexGuard<'static, Binance> {
     binance::BINANCE.lock().await
 }
@@ -80,9 +77,10 @@ fn init_tracing() -> WorkerGuard {
     guard
 }
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() {
     let _guard = init_tracing();
     binance().await.init().await;
     tokio::spawn(server::listen());
-    message_stream::run().await
+    tokio::spawn(message_stream::run());
+    telegram::run().await
 }
