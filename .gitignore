@@ -9,3 +9,4 @@
 /keys
 Cargo.lock
 /logs
+/test_database
