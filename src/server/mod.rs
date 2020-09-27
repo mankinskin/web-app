@@ -16,8 +16,10 @@ use async_std::{
 use warp::{
     Filter,
 };
+#[allow(unused)]
 use tracing::{
     debug,
+    info,
 };
 use crate::{
     shared,
@@ -93,6 +95,6 @@ pub async fn listen() {
         .with(logger);
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes);
-    debug!("Starting Server");
+    info!("Starting Server");
     server.run(addr).await;
 }

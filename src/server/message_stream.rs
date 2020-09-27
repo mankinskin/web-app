@@ -1,6 +1,7 @@
 use crate::{
     Error,
     telegram::telegram,
+    shared::ServerMessage,
     server::{
         websocket,
         interval,
@@ -12,9 +13,6 @@ use crate::{
             run_command,
             CommandLine,
         },
-    },
-    shared::{
-        ServerMessage,
     },
 };
 use futures_core::{
@@ -71,11 +69,10 @@ async fn handle_message(msg: Message) -> Result<(), Error> {
         },
         Message::Interval => {
             crate::model().await.update().await?;
-            websocket::Connections::push_updates().await
+            //websocket::Connections::push_updates().await
         },
-        Message::WebSocket(id, msg) => {
+        Message::WebSocket(_id, _msg) => {
             //debug!("Websocket message from connection {}", id);
-            websocket::Connections::receive_for_connection(id, msg).await
         }
     }
     Ok(())
