@@ -18,7 +18,6 @@ use warp::{
 };
 use tracing::{
     debug,
-    error,
 };
 use crate::{
     shared,
@@ -34,17 +33,13 @@ use app_model::{
     },
 };
 use warp::reply::Reply;
-
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 pub async fn listen() {
     let websocket = warp::path("ws")
                 .and(warp::ws())
-                .map(|ws: warp::ws::Ws| {
-                    ws.on_upgrade(move |websocket| async {
-                        if let Err(e) = websocket::open_connection(websocket).await {
-                            error!("{:#?}", e);
-                        }
-                    })
+                .map(move |ws: warp::ws::Ws| {
+                    debug!("Websocket connection request");
+                    ws.on_upgrade(websocket::connection)
                 });
     let price_history = warp::get()
         .and(warp::path!("api"/"price_history"))
@@ -99,5 +94,5 @@ pub async fn listen() {
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes);
     debug!("Starting Server");
-    server.run(addr).await
+    server.run(addr).await;
 }

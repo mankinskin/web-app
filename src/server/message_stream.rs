@@ -26,8 +26,10 @@ use std::{
     pin::Pin,
     task::Poll,
 };
+#[allow(unused)]
 use tracing::{
     error,
+    debug,
 };
 use parallel_stream::{
     ParallelStream,
@@ -69,12 +71,11 @@ async fn handle_message(msg: Message) -> Result<(), Error> {
         },
         Message::Interval => {
             crate::model().await.update().await?;
-            for (_, session) in websocket::sessions().read().await.iter() {
-                session.clone().write().await.send_update().await?;
-            }
+            websocket::Connections::push_updates().await
         },
         Message::WebSocket(id, msg) => {
-            websocket::handle_message(id, msg).await?;
+            //debug!("Websocket message from connection {}", id);
+            websocket::Connections::receive_for_connection(id, msg).await
         }
     }
     Ok(())
@@ -89,10 +90,12 @@ impl Stream for MessageStream {
         //debug!("Polling MessageStream...");
         let interval_poll = Stream::poll_next(Pin::new(&mut interval::IntervalStream), cx);
         if interval_poll.is_ready() {
+            //debug!("Interval poll ready");
             return interval_poll;
         }
-        let websocket_poll = Stream::poll_next(Pin::new(&mut websocket::SessionsStream), cx);
+        let websocket_poll = Stream::poll_next(Pin::new(&mut websocket::Connections), cx);
         if websocket_poll.is_ready() {
+            //debug!("Websocket poll ready");
             return websocket_poll;
         }
         let cli_poll = Stream::poll_next(Pin::new(&mut CommandLine), cx);

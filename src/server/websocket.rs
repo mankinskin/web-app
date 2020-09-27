@@ -16,16 +16,17 @@ use crate::{
 use openlimits::model::Paginator;
 use futures::{
     Stream,
-    Sink,
     StreamExt,
+    Sink,
     SinkExt,
+    channel::mpsc::{
+        channel,
+        Sender,
+        Receiver,
+    },
     task::{
         Poll,
         Context,
-    },
-    stream::{
-        SplitStream,
-        SplitSink,
     },
 };
 use lazy_static::lazy_static;
@@ -56,49 +57,6 @@ use tracing::{
     debug,
 };
 use std::pin::Pin;
-pub type SessionMap = HashMap<usize, Arc<RwLock<WebSocketSession>>>;
-lazy_static! {
-    static ref WEBSOCKETS: Arc<RwLock<SessionMap>> = Arc::new(RwLock::new(HashMap::new()));
-    static ref SOCKET_COUNT: AtomicUsize = AtomicUsize::new(0);
-}
-pub struct WebSocketSession {
-    sender: SplitSink<WebSocket, warp::ws::Message>,
-    receiver: SplitStream<WebSocket>,
-    subscriptions: Vec<PriceSubscription>,
-}
-pub struct SessionsStream;
-impl Stream for SessionsStream {
-    type Item = Result<Message, Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        if let Some(mut sessions) = sessions().try_write() {
-            let mut close = None;
-            let mut item = None;
-            for (id, session) in sessions.iter_mut() {
-                if let Some(mut session) = session.try_write() {
-                    let session_poll = Stream::poll_next(Pin::new(&mut *session), cx);
-                    if let Poll::Ready(opt) = session_poll {
-                        if let Some(result) = opt {
-                            item = Some(result
-                                    .map(|msg| Message::WebSocket(id.clone(), msg))
-                                    .map_err(Error::from));
-                        } else {
-                            close = Some(id.clone());
-                        }
-                        break;
-                    }
-                }
-            }
-            if let Some(id) = close {
-                debug!("Closing WebSocket connection");
-                sessions.remove(&id);
-            }
-            if item.is_some() {
-                return Poll::Ready(item);
-            }
-        }
-        Poll::Pending
-    }
-}
 #[derive(Debug, Clone)]
 struct PriceSubscription {
     market_pair: String,
@@ -134,19 +92,24 @@ impl PriceSubscription {
     }
 }
 
-impl WebSocketSession {
-    pub fn new(sender: SplitSink<WebSocket, warp::ws::Message>, receiver: SplitStream<WebSocket>) -> Self {
+pub struct Connection {
+    sender: Sender<ClientMessage>,
+    receiver: Receiver<ServerMessage>,
+    subscriptions: Vec<PriceSubscription>,
+}
+impl Connection {
+    pub fn new(sender: Sender<ClientMessage>, receiver: Receiver<ServerMessage>) -> Self {
         Self {
             sender,
             receiver,
             subscriptions: Vec::new(),
         }
     }
-    fn new_socket_id() -> usize {
-        SOCKET_COUNT.fetch_add(1, Ordering::Relaxed)
+    pub fn new_id() -> usize {
+        CONNECTION_COUNT.fetch_add(1, Ordering::Relaxed)
     }
-    pub async fn send_update(&mut self) -> Result<(), Error> {
-        //debug!("Sending updates");
+    pub async fn push_update(&mut self) -> Result<(), Error> {
+        //debug!("Pushing updates");
         for subscription in self.subscriptions.clone().iter() {
             //debug!("Updating subscription {}", &subscription.market_pair);
             self.send(ClientMessage::PriceHistory(subscription.latest_price_history().await?)).await?;
@@ -175,37 +138,57 @@ impl WebSocketSession {
         }
     }
 }
-pub fn sessions() -> Arc<RwLock<SessionMap>> {
-    WEBSOCKETS.clone()
+pub type ConnectionMap = HashMap<usize, Arc<RwLock<Connection>>>;
+lazy_static! {
+    static ref CONNECTIONS: Arc<RwLock<ConnectionMap>> = Arc::new(RwLock::new(ConnectionMap::new()));
+    static ref CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 }
-pub async fn session(id: usize) -> Result<Arc<RwLock<WebSocketSession>>, Error> {
-    WEBSOCKETS.clone()
-        .read().await
-        .get(&id)
-        .ok_or(Error::WebSocket(format!("Websocket Connection ID {} not found!", id.clone())))
-        .map(Clone::clone)
+pub async fn connection(websocket: WebSocket) {
+    let (ws_server_sender, ms_server_receiver) = channel(100); // ServerMessages
+    let (ms_client_sender, ws_client_receiver) = channel(100); // ClientMessages
+    let id = add_connection(Connection::new(ms_client_sender, ms_server_receiver)).await;
+    // get websocket sink and stream
+    let (ws_sink, ws_stream) = websocket.split();
+    // forward websocket stream to message sink
+    let receiver_handle = tokio::spawn(async {
+        ws_stream
+            .map(|msg: Result<warp::ws::Message, warp::Error>| {
+                msg.map_err(Into::into)
+            })
+            .forward(
+                ws_server_sender
+                    .with(|msg: warp::ws::Message| async { 
+                        msg.try_into()
+                    })
+            ).await.expect("Failed to forward websocket receiving stream")
+    });
+    if let Ok(()) = ws_client_receiver
+        .filter_map(|msg: ClientMessage| async {
+            msg.try_into().map(Ok).ok()
+        })
+        .forward(ws_sink).await {}
+    receiver_handle.await.expect("Failed to join websocket receiver thread");
+    remove_connection(id).await;
 }
-pub async fn handle_message(id: usize, msg: ServerMessage) -> Result<(), Error> {
-    session(id).await?.write().await.receive_message(msg).await
+pub async fn add_connection(connection: Connection) -> usize {
+    let id = Connection::new_id();
+    debug!("Opening Websocket connection {}", id);
+    (*CONNECTIONS).write().await.insert(id, Arc::new(RwLock::new(connection)));
+    id
 }
-pub async fn open_connection(websocket: WebSocket) -> Result<(), Error> {
-    let id = WebSocketSession::new_socket_id();
-    let (ws_sender, ws_receiver) = websocket.split();
-    sessions().write().await
-        .insert(id, Arc::new(RwLock::new(WebSocketSession::new(ws_sender, ws_receiver))));
-    Ok(())
+pub async fn remove_connection(id: usize) {
+    (*CONNECTIONS).write().await.remove(&id);
+    debug!("Closed WebSocket connection {}", id);
 }
-impl Stream for WebSocketSession {
+impl Stream for Connection {
     type Item = Result<ServerMessage, Error>;
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         Stream::poll_next(Pin::new(&mut self.receiver), cx)
             .map(|opt|
-                opt.map(|res|
-                    res.map_err(Into::into)
-                    .and_then(|item| item.try_into())))
+                opt.map(Ok))
     }
 }
-impl Sink<ClientMessage> for WebSocketSession {
+impl Sink<ClientMessage> for Connection {
     type Error = Error;
     fn poll_ready(
         mut self: Pin<&mut Self>,
@@ -214,7 +197,7 @@ impl Sink<ClientMessage> for WebSocketSession {
         Sink::poll_ready(Pin::new(&mut self.sender), cx).map_err(Into::into)
     }
     fn start_send(mut self: Pin<&mut Self>, item: ClientMessage) -> Result<(), Self::Error> {
-        Sink::start_send(Pin::new(&mut self.sender), item.try_into()?).map_err(Into::into)
+        Sink::start_send(Pin::new(&mut self.sender), item).map_err(Into::into)
     }
     fn poll_flush(
         mut self: Pin<&mut Self>,
@@ -257,5 +240,66 @@ impl TryInto<warp::ws::Message> for ClientMessage {
             serde_json::to_string(&self)
                 .map_err(Error::SerdeJson)?)
         )
+    }
+}
+pub struct Connections;
+impl Connections {
+    pub async fn receive_for_connection(i: usize, msg: ServerMessage) {
+        CONNECTIONS
+            .write()
+            .await
+            .get_mut(&i)
+            .expect("Connection not found")
+            .write()
+            .await
+            .receive_message(msg)
+            .await
+            .expect("Error when receiving message")
+    }
+    pub async fn push_updates() {
+        for (_, connection) in CONNECTIONS
+            .write()
+            .await
+            .iter_mut() {
+            connection.write()
+                .await
+                .push_update()
+                .await
+                .expect("Error when pushing update")
+        }
+    }
+}
+impl Stream for Connections {
+    type Item = Result<crate::message_stream::Message, Error>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
+        //debug!("Polling Connections");
+        CONNECTIONS.try_write()
+            .and_then(|mut connections| {
+                //debug!("writing on {} connections", connections.len());
+                connections.iter_mut()
+                    .find_map(|(id, session)| { // find connection ready
+                        //debug!("checking session {}", id);
+                        session.try_write().and_then(|mut session| {
+                            //debug!("polling session {}", id);
+                            let session_poll = Stream::poll_next(Pin::new(&mut *session), cx);
+                            if let Poll::Ready(opt) = session_poll {
+                                //debug!("session {} ready", id);
+                                opt.map(|result| {
+                                    result
+                                        .map(|msg| {
+                                            if let ServerMessage::Close = msg {
+                                            }
+                                            Message::WebSocket(id.clone(), msg)
+                                        })
+                                        .map_err(Error::from)
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                    })
+            })
+            .map(|res| Poll::Ready(Some(res)))
+            .unwrap_or(Poll::Pending)
     }
 }

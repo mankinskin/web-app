@@ -77,10 +77,17 @@ fn init_tracing() -> WorkerGuard {
     guard
 }
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     let _guard = init_tracing();
     binance().await.init().await;
-    tokio::spawn(server::listen());
-    tokio::spawn(message_stream::run());
-    telegram::run().await
+    let (
+        _telegram_result,
+        _server_result,
+        ms_result,
+    ) = futures::join! {
+        telegram::run(),
+        server::listen(),
+        message_stream::run(),
+    };
+    ms_result
 }
