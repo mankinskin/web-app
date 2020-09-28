@@ -24,6 +24,7 @@ use tracing::{
 };
 use std::pin::Pin;
 
+#[derive(Debug)]
 pub struct Connection {
     sender: Sender<ClientMessage>,
     receiver: Receiver<ServerMessage>,
@@ -35,36 +36,6 @@ impl Connection {
             receiver,
         }
     }
-    //pub async fn push_update(&mut self) -> Result<(), Error> {
-    //    //debug!("Pushing updates");
-    //    for subscription in self.subscriptions.clone().iter() {
-    //        //debug!("Updating subscription {}", &subscription.market_pair);
-    //        let history = subscription.latest_price_history().await?;
-    //        self.send(ClientMessage::PriceHistory(history)).await?;
-    //    }
-    //    Ok(())
-    //}
-    //pub async fn receive_message(&mut self, msg: ServerMessage) -> Result<(), Error> {
-    //    //debug!("Received websocket msg");
-    //    //debug!("{:#?}", msg);
-    //    let response = match msg {
-    //        ServerMessage::SubscribePrice(market_pair) => {
-    //            //debug!("Subscribing to market pair {}", &market_pair);
-    //            crate::model().await.add_symbol(market_pair.clone()).await?;
-    //            crate::server::interval::set(interval(Duration::from_secs(1)));    
-    //            let subscription = PriceSubscription::from(market_pair);
-    //            let response = ClientMessage::PriceHistory(subscription.latest_price_history().await?);
-    //            self.subscriptions.push(subscription);
-    //            Some(response)
-    //        },
-    //        _ => None,
-    //    };
-    //    if let Some(response) = response {
-    //        self.send(response).await.map_err(Into::into)
-    //    } else {
-    //        Ok(())
-    //    }
-    //}
 }
 impl Stream for Connection {
     type Item = Result<ServerMessage, Error>;

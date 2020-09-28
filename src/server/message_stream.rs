@@ -69,10 +69,13 @@ async fn handle_message(msg: Message) -> Result<(), Error> {
         },
         Message::Interval => {
             crate::model().await.update().await?;
-            //websocket::Connections::push_updates().await
+            websocket::update().await?;
         },
-        Message::WebSocket(_id, _msg) => {
-            //debug!("Websocket message from connection {}", id);
+        Message::WebSocket(id, msg) => {
+            debug!("Websocket message from connection {} {:?}", id, msg);
+            if let Err(err) = websocket::handle_message(id, msg).await {
+                error!("{:#?}", err);
+            }
         }
     }
     Ok(())
@@ -92,7 +95,7 @@ impl Stream for MessageStream {
         }
         let websocket_poll = Stream::poll_next(Pin::new(&mut websocket::Connections), cx);
         if websocket_poll.is_ready() {
-            //debug!("Websocket poll ready");
+            debug!("Websocket poll ready: {:?}", websocket_poll);
             return websocket_poll;
         }
         let cli_poll = Stream::poll_next(Pin::new(&mut CommandLine), cx);

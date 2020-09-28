@@ -7,6 +7,7 @@ pub mod message_stream;
 pub mod command;
 pub mod websocket;
 pub mod interval;
+pub mod subscription;
 
 use async_std::{
     net::{
@@ -80,14 +81,15 @@ pub async fn listen() {
         .or(login)
         .or(register);
     let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
-    let logger = warp::log::custom(|info|
-        debug!("request from {:?}: {} {} {}ms {}",
-            info.remote_addr(),
-            info.method(),
-            info.path(),
-            info.elapsed().as_millis(),
-            info.status(),
-        )
+    let logger = warp::log::custom(|_info|
+        //debug!("request from {:?}: {} {} {}ms {}",
+        //    info.remote_addr(),
+        //    info.method(),
+        //    info.path(),
+        //    info.elapsed().as_millis(),
+        //    info.status(),
+        //)
+        ()
     );
     let routes = websocket
         .or(api)

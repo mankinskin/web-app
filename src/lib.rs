@@ -21,5 +21,6 @@ extern crate tracing_subscriber;
 extern crate tracing_wasm;
 
 mod client;
+pub use client::*;
 mod shared;
 

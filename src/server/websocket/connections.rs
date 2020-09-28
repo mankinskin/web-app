@@ -1,14 +1,18 @@
 use crate::{
     shared::{
         ServerMessage,
+        ClientMessage,
     },
     Error,
     message_stream::Message,
 };
 use futures::{
     Stream,
+    Sink,
+    SinkExt,
     task::{
         Poll,
+        Context,
     },
 };
 use lazy_static::lazy_static;
@@ -45,6 +49,7 @@ lazy_static! {
     static ref CONNECTIONS: Arc<RwLock<ConnectionMap>> = Arc::new(RwLock::new(ConnectionMap::new()));
     static ref CONNECTION_IDS: AtomicUsize = AtomicUsize::new(0);
 }
+#[derive(Clone, Debug)]
 pub struct ConnectionStream(Arc<RwLock<Connection>>);
 impl Stream for ConnectionStream {
     type Item = Result<ServerMessage, Error>;
@@ -54,6 +59,54 @@ impl Stream for ConnectionStream {
         } else {
             Poll::Pending
         }
+    }
+}
+impl Sink<ClientMessage> for ConnectionStream {
+    type Error = Error;
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context
+    ) -> Poll<Result<(), Self::Error>> {
+        if let Some(mut connection) = (*self.0).try_write() {
+            Sink::poll_ready(Pin::new(&mut *connection), cx).map_err(Into::into)
+        } else {
+            Poll::Pending
+        }
+    }
+    fn start_send(self: Pin<&mut Self>, item: ClientMessage) -> Result<(), Self::Error> {
+        Sink::start_send(Pin::new(&mut *self.try_write().unwrap()), item).map_err(Into::into)
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut Context
+    ) -> Poll<Result<(), Self::Error>> {
+        if let Some(mut connection) = (*self.0).try_write() {
+            Sink::poll_flush(Pin::new(&mut *connection), cx).map_err(Into::into)
+        } else {
+            Poll::Pending
+        }
+    }
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut Context
+    ) -> Poll<Result<(), Self::Error>> {
+        if let Some(mut connection) = (*self.0).try_write() {
+            Sink::poll_close(Pin::new(&mut *connection), cx).map_err(Into::into)
+        } else {
+            Poll::Pending
+        }
+    }
+}
+use std::ops::{Deref, DerefMut,};
+impl Deref for ConnectionStream {
+    type Target = Arc<RwLock<Connection>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for ConnectionStream {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 pub struct Connections;
@@ -71,25 +124,44 @@ impl Connections {
         (*CONNECTIONS).write().await.remove(&id);
         debug!("Closed WebSocket connection {}", id);
     }
-    //pub async fn push_updates() {
-    //    for (_, connection) in CONNECTIONS
-    //        .write()
-    //        .await
-    //        .iter_mut() {
-    //        connection.write()
-    //            .await
-    //            .push_update()
-    //            .await
-    //            .expect("Error when pushing updates")
-    //    }
-    //}
+    pub async fn connection(id: usize) -> Option<ConnectionStream> {
+        let mut connections = (*CONNECTIONS).write().await;
+        // TODO replace with iter_mut once pull request got accepted and published
+        let index = if let Some(index) = connections.keys().enumerate()
+            .find_map(|(index, k)| (*k == id).then_some(index.clone())) {
+            index
+        } else {
+            return None;
+        };
+        let result = connections.values_mut().enumerate()
+            .find_map(|(i, v)| (i == index).then_some(v.clone()));
+        result
+    }
+    pub async fn send_all(msg: ClientMessage) {
+        for connection in CONNECTIONS
+            .write()
+            .await
+            .values_mut() {
+            connection.write()
+                .await
+                .send(msg.clone())
+                .await
+                .expect("Error when sending messages")
+        }
+    }
 }
 impl Stream for Connections {
     type Item = Result<Message, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut connections) = CONNECTIONS.try_write() {
-            Stream::poll_next(Pin::new(&mut *connections), cx)
-                .map(|opt| opt.map(|(id, res)| res.map(|msg| Message::WebSocket(id, msg))))
+            //debug!("Polling Connections");
+            let poll = Stream::poll_next(Pin::new(&mut *connections), cx)
+                .map(|opt| opt.map(|(id, res)| res.map(|msg| Message::WebSocket(id, msg))));
+            if let Poll::Ready(None) = poll {
+                Poll::Pending
+            } else {
+                poll
+            }
         } else {
             Poll::Pending
         }

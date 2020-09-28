@@ -55,6 +55,8 @@ features = [
   "fs",
   "rt-threaded",
   "tcp",
+  "stream",
+  "macros",
 ]
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio-util]
 version = "^0.3"

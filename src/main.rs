@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(bool_to_option)]
 
 extern crate serde;
 extern crate serde_json;
@@ -22,6 +23,7 @@ extern crate parallel_stream;
 
 mod server;
 mod shared;
+pub use server::*;
 use server::{
     error::Error,
     telegram::{
