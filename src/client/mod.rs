@@ -16,19 +16,16 @@ use openlimits::{
         Candle,
     },
 };
-use crate::{
-    shared::{
-        self,
-        ClientMessage,
-        ServerMessage,
-    },
-};
 use tracing::{
     debug,
 };
-mod chart;
+pub mod chart;
 use chart::{
     Chart,
+};
+pub mod websocket;
+use websocket::{
+    WebSocket,
 };
 
 fn init_tracing() {
@@ -44,14 +41,11 @@ pub fn render() {
     init_tracing();
     App::start("app",
         |_url, orders| {
-            orders.subscribe(|msg: ServerMessage|
-                Msg::SendWebSocketMessage(msg)); 
             let host = get_host().unwrap();
             debug!("Host: {}", host);
             Model {
                 host: host.clone(),
-                websocket_reconnector: None,
-                websocket: Some(Model::create_websocket(&host, orders)),
+                websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
                 chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
                 auth: Auth::init((), &mut orders.proxy(Msg::Auth)),
             }
@@ -63,19 +57,13 @@ pub fn render() {
 #[derive(Debug)]
 pub struct Model {
     pub host: String,
-    pub websocket: Option<WebSocket>,
-    pub websocket_reconnector: Option<StreamHandle>,
     pub chart: Chart,
     pub auth: Auth,
+    pub websocket: WebSocket
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    WebSocketOpened,
-    WebSocketClosed(CloseEvent),
-    WebSocketError(String),
-    ServerMessageReceived(ClientMessage),
-    SendWebSocketMessage(ServerMessage),
-    ReconnectWebSocket,
+    Websocket(websocket::Msg),
     Chart(chart::Msg),
     Auth(auth::Msg),
 }
@@ -90,74 +78,13 @@ impl Component for Model {
             Msg::Auth(msg) => {
                 self.auth.update(msg, &mut orders.proxy(Msg::Auth));
             },
-            Msg::WebSocketOpened => {
-                debug!("WebSocket opened");
-                orders.notify(chart::Msg::SubscribePriceHistory);
-            },
-            Msg::WebSocketClosed(event) => {
-                debug!("WebSocket closed: {:#?}", event);
-                self.websocket = None;
-                if !event.was_clean() && self.websocket_reconnector.is_none() {
-                    self.websocket_reconnector = Some(
-                        orders.stream_with_handle(streams::backoff(None, |_| Msg::ReconnectWebSocket))
-                    );
-                }
-            },
-            Msg::WebSocketError(err) => {
-                debug!("WebSocket error: {:#?}", err);
-            },
-            Msg::ReconnectWebSocket => {
-                self.websocket = Some(Self::create_websocket(&self.host, orders));
-            },
-            Msg::SendWebSocketMessage(msg) => {
-                //debug!("Send ServerMessage");
-                //debug!("{:#?}", msg);
-                self.websocket.as_ref().map(|ws|
-                    ws.send_json(&msg)
-                        .unwrap_or_else(|err| {
-                            orders.send_msg(Msg::WebSocketError(format!("{:?}", err)));
-                        })
-                );
-            },
-            Msg::ServerMessageReceived(msg) => {
-                //debug!("ClientMessage received");
-                //debug!("{:#?}", msg);
-                orders.notify(msg);
+            Msg::Websocket(msg) => {
+                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
             },
         }
     }
 }
 impl Model {
-    pub fn create_websocket(url: &str, orders: &impl Orders<Msg>) -> WebSocket {
-        let msg_sender = orders.msg_sender();
-        let url = format!("ws://{}/ws", url);
-        WebSocket::builder(url, orders)
-            .on_open(|| Msg::WebSocketOpened)
-            .on_message(move |msg| Self::decode_message(msg, msg_sender))
-            .on_close(Msg::WebSocketClosed)
-            .on_error(|| Msg::WebSocketError("WebSocket failed.".to_string()))
-            .build_and_open()
-            .unwrap()
-    }
-    fn decode_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
-        if message.contains_text() {
-            let msg = message
-                .json::<shared::ClientMessage>()
-                .expect("Failed to decode WebSocket text message");
-    
-            msg_sender(Some(Msg::ServerMessageReceived(msg)));
-        } else {
-            spawn_local(async move {
-                let bytes = message
-                    .bytes()
-                    .await
-                    .expect("WebsocketError on binary data");
-    
-                let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
-                msg_sender(Some(Msg::ServerMessageReceived(msg)));
-            });
-        }
-    }
     #[allow(unused)]
     fn mutation_observer(&self) {
         if let Some(node) = web_sys::window()
