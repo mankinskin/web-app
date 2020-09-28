@@ -37,8 +37,9 @@ use app_model::{
 };
 use warp::reply::Reply;
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
+
 pub async fn listen() {
-    let websocket = warp::path("ws")
+    let websocket = warp::path("wss")
                 .and(warp::ws())
                 .map(move |ws: warp::ws::Ws| {
                     debug!("Websocket connection request");
@@ -96,7 +97,10 @@ pub async fn listen() {
         .or(pkg_dir)
         .with(logger);
     let addr = SocketAddr::from(([0,0,0,0], 8000));
-    let server = warp::serve(routes);
+    let server = warp::serve(routes)
+        .tls()
+        .cert_path("./keys/tls.crt")
+        .key_path("./keys/tls.key");
     info!("Starting Server");
     server.run(addr).await;
 }

@@ -39,7 +39,7 @@ impl Init<String> for WebSocket {
 impl WebSocket {
     fn create_websocket(host: &str, orders: &mut impl Orders<Msg>) -> SeedWebSocket {
         let msg_sender = orders.msg_sender();
-        let url = format!("ws://{}/ws", host);
+        let url = format!("wss://{}/wss", host);
         SeedWebSocket::builder(url, orders)
             .on_open(|| Msg::WebSocketOpened)
             .on_message(move |msg| Self::receive_message(msg, msg_sender))
