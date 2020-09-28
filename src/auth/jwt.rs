@@ -1,9 +1,6 @@
 use crate::user::*;
-use chrono::{
-    Utc,
-    Duration,
-};
-use jsonwebtoken::{errors::*, Header, *};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{errors::*, DecodingKey, EncodingKey, Header, *};
 use lazy_static::lazy_static;
 use serde::*;
 use std::convert::TryFrom;
@@ -31,7 +28,6 @@ impl JWTProvider {
     pub fn new() -> Self {
         let validation = Validation {
             validate_exp: true,
-            validate_iat: true,
             validate_nbf: true,
             leeway: 60,
             ..Default::default()
@@ -43,10 +39,18 @@ impl JWTProvider {
         }
     }
     pub fn encode(&self, claims: &JWTClaims) -> Result<String> {
-        encode(&self.header, &claims, &self.secret.as_bytes())
+        encode(
+            &self.header,
+            &claims,
+            &EncodingKey::from_secret(self.secret.as_bytes()),
+        )
     }
     pub fn decode(&self, token: &str) -> Result<TokenData<JWTClaims>> {
-        decode(token, &self.secret.as_bytes(), &self.validation)
+        decode(
+            token,
+            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &self.validation,
+        )
     }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

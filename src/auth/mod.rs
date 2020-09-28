@@ -1,16 +1,14 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod jwt;
-#[cfg(not(target_arch = "wasm32"))]
-use http::status::StatusCode;
-#[cfg(not(target_arch = "wasm32"))]
-use jwt::*;
 
 pub mod credentials;
 use crate::user::*;
-use credentials::*;
-use database_table::DatabaseTable;
 use rql::Id;
-use std::convert::TryFrom;
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    credentials::*, database_table::DatabaseTable, http::status::StatusCode, jwt::*,
+    std::convert::TryFrom,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserSession {
