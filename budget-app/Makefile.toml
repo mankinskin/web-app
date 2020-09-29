@@ -12,6 +12,20 @@ command = "cargo"
 args = ["run"]
 dependencies = ["client", "server"]
 
+[tasks.check]
+description = "Check"
+dependencies = ["check_client", "check_server"]
+
+[tasks.check_server]
+description = "Check Server"
+command = "cargo"
+args = ["check", "--bin", "server"]
+
+[tasks.check_client]
+description = "Check client"
+command = "cargo"
+args = ["check", "--lib", "--target", "wasm32-unknown-unknown"]
+
 [tasks.server]
 description = "Build server"
 command = "cargo"
