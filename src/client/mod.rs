@@ -29,7 +29,13 @@ use websocket::{
 };
 
 fn init_tracing() {
-    tracing_wasm::set_as_global_default();
+    tracing_wasm::set_as_global_default_with_config(
+        tracing_wasm::WASMLayerConfig {
+            report_logs_in_console: true,
+            report_logs_in_timings: true,
+            use_console_color: true,
+        }
+    );
     debug!("Tracing initialized.");
 }
 fn get_host() -> Result<String, JsValue> {
