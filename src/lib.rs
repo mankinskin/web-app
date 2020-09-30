@@ -33,5 +33,5 @@ schema! {
 }
 
 lazy_static! {
-    pub static ref DB: Schema = Schema::new("test_database", rql::HumanReadable).unwrap();
+    pub static ref DB: Schema = Schema::new("test_database", rql::BinaryStable).unwrap();
 }
