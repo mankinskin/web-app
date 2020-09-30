@@ -34,7 +34,7 @@ impl Default for Login {
     fn default() -> Self {
         Self {
             credentials: Default::default(),
-            url: "http://localhost:8000/api/login".into(),
+            url: "https://localhost:8000/api/login".into(),
         }
     }
 }
