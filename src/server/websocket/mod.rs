@@ -71,12 +71,16 @@ pub async fn connection(websocket: WebSocket) {
 pub async fn handle_message(id: usize, msg: ServerMessage) -> Result<(), Error> {
     let response = match msg {
         ServerMessage::SubscribePrice(market_pair) => {
-            //debug!("Subscribing to market pair {}", &market_pair);
+            debug!("Subscribing to market pair {}", &market_pair);
             crate::model().await.add_symbol(market_pair.clone()).await?;
             crate::server::interval::set(interval(Duration::from_secs(1)));    
             let subscription = PriceSubscription::from(market_pair);
             let response = ClientMessage::PriceHistory(subscription.latest_price_history().await?);
             Some(response)
+        },
+        ServerMessage::Close => {
+            Connections::remove(id).await;
+            None
         },
         _ => None,
     };
