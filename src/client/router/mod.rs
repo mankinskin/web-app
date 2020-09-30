@@ -41,7 +41,15 @@ use seed::app::subs;
 pub struct Router {
     page: Page,
 }
-
+impl Router {
+    pub fn go_to(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
+        debug!("Goto Page");
+        self.set_page(Page::init(route, &mut orders.proxy(Msg::Page)));
+    }
+    pub fn set_page(&mut self, page: Page) {
+        self.page = page;
+    }
+}
 impl Init<Url> for Router {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
         orders.subscribe(Msg::UrlRequested)
@@ -77,9 +85,7 @@ impl Component for Router {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
             Msg::UrlRequested(subs::UrlRequested(url, _request)) => {
                 debug!("UrlRequested");
-                if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
-                    self.page.go_to(route, &mut orders.proxy(Msg::Page))
-                }
+                *self = Self::init(url, orders);
             },
             Msg::UrlChanged(subs::UrlChanged(url)) =>{
                 debug!("UrlChanged");

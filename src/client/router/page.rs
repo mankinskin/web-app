@@ -11,23 +11,21 @@ use seed::{
 use tracing::{
     debug,
 };
+use crate::chart::{
+    self,
+    Chart,
+};
 
 #[derive(Clone, Debug)]
 pub enum Msg {
     Auth(components::auth::Msg),
-    Chart(crate::chart::Msg),
+    Chart(chart::Msg),
 }
 #[derive(Debug)]
 pub enum Page {
     Auth(components::auth::Auth),
-    Chart(crate::chart::Chart),
+    Chart(Chart),
     Root,
-}
-impl Page {
-    pub fn go_to(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
-        debug!("Goto Page");
-        *self = Init::init(route, orders);
-    }
 }
 impl Init<BaseRoute> for Page {
     fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
@@ -36,7 +34,7 @@ impl Init<BaseRoute> for Page {
             BaseRoute::Auth(auth_route) =>
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth))),
             BaseRoute::Chart =>
-                Self::Chart(crate::chart::Chart::init((), &mut orders.proxy(Msg::Chart))),
+                Self::Chart(Chart::init((), &mut orders.proxy(Msg::Chart))),
             BaseRoute::Root => Self::Root,
         }
     }

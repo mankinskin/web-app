@@ -114,7 +114,7 @@ impl Component for Chart {
             },
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
-            }
+            },
             Msg::Websocket(msg) => {
                 self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
             },
