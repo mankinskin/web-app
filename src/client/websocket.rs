@@ -27,8 +27,7 @@ pub struct WebSocket {
 }
 impl Init<String> for WebSocket {
     fn init(host: String, orders: &mut impl Orders<Msg>) -> Self {
-        orders.subscribe(|msg: ServerMessage|
-            Msg::SendWebSocketMessage(msg));
+        orders.subscribe(Msg::SendMessage);
         Self {
             host: host.clone(),
             websocket: Some(Self::create_websocket(&host, orders)),
@@ -54,7 +53,7 @@ impl WebSocket {
                 .json::<shared::ClientMessage>()
                 .expect("Failed to decode WebSocket text message");
     
-            msg_sender(Some(Msg::ServerMessageReceived(msg)));
+            msg_sender(Some(Msg::MessageReceived(msg)));
         } else {
             spawn_local(async move {
                 let bytes = message
@@ -63,7 +62,7 @@ impl WebSocket {
                     .expect("WebsocketError on binary data");
     
                 let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
-                msg_sender(Some(Msg::ServerMessageReceived(msg)));
+                msg_sender(Some(Msg::MessageReceived(msg)));
             });
         }
     }
@@ -81,9 +80,9 @@ pub enum Msg {
     WebSocketOpened,
     WebSocketClosed(CloseEvent),
     WebSocketError(String),
-    ServerMessageReceived(ClientMessage),
-    SendWebSocketMessage(ServerMessage),
     ReconnectWebSocket,
+    MessageReceived(ClientMessage),
+    SendMessage(ServerMessage),
 }
 impl Component for WebSocket {
     type Msg = Msg;
@@ -109,13 +108,13 @@ impl Component for WebSocket {
             Msg::ReconnectWebSocket => {
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
-            Msg::SendWebSocketMessage(msg) => {
-                //debug!("Send ServerMessage");
+            Msg::SendMessage(msg) => {
+                debug!("Send ServerMessage");
                 //debug!("{:#?}", msg);
                 self.send_message(msg, orders);
             },
-            Msg::ServerMessageReceived(msg) => {
-                //debug!("ClientMessage received");
+            Msg::MessageReceived(msg) => {
+                debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
             },

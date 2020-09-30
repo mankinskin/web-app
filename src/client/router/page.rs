@@ -8,13 +8,16 @@ use seed::{
     *,
     prelude::*,
 };
+use tracing::{
+    debug,
+};
 
 #[derive(Clone, Debug)]
 pub enum Msg {
     Auth(components::auth::Msg),
     Chart(crate::chart::Msg),
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Page {
     Auth(components::auth::Auth),
     Chart(crate::chart::Chart),
@@ -39,6 +42,7 @@ impl Init<BaseRoute> for Page {
 impl Component for Page {
     type Msg = Msg; 
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
+        debug!("Page update");
         match self {
             Self::Auth(auth) =>
                 if let Msg::Auth(msg) = msg {

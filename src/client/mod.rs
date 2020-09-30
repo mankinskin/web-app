@@ -24,9 +24,6 @@ use chart::{
     Chart,
 };
 pub mod websocket;
-use websocket::{
-    WebSocket,
-};
 pub mod router;
 use router::Router;
 
@@ -34,7 +31,7 @@ fn init_tracing() {
     tracing_wasm::set_as_global_default();
     debug!("Tracing initialized.");
 }
-fn get_host() -> Result<String, JsValue> {
+pub fn get_host() -> Result<String, JsValue> {
     web_sys::window().unwrap().location().host()
 }
 #[wasm_bindgen(start)]
@@ -44,10 +41,8 @@ pub fn render() {
     App::start("app",
         |url, orders| {
             let host = get_host().unwrap();
-            debug!("Host: {}", host);
             Model {
                 host: host.clone(),
-                websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
                 router: Router::init(url, &mut orders.proxy(Msg::Router)),
             }
         },
@@ -59,11 +54,9 @@ pub fn render() {
 pub struct Model {
     pub host: String,
     pub router: Router,
-    pub websocket: WebSocket
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Websocket(websocket::Msg),
     Router(router::Msg),
 }
 impl Component for Model {
@@ -73,9 +66,6 @@ impl Component for Model {
         match msg {
             Msg::Router(msg) => {
                 self.router.update(msg, &mut orders.proxy(Msg::Router));
-            },
-            Msg::Websocket(msg) => {
-                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
             },
         }
     }
@@ -94,18 +84,6 @@ impl Model {
             let observer = web_sys::MutationObserver::new(&function).unwrap();
             observer.observe(&node).unwrap();
         }
-    }
-    #[allow(unused)]
-    async fn fetch_candles(url: &str) -> Result<Vec<Candle>, FetchError> {
-        let url = format!("http://{}/api/price_history", url);
-        seed::fetch::fetch(
-            Request::new(url)
-                .method(Method::Get)
-            )
-            .await?
-            .check_status()?
-            .json()
-            .await
     }
 }
 impl Viewable for Model {

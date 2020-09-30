@@ -34,7 +34,7 @@ impl Into<components::auth::Auth> for AuthRoute {
 }
 
 use seed::app::subs;
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Router {
     page: Page,
 }

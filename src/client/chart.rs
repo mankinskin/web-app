@@ -23,7 +23,11 @@ use crate::{
         ServerMessage,
     },
 };
-#[derive(Clone, Debug)]
+use crate::websocket::{
+    self,
+    WebSocket,
+};
+#[derive(Debug)]
 pub struct Chart {
     pub svg_node: Option<web_sys::Node>,
     pub data: Vec<Candle>,
@@ -41,6 +45,7 @@ pub struct Chart {
     pub last_candle_update: Option<u64>,
     pub time_interval: Interval,
     pub error: Option<String>,
+    pub websocket: WebSocket
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -48,6 +53,7 @@ pub enum Msg {
     SetTimeInterval(Interval),
     SubscribePriceHistory,
     AppendCandles(Vec<Candle>),
+    Websocket(websocket::Msg),
 }
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
@@ -63,6 +69,8 @@ impl Init<()> for Chart {
                 _ => None
             }
         });
+        let host = crate::get_host().unwrap();
+        debug!("Host: {}", host);
         Self {
             view_x: 0,
             view_y: 0,
@@ -79,6 +87,7 @@ impl Init<()> for Chart {
             last_candle_update: None,
             time_interval: Interval::OneMinute,
             error: None,
+            websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
         }
     }
 }
@@ -105,10 +114,25 @@ impl Component for Chart {
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
             }
+            Msg::Websocket(msg) => {
+                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
+            },
         }
     }
 }
 impl Chart {
+    #[allow(unused)]
+    async fn fetch_candles(url: &str) -> Result<Vec<Candle>, FetchError> {
+        let url = format!("http://{}/api/price_history", url);
+        seed::fetch::fetch(
+            Request::new(url)
+                .method(Method::Get)
+            )
+            .await?
+            .check_status()?
+            .json()
+            .await
+    }
     pub fn subscribe_price_history_request(&self) -> ServerMessage {
         ServerMessage::SubscribePrice("SOLBTC".into())
     }
