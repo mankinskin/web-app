@@ -124,6 +124,10 @@ impl Connections {
         (*CONNECTIONS).write().await.remove(&id);
         debug!("Closed WebSocket connection {}", id);
     }
+    pub async fn contains(id: usize) -> bool {
+        let connections = (*CONNECTIONS).read().await;
+        connections.contains_key(&id)
+    }
     pub async fn connection(id: usize) -> Option<ConnectionStream> {
         let mut connections = (*CONNECTIONS).write().await;
         // TODO replace with iter_mut once pull request got accepted and published

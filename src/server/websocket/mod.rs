@@ -65,7 +65,9 @@ pub async fn connection(websocket: WebSocket) {
         })
         .forward(ws_sink).await {}
     receiver_handle.await.expect("Failed to join websocket receiver thread");
-    Connections::remove(id).await;
+    if Connections::contains(id).await {
+        Connections::remove(id).await;
+    }
 }
 
 pub async fn handle_message(id: usize, msg: ServerMessage) -> Result<(), Error> {
