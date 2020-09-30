@@ -37,17 +37,21 @@ impl Init<String> for WebSocket {
 }
 impl WebSocket {
     fn create_websocket(host: &str, orders: &mut impl Orders<Msg>) -> SeedWebSocket {
+        debug!("Creating websocket");
         let msg_sender = orders.msg_sender();
         let url = format!("wss://{}/wss", host);
-        SeedWebSocket::builder(url, orders)
-            .on_open(|| Msg::WebSocketOpened)
+        let ws = SeedWebSocket::builder(url, orders)
+            .on_open(|| Msg::Opened)
             .on_message(move |msg| Self::receive_message(msg, msg_sender))
-            .on_close(Msg::WebSocketClosed)
-            .on_error(|| Msg::WebSocketError("WebSocket failed.".to_string()))
+            .on_close(Msg::Closed)
+            .on_error(|| Msg::Error("WebSocket failed.".to_string()))
             .build_and_open()
-            .unwrap()
+            .expect("Failed to build WebSocket");
+        debug!("Built websocket");
+        ws
     }
     fn receive_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
+        debug!("Receiving message");
         if message.contains_text() {
             let msg = message
                 .json::<shared::ClientMessage>()
@@ -59,7 +63,7 @@ impl WebSocket {
                 let bytes = message
                     .bytes()
                     .await
-                    .expect("WebsocketError on binary data");
+                    .expect("websocket::Error on binary data");
     
                 let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
                 msg_sender(Some(Msg::MessageReceived(msg)));
@@ -67,45 +71,47 @@ impl WebSocket {
         }
     }
     fn send_message(&self, msg: ServerMessage, orders: &mut impl Orders<Msg>) {
+        debug!("Sending message");
         self.websocket.as_ref().map(|ws|
             ws.send_json(&msg)
                 .unwrap_or_else(|err| {
-                    orders.send_msg(Msg::WebSocketError(format!("{:?}", err)));
+                    orders.send_msg(Msg::Error(format!("{:?}", err)));
                 })
         );
     }
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    WebSocketOpened,
-    WebSocketClosed(CloseEvent),
-    WebSocketError(String),
-    ReconnectWebSocket,
+    Opened,
+    Closed(CloseEvent),
+    Error(String),
+    Reconnect,
     MessageReceived(ClientMessage),
     SendMessage(ServerMessage),
 }
 impl Component for WebSocket {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
-        debug!("Root update");
+        debug!("Websocket update");
         match msg {
-            Msg::WebSocketOpened => {
+            Msg::Opened => {
                 debug!("WebSocket opened");
                 orders.notify(chart::Msg::SubscribePriceHistory);
             },
-            Msg::WebSocketClosed(event) => {
+            Msg::Closed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
                 self.websocket = None;
                 if !event.was_clean() && self.websocket_reconnector.is_none() {
                     self.websocket_reconnector = Some(
-                        orders.stream_with_handle(streams::backoff(None, |_| Msg::ReconnectWebSocket))
+                        orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect))
                     );
                 }
             },
-            Msg::WebSocketError(err) => {
+            Msg::Error(err) => {
                 debug!("WebSocket error: {:#?}", err);
             },
-            Msg::ReconnectWebSocket => {
+            Msg::Reconnect => {
+                debug!("Reconnect websocket");
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
             Msg::SendMessage(msg) => {

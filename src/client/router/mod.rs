@@ -11,6 +11,9 @@ use seed::{
     *,
     prelude::*,
 };
+use tracing::{
+    debug,
+};
 #[derive(Clone, AsPath)]
 pub enum BaseRoute {
     Chart,
@@ -69,17 +72,20 @@ pub enum Msg {
 impl Component for Router {
     type Msg = Msg; 
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
+        debug!("Router Update");
         match msg {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
             Msg::UrlRequested(subs::UrlRequested(url, _request)) => {
+                debug!("UrlRequested");
                 if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
                     self.page.go_to(route, &mut orders.proxy(Msg::Page))
                 }
             },
             Msg::UrlChanged(subs::UrlChanged(url)) =>{
-                if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
-                    self.page.go_to(route, &mut orders.proxy(Msg::Page))
-                }
+                debug!("UrlChanged");
+                //if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
+                //    self.page.go_to(route, &mut orders.proxy(Msg::Page))
+                //}
             },
         }
     }

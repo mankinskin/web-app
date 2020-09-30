@@ -25,11 +25,13 @@ pub enum Page {
 }
 impl Page {
     pub fn go_to(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
+        debug!("Goto Page");
         *self = Init::init(route, orders);
     }
 }
 impl Init<BaseRoute> for Page {
     fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
+        debug!("Init Page");
         match route {
             BaseRoute::Auth(auth_route) =>
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth))),

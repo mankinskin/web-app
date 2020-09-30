@@ -57,6 +57,7 @@ pub enum Msg {
 }
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+        debug!("Creating chart");
         orders.subscribe(|msg: ClientMessage| {
             match msg {
                 ClientMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
