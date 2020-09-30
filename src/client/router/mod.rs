@@ -40,6 +40,7 @@ use seed::app::subs;
 #[derive(Debug)]
 pub struct Router {
     page: Page,
+    url_changed_sub: SubHandle,
 }
 impl Router {
     pub fn go_to_url(&mut self, url: Url, orders: &mut impl Orders<Msg>) {
@@ -72,9 +73,9 @@ impl Init<Url> for Router {
 }
 impl Init<BaseRoute> for Router {
     fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
-        orders.subscribe(Msg::UrlChanged);
         Self {
             page: Page::init(route, &mut orders.proxy(Msg::Page)),
+            url_changed_sub: orders.subscribe_with_handle(Msg::UrlChanged),
         }
     }
 }

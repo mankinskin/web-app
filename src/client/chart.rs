@@ -45,7 +45,10 @@ pub struct Chart {
     pub last_candle_update: Option<u64>,
     pub time_interval: Interval,
     pub error: Option<String>,
-    pub websocket: WebSocket
+    pub websocket: WebSocket,
+
+    client_msg_sub: SubHandle,
+    chart_msg_sub: SubHandle,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -58,12 +61,12 @@ pub enum Msg {
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         debug!("Creating chart");
-        orders.subscribe(|msg: ClientMessage| {
+        let client_msg_sub = orders.subscribe_with_handle(|msg: ClientMessage| {
             match msg {
                 ClientMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
             }
         });
-        orders.subscribe(|msg: Msg| {
+        let chart_msg_sub = orders.subscribe_with_handle(|msg: Msg| {
             debug!("Subscriber received message");
             match msg {
                 Msg::SubscribePriceHistory => Some(msg),
@@ -89,6 +92,8 @@ impl Init<()> for Chart {
             time_interval: Interval::OneMinute,
             error: None,
             websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
+            client_msg_sub,
+            chart_msg_sub,
         }
     }
 }

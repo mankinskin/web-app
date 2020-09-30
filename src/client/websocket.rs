@@ -22,16 +22,17 @@ use crate::chart;
 #[derive(Debug)]
 pub struct WebSocket {
     pub host: String,
-    pub websocket: Option<SeedWebSocket>,
-    pub websocket_reconnector: Option<StreamHandle>,
+    websocket: Option<SeedWebSocket>,
+    websocket_reconnector: Option<StreamHandle>,
+    send_sub: SubHandle,
 }
 impl Init<String> for WebSocket {
     fn init(host: String, orders: &mut impl Orders<Msg>) -> Self {
-        orders.subscribe(Msg::SendMessage);
         Self {
             host: host.clone(),
             websocket: Some(Self::create_websocket(&host, orders)),
             websocket_reconnector: None,
+            send_sub: orders.subscribe_with_handle(Msg::SendMessage),
         }
     }
 }
