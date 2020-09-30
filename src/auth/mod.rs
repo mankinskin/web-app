@@ -11,6 +11,7 @@ use crate::{
     Component,
     Init,
 };
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub enum Auth {
@@ -47,19 +48,17 @@ impl Component for Auth {
     type Msg = Msg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         if let Msg::Set(auth) = msg {
+            debug!("Setting Auth");
             *self = auth;
-        }
-        else if let Auth::Login(login) = self {
+        } else if let Auth::Login(login) = self {
             if let Msg::Login(msg) = msg {
                 login.update(msg, &mut orders.proxy(Msg::Login));
             }
-        }
-        else if let Auth::Register(register) = self {
+        } else if let Auth::Register(register) = self {
             if let Msg::Register(msg) = msg {
                 register.update(msg, &mut orders.proxy(Msg::Register));
             }
-        }
-        else if let Auth::Session(session) = self {
+        } else if let Auth::Session(session) = self {
             if let Msg::Session(msg) = msg {
                 session.update(msg, &mut orders.proxy(Msg::Session));
             }

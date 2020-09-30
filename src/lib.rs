@@ -1,6 +1,9 @@
 extern crate app_model;
-extern crate seed;
 extern crate lazy_static;
+extern crate seed;
+extern crate tracing;
+extern crate tracing_subscriber;
+extern crate tracing_wasm;
 
 pub mod auth;
 

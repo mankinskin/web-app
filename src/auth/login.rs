@@ -15,6 +15,7 @@ use app_model::{
 };
 use seed::{browser::fetch::FetchError, prelude::*, *};
 use std::result::Result;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct Login {
@@ -55,7 +56,7 @@ impl Component for Login {
             Msg::ChangeUsername(u) => self.credentials.username = u,
             Msg::ChangePassword(p) => self.credentials.password = p,
             Msg::Submit => {
-                seed::log!("Logging in...");
+                debug!("Logging in...");
                 orders.perform_cmd(self.clone().login_request().map(
                     |result: Result<UserSession, FetchError>| {
                         Msg::LoginResponse(result.map_err(|e| format!("{:?}", e)))
@@ -63,7 +64,7 @@ impl Component for Login {
                 ));
             }
             Msg::LoginResponse(result) => {
-                seed::log!("Login Response");
+                debug!("Login Response");
                 match result {
                     Ok(session) => {
                         orders.notify(Auth::Session(Session::from(session)));
@@ -79,7 +80,7 @@ impl Component for Login {
 }
 impl Viewable for Login {
     fn view(&self) -> Node<Msg> {
-        //seed::log!("Login redraw");
+        //debug!("Login redraw");
         form![
             label!["Username"],
             input![

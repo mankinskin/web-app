@@ -15,6 +15,7 @@ use app_model::{
     },
 };
 use seed::{prelude::*, *};
+use tracing::debug;
 
 #[derive(Debug, Clone, Default)]
 pub struct Register {
@@ -44,26 +45,28 @@ impl Component for Register {
         match msg {
             Msg::ChangeUsername(u) => {
                 self.user.credentials_mut().username = u;
-            },
+            }
             Msg::ChangePassword(p) => {
                 self.user.credentials_mut().password = p;
-            },
+            }
             Msg::Submit => {
-                seed::log!("Registration...");
+                debug!("Registration...");
                 orders.perform_cmd(registration_request(self.user.clone()).map(
                     |result: Result<UserSession, FetchError>| {
                         Msg::RegistrationResponse(result.map_err(|e| format!("{:?}", e)))
                     },
                 ));
-            },
+            }
             Msg::RegistrationResponse(result) => {
-                seed::log!("Registration Success");
+                seed::log!("Registration Response");
                 match result {
                     Ok(session) => {
-                        seed::log!("Ok");
+                        debug!("Ok");
                         orders.notify(Auth::Session(Session::from(session)));
                     }
-                    Err(e) => seed::log!(e),
+                    Err(e) => {
+                        debug!("{}", e);
+                    }
                 }
             },
             Msg::Login => {
