@@ -42,11 +42,21 @@ pub struct Router {
     page: Page,
 }
 impl Router {
-    pub fn go_to(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
-        debug!("Goto Page");
+    pub fn go_to_url(&mut self, url: Url, orders: &mut impl Orders<Msg>) {
+        //debug!("Go to Url");
+        let route = if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
+            route
+        } else {
+            BaseRoute::Root
+        };
+        self.go_to_route(route, orders);
+    }
+    pub fn go_to_route(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
+        //debug!("Go to route");
         self.set_page(Page::init(route, &mut orders.proxy(Msg::Page)));
     }
     pub fn set_page(&mut self, page: Page) {
+        debug!("Set page");
         self.page = page;
     }
 }
@@ -81,7 +91,7 @@ impl Component for Router {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
             Msg::UrlChanged(subs::UrlChanged(url)) =>{
                 debug!("UrlChanged");
-                *self = Self::init(url, orders);
+                self.go_to_url(url, orders);
             },
         }
     }
