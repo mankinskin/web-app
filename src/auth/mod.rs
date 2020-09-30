@@ -2,15 +2,11 @@ pub mod login;
 pub mod register;
 pub mod session;
 
-use seed::prelude::*;
+use crate::{Component, Init, Viewable};
 use login::Login;
 use register::Register;
+use seed::prelude::*;
 use session::Session;
-use crate::{
-    Viewable,
-    Component,
-    Init,
-};
 use tracing::debug;
 
 #[derive(Debug, Clone)]
@@ -30,11 +26,19 @@ impl Auth {
         Auth::Session(session)
     }
 }
-
 impl Init<()> for Auth {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
         orders.subscribe(Msg::Set);
         Self::login()
+    }
+}
+use app_model::route::AuthRoute;
+impl From<AuthRoute> for Auth {
+    fn from(route: AuthRoute) -> Self {
+        match route {
+            AuthRoute::Login => Self::login(),
+            AuthRoute::Register => Self::register(),
+        }
     }
 }
 #[derive(Clone, Debug)]

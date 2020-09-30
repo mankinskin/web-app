@@ -1,18 +1,8 @@
 use crate::{
-    Component,
-    Viewable,
-    auth::{
-        Auth,
-        register::Register,
-        session::Session,
-    },
+    auth::{session::Session, Auth},
+    Component, Viewable,
 };
-use app_model::{
-    auth::{
-        credentials::Credentials,
-        UserSession,
-    },
-};
+use app_model::auth::{credentials::Credentials, UserSession};
 use seed::{browser::fetch::FetchError, prelude::*, *};
 use std::result::Result;
 use tracing::debug;
@@ -28,7 +18,6 @@ pub enum Msg {
     ChangePassword(String),
     LoginResponse(Result<UserSession, String>),
     Submit,
-    Register,
 }
 impl Login {
     async fn login_request(self) -> Result<UserSession, FetchError> {
@@ -71,9 +60,6 @@ impl Component for Login {
                     }
                     Err(e) => seed::log!(e),
                 }
-            },
-            Msg::Register => {
-                orders.notify(Auth::Register(Register::default()));
             }
         }
     }
@@ -111,7 +97,7 @@ impl Viewable for Login {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            button![ev(Ev::Click, |_| Msg::Register), "Register"],
+            a!["Register", attrs! { At::Href => "/register" }],
         ]
     }
 }

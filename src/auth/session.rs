@@ -1,22 +1,12 @@
-use std::sync::{
-    Mutex,
-};
+use crate::{Component, Viewable};
+use app_model::auth::UserSession;
 use lazy_static::lazy_static;
 use seed::{
-    *,
+    browser::web_storage::{SessionStorage, WebStorage},
     prelude::*,
-    browser::web_storage::{
-        WebStorage,
-        SessionStorage,
-    },
+    *,
 };
-use app_model::{
-    auth::UserSession,
-};
-use crate::{
-    Component,
-    Viewable,
-};
+use std::sync::Mutex;
 const STORAGE_KEY: &str = "session";
 lazy_static! {
     static ref SESSION: Mutex<Option<UserSession>> = Mutex::new(None);
@@ -25,12 +15,10 @@ pub fn load() -> Option<UserSession> {
     SessionStorage::get(STORAGE_KEY).ok()
 }
 pub fn store(session: &UserSession) {
-    SessionStorage::insert(STORAGE_KEY, session)
-        .expect("insert into session storage failed")
+    SessionStorage::insert(STORAGE_KEY, session).expect("insert into session storage failed")
 }
 pub fn clear() {
-    SessionStorage::clear()
-        .expect("clearing session storage failed")
+    SessionStorage::clear().expect("clearing session storage failed")
 }
 pub fn set(session: UserSession) {
     seed::log!("Setting UserSession");
@@ -54,20 +42,17 @@ impl From<UserSession> for Session {
     }
 }
 #[derive(Clone, Debug)]
-pub enum Msg {
-}
+pub enum Msg {}
 impl Component for Session {
     type Msg = Msg;
-    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {
-    }
+    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {}
 }
 impl Viewable for Session {
     fn view(&self) -> Node<Msg> {
         if let Some(session) = get() {
-            div![
-                p!["logged in"],
-                p![format!("{:#?}", session.user_id)],
-            ]
-        } else { empty![] }
+            div![p!["logged in"], p![format!("{:#?}", session.user_id)],]
+        } else {
+            empty![]
+        }
     }
 }

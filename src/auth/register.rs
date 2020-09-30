@@ -1,19 +1,8 @@
 use crate::{
-    Component,
-    Viewable,
-    auth::{
-        self,
-        Auth,
-        login::Login,
-        session::Session,
-    },
+    auth::{session::Session, Auth},
+    Component, Viewable,
 };
-use app_model::{
-    user::*,
-    auth::{
-        UserSession,
-    },
-};
+use app_model::{auth::UserSession, user::*};
 use seed::{prelude::*, *};
 use tracing::debug;
 
@@ -27,7 +16,6 @@ pub enum Msg {
     ChangePassword(String),
     Submit,
     RegistrationResponse(Result<UserSession, String>),
-    Login,
 }
 pub async fn registration_request(user: User) -> Result<UserSession, FetchError> {
     let url = format!("http://localhost:8000/api/register");
@@ -68,9 +56,6 @@ impl Component for Register {
                         debug!("{}", e);
                     }
                 }
-            },
-            Msg::Login => {
-                orders.notify(auth::Msg::Set(Auth::Login(Login::default())));
             }
         }
     }
@@ -107,7 +92,7 @@ impl Viewable for Register {
                 ev.prevent_default();
                 Msg::Submit
             }),
-            button![ev(Ev::Click, |_| Msg::Login), "Log In"],
+            a!["Login", attrs! { At::Href => "/login" }],
         ]
     }
 }
