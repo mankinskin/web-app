@@ -7,16 +7,15 @@ pub mod auth;
 use seed::prelude::*;
 
 use std::fmt::Debug;
-pub trait Init<Cfg: Clone>: Component {
+pub trait Init<Cfg>: Component {
     fn init(config: Cfg, orders: &mut impl Orders<<Self as Component>::Msg>) -> Self;
 }
 impl<Cfg, Cmp> Init<Cfg> for Cmp
 where
     Self: Component,
-    Cfg: Into<Cmp> + Into<<Self as Component>::Msg> + Clone,
+    Cfg: Into<Cmp>,
 {
-    fn init(config: Cfg, orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
-        orders.send_msg(config.clone().into());
+    fn init(config: Cfg, _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         config.into()
     }
 }
