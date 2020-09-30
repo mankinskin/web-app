@@ -66,7 +66,7 @@ pub async fn listen() {
         .and_then(|credentials: Credentials| async {
             Ok(match login(credentials).await {
                 Ok(session) => warp::reply::json(&session).into_response(),
-                Err(status) => warp::reply::with_status("Login failed", status).into_response(),
+                Err(status) => warp::reply::with_status("", status).into_response(),
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
     let register = warp::post()
@@ -75,7 +75,7 @@ pub async fn listen() {
         .and_then(|user: User| async {
             Ok(match register(user).await {
                 Ok(session) => warp::reply::json(&session).into_response(),
-                Err(status) => warp::reply::with_status("Registration failed", status).into_response(),
+                Err(status) => warp::reply::with_status("", status).into_response(),
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
     let api = price_history

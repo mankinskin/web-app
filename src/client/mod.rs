@@ -6,23 +6,11 @@ use components::{
     Component,
     Viewable,
     Init,
-    auth::{
-        *,
-        self,
-    },
-};
-use openlimits::{
-    model::{
-        Candle,
-    },
 };
 use tracing::{
     debug,
 };
 pub mod chart;
-use chart::{
-    Chart,
-};
 pub mod websocket;
 pub mod router;
 use router::Router;

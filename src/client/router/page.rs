@@ -15,6 +15,9 @@ use crate::chart::{
     self,
     Chart,
 };
+use app_model::route::{
+    Route,
+};
 
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -25,17 +28,27 @@ pub enum Msg {
 pub enum Page {
     Auth(components::auth::Auth),
     Chart(Chart),
+    Users,
+    User,
+    Projects,
+    Project,
+    Task,
     Root,
 }
-impl Init<BaseRoute> for Page {
-    fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
+impl Init<Route> for Page {
+    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
         debug!("Init Page");
         match route {
-            BaseRoute::Auth(auth_route) =>
+            Route::Auth(auth_route) =>
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth))),
-            BaseRoute::Chart =>
+            Route::Chart =>
                 Self::Chart(Chart::init((), &mut orders.proxy(Msg::Chart))),
-            BaseRoute::Root => Self::Root,
+            Route::Project(_id) => Self::Project,
+            Route::Projects => Self::Projects,
+            Route::User(_id) => Self::User,
+            Route::Users => Self::Users,
+            Route::Task(_id) => Self::Task,
+            Route::Root => Self::Root,
         }
     }
 }
@@ -52,6 +65,11 @@ impl Component for Page {
                 if let Msg::Chart(msg) = msg {
                     chart.update(msg, &mut orders.proxy(Msg::Chart));
                 },
+            Self::Users => {}
+            Self::User => {}
+            Self::Projects => {}
+            Self::Project => {}
+            Self::Task => {}
             Self::Root => {}
         }
     }
@@ -61,7 +79,7 @@ impl Viewable for Page {
         match self {
             Self::Auth(auth) => auth.view().map_msg(Msg::Auth),
             Self::Chart(chart) => chart.view().map_msg(Msg::Chart),
-            Self::Root => p!["Hello World!"],
+            _ => p!["Hello World!"],
         }
     }
 }

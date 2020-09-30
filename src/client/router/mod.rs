@@ -1,11 +1,10 @@
 pub mod page;
 use page::*;
-use enum_paths::{AsPath, ParseError, ParsePath};
+use enum_paths::ParsePath;
 use components::{
     Init,
     Component,
     Viewable,
-    auth::Auth,
 };
 use seed::{
     *,
@@ -14,28 +13,7 @@ use seed::{
 use tracing::{
     debug,
 };
-#[derive(Clone, AsPath)]
-pub enum BaseRoute {
-    Chart,
-    #[name = ""]
-    Auth(AuthRoute),
-    #[name = ""]
-    Root,
-}
-#[derive(Clone, AsPath)]
-pub enum AuthRoute {
-    Login,
-    Register,
-}
-impl Into<components::auth::Auth> for AuthRoute {
-    fn into(self) -> Auth {
-        match self {
-            Self::Login => Auth::login(),
-            Self::Register => Auth::register(),
-        }
-    }
-}
-
+use app_model::route::Route;
 use seed::app::subs;
 #[derive(Debug)]
 pub struct Router {
@@ -48,11 +26,11 @@ impl Router {
         let route = if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
             route
         } else {
-            BaseRoute::Root
+            Route::Root
         };
         self.go_to_route(route, orders);
     }
-    pub fn go_to_route(&mut self, route: BaseRoute, orders: &mut impl Orders<Msg>) {
+    pub fn go_to_route(&mut self, route: Route, orders: &mut impl Orders<Msg>) {
         //debug!("Go to route");
         self.set_page(Page::init(route, &mut orders.proxy(Msg::Page)));
     }
@@ -66,13 +44,13 @@ impl Init<Url> for Router {
         let route = if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
             route
         } else {
-            BaseRoute::Root
+            Route::Root
         };
         Self::init(route, orders)
     }
 }
-impl Init<BaseRoute> for Router {
-    fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
+impl Init<Route> for Router {
+    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
         Self {
             page: Page::init(route, &mut orders.proxy(Msg::Page)),
             url_changed_sub: orders.subscribe_with_handle(Msg::UrlChanged),
