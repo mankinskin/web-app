@@ -76,7 +76,7 @@ pub enum Msg {
 impl Component for Router {
     type Msg = Msg; 
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
-        debug!("Router Update");
+        //debug!("Router Update");
         match msg {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
             Msg::UrlChanged(subs::UrlChanged(url)) =>{

@@ -42,7 +42,7 @@ impl Init<BaseRoute> for Page {
 impl Component for Page {
     type Msg = Msg; 
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
-        debug!("Page update");
+        //debug!("Page update");
         match self {
             Self::Auth(auth) =>
                 if let Msg::Auth(msg) = msg {

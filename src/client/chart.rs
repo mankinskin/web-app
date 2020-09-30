@@ -71,7 +71,7 @@ impl Init<()> for Chart {
             }
         });
         let host = crate::get_host().unwrap();
-        debug!("Host: {}", host);
+        //debug!("Host: {}", host);
         Self {
             view_x: 0,
             view_y: 0,
@@ -95,7 +95,7 @@ impl Init<()> for Chart {
 impl Component for Chart {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
-        debug!("Chart update");
+        //debug!("Chart update");
         match msg {
             Msg::Panning(x, y) => {
                 self.view_x += x;
@@ -377,7 +377,7 @@ impl Chart {
 }
 impl Viewable for Chart {
     fn view(&self) -> Node<Self::Msg> {
-        //seed::log!("Chart redraw!");
+        //debug!("Chart redraw!");
         div![
             self.interval_selection(),
             self.graph_view(),

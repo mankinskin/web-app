@@ -51,7 +51,7 @@ impl WebSocket {
         ws
     }
     fn receive_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
-        debug!("Receiving message");
+        //debug!("Receiving message");
         if message.contains_text() {
             let msg = message
                 .json::<shared::ClientMessage>()
@@ -71,7 +71,7 @@ impl WebSocket {
         }
     }
     fn send_message(&self, msg: ServerMessage, orders: &mut impl Orders<Msg>) {
-        debug!("Sending message");
+        //debug!("Sending message");
         self.websocket.as_ref().map(|ws|
             ws.send_json(&msg)
                 .unwrap_or_else(|err| {
@@ -92,7 +92,7 @@ pub enum Msg {
 impl Component for WebSocket {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
-        debug!("Websocket update");
+        //debug!("Websocket update");
         match msg {
             Msg::Opened => {
                 debug!("WebSocket opened");
@@ -115,12 +115,12 @@ impl Component for WebSocket {
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
             Msg::SendMessage(msg) => {
-                debug!("Send ServerMessage");
+                //debug!("Send ServerMessage");
                 //debug!("{:#?}", msg);
                 self.send_message(msg, orders);
             },
             Msg::MessageReceived(msg) => {
-                debug!("ClientMessage received");
+                //debug!("ClientMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
             },

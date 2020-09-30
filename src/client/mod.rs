@@ -62,7 +62,7 @@ pub enum Msg {
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
-        debug!("Root update");
+        //debug!("Root update");
         match msg {
             Msg::Router(msg) => {
                 self.router.update(msg, &mut orders.proxy(Msg::Router));
