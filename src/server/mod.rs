@@ -46,7 +46,7 @@ pub async fn listen() {
                     ws.on_upgrade(websocket::connection)
                 });
     let price_history = warp::get()
-        .and(warp::path!("api"/"price_history"))
+        .and(warp::path!("price_history"))
         .and_then(|| async {
             crate::binance().await
                 .get_symbol_price_history(shared::PriceHistoryRequest {
@@ -61,7 +61,7 @@ pub async fn listen() {
             )
         });
     let login = warp::post()
-        .and(warp::path!("api"/"login"))
+        .and(warp::path!("login"))
         .and(warp::body::json())
         .and_then(|credentials: Credentials| async {
             Ok(match login(credentials).await {
@@ -70,7 +70,7 @@ pub async fn listen() {
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
     let register = warp::post()
-        .and(warp::path!("api"/"register"))
+        .and(warp::path!("register"))
         .and(warp::body::json())
         .and_then(|user: User| async {
             Ok(match register(user).await {
@@ -78,23 +78,26 @@ pub async fn listen() {
                 Err(status) => warp::reply::with_status("", status).into_response(),
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
-    let api = price_history
-        .or(login)
-        .or(register);
+    let api = warp::path!("api")
+        .and(
+            price_history
+            .or(login)
+            .or(register)
+        );
     let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
-    let logger = warp::log::custom(|_info|
-        //debug!("request from {:?}: {} {} {}ms {}",
-        //    info.remote_addr(),
-        //    info.method(),
-        //    info.path(),
-        //    info.elapsed().as_millis(),
-        //    info.status(),
-        //)
-        ()
+    let logger = warp::log::custom(|info|
+        debug!("request from {:?}: {} {} {}ms {}",
+            info.remote_addr(),
+            info.method(),
+            info.path(),
+            info.elapsed().as_millis(),
+            info.status(),
+        )
     );
     let routes = websocket
         .or(api)
         .or(pkg_dir)
+        .or(warp::fs::file(format!("{}/index.html", PKG_PATH)))
         .with(logger);
     let addr = SocketAddr::from(([0,0,0,0], 8000));
     let server = warp::serve(routes)
