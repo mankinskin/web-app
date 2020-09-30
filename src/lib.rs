@@ -5,6 +5,7 @@ extern crate serde_json;
 extern crate derive_builder;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate database_table;
+extern crate enum_paths;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate http;
 #[cfg(not(target_arch = "wasm32"))]

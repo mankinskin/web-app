@@ -32,3 +32,6 @@ path = "../database-table"
 
 [dependencies.updatable]
 path = "../updatable"
+
+[dependencies.enum_paths]
+path = "../enum_paths"
