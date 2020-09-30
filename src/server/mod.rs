@@ -46,7 +46,7 @@ pub async fn listen() {
                     ws.on_upgrade(websocket::connection)
                 });
     let price_history = warp::get()
-        .and(warp::path!("price_history"))
+        .and(warp::path!("api"/"price_history"))
         .and_then(|| async {
             crate::binance().await
                 .get_symbol_price_history(shared::PriceHistoryRequest {
@@ -61,29 +61,26 @@ pub async fn listen() {
             )
         });
     let login = warp::post()
-        .and(warp::path!("login"))
+        .and(warp::path!("api"/"login"))
         .and(warp::body::json())
         .and_then(|credentials: Credentials| async {
             Ok(match login(credentials).await {
                 Ok(session) => warp::reply::json(&session).into_response(),
-                Err(status) => warp::reply::with_status("", status).into_response(),
+                Err(status) => warp::reply::with_status("Login failed", status).into_response(),
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
     let register = warp::post()
-        .and(warp::path!("register"))
+        .and(warp::path!("api"/"register"))
         .and(warp::body::json())
         .and_then(|user: User| async {
             Ok(match register(user).await {
                 Ok(session) => warp::reply::json(&session).into_response(),
-                Err(status) => warp::reply::with_status("", status).into_response(),
+                Err(status) => warp::reply::with_status("Registration failed", status).into_response(),
             }) as Result<warp::reply::Response, core::convert::Infallible>
         });
-    let api = warp::path!("api")
-        .and(
-            price_history
+    let api = price_history
             .or(login)
-            .or(register)
-        );
+            .or(register);
     let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
     let logger = warp::log::custom(|info|
         debug!("request from {:?}: {} {} {}ms {}",
