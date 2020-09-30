@@ -76,7 +76,9 @@ rand_distr = "^0.2"
 rust_decimal = "^1"
 url = "^2"
 wasm-bindgen-futures = "^0.4"
-tracing-wasm = "^0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.tracing-wasm]
+path = "../tracing-wasm"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.components]
 path = "../components"
