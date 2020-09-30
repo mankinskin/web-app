@@ -18,11 +18,22 @@ pub enum Auth {
     Register(Register),
     Session(Session),
 }
+impl Auth {
+    pub fn login() -> Self {
+        Auth::Login(Login::default())
+    }
+    pub fn register() -> Self {
+        Auth::Register(Register::default())
+    }
+    pub fn session(session: Session) -> Self {
+        Auth::Session(session)
+    }
+}
 
 impl Init<()> for Auth {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
         orders.subscribe(Msg::Set);
-        Auth::Login(Login::default())
+        Self::login()
     }
 }
 #[derive(Clone, Debug)]
