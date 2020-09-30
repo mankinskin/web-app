@@ -52,8 +52,6 @@ impl Router {
 }
 impl Init<Url> for Router {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
-        orders.subscribe(Msg::UrlRequested)
-            .subscribe(Msg::UrlChanged);
         let route = if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
             route
         } else {
@@ -64,8 +62,7 @@ impl Init<Url> for Router {
 }
 impl Init<BaseRoute> for Router {
     fn init(route: BaseRoute, orders: &mut impl Orders<Msg>) -> Self {
-        orders.subscribe(Msg::UrlRequested)
-            .subscribe(Msg::UrlChanged);
+        orders.subscribe(Msg::UrlChanged);
         Self {
             page: Page::init(route, &mut orders.proxy(Msg::Page)),
         }
@@ -74,7 +71,6 @@ impl Init<BaseRoute> for Router {
 #[derive(Clone, Debug)]
 pub enum Msg {
     Page(page::Msg),
-    UrlRequested(subs::UrlRequested),
     UrlChanged(subs::UrlChanged),
 }
 impl Component for Router {
@@ -83,15 +79,9 @@ impl Component for Router {
         debug!("Router Update");
         match msg {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
-            Msg::UrlRequested(subs::UrlRequested(url, _request)) => {
-                debug!("UrlRequested");
-                *self = Self::init(url, orders);
-            },
             Msg::UrlChanged(subs::UrlChanged(url)) =>{
                 debug!("UrlChanged");
-                //if let Ok(route) = ParsePath::parse_path(&url.to_string()) {
-                //    self.page.go_to(route, &mut orders.proxy(Msg::Page))
-                //}
+                *self = Self::init(url, orders);
             },
         }
     }
