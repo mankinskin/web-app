@@ -23,7 +23,7 @@ use crate::{
         ServerMessage,
     },
 };
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Chart {
     pub svg_node: Option<web_sys::Node>,
     pub data: Vec<Candle>,

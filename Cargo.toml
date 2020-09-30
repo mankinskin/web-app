@@ -77,6 +77,9 @@ rust_decimal = "^1"
 url = "^2"
 wasm-bindgen-futures = "^0.4"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies.enum_paths]
+path = "../enum_paths"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies.tracing-wasm]
 path = "../tracing-wasm"
 

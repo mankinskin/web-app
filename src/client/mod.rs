@@ -42,14 +42,13 @@ pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_tracing();
     App::start("app",
-        |_url, orders| {
+        |url, orders| {
             let host = get_host().unwrap();
             debug!("Host: {}", host);
             Model {
                 host: host.clone(),
                 websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
-                chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
-                auth: Auth::init((), &mut orders.proxy(Msg::Auth)),
+                router: Router::init(url, &mut orders.proxy(Msg::Router)),
             }
         },
         |msg, model, orders| model.update(msg, orders),
@@ -59,26 +58,21 @@ pub fn render() {
 #[derive(Debug)]
 pub struct Model {
     pub host: String,
-    pub chart: Chart,
-    pub auth: Auth,
+    pub router: Router,
     pub websocket: WebSocket
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
     Websocket(websocket::Msg),
-    Chart(chart::Msg),
-    Auth(auth::Msg),
+    Router(router::Msg),
 }
 impl Component for Model {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         debug!("Root update");
         match msg {
-            Msg::Chart(msg) => {
-                self.chart.update(msg, &mut orders.proxy(Msg::Chart));
-            },
-            Msg::Auth(msg) => {
-                self.auth.update(msg, &mut orders.proxy(Msg::Auth));
+            Msg::Router(msg) => {
+                self.router.update(msg, &mut orders.proxy(Msg::Router));
             },
             Msg::Websocket(msg) => {
                 self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
@@ -118,8 +112,7 @@ impl Viewable for Model {
     fn view(&self) -> Node<Self::Msg> {
         //seed::log!("App redraw!");
         div![
-            self.auth.view().map_msg(Msg::Auth),
-            self.chart.view().map_msg(Msg::Chart),
+            self.router.view().map_msg(Msg::Router),
         ]
     }
 }

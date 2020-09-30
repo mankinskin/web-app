@@ -19,6 +19,7 @@ extern crate js_sys;
 extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_wasm;
+extern crate enum_paths;
 
 mod client;
 pub use client::*;
