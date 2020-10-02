@@ -32,14 +32,14 @@ use parallel_stream::{
     ParallelStream,
 };
 use crate::shared::{
-    ServerMessage,
+    ClientMessage,
 };
 
 #[derive(Debug)]
 pub enum Message {
     Telegram(Update),
     CommandLine(String),
-    WebSocket(usize, ServerMessage),
+    WebSocket(usize, ClientMessage),
     Interval,
 }
 pub struct MessageStream;

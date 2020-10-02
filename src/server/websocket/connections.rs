@@ -3,8 +3,8 @@ use crate::{
     message_stream::Message,
 };
 use crate::shared::{
-    ServerMessage,
     ClientMessage,
+    ServerMessage,
 };
 use futures::{
     Stream,
@@ -52,7 +52,7 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub struct ConnectionStream(Arc<RwLock<Connection>>);
 impl Stream for ConnectionStream {
-    type Item = Result<ServerMessage, Error>;
+    type Item = Result<ClientMessage, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut connection) = (*self.0).try_write() {
             Stream::poll_next(Pin::new(&mut *connection), cx)
@@ -61,7 +61,7 @@ impl Stream for ConnectionStream {
         }
     }
 }
-impl Sink<ClientMessage> for ConnectionStream {
+impl Sink<ServerMessage> for ConnectionStream {
     type Error = Error;
     fn poll_ready(
         self: Pin<&mut Self>,
@@ -73,7 +73,7 @@ impl Sink<ClientMessage> for ConnectionStream {
             Poll::Pending
         }
     }
-    fn start_send(self: Pin<&mut Self>, item: ClientMessage) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, item: ServerMessage) -> Result<(), Self::Error> {
         Sink::start_send(Pin::new(&mut *self.try_write().unwrap()), item).map_err(Into::into)
     }
     fn poll_flush(
@@ -141,7 +141,7 @@ impl Connections {
             .find_map(|(i, v)| (i == index).then_some(v.clone()));
         result
     }
-    pub async fn send_all(msg: ClientMessage) {
+    pub async fn send_all(msg: ServerMessage) {
         for connection in CONNECTIONS
             .write()
             .await

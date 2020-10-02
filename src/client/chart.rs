@@ -18,8 +18,8 @@ use tracing::{
 };
 use rust_decimal::prelude::ToPrimitive;
 use crate::shared::{
-    ClientMessage,
     ServerMessage,
+    ClientMessage,
 };
 use crate::websocket::{
     self,
@@ -45,7 +45,7 @@ pub struct Chart {
     pub error: Option<String>,
     pub websocket: WebSocket,
 
-    client_msg_sub: SubHandle,
+    server_msg_sub: SubHandle,
     chart_msg_sub: SubHandle,
 }
 #[derive(Clone, Debug)]
@@ -59,13 +59,14 @@ pub enum Msg {
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         debug!("Creating chart");
-        let client_msg_sub = orders.subscribe_with_handle(|msg: ClientMessage| {
+        let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
+            debug!("Received Server Message");
             match msg {
-                ClientMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
+                ServerMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
             }
         });
         let chart_msg_sub = orders.subscribe_with_handle(|msg: Msg| {
-            debug!("Subscriber received message");
+            debug!("Chart received message");
             match msg {
                 Msg::SubscribePriceHistory => Some(msg),
                 _ => None
@@ -90,7 +91,7 @@ impl Init<()> for Chart {
             time_interval: Interval::OneMinute,
             error: None,
             websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
-            client_msg_sub,
+            server_msg_sub,
             chart_msg_sub,
         }
     }
@@ -137,8 +138,8 @@ impl Chart {
             .json()
             .await
     }
-    pub fn subscribe_price_history_request(&self) -> ServerMessage {
-        ServerMessage::SubscribePrice("SOLBTC".into())
+    pub fn subscribe_price_history_request(&self) -> ClientMessage {
+        ClientMessage::SubscribePrice("SOLBTC".into())
     }
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
         if let Some(timestamp) = self.last_candle_update {

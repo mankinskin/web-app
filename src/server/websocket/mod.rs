@@ -11,8 +11,8 @@ use crate::{
     Error,
 };
 use crate::shared::{
-    ServerMessage,
     ClientMessage,
+    ServerMessage,
 };
 use futures::{
     StreamExt,
@@ -41,8 +41,8 @@ use async_std::{
 use std::time::Duration;
 
 pub async fn connection(websocket: WebSocket) {
-    let (ws_server_sender, ms_server_receiver) = channel(100); // ServerMessages
-    let (ms_client_sender, ws_client_receiver) = channel(100); // ClientMessages
+    let (ws_server_sender, ms_server_receiver) = channel(100); // ClientMessages
+    let (ms_client_sender, ws_client_receiver) = channel(100); // ServerMessages
     let id = Connections::add(Connection::new(ms_client_sender, ms_server_receiver)).await;
     // get websocket sink and stream
     let (ws_sink, ws_stream) = websocket.split();
@@ -55,12 +55,12 @@ pub async fn connection(websocket: WebSocket) {
             .forward(
                 ws_server_sender
                     .with(|msg: warp::ws::Message| async { 
-                        msg.try_into() as Result<ServerMessage, _>
+                        msg.try_into() as Result<ClientMessage, _>
                     })
             ).await.expect("Failed to forward websocket receiving stream")
     });
     if let Ok(()) = ws_client_receiver
-        .filter_map(|msg: ClientMessage| async {
+        .filter_map(|msg: ServerMessage| async {
             msg.try_into().map(Ok).ok()
         })
         .forward(ws_sink).await {}
@@ -70,17 +70,17 @@ pub async fn connection(websocket: WebSocket) {
     }
 }
 
-pub async fn handle_message(id: usize, msg: ServerMessage) -> Result<(), Error> {
+pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> {
     let response = match msg {
-        ServerMessage::SubscribePrice(market_pair) => {
+        ClientMessage::SubscribePrice(market_pair) => {
             debug!("Subscribing to market pair {}", &market_pair);
             crate::model().await.add_symbol(market_pair.clone()).await?;
             crate::server::interval::set(interval(Duration::from_secs(1)));    
             let subscription = PriceSubscription::from(market_pair);
-            let response = ClientMessage::PriceHistory(subscription.latest_price_history().await?);
+            let response = ServerMessage::PriceHistory(subscription.latest_price_history().await?);
             Some(response)
         },
-        ServerMessage::Close => {
+        ClientMessage::Close => {
             Connections::remove(id).await;
             None
         },
@@ -101,6 +101,6 @@ lazy_static!{
 }
 pub async fn update() -> Result<(), Error> {
     let history = SUB.read().await.latest_price_history().await?;
-    Connections::send_all(ClientMessage::PriceHistory(history)).await;
+    Connections::send_all(ServerMessage::PriceHistory(history)).await;
     Ok(())
 }

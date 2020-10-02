@@ -22,7 +22,7 @@ pub struct PriceHistoryRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ServerMessage {
+pub enum ClientMessage {
     SubscribePrice(String),
     Close,
     Ping,
@@ -30,7 +30,7 @@ pub enum ServerMessage {
     Binary(Vec<u8>),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ClientMessage {
+pub enum ServerMessage {
     PriceHistory(PriceHistory),
 }
 #[cfg(not(target_arch = "wasm32"))]
@@ -42,7 +42,7 @@ use std::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-impl TryInto<warp::ws::Message> for ClientMessage {
+impl TryInto<warp::ws::Message> for ServerMessage {
     type Error = crate::Error;
     fn try_into(self) -> Result<warp::ws::Message, Self::Error> {
         Ok(warp::ws::Message::text(
@@ -52,21 +52,21 @@ impl TryInto<warp::ws::Message> for ClientMessage {
     }
 }
 #[cfg(not(target_arch = "wasm32"))]
-impl TryFrom<warp::ws::Message> for ServerMessage {
+impl TryFrom<warp::ws::Message> for ClientMessage {
     type Error = crate::Error;
     fn try_from(msg: warp::ws::Message) -> Result<Self, Self::Error> {
         if let Ok(text) = msg.to_str() {
             serde_json::de::from_str(text).map_err(Into::into)
         } else {
             if msg.is_close() {
-                Ok(ServerMessage::Close)
+                Ok(ClientMessage::Close)
             } else if msg.is_ping() {
-                Ok(ServerMessage::Ping)
+                Ok(ClientMessage::Ping)
             } else if msg.is_pong() {
-                Ok(ServerMessage::Pong)
+                Ok(ClientMessage::Pong)
             } else if msg.is_binary() {
                 let bytes = msg.as_bytes().to_vec();
-                Ok(ServerMessage::Binary(bytes))
+                Ok(ClientMessage::Binary(bytes))
             } else {
                 Err(crate::Error::WebSocket(format!("Unable to read message: {:#?}", msg)))
             }

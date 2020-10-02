@@ -2,8 +2,8 @@ use crate::{
     Error,
 };
 use crate::shared::{
-    ServerMessage,
     ClientMessage,
+    ServerMessage,
 };
 use futures::{
     Stream,
@@ -26,11 +26,11 @@ use std::pin::Pin;
 
 #[derive(Debug)]
 pub struct Connection {
-    sender: Sender<ClientMessage>,
-    receiver: Receiver<ServerMessage>,
+    sender: Sender<ServerMessage>,
+    receiver: Receiver<ClientMessage>,
 }
 impl Connection {
-    pub fn new(sender: Sender<ClientMessage>, receiver: Receiver<ServerMessage>) -> Self {
+    pub fn new(sender: Sender<ServerMessage>, receiver: Receiver<ClientMessage>) -> Self {
         Self {
             sender,
             receiver,
@@ -38,13 +38,13 @@ impl Connection {
     }
 }
 impl Stream for Connection {
-    type Item = Result<ServerMessage, Error>;
+    type Item = Result<ClientMessage, Error>;
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         Stream::poll_next(Pin::new(&mut self.receiver), cx)
             .map(|opt| opt.map(Ok))
     }
 }
-impl Sink<ClientMessage> for Connection {
+impl Sink<ServerMessage> for Connection {
     type Error = Error;
     fn poll_ready(
         mut self: Pin<&mut Self>,
@@ -52,7 +52,7 @@ impl Sink<ClientMessage> for Connection {
     ) -> Poll<Result<(), Self::Error>> {
         Sink::poll_ready(Pin::new(&mut self.sender), cx).map_err(Into::into)
     }
-    fn start_send(mut self: Pin<&mut Self>, item: ClientMessage) -> Result<(), Self::Error> {
+    fn start_send(mut self: Pin<&mut Self>, item: ServerMessage) -> Result<(), Self::Error> {
         Sink::start_send(Pin::new(&mut self.sender), item).map_err(Into::into)
     }
     fn poll_flush(

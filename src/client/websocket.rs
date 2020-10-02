@@ -52,7 +52,7 @@ impl WebSocket {
         //debug!("Receiving message");
         if message.contains_text() {
             let msg = message
-                .json::<ClientMessage>()
+                .json::<ServerMessage>()
                 .expect("Failed to decode WebSocket text message");
     
             msg_sender(Some(Msg::MessageReceived(msg)));
@@ -63,12 +63,12 @@ impl WebSocket {
                     .await
                     .expect("websocket::Error on binary data");
     
-                let msg: ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
+                let msg: ServerMessage = serde_json::de::from_slice(&bytes).unwrap();
                 msg_sender(Some(Msg::MessageReceived(msg)));
             });
         }
     }
-    fn send_message(&self, msg: ServerMessage, orders: &mut impl Orders<Msg>) {
+    fn send_message(&self, msg: ClientMessage, orders: &mut impl Orders<Msg>) {
         //debug!("Sending message");
         self.websocket.as_ref().map(|ws|
             ws.send_json(&msg)
@@ -84,8 +84,8 @@ pub enum Msg {
     Closed(CloseEvent),
     Error(String),
     Reconnect,
-    MessageReceived(ClientMessage),
-    SendMessage(ServerMessage),
+    MessageReceived(ServerMessage),
+    SendMessage(ClientMessage),
 }
 impl Component for WebSocket {
     type Msg = Msg;
@@ -113,12 +113,12 @@ impl Component for WebSocket {
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
             },
             Msg::SendMessage(msg) => {
-                //debug!("Send ServerMessage");
+                //debug!("Send ClientMessage");
                 //debug!("{:#?}", msg);
                 self.send_message(msg, orders);
             },
             Msg::MessageReceived(msg) => {
-                //debug!("ClientMessage received");
+                //debug!("ServerMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
             },
