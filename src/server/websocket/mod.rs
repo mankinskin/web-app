@@ -8,11 +8,11 @@ use warp::{
     },
 };
 use crate::{
-    shared::{
-        ServerMessage,
-        ClientMessage,
-    },
     Error,
+};
+use crate::shared::{
+    ServerMessage,
+    ClientMessage,
 };
 use futures::{
     StreamExt,

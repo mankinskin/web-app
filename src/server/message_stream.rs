@@ -1,7 +1,6 @@
 use crate::{
     Error,
     telegram::telegram,
-    shared::ServerMessage,
     server::{
         websocket,
         interval,
@@ -31,6 +30,9 @@ use tracing::{
 };
 use parallel_stream::{
     ParallelStream,
+};
+use crate::shared::{
+    ServerMessage,
 };
 
 #[derive(Debug)]
@@ -95,7 +97,7 @@ impl Stream for MessageStream {
         }
         let websocket_poll = Stream::poll_next(Pin::new(&mut websocket::Connections), cx);
         if websocket_poll.is_ready() {
-            debug!("Websocket poll ready: {:?}", websocket_poll);
+            //debug!("Websocket poll ready: {:?}", websocket_poll);
             return websocket_poll;
         }
         let cli_poll = Stream::poll_next(Pin::new(&mut CommandLine), cx);

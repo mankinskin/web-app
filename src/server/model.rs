@@ -19,9 +19,6 @@ use chrono::{
     DateTime,
     Utc,
 };
-use crate::{
-    shared,
-};
 use serde::{
     Serialize,
     Deserialize,
@@ -30,6 +27,9 @@ use tracing::{
     debug,
 };
 use std::convert::TryInto;
+use crate::shared::{
+    PriceHistoryRequest,
+};
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -68,7 +68,7 @@ impl SymbolModel {
                         }
                     );
         let prices = crate::binance().await.get_symbol_price_history(
-                shared::PriceHistoryRequest {
+                PriceHistoryRequest {
                     market_pair: self.symbol.clone(),
                     interval: None,
                     paginator,

@@ -1,9 +1,11 @@
 use crate::{
-    shared::{
-        PriceHistory,
-        PriceHistoryRequest,
-    },
     Error,
+};
+use crate::shared::{
+    PriceHistoryRequest,
+};
+use app_model::market::{
+    PriceHistory,
 };
 use openlimits::model::Paginator;
 

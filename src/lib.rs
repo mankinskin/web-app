@@ -20,8 +20,9 @@ extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_wasm;
 extern crate enum_paths;
+extern crate app_model;
 
+mod shared;
 mod client;
 pub use client::*;
-mod shared;
 

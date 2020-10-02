@@ -1,6 +1,5 @@
 use crate::{
     Error,
-    shared,
     server::{
         message_stream::Message,
     },
@@ -41,6 +40,9 @@ use futures_core::{
 use std::{
     pin::Pin,
     task::Poll,
+};
+use crate::shared::{
+    PriceHistoryRequest,
 };
 
 use lazy_static::lazy_static;
@@ -86,7 +88,7 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
                 let price_history = crate::binance().await.get_symbol_price_history(
-                        shared::PriceHistoryRequest {
+                        PriceHistoryRequest {
                             market_pair: symbol.to_string().clone(),
                             interval: None,
                             paginator: None,

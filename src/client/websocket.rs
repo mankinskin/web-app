@@ -7,12 +7,9 @@ use components::{
     Component,
     Init,
 };
-use crate::{
-    shared::{
-        self,
-        ClientMessage,
-        ServerMessage,
-    },
+use crate::shared::{
+    ClientMessage,
+    ServerMessage,
 };
 use tracing::{
     debug,
@@ -55,7 +52,7 @@ impl WebSocket {
         //debug!("Receiving message");
         if message.contains_text() {
             let msg = message
-                .json::<shared::ClientMessage>()
+                .json::<ClientMessage>()
                 .expect("Failed to decode WebSocket text message");
     
             msg_sender(Some(Msg::MessageReceived(msg)));
@@ -66,7 +63,7 @@ impl WebSocket {
                     .await
                     .expect("websocket::Error on binary data");
     
-                let msg: shared::ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
+                let msg: ClientMessage = serde_json::de::from_slice(&bytes).unwrap();
                 msg_sender(Some(Msg::MessageReceived(msg)));
             });
         }

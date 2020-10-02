@@ -22,9 +22,6 @@ use tracing::{
     debug,
     info,
 };
-use crate::{
-    shared,
-};
 use app_model::{
     user::{
         User,
@@ -34,6 +31,9 @@ use app_model::{
         register,
         credentials::Credentials,
     },
+};
+use crate::shared::{
+    PriceHistoryRequest,
 };
 use warp::reply::Reply;
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
@@ -49,7 +49,7 @@ pub async fn listen() {
         .and(warp::path!("api"/"price_history"))
         .and_then(|| async {
             crate::binance().await
-                .get_symbol_price_history(shared::PriceHistoryRequest {
+                .get_symbol_price_history(PriceHistoryRequest {
                 market_pair: "SOLBTC".into(),
                 interval: Some(openlimits::model::Interval::OneHour),
                 paginator: None,

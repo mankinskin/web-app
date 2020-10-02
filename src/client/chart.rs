@@ -17,11 +17,9 @@ use tracing::{
     debug,
 };
 use rust_decimal::prelude::ToPrimitive;
-use crate::{
-    shared::{
-        ClientMessage,
-        ServerMessage,
-    },
+use crate::shared::{
+    ClientMessage,
+    ServerMessage,
 };
 use crate::websocket::{
     self,

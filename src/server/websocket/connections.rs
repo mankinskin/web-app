@@ -1,10 +1,10 @@
 use crate::{
-    shared::{
-        ServerMessage,
-        ClientMessage,
-    },
     Error,
     message_stream::Message,
+};
+use crate::shared::{
+    ServerMessage,
+    ClientMessage,
 };
 use futures::{
     Stream,

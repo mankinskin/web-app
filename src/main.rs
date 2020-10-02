@@ -18,11 +18,11 @@ extern crate warp;
 extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_appender;
-extern crate app_model;
 extern crate parallel_stream;
+extern crate app_model;
 
-mod server;
 mod shared;
+mod server;
 pub use server::*;
 use server::{
     error::Error,

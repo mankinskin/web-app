@@ -27,13 +27,14 @@ version = "^0.3"
 [dependencies.openlimits]
 path = "../openlimits"
 
+[dependencies.app-model]
+path = "../app-model"
+
 [dependencies.serde]
 version = "^1"
 features = [
   "derive",
 ]
-[dependencies.app-model]
-path = "../app-model"
 
 [lib]
 crate-type = ["cdylib"]

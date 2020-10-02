@@ -30,9 +30,9 @@ use crate::{
     server::{
         keys,
     },
-    shared::{
-        PriceHistoryRequest,
-    },
+};
+use crate::shared::{
+    PriceHistoryRequest,
 };
 
 lazy_static! {
