@@ -15,12 +15,14 @@ extern crate lazy_static;
 extern crate rql;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate updatable;
+extern crate openlimits;
 
 pub mod auth;
 pub mod project;
 pub mod route;
 pub mod task;
 pub mod user;
+pub mod market;
 
 use lazy_static::lazy_static;
 use rql::*;

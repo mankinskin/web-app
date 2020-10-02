@@ -24,6 +24,9 @@ features = [
   "derive",
 ]
 
+[dependencies.openlimits]
+path = "../openlimits"
+
 [dependencies.rql]
 path = "../rql"
 
