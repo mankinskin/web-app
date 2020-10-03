@@ -7,7 +7,7 @@ use plans::{
     user::User,
 };
 use crate::{
-    config::{
+    components::{
         Component,
         Config,
         View,

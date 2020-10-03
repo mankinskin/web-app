@@ -33,6 +33,9 @@ features = [
   'serde-serialize',
 ]
 
+[dependencies.components]
+path = "../../../components"
+
 [dependencies.rql]
 path = "../../../rql"
 

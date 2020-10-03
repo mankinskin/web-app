@@ -6,7 +6,7 @@ use plans::{
     project::*,
 };
 use crate::{
-    config::*,
+    components::*,
     task::{*},
     editor::{
         self,

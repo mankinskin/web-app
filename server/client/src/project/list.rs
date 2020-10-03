@@ -10,7 +10,7 @@ use rql::{
     *,
 };
 use crate::{
-    config::{
+    components::{
         Config,
         Component,
         View,

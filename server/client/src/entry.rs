@@ -3,8 +3,9 @@ use seed::{
     prelude::*,
 };
 use crate::{
-    config::{
+    components::{
         Component,
+        View,
     },
     preview::{
         self,
@@ -19,6 +20,11 @@ use database::{
 use std::result::Result;
 use std::fmt::Debug;
 
+impl<T: TableItem + View + Debug> View for Entry<T> {
+    fn view(&self) -> Node<Self::Msg> {
+        self.data.view().map_msg(Msg::Data)
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Msg<T: TableItem + Component + Debug> {
     Refresh,

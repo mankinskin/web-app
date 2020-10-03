@@ -31,29 +31,6 @@ pub fn login(credentials: Json<Credentials>)
     -> std::result::Result<Json<UserSession>, Status>
 {
     let credentials = credentials.into_inner();
-    User::find(|user| *user.name() == credentials.username)
-        .ok_or(Status::NotFound)
-        .and_then(|entry| {
-            let user = entry.data();
-            if *user.password() == credentials.password {
-                Ok(entry)
-            } else {
-                Err(Status::Unauthorized)
-            }
-        })
-        .and_then(|entry| {
-            let user = entry.data().clone();
-            let id = entry.id().clone();
-            JWT::try_from(&user)
-                .map_err(|_| Status::InternalServerError)
-                .map(move |jwt| (id, jwt))
-        })
-        .map(|(id, jwt)|
-             Json(UserSession {
-                 user_id: id.clone(),
-                 token: jwt.to_string(),
-             })
-        )
 }
 #[post("/api/auth/register", data="<user>")]
 pub fn register(user: Json<User>) -> std::result::Result<Json<UserSession>, Status> {

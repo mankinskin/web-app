@@ -4,7 +4,7 @@ use seed::{
 };
 use crate::{
     *,
-    config::{
+    components::{
         Component,
         Config,
         View,

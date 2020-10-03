@@ -9,7 +9,7 @@ use database::{
     Entry,
 };
 use crate::{
-    config::{
+    components::{
         Config,
         Component,
     },

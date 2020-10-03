@@ -3,7 +3,7 @@ use seed::{
     prelude::*,
 };
 use crate::{
-    config::{
+    components::{
         Component,
         View,
     },
