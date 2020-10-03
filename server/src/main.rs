@@ -134,7 +134,13 @@ fn token_valid(token: JWT) {
 }
 fn main() {
     database::setup();
-    rocket::ignite()
+    rocket::custom(
+            rocket::Config::build(rocket::config::Environment::Staging)
+            .address("0.0.0.0")
+            .port(8000)
+            .finalize()
+            .unwrap()
+        )
         .mount("/",
             vec![
                 routes![
