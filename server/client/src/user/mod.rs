@@ -2,7 +2,7 @@ use plans::{
     user::*,
 };
 use crate::{
-    config::{
+    components::{
         Component,
         View,
     },

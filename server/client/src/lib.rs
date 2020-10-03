@@ -18,10 +18,10 @@ extern crate api;
 extern crate async_trait;
 extern crate console_error_panic_hook;
 extern crate seqraph;
+extern crate components;
 
 pub mod root;
 
-pub mod config;
 pub mod list;
 pub mod preview;
 pub mod entry;

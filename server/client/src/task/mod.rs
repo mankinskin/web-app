@@ -15,7 +15,7 @@ use crate::{
     entry::{
         self,
     },
-    config::{
+    components::{
         Component,
         View,
     },

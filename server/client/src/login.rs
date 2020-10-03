@@ -9,7 +9,7 @@ use plans::{
 };
 use crate::{
     root,
-    config::{
+    components::{
         Component,
         View,
     },

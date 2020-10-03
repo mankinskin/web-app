@@ -12,6 +12,7 @@ extern crate database;
 #[macro_use] extern crate anyhow;
 extern crate api;
 extern crate jwt;
+extern crate app_model;
 
 use rocket::{
     request::{
@@ -24,7 +25,7 @@ use rocket::{
         *,
     },
 };
-use crate::{
+use app_model::{
     jwt::*,
 };
 use std::io::{
@@ -64,6 +65,23 @@ impl<'r, T> FromParam<'r> for SerdeParam<T>
             .map(|t: T| Self::from(t))
             .map_err(|e|
                 anyhow!(format!("Failed to parse \'{}\': {}", param, e)))
+    }
+}
+impl<'a, 'r> FromRequest<'a, 'r> for JWT {
+    type Error = JWTError;
+    fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
+        let keys: Vec<_> = request.headers().get("authorization").collect();
+        match keys.len() {
+            0 => Outcome::Failure((Status::BadRequest, JWTError::MissingToken)),
+            1 => {
+                let token = keys[0];
+                match JWT_PROVIDER.decode(token) {
+                    Ok(_claims) => Outcome::Success(JWT(token.to_string())),
+                    Err(err) => Outcome::Failure((Status::BadRequest, JWTError::Invalid(err))),
+                }
+            },
+            _ => Outcome::Failure((Status::BadRequest, JWTError::BadCount)),
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use rql::{
     Id,
 };
 use crate::{
-    config::{
+    components::{
         Component,
         View,
     },

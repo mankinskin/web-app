@@ -27,35 +27,6 @@ pub fn define_client(fns: &Vec<ItemFn>) -> TokenStream2 {
                 Response,
             },
         };
-        // TODO, implement through api
-        #[cfg(target_arch="wasm32")]
-        pub async fn register(user: User) -> Result<UserSession, FetchError> {
-            let url = format!("{}{}", "http://localhost:8000", "/api/auth/register");
-            let mut req = seed::fetch::Request::new(&url)
-                .method(Method::Post);
-            seed::fetch::fetch(
-                req.json(&user)?
-            )
-            .await?
-            .check_status()?
-            .json()
-            .await
-            .map(|session: UserSession| session)
-        }
-        #[cfg(target_arch="wasm32")]
-        pub async fn login(credentials: Credentials) -> Result<UserSession, FetchError> {
-            let url = format!("{}{}", "http://localhost:8000", "/api/auth/login");
-            let mut req = seed::fetch::Request::new(&url)
-                .method(Method::Post);
-            seed::fetch::fetch(
-                req.json(&credentials)?
-            )
-            .await?
-            .check_status()?
-            .json()
-            .await
-            .map(|session: UserSession| session)
-        }
         #(#calls)*
     }
 }
