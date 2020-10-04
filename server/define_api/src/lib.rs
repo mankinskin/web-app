@@ -140,7 +140,6 @@ pub fn api(input: TokenStream) -> TokenStream {
     let client = client::define_client(&fns);
     TokenStream::from(quote! {
         #(#imports)*
-
         #protocol
         #server
         #client

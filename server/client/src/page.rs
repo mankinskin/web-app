@@ -3,21 +3,29 @@ use seed::{
     *,
     prelude::*,
 };
-use plans::{
-    user::User,
-};
 use crate::{
-    components::{
-        Component,
-        Config,
-        View,
-    },
+    home,
 };
-use api::{
-    routes::{
-        Route,
-        Routable,
+use components::{
+    Component,
+    Init,
+    Viewable,
+    list,
+};
+use app_model::{
+    auth::{
+        login,
+        register,
     },
+    user::User,
+    user,
+    project,
+    task,
+    Route,
+    AuthRoute,
+};
+use database_table::{
+    Routable,
 };
 
 
@@ -25,8 +33,8 @@ use api::{
 pub enum Model {
     NotFound,
     Home(home::Model),
-    Login(login::Model),
-    Register(register::Model),
+    Login(login::Login),
+    Register(register::Register),
     UserProfile(user::profile::Model),
     UserList(list::Model<User>),
     ProjectList(project::list::Model),
@@ -38,27 +46,29 @@ impl Default for Model {
         Self::Home(home::Model::default())
     }
 }
-impl Config<Model> for Route {
-    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
-        match self {
-            Route::NotFound => Model::Home(Default::default()),
-            Route::Home => Model::Home(Default::default()),
-            Route::Login => Model::Login(Default::default()),
-            Route::Register => Model::Register(Default::default()),
-            Route::Users => Model::UserList(Config::init(list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
-            Route::User(id) => Model::UserProfile(Config::init(id, &mut orders.proxy(Msg::UserProfile))),
-            Route::Projects => Model::ProjectList(Config::init(list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
-            Route::Project(id) => Model::ProjectProfile(Config::init(id, &mut orders.proxy(Msg::ProjectProfile))),
-            Route::Task(id) => Model::TaskProfile(Config::init(id, &mut orders.proxy(Msg::TaskProfile))),
+impl Init<Route> for Model {
+    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Model {
+        match route {
+            Route::Root => Model::Home(Default::default()),
+            Route::Auth(route) => match route {
+                AuthRoute::Login => Model::Login(Default::default()),
+                AuthRoute::Register => Model::Register(Default::default()),
+            },
+            Route::Users => Model::UserList(Init::init(list::Msg::GetAll, &mut orders.proxy(Msg::UserList))),
+            Route::User(id) => Model::UserProfile(Init::init(id, &mut orders.proxy(Msg::UserProfile))),
+            Route::Projects => Model::ProjectList(Init::init(list::Msg::GetAll, &mut orders.proxy(Msg::ProjectList))),
+            Route::Project(id) => Model::ProjectProfile(Init::init(id, &mut orders.proxy(Msg::ProjectProfile))),
+            Route::Task(id) => Model::TaskProfile(Init::init(id, &mut orders.proxy(Msg::TaskProfile))),
+            _ => Model::Home(Default::default()),
         }
     }
 }
 impl From<page::Model> for Route {
-    fn from(config: page::Model) -> Self {
-        match config {
-            Model::Home(_) | page::Model::NotFound => Route::Home,
-            Model::Login(_) => Route::Login,
-            Model::Register(_) => Route::Register,
+    fn from(components: page::Model) -> Self {
+        match components {
+            Model::Home(_) | page::Model::NotFound => Route::Root,
+            Model::Login(_) => Route::Auth(AuthRoute::Login),
+            Model::Register(_) => Route::Auth(AuthRoute::Register),
             Model::UserList(_) => Route::Users,
             Model::UserProfile(profile) => profile.entry.route(),
             Model::ProjectProfile(profile) => profile.entry.route(),
@@ -84,7 +94,7 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::GoTo(route) => {
-                *self = Config::init(route, orders);
+                *self = Init::init(route, orders);
             },
             Msg::Home(msg) => {
                 match self {
@@ -177,7 +187,7 @@ impl Component for Model {
         }
     }
 }
-impl View for Model {
+impl Viewable for Model {
     fn view(&self) -> Node<Msg> {
         match self {
             Model::NotFound =>

@@ -24,17 +24,14 @@ features = [
 [dependencies.define_api]
 path = "./define_api"
 
-[dependencies.jwt]
-path = "../jwt"
-
 [dependencies.rql]
 path = "../../rql"
 
-[dependencies.plans]
-path = "../plans"
+[dependencies.app-model]
+path = "../../app-model"
 
-[dependencies.database]
-path = "../database"
+[dependencies.database-table]
+path = "../../database-table"
 
 [dependencies.api]
 path = "./api"

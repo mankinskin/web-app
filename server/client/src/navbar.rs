@@ -4,12 +4,14 @@ use seed::{
 };
 use crate::{
     root,
-    components::{
-        Component,
-        View,
-    },
 };
-
+use components::{
+    Component,
+    Viewable,
+};
+use app_model::{
+    auth,
+};
 #[derive(Debug,Clone, Default)]
 pub struct Model {
 }
@@ -28,7 +30,7 @@ impl Component for Model {
         }
     }
 }
-impl View for Model {
+impl Viewable for Model {
     fn view(&self) -> Node<Msg> {
         div![
             div![
@@ -39,7 +41,7 @@ impl View for Model {
                     "Home",
                 ],
             ],
-            if let Some(session) = api::auth::get_session() {
+            if let Some(session) = auth::session::get() {
                 div![
                     a![
                         attrs!{

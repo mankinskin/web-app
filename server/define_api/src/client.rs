@@ -27,6 +27,9 @@ pub fn define_client(fns: &Vec<ItemFn>) -> TokenStream2 {
                 Response,
             },
         };
+        use app_model::{
+            auth,
+        };
         #(#calls)*
     }
 }
@@ -39,11 +42,8 @@ fn fetch_call(item: ItemFn) -> TokenStream2 {
     } = item.sig;
 
     let params_ident = format_ident!("{}Parameters", ident.clone());
-
     let result_ident = format_ident!("{}Result", ident.clone());
-
     let route = format!("/api/call/{}", ident);
-
     let members: Punctuated<Ident, Comma> = inputs.iter().map(|arg| {
             match arg {
                 FnArg::Typed(ty) => {
@@ -55,7 +55,6 @@ fn fetch_call(item: ItemFn) -> TokenStream2 {
                 _ => panic!("api functions may not take self parameter"),
             }
         }).collect();
-
     let ret_ty: Type = match output {
         ReturnType::Default => { syn::parse_str("()").unwrap() },
         ReturnType::Type(_arrow, ty) => {
@@ -70,7 +69,7 @@ fn fetch_call(item: ItemFn) -> TokenStream2 {
             let mut req = seed::fetch::Request::new(&url)
                 .method(Method::Post);
             // authentication
-            if let Some(session) = auth::get_session() {
+            if let Some(session) = auth::session::get() {
                 req = req.header(Header::authorization(format!("{}", session.token)));
             }
             seed::fetch::fetch(

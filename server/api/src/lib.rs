@@ -2,8 +2,7 @@
 #![allow(unused)]
 #[macro_use] extern crate define_api;
 extern crate updatable;
-extern crate plans;
-extern crate database;
+extern crate database_table;
 extern crate interpreter;
 
 #[macro_use] extern crate lazy_static;
@@ -12,15 +11,15 @@ extern crate rocket_contrib;
 extern crate seed;
 extern crate serde_json;
 extern crate serde;
-#[cfg(not(target_arch="wasm32"))]
-extern crate jwt;
 extern crate rql;
 extern crate async_trait;
 extern crate futures;
 extern crate seqraph;
+extern crate app_model;
 
 #[cfg(target_arch="wasm32")]
-pub mod auth;
+extern crate components;
+
 #[cfg(target_arch="wasm32")]
 mod client;
 #[cfg(target_arch="wasm32")]
@@ -30,15 +29,11 @@ mod server;
 #[cfg(not(target_arch="wasm32"))]
 pub use server::*;
 
-pub mod routes;
-use routes::{
+use app_model::{
     Route,
-    TableRoutable,
-};
-use plans::{
-    user::User,
-    project::Project,
-    task::Task,
+    Project,
+    Task,
+    User,
 };
 use rql::{
     Id,
@@ -46,7 +41,7 @@ use rql::{
 use updatable::{
     *,
 };
-use database::{
+use database_table::{
     *,
 };
 use interpreter::{
@@ -79,7 +74,7 @@ api! {
     }
     fn interpret_text(text: String) -> String {
         let mut g = TG.lock().unwrap();
-        g.read_sequence(text.chars());
+        g.learn_sequence(text.chars());
         g.write_to_file("graphs/g1").unwrap();
         "Done".into()
     }
