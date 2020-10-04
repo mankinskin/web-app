@@ -9,27 +9,17 @@ extern crate serde_json;
 
 pub mod graph;
 pub mod mapping;
+//pub mod grammar;
 
 use serde::{
     Serialize,
     Deserialize,
 };
-use petgraph::{
-    graph::{
-        EdgeIndex,
-    },
-};
 use mapping::{
-    Symbol,
     Mappable,
     Sequenced,
-    Wide,
     Mapped,
-};
-use std::{
-    fmt::{
-        Debug,
-    },
+    Symbol,
 };
 use graph::{
     Graph,
@@ -37,10 +27,16 @@ use graph::{
         NodeData,
     },
 };
-use std::ops::{
-    Deref,
-    DerefMut,
+use std::{
+    fmt::{
+        Debug,
+    },
+    ops::{
+        Deref,
+        DerefMut,
+    },
 };
+
 #[derive(Debug)]
 pub struct SequenceGraph<N>
     where N: NodeData + Mappable,
@@ -71,6 +67,16 @@ impl<N> SequenceGraph<N>
             self.read_sequence_element(&seq[..], index);
         }
     }
+    //pub fn knows_sequence(&self, seq: &[Sequenced<N>]) -> bool {
+    //    let mappings: Option<Vec<Symbol<N>>> =
+    //        seq.iter().map(|sym| self.find_node_weight(sym))
+    //        .collect();
+    //    if let Some(mappings) = mappings {
+    //        mappings
+    //            .iter()
+    //            .fold(
+    //    } else { return false; }
+    //}
     fn read_sequence_element(&mut self, seq: &[Sequenced<N>], index: usize) {
         let element = &seq[index];
         let end = seq.len()-1;
