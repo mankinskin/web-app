@@ -32,6 +32,7 @@ pub struct Shell {
     exit: bool,
     graph: SequenceGraph<char>,
 }
+//use regex::*;
 
 #[derive(Clone)]
 enum Command {
@@ -136,4 +137,21 @@ impl Shell {
             );
         }
     }
+}
+/// a pattern for a regular language
+pub enum Pattern<N: NodeData> {
+    Any,
+    Single(Symbol<N>),
+    Disjunction(Disjunction<N>),
+    Sequence(Sequence<N>),
+}
+/// a mapping for multiple symbols in sequence
+pub struct Sequence<N: NodeData> {
+    sequence: Vec<Pattern<N>>,
+    mapping: EdgeMapping,
+}
+/// a mapping for any of many symbols in same position
+pub struct Disjunction<N: NodeData> {
+    elements: Vec<Pattern<N>>,
+    mapping: EdgeMapping,
 }
