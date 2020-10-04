@@ -27,9 +27,9 @@ pub fn define_protocol(fns: &Vec<ItemFn>) -> TokenStream2 {
         use updatable::{
             Updatable
         };
-        use plans::{
+        use app_model::{
             user::*,
-            credentials::*,
+            auth::*,
         };
         #(#protocols)*
     }

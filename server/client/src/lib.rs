@@ -9,33 +9,21 @@ extern crate wasm_bindgen_futures;
 extern crate url;
 extern crate wasm_bindgen;
 extern crate rql;
-extern crate plans;
-extern crate database;
+extern crate database_table;
 extern crate interpreter;
 extern crate updatable;
 extern crate seed;
-extern crate api;
+extern crate app_model;
 extern crate async_trait;
 extern crate console_error_panic_hook;
 extern crate seqraph;
 extern crate components;
+extern crate enum_paths;
 
 pub mod root;
 
-pub mod list;
-pub mod preview;
-pub mod entry;
-pub mod newdata;
-pub mod editor;
-pub mod remote;
-
 pub mod page;
-pub mod login;
-pub mod register;
 pub mod home;
 pub mod navbar;
-pub mod user;
-pub mod project;
-pub mod task;
 
 pub use root::*;

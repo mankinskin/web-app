@@ -2,33 +2,36 @@ use seed::{
     *,
     prelude::*,
 };
-use crate::{
-    *,
-    components::{
-        Component,
-        Config,
-        View,
-    },
+use components::{
+    Component,
+    Init,
+    Viewable,
 };
-use api::{
-    routes::{
-        Route,
-        Routable,
-    },
-};
-use plans::{
-    user::{
+use app_model::{
+    auth::{
+        self,
         UserSession,
     },
+    Route,
+};
+use database_table::{
+    Routable,
+};
+use crate::{
+    navbar,
+    page,
+};
+use enum_paths::{
+    ParsePath,
 };
 
 #[wasm_bindgen(start)]
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::start("app",
-               |url, orders| Config::<Model>::init(Route::from(url), orders),
+               |url, orders| Model::init(Route::parse_path(&url.to_string()).unwrap(), orders),
                |msg, model, orders| model.update(msg, orders),
-               View::view,
+               Viewable::view,
     );
 }
 #[derive(Clone, Default)]
@@ -36,8 +39,8 @@ pub struct Model {
     navbar: navbar::Model,
     page: page::Model,
 }
-impl Config<Model> for Route {
-    fn init(self, orders: &mut impl Orders<Msg>) -> Model {
+impl Init<Route> for Model {
+    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Model {
         orders
             .subscribe(|msg: Msg| msg)
             .subscribe(Msg::UrlRequested)
@@ -46,7 +49,7 @@ impl Config<Model> for Route {
             ;
         Model {
             navbar: Default::default(),
-            page: Config::init(self, &mut orders.proxy(Msg::Page)),
+            page: Init::init(route, &mut orders.proxy(Msg::Page)),
         }
     }
 }
@@ -60,14 +63,14 @@ pub enum Msg {
     EndSession,
 }
 fn refresh_session() {
-    if let None = api::auth::get_session() {
-        if let Some(session) = api::auth::load_session() {
-            api::auth::set_session(session);
+    if let None = auth::session::get() {
+        if let Some(session) = auth::session::load() {
+            auth::session::set(session);
         }
     }
 }
-pub fn go_to<R: Routable, Ms: 'static>(r: R, orders: &mut impl Orders<Ms>) {
-    orders.notify(subs::UrlRequested::new(r.route().into()));
+pub fn go_to<R: Routable, Ms: 'static>(_r: R, _orders: &mut impl Orders<Ms>) {
+    //orders.notify(subs::UrlRequested::new(r.route().into()));
 }
 impl Component for Model {
     type Msg = Msg;
@@ -75,17 +78,17 @@ impl Component for Model {
         refresh_session();
         seed::log!(msg);
         match msg {
-            Msg::UrlChanged(subs::UrlChanged(url)) => {
-                orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
+            Msg::UrlChanged(subs::UrlChanged(_url)) => {
+                //orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
             },
-            Msg::UrlRequested(subs::UrlRequested(url, _request)) => {
-                orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
+            Msg::UrlRequested(subs::UrlRequested(_url, _request)) => {
+                //orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
             },
             Msg::SetSession(session) => {
-                api::auth::set_session(session);
+                auth::session::set(session);
             },
             Msg::EndSession => {
-                api::auth::end_session();
+                auth::session::end();
                 self.page = page::Model::default();
             },
             Msg::Page(msg) => {
@@ -103,7 +106,7 @@ impl Component for Model {
         }
     }
 }
-impl View for Model {
+impl Viewable for Model {
     fn view(&self) -> Node<Self::Msg> {
         div![
             self.navbar.view().map_msg(Msg::NavBar),

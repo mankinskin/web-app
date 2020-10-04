@@ -2,11 +2,9 @@ use seed::{
     *,
     prelude::*,
 };
-use crate::{
-    components::{
-        Component,
-        View,
-    },
+use components::{
+    Component,
+    Viewable,
 };
 use std::result::Result;
 use seqraph::{
@@ -116,7 +114,7 @@ fn view_node_info(info: &Option<NodeInfo<char>>) -> Node<Msg> {
                 St::GridTemplateColumns => "1fr 1fr 1fr",
             },
             div![
-                view_distance_groups(&info.left_groups),
+                view_distance_groups(&info.incoming_groups),
             ],
             div![
                 info.element.to_string()
@@ -125,14 +123,14 @@ fn view_node_info(info: &Option<NodeInfo<char>>) -> Node<Msg> {
                 style!{
                     St::Float => "left",
                 },
-                view_distance_groups(&info.right_groups),
+                view_distance_groups(&info.outgoing_groups),
             ],
         ]
     } else {
         empty![]
     }
 }
-impl View for Model {
+impl Viewable for Model {
     fn view(&self) -> Node<Msg> {
         ul![
             li![

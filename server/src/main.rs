@@ -6,13 +6,11 @@ extern crate rql;
 extern crate chrono;
 extern crate serde_json;
 extern crate serde;
-extern crate plans;
-extern crate database;
+extern crate app_model;
+extern crate database_table;
 #[macro_use] extern crate define_api;
 #[macro_use] extern crate anyhow;
 extern crate api;
-extern crate jwt;
-extern crate app_model;
 
 use rocket::{
     request::{
@@ -67,23 +65,6 @@ impl<'r, T> FromParam<'r> for SerdeParam<T>
                 anyhow!(format!("Failed to parse \'{}\': {}", param, e)))
     }
 }
-impl<'a, 'r> FromRequest<'a, 'r> for JWT {
-    type Error = JWTError;
-    fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
-        let keys: Vec<_> = request.headers().get("authorization").collect();
-        match keys.len() {
-            0 => Outcome::Failure((Status::BadRequest, JWTError::MissingToken)),
-            1 => {
-                let token = keys[0];
-                match JWT_PROVIDER.decode(token) {
-                    Ok(_claims) => Outcome::Success(JWT(token.to_string())),
-                    Err(err) => Outcome::Failure((Status::BadRequest, JWTError::Invalid(err))),
-                }
-            },
-            _ => Outcome::Failure((Status::BadRequest, JWTError::BadCount)),
-        }
-    }
-}
 
 pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
     NamedFile::open(path)
@@ -133,7 +114,6 @@ fn token_valid(token: JWT) {
     let _ = token;
 }
 fn main() {
-    database::setup();
     rocket::custom(
             rocket::Config::build(rocket::config::Environment::Staging)
             .address("0.0.0.0")
