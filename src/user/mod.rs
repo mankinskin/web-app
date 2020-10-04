@@ -1,13 +1,48 @@
 use crate::{auth::credentials::*, DB};
-use database_table::DatabaseTable;
 use rql::*;
 use updatable::*;
+#[cfg(target_arch = "wasm32")]
+use seed::{
+    *,
+    prelude::*,
+};
+#[cfg(target_arch = "wasm32")]
+use components::{
+    Component,
+    Viewable,
+    entry,
+    preview,
+};
+#[cfg(target_arch = "wasm32")]
+use database_table::{
+    Entry,
+};
+use database_table::{
+    DatabaseTable,
+    TableRoutable,
+    TableItem,
+};
+use crate::{
+    route::Route,
+};
 
+
+#[cfg(target_arch = "wasm32")]
+pub mod profile;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Updatable)]
 pub struct User {
     credentials: Credentials,
     full_name: Option<String>,
     followers: Vec<Id<User>>,
+}
+impl TableRoutable for User {
+    type Route = Route;
+    fn table_route() -> Route {
+        Route::Users
+    }
+    fn entry_route(id: Id<Self>) -> Route {
+        Route::User(id)
+    }
 }
 impl From<Credentials> for User {
     fn from(credentials: Credentials) -> Self {
@@ -54,6 +89,7 @@ impl User {
         &self.full_name
     }
 }
+impl TableItem for User {}
 impl<'a> DatabaseTable<'a> for User {
     fn table() -> TableGuard<'a, Self> {
         DB.user()
@@ -62,12 +98,41 @@ impl<'a> DatabaseTable<'a> for User {
         DB.user_mut()
     }
 }
-#[derive(Clone, Debug, Serialize, Deserialize, Updatable, PartialEq)]
-pub struct UserProfile {
-    user: User,
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Debug)]
+pub enum Msg {
+    Entry(Box<entry::Msg<User>>),
 }
-impl From<User> for UserProfile {
-    fn from(user: User) -> Self {
-        Self { user }
+#[cfg(target_arch = "wasm32")]
+impl Component for User {
+    type Msg = Msg;
+    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
+        match msg {
+            Msg::Entry(_) => {},
+        }
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl Viewable for User {
+    fn view(&self) -> Node<Self::Msg> {
+        div![
+            h1!["Profile"],
+            p![self.name()],
+            p![format!("Followers: {}", self.followers().len())],
+        ]
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl preview::Preview for User {
+    fn preview(&self) -> Node<Msg> {
+        div![
+            p!["Preview"],
+            a![
+                self.name(),
+                //ev(Ev::Click, Msg::Entry(Box::new(entry::Msg::Preview(Box::new(preview::Msg::Open))))),
+            ],
+            self.followers().len(),
+        ]
     }
 }

@@ -13,16 +13,30 @@ chrono = "^0.4"
 serde_json = "^1"
 derive_builder = "^0.9"
 lazy_static = "^1"
+async-trait = "^0.1"
+tracing = "^0.1"
+tracing-subscriber = "^0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 http = "^0.2"
 jsonwebtoken = "^7"
+rocket = "0.4.5"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.seed]
+git = "https://github.com/seed-rs/seed"
+branch = "master"
 
 [dependencies.serde]
 version = "^1"
 features = [
   "derive",
 ]
+
+[dependencies.tracing-wasm]
+path = "../tracing-wasm"
+
+[dependencies.components]
+path = "../components"
 
 [dependencies.openlimits]
 path = "../openlimits"

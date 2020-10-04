@@ -16,12 +16,25 @@ extern crate rql;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate updatable;
 extern crate openlimits;
+extern crate components;
+extern crate tracing;
+extern crate tracing_subscriber;
+extern crate tracing_wasm;
+#[cfg(target_arch = "wasm32")]
+extern crate seed;
+#[cfg(not(target_arch = "wasm32"))]
+extern crate rocket;
 
 pub mod auth;
+pub use auth::*;
 pub mod project;
+pub use project::*;
 pub mod route;
+pub use route::*;
 pub mod task;
+pub use task::*;
 pub mod user;
+pub use user::*;
 pub mod market;
 
 use lazy_static::lazy_static;

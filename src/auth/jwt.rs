@@ -104,6 +104,31 @@ impl From<String> for JWT {
         Self(s)
     }
 }
+use rocket::{
+    request::{
+        FromRequest,
+        Request,
+        Outcome,
+    },
+    http::Status,
+};
+impl<'a, 'r> FromRequest<'a, 'r> for JWT {
+    type Error = JWTError;
+    fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
+        let keys: Vec<_> = request.headers().get("authorization").collect();
+        match keys.len() {
+            0 => Outcome::Failure((Status::BadRequest, JWTError::MissingToken)),
+            1 => {
+                let token = keys[0];
+                match JWT_PROVIDER.decode(token) {
+                    Ok(_claims) => Outcome::Success(JWT(token.to_string())),
+                    Err(err) => Outcome::Failure((Status::BadRequest, JWTError::Invalid(err))),
+                }
+            },
+            _ => Outcome::Failure((Status::BadRequest, JWTError::BadCount)),
+        }
+    }
+}
 #[cfg(test)]
 pub mod tests {
     use super::*;

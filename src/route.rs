@@ -1,39 +1,20 @@
-use crate::{project::*, task::*, user::*};
-use database_table::Entry;
+use crate::{
+    project::*,
+    task::*,
+    user::*,
+};
+use database_table::{
+    Routable,
+};
 use rql::*;
-use updatable::Updatable;
 
-pub trait TableRoutable: Clone + 'static + Updatable {
-    fn table_route() -> Route;
-    fn entry_route(id: Id<Self>) -> Route;
-}
-impl TableRoutable for Project {
-    fn table_route() -> Route {
-        Route::Projects
-    }
-    fn entry_route(id: Id<Self>) -> Route {
-        Route::Project(id)
-    }
-}
-impl TableRoutable for Task {
-    fn table_route() -> Route {
-        Route::Root
-    }
-    fn entry_route(id: Id<Self>) -> Route {
-        Route::Task(id)
-    }
-}
-impl TableRoutable for User {
-    fn table_route() -> Route {
-        Route::Users
-    }
-    fn entry_route(id: Id<Self>) -> Route {
-        Route::User(id)
-    }
-}
-use enum_paths::{AsPath, ParseError, ParsePath};
+use enum_paths::{
+    AsPath,
+    ParseError,
+    ParsePath,
+};
 
-#[derive(Clone, AsPath)]
+#[derive(Clone, Debug, AsPath)]
 pub enum Route {
     Chart,
     #[name = ""]
@@ -48,32 +29,17 @@ pub enum Route {
     #[name = ""]
     Root,
 }
-#[derive(Clone, AsPath)]
+impl database_table::Route for Route {}
+#[derive(Clone, Debug, AsPath)]
 pub enum AuthRoute {
     Login,
     Register,
 }
+impl database_table::Route for AuthRoute {}
 
-pub trait Routable {
-    fn route(&self) -> Route;
-}
 impl Routable for Route {
-    fn route(&self) -> Route {
+    type Route = Self;
+    fn route(&self) -> Self::Route {
         self.clone()
-    }
-}
-impl<T: TableRoutable> Routable for T {
-    fn route(&self) -> Route {
-        T::table_route()
-    }
-}
-impl<T: TableRoutable> Routable for Id<T> {
-    fn route(&self) -> Route {
-        T::entry_route(*self)
-    }
-}
-impl<T: TableRoutable> Routable for Entry<T> {
-    fn route(&self) -> Route {
-        T::entry_route(self.id)
     }
 }

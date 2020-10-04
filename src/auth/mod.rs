@@ -2,11 +2,37 @@
 pub mod jwt;
 
 pub mod credentials;
+#[cfg(target_arch = "wasm32")]
+pub mod login;
+#[cfg(target_arch = "wasm32")]
+pub use login::*;
+#[cfg(target_arch = "wasm32")]
+pub mod register;
+#[cfg(target_arch = "wasm32")]
+pub use register::*;
+#[cfg(target_arch = "wasm32")]
+pub mod session;
+#[cfg(target_arch = "wasm32")]
+pub use session::Session;
+#[cfg(target_arch = "wasm32")]
+use components::{
+    Component,
+    Init,
+    Viewable,
+};
 use crate::user::*;
+#[cfg(target_arch = "wasm32")]
+use seed::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use tracing::debug;
 use rql::Id;
+
 #[cfg(not(target_arch = "wasm32"))]
-use {
-    credentials::*, database_table::DatabaseTable, http::status::StatusCode, jwt::*,
+pub use {
+    credentials::*,
+    database_table::DatabaseTable,
+    http::status::StatusCode,
+    jwt::*,
     std::convert::TryFrom,
 };
 
@@ -51,5 +77,84 @@ pub async fn register(user: User) -> Result<UserSession, StatusCode> {
             })
     } else {
         Err(StatusCode::CONFLICT)
+    }
+}
+
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone)]
+pub enum Auth {
+    Login(Login),
+    Register(Register),
+    Session(Session),
+}
+#[cfg(target_arch = "wasm32")]
+impl Auth {
+    pub fn login() -> Self {
+        Auth::Login(Login::default())
+    }
+    pub fn register() -> Self {
+        Auth::Register(Register::default())
+    }
+    pub fn session(session: Session) -> Self {
+        Auth::Session(session)
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl Init<()> for Auth {
+    fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
+        orders.subscribe(Msg::Set);
+        Self::login()
+    }
+}
+#[cfg(target_arch = "wasm32")]
+use crate::route::AuthRoute;
+#[cfg(target_arch = "wasm32")]
+impl From<AuthRoute> for Auth {
+    fn from(route: AuthRoute) -> Self {
+        match route {
+            AuthRoute::Login => Self::login(),
+            AuthRoute::Register => Self::register(),
+        }
+    }
+}
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Debug)]
+pub enum Msg {
+    Set(Auth),
+    Login(login::Msg),
+    Register(register::Msg),
+    Session(session::Msg),
+}
+#[cfg(target_arch = "wasm32")]
+impl Component for Auth {
+    type Msg = Msg;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
+        if let Msg::Set(auth) = msg {
+            debug!("Setting Auth");
+            *self = auth;
+        } else if let Auth::Login(login) = self {
+            if let Msg::Login(msg) = msg {
+                login.update(msg, &mut orders.proxy(Msg::Login));
+            }
+        } else if let Auth::Register(register) = self {
+            if let Msg::Register(msg) = msg {
+                register.update(msg, &mut orders.proxy(Msg::Register));
+            }
+        } else if let Auth::Session(session) = self {
+            if let Msg::Session(msg) = msg {
+                session.update(msg, &mut orders.proxy(Msg::Session));
+            }
+        }
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl Viewable for Auth {
+    fn view(&self) -> Node<Msg> {
+        match self {
+            Auth::Login(login) => login.view().map_msg(Msg::Login),
+            Auth::Register(register) => register.view().map_msg(Msg::Register),
+            Auth::Session(session) => session.view().map_msg(Msg::Session),
+        }
     }
 }
