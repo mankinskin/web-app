@@ -1,34 +1,34 @@
 extern crate interpreter;
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target_arch = "wasm32")]
 extern crate stdweb;
 
-pub mod currency;
 pub mod cartesian;
+pub mod currency;
 pub mod purpose;
 pub mod query;
 pub mod subject;
 pub mod transaction;
 
 use crate::currency::{
-    Euro,
     Currency,
-};
-use crate::transaction::{
-    Transaction,
+    Euro,
 };
 use crate::query::*;
+use crate::transaction::Transaction;
 
 #[derive(Clone)]
 pub struct Transactions<C: Currency>(Vec<Transaction<C>>);
-
 
 impl<C: Currency> From<Vec<Transaction<C>>> for Transactions<C> {
     fn from(v: Vec<Transaction<C>>) -> Self {
         Transactions(v)
     }
 }
-use std::ops::{Deref, DerefMut};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
 impl<C: Currency> Deref for Transactions<C> {
     type Target = Vec<Transaction<C>>;
     fn deref(&self) -> &Self::Target {
@@ -50,7 +50,6 @@ pub struct Budget<C: Currency> {
     //purposes: PurposeGraph,
 }
 
-
 impl<C: Currency> Budget<C> {
     pub fn create<N: Into<String>, Amt: Into<C>>(name: N, balance: Amt) -> Budget<C> {
         Budget::<C> {
@@ -66,7 +65,10 @@ impl<C: Currency> Budget<C> {
     pub fn execute_transaction(&mut self, t: Transaction<C>) -> &mut Transaction<C> {
         self.balance += t.amount.clone();
         self.transactions.push(t);
-        self.transactions.iter_mut().last().expect("Failed to push transaction!")
+        self.transactions
+            .iter_mut()
+            .last()
+            .expect("Failed to push transaction!")
     }
     pub fn get<Amt: Into<C>>(&mut self, amount: Amt) -> &mut Transaction<C> {
         self.execute_transaction(Transaction::get(amount.into()))
@@ -75,10 +77,7 @@ impl<C: Currency> Budget<C> {
         self.execute_transaction(Transaction::give(amount.into()))
     }
     pub fn find<'a>(&'a self) -> Query<'a, C> {
-        Query(self.transactions
-            .iter().map(|t| t)
-            .collect()
-            )
+        Query(self.transactions.iter().map(|t| t).collect())
     }
 }
 
@@ -88,19 +87,28 @@ impl From<Budget<Euro>> for Euro {
     }
 }
 
-use tabular::{table, row};
 use std::fmt;
+use tabular::{
+    row,
+    table,
+};
 impl<C: Currency> fmt::Display for Budget<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut table =
-            table!("{:<}\t|\t{:>}|{:<}\t|{:<}",
-                    row!("Date", "Amount", "Partner", "Purposes"));
+        let mut table = table!(
+            "{:<}\t|\t{:>}|{:<}\t|{:<}",
+            row!("Date", "Amount", "Partner", "Purposes")
+        );
         for t in &self.transactions.0 {
             table.add_row((*t).clone().into());
         }
-        write!(f, "{}\n{}",
-            table!("{:<}\t\t{:<}: {:>}",
-                   row!(self.name.clone(), "Balance", self.balance.clone())),
-               table)
+        write!(
+            f,
+            "{}\n{}",
+            table!(
+                "{:<}\t\t{:<}: {:>}",
+                row!(self.name.clone(), "Balance", self.balance.clone())
+            ),
+            table
+        )
     }
 }

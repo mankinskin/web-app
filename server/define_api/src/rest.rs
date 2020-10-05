@@ -1,25 +1,17 @@
-use proc_macro::{
-    TokenStream,
-};
-use quote::{
-    ToTokens,
-};
-use proc_macro2::{
-    Span,
-};
+use proc_macro::TokenStream;
+use proc_macro2::Span;
+use quote::ToTokens;
 use syn::{
-    *,
+    export::TokenStream2,
     Type,
-    export::{
-        TokenStream2,
-    },
+    *,
 };
 pub fn define_rest_api(input: TokenStream) -> TokenStream {
     let ty = parse_macro_input!(input as Type);
     let ident = Ident::new(
-            &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
-            Span::call_site(),
-        );
+        &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
+        Span::call_site(),
+    );
     let get = define_get(ty.clone(), ident.clone());
     let get_all = define_get_all(ty.clone(), ident.clone());
     let post = define_post(ty.clone(), ident.clone());

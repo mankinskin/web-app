@@ -3,7 +3,8 @@ extern crate regex_syntax;
 extern crate seqraph;
 pub mod parse;
 extern crate itertools;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate chrono;
@@ -19,4 +20,4 @@ fn main() {
     shell.run().unwrap()
 }
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-fn main() { }
+fn main() {}

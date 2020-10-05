@@ -1,30 +1,20 @@
+use crate::parse::Parse;
+use itertools::*;
+use regex_syntax::ast::parse::Parser;
+use seqraph::{
+    graph::node::NodeData,
+    mapping::{
+        EdgeMapping,
+        Symbol,
+    },
+    SequenceGraph,
+};
 use std::io::{
     self,
-    Write,
     stdin,
     stdout,
     BufRead,
-};
-use seqraph::{
-    SequenceGraph,
-    mapping::{
-        Symbol,
-        EdgeMapping,
-    },
-    graph::{
-        node::{
-            NodeData,
-        },
-    },
-};
-use itertools::*;
-use crate::{
-    parse::{
-        Parse,
-    },
-};
-use regex_syntax::{
-    ast::parse::Parser,
+    Write,
 };
 
 pub struct Shell {
@@ -42,9 +32,13 @@ enum Command {
     Match(String),
 }
 
-lazy_static!{
+lazy_static! {
     static ref COMMANDS: Vec<(Vec<&'static str>, Command, &'static str)> = vec![
-        (vec!["q", "quit", "exit", ":q"], Command::Exit, "Exit shell."),
+        (
+            vec!["q", "quit", "exit", ":q"],
+            Command::Exit,
+            "Exit shell."
+        ),
         (vec!["h", "help", "?"], Command::Help, "Show help.")
     ];
 }
@@ -53,13 +47,15 @@ impl Shell {
         Self {
             prompt: "> ".into(),
             exit: false,
-            graph: SequenceGraph::new()
+            graph: SequenceGraph::new(),
         }
     }
     pub fn run(&mut self) -> io::Result<()> {
         self.print_help();
         loop {
-            if self.exit { break }
+            if self.exit {
+                break;
+            }
             self.print_prompt()?;
             if let Some(line) = stdin().lock().lines().next() {
                 let line = line?;
@@ -79,7 +75,9 @@ impl Shell {
             }
         }
         if line.starts_with("match ") {
-            Ok(Command::Match(line.strip_prefix("match ").unwrap().to_string()))
+            Ok(Command::Match(
+                line.strip_prefix("match ").unwrap().to_string(),
+            ))
         } else {
             Ok(Command::Learn(line.to_string()))
         }
@@ -87,25 +85,29 @@ impl Shell {
     fn exec_command(&mut self, cmd: Command) -> io::Result<()> {
         Ok(match cmd {
             Command::Help => self.print_help(),
-            Command::Exit => { self.exit = true; },
-                // Different actions:
-                // - learn new parser
-                // - try to parse sequence
-                //  - show errors
+            Command::Exit => {
+                self.exit = true;
+            }
+            // Different actions:
+            // - learn new parser
+            // - try to parse sequence
+            //  - show errors
             Command::Learn(s) => {
                 self.graph.learn_sequence(s.chars());
                 let info = self.graph.get_node_info(&s.chars().next().unwrap());
                 println!("{:#?}", info);
-            },
+            }
             Command::Match(s) => {
                 match Parser::new().parse(&s) {
-                    Err(e) => { println!("{:#?}", e); },
+                    Err(e) => {
+                        println!("{:#?}", e);
+                    }
                     Ok(re) => {
                         //let captures = re.captures_iter().collect::<Vec<_>>();
                         println!("{:#?}", re);
                     }
                 }
-            },
+            }
         })
     }
     pub fn set_prompt<S: Into<String>>(&mut self, p: S) {
@@ -131,10 +133,7 @@ impl Shell {
             line.push_str(&std::iter::repeat("\t").take(ts).collect::<String>());
         }
         for (ts, desc) in lines.iter().zip(COMMANDS.iter().map(|(_, _, desc)| desc)) {
-            println!("{}\t{}",
-                ts,
-                desc
-            );
+            println!("{}\t{}", ts, desc);
         }
     }
 }

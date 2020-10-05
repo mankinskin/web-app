@@ -2,7 +2,8 @@ extern crate itertools;
 extern crate petgraph;
 extern crate pretty_assertions;
 #[allow(unused_imports)] // only used in tests
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 extern crate nalgebra;
 extern crate serde;
 extern crate serde_json;
@@ -11,26 +12,22 @@ pub mod graph;
 pub mod mapping;
 //pub mod grammar;
 
-use serde::{
-    Serialize,
-    Deserialize,
+use graph::{
+    node::NodeData,
+    Graph,
 };
 use mapping::{
     Mappable,
-    Sequenced,
     Mapped,
+    Sequenced,
     Symbol,
 };
-use graph::{
-    Graph,
-    node::{
-        NodeData,
-    },
+use serde::{
+    Deserialize,
+    Serialize,
 };
 use std::{
-    fmt::{
-        Debug,
-    },
+    fmt::Debug,
     ops::{
         Deref,
         DerefMut,
@@ -39,29 +36,32 @@ use std::{
 
 #[derive(Debug)]
 pub struct SequenceGraph<N>
-    where N: NodeData + Mappable,
+where
+    N: NodeData + Mappable,
 {
     graph: Graph<Symbol<N>, usize>,
 }
 impl<N> SequenceGraph<N>
-    where N: NodeData + Mappable,
+where
+    N: NodeData + Mappable,
 {
     pub fn new() -> Self {
         let graph = Graph::new();
-        Self {
-            graph,
-        }
+        Self { graph }
     }
-    pub fn query<T: Into<N> + Into<char> + Clone, I: Iterator<Item=T> + Clone>(&self, seq: I) -> Option<NodeInfo<N>> {
+    pub fn query<T: Into<N> + Into<char> + Clone, I: Iterator<Item = T> + Clone>(
+        &self,
+        seq: I,
+    ) -> Option<NodeInfo<N>> {
         let sym = seq.clone().next().unwrap();
         let sym = match <T as Into<char>>::into(sym.clone()) {
             '*' => Sequenced::Start,
             '#' => Sequenced::End,
-            _ => Sequenced::Element(<T as Into<N>>::into(sym))
+            _ => Sequenced::Element(<T as Into<N>>::into(sym)),
         };
         self.get_node_info(&sym)
     }
-    pub fn learn_sequence<T: Into<N>, I: Iterator<Item=T>>(&mut self, seq: I) {
+    pub fn learn_sequence<T: Into<N>, I: Iterator<Item = T>>(&mut self, seq: I) {
         let seq = N::sequenced(seq);
         for index in 0..seq.len() {
             self.read_sequence_element(&seq[..], index);
@@ -79,19 +79,14 @@ impl<N> SequenceGraph<N>
     //}
     fn read_sequence_element(&mut self, seq: &[Sequenced<N>], index: usize) {
         let element = &seq[index];
-        let end = seq.len()-1;
+        let end = seq.len() - 1;
         for pre in 0..index {
             let l = &seq[pre];
-            let ld = index-pre;
-            for succ in (index+1)..=end {
+            let ld = index - pre;
+            for succ in (index + 1)..=end {
                 let r = &seq[succ];
-                let rd = succ-index;
-                self.insert_element_neighborhood(
-                    l.clone(),
-                    ld,
-                    element.clone(),
-                    rd,
-                    r.clone());
+                let rd = succ - index;
+                self.insert_element_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
             }
         }
     }
@@ -101,7 +96,7 @@ impl<N> SequenceGraph<N>
         ld: usize,
         x: Sequenced<N>,
         rd: usize,
-        r: Sequenced<N>
+        r: Sequenced<N>,
     ) {
         let li = self.add_node(l);
         let xi = self.add_node(x);
@@ -124,31 +119,26 @@ impl<N> SequenceGraph<N>
             }
             lines.push(line);
         }
-        lines.iter()
-            .fold(String::new(),
-                |a, line|
-                format!("{}{}\n",
-                    a,
-                    line.iter()
-                        .fold(String::new(),
-                            |a, elem|
-                            format!("{}{} ",
-                                    a,
-                                    elem.clone().unwrap_or(String::new())
-                            )
-                        )
-                )
+        lines.iter().fold(String::new(), |a, line| {
+            format!(
+                "{}{}\n",
+                a,
+                line.iter().fold(String::new(), |a, elem| {
+                    format!("{}{} ", a, elem.clone().unwrap_or(String::new()))
+                })
             )
+        })
     }
     fn map_to_data(groups: Vec<Vec<Symbol<N>>>) -> Vec<Vec<Sequenced<N>>> {
-        groups.iter().map(|g| g.iter().map(|m| m.data.clone()).collect()).collect()
+        groups
+            .iter()
+            .map(|g| g.iter().map(|m| m.data.clone()).collect())
+            .collect()
     }
-    pub fn get_node_info<T: PartialEq<Symbol<N>>>(
-        &self,
-        element: &T,
-    ) -> Option<NodeInfo<N>> {
+    pub fn get_node_info<T: PartialEq<Symbol<N>>>(&self, element: &T) -> Option<NodeInfo<N>> {
         let node = self.find_node_weight(element)?;
-        let mut incoming_groups: Vec<Vec<Symbol<N>>> = node.mapping().incoming_distance_groups(&self);
+        let mut incoming_groups: Vec<Vec<Symbol<N>>> =
+            node.mapping().incoming_distance_groups(&self);
         incoming_groups.reverse();
         let outgoing_groups: Vec<Vec<Symbol<N>>> = node.mapping().outgoing_distance_groups(&self);
         Some(NodeInfo {
@@ -173,14 +163,12 @@ impl<N> SequenceGraph<N>
     //        .filter_map(|(li, e)| Some((li, right_incoming.iter().position(|r| r == e)?, e.clone())))
     //        .collect();
 
-
     //    // take left rows and right columns of matrix for connecting edges
     //    let left_matrix = &lhs.mapping().matrix;
     //    let right_matrix = &rhs.mapping().matrix;
 
     //    //let incoming_context = left_matrix.row(left_matrix_index);
     //    //let outgoing_context = right_matrix.column(right_matrix_index);
-
 
     //    // intersect left incoming groups i with right incoming groups i + left.width
     //    let left_width = lhs.data.width();
@@ -216,17 +204,9 @@ impl<N: NodeData + Mappable> DerefMut for SequenceGraph<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    lazy_static!{
-        static ref ELEMS: Vec<char> = {
-            Vec::from(['a', 'b', 'c'])
-        };
-        static ref SEQS: Vec<&'static str> = {
-            Vec::from([
-                "abc",
-                "abb",
-                "bcb"
-            ])
-        };
+    lazy_static! {
+        static ref ELEMS: Vec<char> = { Vec::from(['a', 'b', 'c']) };
+        static ref SEQS: Vec<&'static str> = { Vec::from(["abc", "abb", "bcb"]) };
         static ref EDGES: Vec<(Sequenced<char>, Sequenced<char>, usize)> = {
             Vec::from([
                 (Sequenced::Start, 'a'.into(), 1),
@@ -235,19 +215,16 @@ mod tests {
                 (Sequenced::Start, 'b'.into(), 3),
                 (Sequenced::Start, 'c'.into(), 2),
                 (Sequenced::Start, 'c'.into(), 3),
-
                 ('a'.into(), Sequenced::End, 3),
                 ('b'.into(), Sequenced::End, 3),
                 ('b'.into(), Sequenced::End, 2),
                 ('b'.into(), Sequenced::End, 1),
                 ('c'.into(), Sequenced::End, 2),
                 ('c'.into(), Sequenced::End, 1),
-
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'c'.into(), 2),
-
                 ('b'.into(), 'c'.into(), 1),
                 ('c'.into(), 'b'.into(), 1),
                 ('b'.into(), 'b'.into(), 1),

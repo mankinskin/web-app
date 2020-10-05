@@ -1,0 +1,3 @@
+imports_layout = "Vertical"
+force_multiline_blocks = true
+edition = "2018"
