@@ -1,59 +1,52 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #![allow(unused)]
-#[macro_use] extern crate define_api;
-extern crate updatable;
+#[macro_use]
+extern crate define_api;
 extern crate database_table;
 extern crate interpreter;
+extern crate updatable;
 
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate rocket;
-extern crate rocket_contrib;
-extern crate seed;
-extern crate serde_json;
-extern crate serde;
-extern crate rql;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate rocket;
+extern crate app_model;
 extern crate async_trait;
 extern crate futures;
+extern crate rocket_contrib;
+extern crate rql;
+extern crate seed;
 extern crate seqraph;
-extern crate app_model;
+extern crate serde;
+extern crate serde_json;
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target_arch = "wasm32")]
 extern crate components;
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target_arch = "wasm32")]
 mod client;
-#[cfg(target_arch="wasm32")]
+#[cfg(target_arch = "wasm32")]
 pub use client::*;
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod server;
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub use server::*;
 
 use app_model::{
-    Route,
     Project,
+    Route,
     Task,
     User,
 };
-use rql::{
-    Id,
-};
-use updatable::{
-    *,
-};
-use database_table::{
-    *,
-};
-use interpreter::{
-    *,
-};
-use seqraph::{
-    *,
-};
+use database_table::*;
 use futures::future::FutureExt;
+use interpreter::*;
+use rql::Id;
+use seqraph::*;
 use std::sync::Mutex;
+use updatable::*;
 
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
     static ref TG: Mutex<SequenceGraph<char>> = Mutex::new(SequenceGraph::new());
 }

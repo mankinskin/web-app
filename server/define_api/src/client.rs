@@ -1,22 +1,13 @@
 use syn::{
-    *,
+    export::TokenStream2,
+    punctuated::Punctuated,
+    token::*,
     Type,
-    punctuated::{
-        Punctuated,
-    },
-    token::{
-        *
-    },
-    export::{
-        TokenStream2,
-    },
+    *,
 };
 
 pub fn define_client(fns: &Vec<ItemFn>) -> TokenStream2 {
-    let calls: Vec<TokenStream2> = fns
-        .iter()
-        .map(|f| fetch_call(f.clone()))
-        .collect();
+    let calls: Vec<TokenStream2> = fns.iter().map(|f| fetch_call(f.clone())).collect();
     quote! {
         #[cfg(target_arch="wasm32")]
         use seed::{
@@ -35,31 +26,32 @@ pub fn define_client(fns: &Vec<ItemFn>) -> TokenStream2 {
 }
 fn fetch_call(item: ItemFn) -> TokenStream2 {
     let Signature {
-        ident,      //: Ident
-        inputs,     //: Punctuated<FnArg, Comma>
-        output,     //: ReturnType
+        ident,  //: Ident
+        inputs, //: Punctuated<FnArg, Comma>
+        output, //: ReturnType
         ..
     } = item.sig;
 
     let params_ident = format_ident!("{}Parameters", ident.clone());
     let result_ident = format_ident!("{}Result", ident.clone());
     let route = format!("/api/call/{}", ident);
-    let members: Punctuated<Ident, Comma> = inputs.iter().map(|arg| {
+    let members: Punctuated<Ident, Comma> = inputs
+        .iter()
+        .map(|arg| {
             match arg {
                 FnArg::Typed(ty) => {
                     match *ty.pat.clone() {
                         Pat::Ident(pat) => pat.ident,
                         _ => panic!("api function params must have idents"),
                     }
-                },
+                }
                 _ => panic!("api functions may not take self parameter"),
             }
-        }).collect();
+        })
+        .collect();
     let ret_ty: Type = match output {
-        ReturnType::Default => { syn::parse_str("()").unwrap() },
-        ReturnType::Type(_arrow, ty) => {
-            *ty
-        },
+        ReturnType::Default => syn::parse_str("()").unwrap(),
+        ReturnType::Type(_arrow, ty) => *ty,
     };
     quote! {
         #[cfg(target_arch="wasm32")]

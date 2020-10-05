@@ -1,17 +1,17 @@
 use crate::currency::{
-    Quantity,
     Currency,
+    Quantity,
     Units,
     Value,
 };
 use std::ops::{
-    Mul,
-    MulAssign,
     Add,
     AddAssign,
+    Mul,
+    MulAssign,
+    Neg,
     Sub,
     SubAssign,
-    Neg,
 };
 
 #[derive(Clone, Debug)]
@@ -49,7 +49,7 @@ impl Currency for Euro {
         1.0
     }
 }
-use std::cmp::{Ordering};
+use std::cmp::Ordering;
 impl PartialOrd for Euro {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
         self.0.partial_cmp(&rhs.0)
@@ -60,7 +60,7 @@ impl PartialEq for Euro {
         self.0.eq(&rhs.0)
     }
 }
-impl Eq for Euro { }
+impl Eq for Euro {}
 impl Ord for Euro {
     fn cmp(&self, rhs: &Self) -> Ordering {
         self.0.cmp(&rhs.0)
@@ -123,25 +123,14 @@ impl Sub for Euro {
 use crate::interpreter::parse::*;
 
 impl<'a> Parse<'a> for Euro {
-    named!(parse(&'a str) -> Self,
-    map!(
-        alt!(
-            preceded!(
-                tag!("€"),
-                Units::parse
-                ) |
-            terminated!(
-                Units::parse,
-                tag!("€")
-                ) |
-            complete!(terminated!(
-                Units::parse,
-                tag_no_case!(" Euros")
-                )) |
-            terminated!(
-                Units::parse,
-                tag_no_case!(" Euro")
-                )
+    named!(
+        parse(&'a str) -> Self,
+        map!(
+            alt!(
+                preceded!(tag!("€"), Units::parse)
+                    | terminated!(Units::parse, tag!("€"))
+                    | complete!(terminated!(Units::parse, tag_no_case!(" Euros")))
+                    | terminated!(Units::parse, tag_no_case!(" Euro"))
             ),
             |u| Euro::from(u)
         )
@@ -154,7 +143,7 @@ mod tests {
 
     #[test]
     fn parse_euro() {
-        crate::cartesian!{
+        crate::cartesian! {
             ["{}€", "{} Euro", "€{}", "{} Euros"],
             [{1}, {32}, {1823}, {99999999}]
             ($fmt:tt {$u:expr}) => {

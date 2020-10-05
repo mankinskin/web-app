@@ -1,24 +1,19 @@
 extern crate syn;
-#[macro_use] extern crate quote;
+#[macro_use]
+extern crate quote;
 extern crate proc_macro2;
+mod client;
 mod rest;
 mod rpc;
-mod client;
 mod server;
 
-use proc_macro::{
-    TokenStream,
-};
-use quote::{
-    ToTokens,
-};
-use proc_macro2::{
-    Span,
-};
+use proc_macro::TokenStream;
+use proc_macro2::Span;
+use quote::ToTokens;
 use syn::{
-    *,
-    Type,
     Macro,
+    Type,
+    *,
 };
 struct Items {
     items: Vec<Item>,
@@ -59,9 +54,9 @@ pub fn rest_api(input: TokenStream) -> TokenStream {
 pub fn rest_handlers(input: TokenStream) -> TokenStream {
     let ty = parse_macro_input!(input as Type);
     let ident = Ident::new(
-            &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
-            Span::call_site(),
-        );
+        &format!("{}", ty.clone().into_token_stream()).to_lowercase(),
+        Span::call_site(),
+    );
     let get_name = format_ident!("get_{}", ident);
     let post_name = format_ident!("post_{}", ident);
     let get_all_name = format_ident!("get_{}s", ident);
@@ -82,42 +77,38 @@ pub fn api(input: TokenStream) -> TokenStream {
     let items = parse_macro_input!(input as Items);
     let mut fns: Vec<ItemFn> = items
         .iter()
-        .filter_map(|item|
+        .filter_map(|item| {
             if let Item::Fn(f) = item {
                 Some(f.clone())
             } else {
                 None
             }
-        )
+        })
         .collect();
     let imports: Vec<ItemUse> = items
         .iter()
-        .filter_map(|item|
+        .filter_map(|item| {
             if let Item::Use(u) = item {
                 Some(u.clone())
             } else {
                 None
             }
-        )
+        })
         .collect();
     let macros: Vec<ItemMacro> = items
         .iter()
-        .filter_map(|item|
+        .filter_map(|item| {
             if let Item::Macro(m) = item {
                 Some(m.clone())
             } else {
                 None
             }
-        )
+        })
         .collect();
     let rest_apis: Vec<TokenStream> = macros
         .iter()
         .filter_map(|m| {
-            let Macro {
-                path,
-                tokens,
-                ..
-            } = &m.mac;
+            let Macro { path, tokens, .. } = &m.mac;
             if path.is_ident(&format_ident!("rest_api")) {
                 Some(rest::define_rest_api(TokenStream::from(tokens.clone())))
             } else {

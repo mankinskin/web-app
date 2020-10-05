@@ -1,29 +1,20 @@
+use crate::*;
+use app_model::{
+    Project,
+    Route,
+    Task,
+    User,
+};
+use async_trait::async_trait;
+use database_table::{
+    TableRoutable,
+    *,
+};
+use enum_paths::AsPath;
+use futures::future::FutureExt;
+use rql::Id;
 use seed::{
     self,
     Url,
 };
-use app_model::{
-    User,
-    Project,
-    Task,
-    Route,
-};
-use rql::{
-    Id,
-};
-use updatable::{
-    *,
-};
-use database_table::{
-    *,
-    TableRoutable,
-};
-use crate::{
-    *,
-};
-use enum_paths::{
-    AsPath,
-};
-use futures::future::FutureExt;
-use async_trait::async_trait;
-
+use updatable::*;

@@ -1,52 +1,44 @@
 #![feature(proc_macro_hygiene, decl_macro, concat_idents)]
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
+extern crate app_model;
+extern crate chrono;
+extern crate database_table;
 extern crate rocket_contrib;
 extern crate rql;
-extern crate chrono;
-extern crate serde_json;
 extern crate serde;
-extern crate app_model;
-extern crate database_table;
-#[macro_use] extern crate define_api;
-#[macro_use] extern crate anyhow;
+extern crate serde_json;
+#[macro_use]
+extern crate define_api;
+#[macro_use]
+extern crate anyhow;
 extern crate api;
 
+use app_model::jwt::*;
 use rocket::{
-    request::{
-        FromParam,
-    },
-    response::{
-        *,
-    },
-    http::{
-        *,
-    },
+    http::*,
+    request::FromParam,
+    response::*,
 };
-use app_model::{
-    jwt::*,
-};
-use std::io::{
-    Result,
-};
+use std::io::Result;
+use std::path::Path;
 use std::str::FromStr;
-use std::{
-    path::{
-        Path,
-    },
-};
 struct SerdeParam<T>(T)
-    where T: FromStr;
+where
+    T: FromStr;
 
 impl<T> From<T> for SerdeParam<T>
-    where T: FromStr
+where
+    T: FromStr,
 {
     fn from(o: T) -> Self {
         Self(o)
     }
 }
 impl<T> std::ops::Deref for SerdeParam<T>
-    where T: FromStr
+where
+    T: FromStr,
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -54,15 +46,15 @@ impl<T> std::ops::Deref for SerdeParam<T>
     }
 }
 impl<'r, T> FromParam<'r> for SerdeParam<T>
-    where T: FromStr,
-          <T as FromStr>::Err: std::fmt::Display
+where
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
 {
     type Error = anyhow::Error;
     fn from_param(param: &'r RawStr) -> std::result::Result<Self, Self::Error> {
         T::from_str(param.as_str())
             .map(|t: T| Self::from(t))
-            .map_err(|e|
-                anyhow!(format!("Failed to parse \'{}\': {}", param, e)))
+            .map_err(|e| anyhow!(format!("Failed to parse \'{}\': {}", param, e)))
     }
 }
 
@@ -115,40 +107,38 @@ fn token_valid(token: JWT) {
 }
 fn main() {
     rocket::custom(
-            rocket::Config::build(rocket::config::Environment::Staging)
+        rocket::Config::build(rocket::config::Environment::Staging)
             .address("0.0.0.0")
             .port(8000)
             .finalize()
-            .unwrap()
-        )
-        .mount("/",
-            vec![
-                routes![
-                    get_root_html,
-                    get_html,
-
-                    user_page,
-                    project_page,
-                    task_page,
-
-                    token_valid,
-
-                    get_style_css,
-                    get_pkg_js,
-                    get_img_file,
-
-                    api::login,
-                    api::register,
-                    api::handlers::get_user_projects,
-                    api::handlers::get_project_tasks,
-                    api::handlers::project_create_subtask,
-                    api::handlers::interpret_text,
-                    api::handlers::query_text,
-                ],
-                rest_handlers!(Task),
-                rest_handlers!(Project),
-                rest_handlers!(User),
-            ].concat()
-        )
-        .launch();
+            .unwrap(),
+    )
+    .mount(
+        "/",
+        vec![
+            routes![
+                get_root_html,
+                get_html,
+                user_page,
+                project_page,
+                task_page,
+                token_valid,
+                get_style_css,
+                get_pkg_js,
+                get_img_file,
+                api::login,
+                api::register,
+                api::handlers::get_user_projects,
+                api::handlers::get_project_tasks,
+                api::handlers::project_create_subtask,
+                api::handlers::interpret_text,
+                api::handlers::query_text,
+            ],
+            rest_handlers!(Task),
+            rest_handlers!(Project),
+            rest_handlers!(User),
+        ]
+        .concat(),
+    )
+    .launch();
 }

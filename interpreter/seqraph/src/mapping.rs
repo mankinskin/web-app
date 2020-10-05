@@ -1,44 +1,31 @@
-use serde::{
-    Serialize,
-    Deserialize,
-};
-use petgraph::{
+use crate::{
     graph::{
-        EdgeIndex,
-        NodeIndex,
+        edge::EdgeData,
+        node::NodeData,
+        Graph,
     },
+    SequenceGraph,
 };
-use std::{
-    fmt::{
-        self,
-        Debug,
-        Display,
-    },
+use petgraph::graph::{
+    EdgeIndex,
+    NodeIndex,
+};
+use serde::{
+    Deserialize,
+    Serialize,
 };
 use std::default::Default;
-use crate::{
-    SequenceGraph,
-    graph::{
-        Graph,
-        edge::{
-            EdgeData,
-        },
-        node::{
-            NodeData,
-        },
-    },
+use std::fmt::{
+    self,
+    Debug,
+    Display,
 };
-pub type EdgeMappingMatrix =
-    nalgebra::Matrix<
-        bool,
-        nalgebra::Dynamic,
-        nalgebra::Dynamic,
-        nalgebra::VecStorage<
-            bool,
-            nalgebra::Dynamic,
-            nalgebra::Dynamic
-        >
-    >;
+pub type EdgeMappingMatrix = nalgebra::Matrix<
+    bool,
+    nalgebra::Dynamic,
+    nalgebra::Dynamic,
+    nalgebra::VecStorage<bool, nalgebra::Dynamic, nalgebra::Dynamic>,
+>;
 #[derive(PartialEq, Clone, Debug)]
 pub struct EdgeMapping {
     pub matrix: EdgeMappingMatrix,
@@ -60,7 +47,10 @@ impl<'a> EdgeMapping {
             i
         } else {
             self.incoming.push(edge);
-            self.matrix = self.matrix.clone().insert_column(self.matrix.ncols(), false.into());
+            self.matrix = self
+                .matrix
+                .clone()
+                .insert_column(self.matrix.ncols(), false.into());
             self.incoming.len() - 1
         }
     }
@@ -70,7 +60,10 @@ impl<'a> EdgeMapping {
             i
         } else {
             self.outgoing.push(edge);
-            self.matrix = self.matrix.clone().insert_row(self.matrix.nrows(), false.into());
+            self.matrix = self
+                .matrix
+                .clone()
+                .insert_row(self.matrix.nrows(), false.into());
             self.outgoing.len() - 1
         }
     }
@@ -83,25 +76,34 @@ impl<'a> EdgeMapping {
     /// Get weights and sources of incoming edges
     pub fn incoming_sources<N: NodeData, E: EdgeData>(
         &'a self,
-        graph: &'a Graph<N, E>
-        ) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.incoming.iter())
+        graph: &'a Graph<N, E>,
+    ) -> impl Iterator<Item = (E, NodeIndex)> + 'a {
+        graph
+            .edge_weights(self.incoming.iter())
             .zip(graph.edge_sources(self.incoming.iter()))
     }
     /// Get weights and targets of outgoing edges
     pub fn outgoing_targets<N: NodeData, E: EdgeData>(
         &'a self,
-        graph: &'a Graph<N, E>) -> impl Iterator<Item=(E, NodeIndex)> + 'a {
-        graph.edge_weights(self.outgoing.iter())
+        graph: &'a Graph<N, E>,
+    ) -> impl Iterator<Item = (E, NodeIndex)> + 'a {
+        graph
+            .edge_weights(self.outgoing.iter())
             .zip(graph.edge_targets(self.outgoing.iter()))
     }
 
     /// Get distance groups for incoming edges
-    pub fn incoming_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Symbol<N>>> {
+    pub fn incoming_distance_groups<N: NodeData + Wide>(
+        &self,
+        graph: &SequenceGraph<N>,
+    ) -> Vec<Vec<Symbol<N>>> {
         graph.distance_group_source_weights(self.incoming.iter())
     }
     /// Get distance groups for outgoing edges
-    pub fn outgoing_distance_groups<N: NodeData + Wide>(&self, graph: &SequenceGraph<N>) -> Vec<Vec<Symbol<N>>> {
+    pub fn outgoing_distance_groups<N: NodeData + Wide>(
+        &self,
+        graph: &SequenceGraph<N>,
+    ) -> Vec<Vec<Symbol<N>>> {
         graph.distance_group_target_weights(self.outgoing.iter())
     }
 }
@@ -128,11 +130,15 @@ pub enum Sequenced<T: NodeData> {
 }
 impl<T: NodeData + Display> Display for Sequenced<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            Sequenced::Element(t) => t.to_string(),
-            Sequenced::Start => "START".to_string(),
-            Sequenced::End => "END".to_string(),
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Sequenced::Element(t) => t.to_string(),
+                Sequenced::Start => "START".to_string(),
+                Sequenced::End => "END".to_string(),
+            }
+        )
     }
 }
 impl<T: NodeData + Wide> Wide for Sequenced<T> {
@@ -157,7 +163,7 @@ impl<N: NodeData> PartialEq<Symbol<N>> for Sequenced<N> {
 
 /// Stores sequenced data with an edge map
 #[derive(PartialEq, Clone)]
-pub struct Symbol<N: NodeData>  {
+pub struct Symbol<N: NodeData> {
     pub data: Sequenced<N>,
     mapping: EdgeMapping,
 }
@@ -222,8 +228,8 @@ impl<T: NodeData + Wide> Wide for Symbol<T> {
 }
 /// Trait for data that can be wrapped in a sequence
 pub trait Sequencable: NodeData {
-    fn sequenced<T: Into<Self>, I: Iterator<Item=T>>(seq: I) -> Vec<Sequenced<Self>> {
-        let mut v = vec!(Sequenced::Start);
+    fn sequenced<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Sequenced<Self>> {
+        let mut v = vec![Sequenced::Start];
         v.extend(seq.map(|t| Sequenced::Element(t.into())));
         v.push(Sequenced::End);
         v
@@ -231,7 +237,7 @@ pub trait Sequencable: NodeData {
 }
 impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {}
 /// Trait for data that can be mapped in a sequence
-pub trait Mappable: Sequencable + Wide { }
+pub trait Mappable: Sequencable + Wide {}
 impl<T: NodeData + Wide + Into<Symbol<T>>> Mappable for T {}
 
 pub trait Mapped: Wide {

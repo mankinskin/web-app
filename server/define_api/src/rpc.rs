@@ -1,21 +1,12 @@
 use syn::{
+    export::TokenStream2,
+    punctuated::Punctuated,
+    token::*,
     *,
-    punctuated::{
-        Punctuated,
-    },
-    token::{
-        *
-    },
-    export::{
-        TokenStream2,
-    },
 };
 
 pub fn define_protocol(fns: &Vec<ItemFn>) -> TokenStream2 {
-    let protocols: Vec<TokenStream2> = fns
-        .iter()
-        .map(|f| protocol(f.clone()))
-        .collect();
+    let protocols: Vec<TokenStream2> = fns.iter().map(|f| protocol(f.clone())).collect();
     quote! {
         use serde::{
             Serialize,
@@ -36,9 +27,9 @@ pub fn define_protocol(fns: &Vec<ItemFn>) -> TokenStream2 {
 }
 fn protocol(item: ItemFn) -> TokenStream2 {
     let Signature {
-        ident,      //: Ident
-        inputs,     //: Punctuated<FnArg, Comma>
-        output,     //: ReturnType
+        ident,  //: Ident
+        inputs, //: Punctuated<FnArg, Comma>
+        output, //: ReturnType
         ..
     } = item.sig;
 
@@ -56,24 +47,26 @@ fn protocol(item: ItemFn) -> TokenStream2 {
 fn params(ident: Ident, inputs: Punctuated<FnArg, Comma>) -> TokenStream2 {
     let fields = Fields::Named(FieldsNamed {
         brace_token: Brace::default(),
-        named: inputs.iter().map(|arg| {
-            match arg {
-                FnArg::Typed(ty) =>
-                    Field {
-                        attrs: ty.attrs.clone(),
-                        vis: Visibility::Inherited,
-                        ident: Some(
-                            match *ty.pat.clone() {
+        named: inputs
+            .iter()
+            .map(|arg| {
+                match arg {
+                    FnArg::Typed(ty) => {
+                        Field {
+                            attrs: ty.attrs.clone(),
+                            vis: Visibility::Inherited,
+                            ident: Some(match *ty.pat.clone() {
                                 Pat::Ident(pat) => pat.ident,
                                 _ => panic!("api function params must have idents"),
-                            }
-                        ),
-                        colon_token: Some(ty.colon_token),
-                        ty: *ty.ty.clone(),
-                    },
-                _ => panic!("api functions may not take self parameter"),
-            }
-        }).collect()
+                            }),
+                            colon_token: Some(ty.colon_token),
+                            ty: *ty.ty.clone(),
+                        }
+                    }
+                    _ => panic!("api functions may not take self parameter"),
+                }
+            })
+            .collect(),
     });
     quote! {
         #[allow(non_camel_case_types)]
@@ -83,7 +76,7 @@ fn params(ident: Ident, inputs: Punctuated<FnArg, Comma>) -> TokenStream2 {
 }
 fn result(ident: Ident, ty: ReturnType) -> TokenStream2 {
     let fields = match ty {
-        ReturnType::Default => { Fields::Unit },
+        ReturnType::Default => Fields::Unit,
         ReturnType::Type(_arrow, ty) => {
             let mut fields = Punctuated::new();
             fields.push_value(Field {
@@ -97,7 +90,7 @@ fn result(ident: Ident, ty: ReturnType) -> TokenStream2 {
                 paren_token: Paren::default(),
                 unnamed: fields,
             })
-        },
+        }
     };
     quote! {
         #[allow(non_camel_case_types)]
