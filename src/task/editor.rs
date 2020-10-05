@@ -1,15 +1,11 @@
-use seed::{
-    prelude::*,
-};
-use crate::{
-    task::*,
-};
+use crate::task::*;
 use components::{
-    Edit,
-    Editor,
     editor::Msg as EditorMsg,
     Component,
+    Edit,
+    Editor,
 };
+use seed::prelude::*;
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -63,7 +59,7 @@ impl Component for Model {
                                     //                    )))
                                     //);
                                 }
-                            },
+                            }
                             Editor::Remote(_remote) => {
                                 Component::update(
                                     &mut self.editor,
@@ -72,16 +68,12 @@ impl Component for Model {
                                 );
                             }
                         };
-                    },
+                    }
                     _ => {
-                        Component::update(
-                            &mut self.editor,
-                            msg,
-                            &mut orders.proxy(Msg::Editor),
-                        );
+                        Component::update(&mut self.editor, msg, &mut orders.proxy(Msg::Editor));
                     }
                 }
-            },
+            }
         }
     }
 }

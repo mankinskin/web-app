@@ -1,31 +1,34 @@
 use super::*;
-use crate::{user::*, DB};
-use rql::*;
-use updatable::*;
-#[cfg(target_arch = "wasm32")]
-use seed::{
-    *,
-    prelude::*,
+use crate::{
+    user::*,
+    DB,
 };
 #[cfg(target_arch = "wasm32")]
 use components::{
-    Component,
-    Viewable,
     entry,
     preview,
+    Component,
     Edit,
+    Viewable,
 };
 use database_table::{
     DatabaseTable,
     TableItem,
     TableRoutable,
 };
+use rql::*;
+#[cfg(target_arch = "wasm32")]
+use seed::{
+    prelude::*,
+    *,
+};
+use updatable::*;
 #[cfg(target_arch = "wasm32")]
 pub mod editor;
 #[cfg(target_arch = "wasm32")]
-pub mod profile;
-#[cfg(target_arch = "wasm32")]
 pub mod list;
+#[cfg(target_arch = "wasm32")]
+pub mod profile;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Builder, Updatable)]
 pub struct Task {
@@ -111,27 +114,25 @@ impl Component for Task {
         match msg {
             Msg::SetTitle(n) => {
                 self.set_title(n);
-            },
+            }
             Msg::SetDescription(d) => {
                 self.set_description(d);
-            },
-            Msg::Entry(_) => {},
+            }
+            Msg::Entry(_) => {}
         }
     }
 }
 #[cfg(target_arch = "wasm32")]
 impl Viewable for Task {
     fn view(&self) -> Node<Self::Msg> {
-        div![
-            p![self.title()],
-        ]
+        div![p![self.title()],]
     }
 }
 #[cfg(target_arch = "wasm32")]
 impl preview::Preview for Task {
     fn preview(&self) -> Node<Msg> {
         div![
-            style!{
+            style! {
                 St::Display => "grid",
                 St::GridTemplateColumns => "1fr 1fr",
                 St::GridGap => "10px",
@@ -139,21 +140,21 @@ impl preview::Preview for Task {
                 St::Cursor => "pointer",
             },
             h3![
-                style!{
+                style! {
                     St::Margin => "0",
                 },
                 self.title(),
             ],
             div![],
             p![
-                style!{
+                style! {
                     St::Margin => "0",
                 },
                 "Subtasks:"
             ],
             self.subtasks().len(),
             p![
-                style!{
+                style! {
                     St::Margin => "0",
                 },
                 "Assignees:"
@@ -170,21 +171,17 @@ impl preview::Preview for Task {
 impl Edit for Task {
     fn edit(&self) -> Node<Msg> {
         div![
-            label![
-                "Title"
-            ],
+            label!["Title"],
             input![
-                attrs!{
+                attrs! {
                     At::Placeholder => "Title",
                     At::Value => self.title(),
                 },
                 input_ev(Ev::Input, Msg::SetTitle)
             ],
-            label![
-                "Description"
-            ],
+            label!["Description"],
             textarea![
-                attrs!{
+                attrs! {
                     At::Placeholder => "Description...",
                     At::Value => self.description(),
                 },

@@ -1,12 +1,10 @@
-use serde::{
-    Serialize,
-    Deserialize,
+use openlimits::model::{
+    Candle,
+    Interval,
 };
-use openlimits::{
-    model::{
-        Candle,
-        Interval,
-    },
+use serde::{
+    Deserialize,
+    Serialize,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

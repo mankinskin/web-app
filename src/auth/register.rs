@@ -1,8 +1,8 @@
 use crate::{
     auth::{
-        UserSession,
         session::Session,
         Auth,
+        UserSession,
     },
     user::*,
 };
@@ -10,7 +10,10 @@ use components::{
     Component,
     Viewable,
 };
-use seed::{prelude::*, *};
+use seed::{
+    prelude::*,
+    *,
+};
 use tracing::debug;
 
 #[derive(Debug, Clone, Default)]

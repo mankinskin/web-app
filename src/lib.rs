@@ -3,6 +3,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate derive_builder;
+extern crate components;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate database_table;
 extern crate enum_paths;
@@ -11,19 +12,18 @@ extern crate http;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate jsonwebtoken;
 extern crate lazy_static;
+extern crate openlimits;
+#[cfg(not(target_arch = "wasm32"))]
+extern crate rocket;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate rql;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate updatable;
-extern crate openlimits;
-extern crate components;
+#[cfg(target_arch = "wasm32")]
+extern crate seed;
 extern crate tracing;
 extern crate tracing_subscriber;
 extern crate tracing_wasm;
-#[cfg(target_arch = "wasm32")]
-extern crate seed;
 #[cfg(not(target_arch = "wasm32"))]
-extern crate rocket;
+extern crate updatable;
 
 pub mod auth;
 pub use auth::*;

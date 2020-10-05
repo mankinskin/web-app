@@ -1,21 +1,19 @@
-use seed::{
-    *,
-    prelude::*,
-};
 use crate::{
     auth,
-    task::*,
     task::editor,
-};
-use database_table::{
-    Entry,
+    task::*,
 };
 use components::{
-    Component,
-    Viewable,
-    Init,
-    Edit,
     list,
+    Component,
+    Edit,
+    Init,
+    Viewable,
+};
+use database_table::Entry;
+use seed::{
+    prelude::*,
+    *,
 };
 use std::result::Result;
 
@@ -27,13 +25,11 @@ pub struct Model {
 }
 impl Model {
     fn _refresh(&self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(
-            if let Some(id) = self.project_id {
-                Msg::GetProjectTasks(id)
-            } else {
-                Msg::List(list::Msg::GetAll)
-            }
-        );
+        orders.send_msg(if let Some(id) = self.project_id {
+            Msg::GetProjectTasks(id)
+        } else {
+            Msg::List(list::Msg::GetAll)
+        });
     }
 }
 impl Init<Msg> for Model {
@@ -78,37 +74,27 @@ impl Component for Model {
                 //    api::get_project_tasks(id)
                 //        .map(|res| Msg::ProjectTasks(res.map_err(|e| format!("{:?}", e))))
                 //);
-            },
+            }
             Msg::ProjectTasks(res) => {
                 match res {
                     Ok(entries) => self.list = list::Model::from(entries),
-                    Err(e) => { seed::log(e); },
+                    Err(e) => {
+                        seed::log(e);
+                    }
                 }
-            },
+            }
             Msg::List(msg) => {
-                Component::update(
-                    &mut self.list,
-                    msg.clone(),
-                    &mut orders.proxy(Msg::List)
-                );
-            },
+                Component::update(&mut self.list, msg.clone(), &mut orders.proxy(Msg::List));
+            }
             Msg::New => {
                 self.editor = match self.project_id {
-                    Some(id) => {
-                        Some(editor::Model::from(id))
-                    },
-                    None => {
-                        Some(editor::Model::default())
-                    },
+                    Some(id) => Some(editor::Model::from(id)),
+                    None => Some(editor::Model::default()),
                 };
-            },
+            }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(
-                        editor,
-                        msg.clone(),
-                        &mut orders.proxy(Msg::Editor)
-                    );
+                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
                 }
                 // TODO improve inter component messaging
                 //match msg {
@@ -136,7 +122,7 @@ impl Component for Model {
                 //            _ => {},
                 //        },
                 //}
-            },
+            }
         }
     }
 }
@@ -148,14 +134,12 @@ impl Viewable for Model {
                 editor.edit().map_msg(Msg::Editor)
             } else {
                 if let Some(_) = auth::session::get() {
-                    button![
-                        ev(Ev::Click, |_| Msg::New),
-                        "New Task"
-                    ]
-                } else { empty![] }
+                    button![ev(Ev::Click, |_| Msg::New), "New Task"]
+                } else {
+                    empty![]
+                }
             },
-            self.list.view()
-                .map_msg(Msg::List)
+            self.list.view().map_msg(Msg::List)
         ]
     }
 }

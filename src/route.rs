@@ -3,9 +3,7 @@ use crate::{
     task::*,
     user::*,
 };
-use database_table::{
-    Routable,
-};
+use database_table::Routable;
 use rql::*;
 
 use enum_paths::{
@@ -17,16 +15,16 @@ use enum_paths::{
 #[derive(Clone, Debug, AsPath)]
 pub enum Route {
     Chart,
-    #[name = ""]
+    #[as_path = ""]
     Auth(AuthRoute),
     Users,
-    #[name = ""]
+    #[as_path = ""]
     User(Id<User>),
     Projects,
-    #[name = ""]
+    #[as_path = ""]
     Project(Id<Project>),
     Task(Id<Task>),
-    #[name = ""]
+    #[as_path = ""]
     Root,
 }
 impl database_table::Route for Route {}

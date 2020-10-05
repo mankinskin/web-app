@@ -1,24 +1,20 @@
-use seed::{
-    *,
-    prelude::*,
-};
-use rql::{
-    Id,
-};
 use crate::{
     auth,
     task::*,
 };
-use database_table::{
-    Entry,
-};
 use components::{
     remote,
     Component,
-    Viewable,
-    Init,
     Edit,
     Editor,
+    Init,
+    Viewable,
+};
+use database_table::Entry;
+use rql::Id;
+use seed::{
+    prelude::*,
+    *,
 };
 
 #[derive(Clone)]
@@ -28,9 +24,7 @@ pub struct Model {
 }
 impl Model {
     fn _refresh(&self, orders: &mut impl Orders<Msg>) {
-        orders.send_msg(
-            Msg::Entry(remote::Msg::Get)
-        );
+        orders.send_msg(Msg::Entry(remote::Msg::Get));
     }
 }
 impl Init<Id<Task>> for Model {
@@ -60,22 +54,14 @@ impl Component for Model {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::Entry(msg) => {
-                Component::update(
-                    &mut self.entry,
-                    msg,
-                    &mut orders.proxy(Msg::Entry),
-                );
-            },
+                Component::update(&mut self.entry, msg, &mut orders.proxy(Msg::Entry));
+            }
             Msg::Edit => {
                 self.editor = Some(Editor::from(self.entry.clone()).into());
-            },
+            }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(
-                        editor,
-                        msg.clone(),
-                        &mut orders.proxy(Msg::Editor)
-                    );
+                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
                 }
                 //match msg {
                 //    editor::Msg::Editor(msg) =>
@@ -98,7 +84,7 @@ impl Component for Model {
                 //            _ => {},
                 //        },
                 //}
-            },
+            }
         }
     }
 }
@@ -109,11 +95,10 @@ impl Viewable for Model {
         } else {
             div![
                 if let Some(_) = auth::session::get() {
-                    button![
-                        ev(Ev::Click, |_| Msg::Edit),
-                        "Edit Task"
-                    ]
-                } else { empty![] },
+                    button![ev(Ev::Click, |_| Msg::Edit), "Edit Task"]
+                } else {
+                    empty![]
+                },
                 self.entry.view().map_msg(Msg::Entry)
             ]
         }

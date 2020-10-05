@@ -1,12 +1,10 @@
 use super::*;
+use crate::project;
 use components::{
-    Init,
-    Component,
-    Viewable,
     remote,
-};
-use crate::{
-    project,
+    Component,
+    Init,
+    Viewable,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, Updatable, PartialEq)]
@@ -51,29 +49,19 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Entry(msg) => {
-                Component::update(
-                    &mut self.entry,
-                    msg,
-                    &mut orders.proxy(Msg::Entry)
-                )
-            },
+                Component::update(&mut self.entry, msg, &mut orders.proxy(Msg::Entry))
+            }
             Msg::ProjectList(msg) => {
-                Component::update(
-                    &mut self.projects,
-                    msg,
-                    &mut orders.proxy(Msg::ProjectList)
-                )
-            },
+                Component::update(&mut self.projects, msg, &mut orders.proxy(Msg::ProjectList))
+            }
         }
     }
 }
 impl Viewable for Model {
     fn view(&self) -> Node<Msg> {
         div![
-            self.entry.view()
-                .map_msg(Msg::Entry),
-            self.projects.view()
-                .map_msg(Msg::ProjectList),
+            self.entry.view().map_msg(Msg::Entry),
+            self.projects.view().map_msg(Msg::ProjectList),
         ]
     }
 }

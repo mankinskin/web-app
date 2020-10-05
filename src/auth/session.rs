@@ -1,11 +1,14 @@
+use crate::auth::UserSession;
 use components::{
     Component,
     Viewable,
 };
-use crate::auth::UserSession;
 use lazy_static::lazy_static;
 use seed::{
-    browser::web_storage::{SessionStorage, WebStorage},
+    browser::web_storage::{
+        SessionStorage,
+        WebStorage,
+    },
     prelude::*,
     *,
 };

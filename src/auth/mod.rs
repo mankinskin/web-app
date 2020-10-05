@@ -12,20 +12,20 @@ pub mod register;
 pub use register::*;
 #[cfg(target_arch = "wasm32")]
 pub mod session;
-#[cfg(target_arch = "wasm32")]
-pub use session::Session;
+use crate::user::*;
 #[cfg(target_arch = "wasm32")]
 use components::{
     Component,
     Init,
     Viewable,
 };
-use crate::user::*;
+use rql::Id;
 #[cfg(target_arch = "wasm32")]
 use seed::prelude::*;
 #[cfg(target_arch = "wasm32")]
+pub use session::Session;
+#[cfg(target_arch = "wasm32")]
 use tracing::debug;
-use rql::Id;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use {
@@ -60,9 +60,11 @@ pub async fn login(credentials: Credentials) -> Result<UserSession, StatusCode> 
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
                 .map(move |jwt| (id, jwt))
         })
-        .map(|(id, jwt)| UserSession {
-            user_id: id.clone(),
-            token: jwt.to_string(),
+        .map(|(id, jwt)| {
+            UserSession {
+                user_id: id.clone(),
+                token: jwt.to_string(),
+            }
         })
 }
 #[cfg(not(target_arch = "wasm32"))]
@@ -71,15 +73,16 @@ pub async fn register(user: User) -> Result<UserSession, StatusCode> {
         let id = User::insert(user.clone());
         JWT::try_from(&user)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-            .map(move |jwt| UserSession {
-                user_id: id.clone(),
-                token: jwt.to_string(),
+            .map(move |jwt| {
+                UserSession {
+                    user_id: id.clone(),
+                    token: jwt.to_string(),
+                }
             })
     } else {
         Err(StatusCode::CONFLICT)
     }
 }
-
 
 #[cfg(target_arch = "wasm32")]
 #[derive(Debug, Clone)]

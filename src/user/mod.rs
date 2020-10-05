@@ -1,31 +1,29 @@
-use crate::{auth::credentials::*, DB};
-use rql::*;
-use updatable::*;
-#[cfg(target_arch = "wasm32")]
-use seed::{
-    *,
-    prelude::*,
+use crate::route::Route;
+use crate::{
+    auth::credentials::*,
+    DB,
 };
 #[cfg(target_arch = "wasm32")]
 use components::{
-    Component,
-    Viewable,
     entry,
     preview,
+    Component,
+    Viewable,
 };
 #[cfg(target_arch = "wasm32")]
-use database_table::{
-    Entry,
-};
+use database_table::Entry;
 use database_table::{
     DatabaseTable,
-    TableRoutable,
     TableItem,
+    TableRoutable,
 };
-use crate::{
-    route::Route,
+use rql::*;
+#[cfg(target_arch = "wasm32")]
+use seed::{
+    prelude::*,
+    *,
 };
-
+use updatable::*;
 
 #[cfg(target_arch = "wasm32")]
 pub mod profile;
@@ -53,7 +51,10 @@ impl From<Credentials> for User {
         }
     }
 }
-use std::fmt::{self, Display};
+use std::fmt::{
+    self,
+    Display,
+};
 impl Display for User {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.credentials.username)
@@ -109,7 +110,7 @@ impl Component for User {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         match msg {
-            Msg::Entry(_) => {},
+            Msg::Entry(_) => {}
         }
     }
 }

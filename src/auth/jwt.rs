@@ -1,10 +1,23 @@
 use crate::user::*;
-use chrono::{Duration, Utc};
-use jsonwebtoken::{errors::*, DecodingKey, EncodingKey, Header, *};
+use chrono::{
+    Duration,
+    Utc,
+};
+use jsonwebtoken::{
+    errors::*,
+    DecodingKey,
+    EncodingKey,
+    Header,
+    *,
+};
 use lazy_static::lazy_static;
 use serde::*;
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{
+    self,
+    Display,
+    Formatter,
+};
 
 #[derive(Debug)]
 pub struct JWTProvider {
@@ -105,12 +118,12 @@ impl From<String> for JWT {
     }
 }
 use rocket::{
+    http::Status,
     request::{
         FromRequest,
-        Request,
         Outcome,
+        Request,
     },
-    http::Status,
 };
 impl<'a, 'r> FromRequest<'a, 'r> for JWT {
     type Error = JWTError;
@@ -124,7 +137,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for JWT {
                     Ok(_claims) => Outcome::Success(JWT(token.to_string())),
                     Err(err) => Outcome::Failure((Status::BadRequest, JWTError::Invalid(err))),
                 }
-            },
+            }
             _ => Outcome::Failure((Status::BadRequest, JWTError::BadCount)),
         }
     }

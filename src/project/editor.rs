@@ -1,18 +1,12 @@
-use seed::{
-    prelude::*,
-};
+use crate::project::*;
 use components::{
+    editor::Msg as EditorMsg,
     Component,
     Edit,
     Editor,
-    editor::Msg as EditorMsg,
 };
-use crate::{
-    project::*,
-};
-use rql::{
-    Id,
-};
+use rql::Id;
+use seed::prelude::*;
 
 #[derive(Clone, Default)]
 pub struct Model {
@@ -47,21 +41,18 @@ impl Component for Model {
                 match msg {
                     EditorMsg::Submit => {
                         match &mut self.editor {
-                            Editor::New(new) =>
+                            Editor::New(new) => {
                                 if let Some(id) = self.user_id {
                                     new.data.add_member(id);
-                                },
+                                }
+                            }
                             Editor::Remote(_remote) => {}
                         };
-                    },
+                    }
                     _ => {}
                 }
-                Component::update(
-                    &mut self.editor,
-                    msg,
-                    &mut orders.proxy(Msg::Editor),
-                );
-            },
+                Component::update(&mut self.editor, msg, &mut orders.proxy(Msg::Editor));
+            }
         }
     }
 }
