@@ -23,8 +23,14 @@ pub enum Error {
     WebSocket(String),
     Warp(warp::Error),
     Mpsc(futures::channel::mpsc::SendError),
+    Multiple(Vec<Error>),
 }
 
+impl<E: Into<Error>> From<Vec<E>> for Error {
+    fn from(errors: Vec<E>) -> Self {
+        Self::Multiple(errors.into_iter().map(Into::into).collect())
+    }
+}
 impl From<futures::channel::mpsc::SendError> for Error {
     fn from(err: futures::channel::mpsc::SendError) -> Self {
         Self::Mpsc(err)
