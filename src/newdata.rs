@@ -1,21 +1,13 @@
-use seed::{
-    prelude::*,
-};
-use rql::{
-    Id,
-};
 use crate::{
+    editor::Edit,
     Component,
     Viewable,
-    editor::{
-        Edit,
-    },
 };
-use database_table::{
-    TableItem,
-};
-use std::result::Result;
+use database_table::TableItem;
+use rql::Id;
+use seed::prelude::*;
 use std::fmt::Debug;
+use std::result::Result;
 
 #[derive(Debug, Clone)]
 pub struct Model<T> {
@@ -28,9 +20,7 @@ impl<T: Default> Default for Model<T> {
 }
 impl<T> From<T> for Model<T> {
     fn from(data: T) -> Self {
-        Self {
-            data,
-        }
+        Self { data }
     }
 }
 #[derive(Debug, Clone)]
@@ -47,16 +37,18 @@ impl<T: Component + TableItem + Debug> Component for Model<T> {
                 //orders.perform_cmd(
                 //    T::post(self.data.clone()).map(|res| Msg::Posted(res))
                 //);
-            },
+            }
             Msg::Posted(res) => {
                 match res {
-                    Ok(id) => { seed::log(id); },
-                    Err(e) => { seed::log(e); },
+                    Ok(id) => {
+                        seed::log(id);
+                    }
+                    Err(e) => {
+                        seed::log(e);
+                    }
                 }
-            },
-            Msg::Data(msg) => {
-                self.data.update(msg, &mut orders.proxy(Msg::Data))
-            },
+            }
+            Msg::Data(msg) => self.data.update(msg, &mut orders.proxy(Msg::Data)),
         }
     }
 }

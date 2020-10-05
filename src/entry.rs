@@ -1,15 +1,13 @@
 use crate::{
-    Viewable,
-    Component,
     preview,
+    Component,
+    Viewable,
 };
 use database_table::{
     Entry,
     TableItem,
 };
-use seed::{
-    prelude::*,
-};
+use seed::prelude::*;
 use std::fmt::Debug;
 
 impl<T: TableItem + Viewable + Debug> Viewable for Entry<T> {
@@ -39,44 +37,54 @@ impl<T: TableItem + Component + Debug> Component for Entry<T> {
                 //orders.perform_cmd(
                 //    T::get(self.id).map(|res| Msg::Refreshed(res))
                 //);
-            },
+            }
             Msg::Refreshed(res) => {
                 match res {
-                    Ok(r) =>
+                    Ok(r) => {
                         if let Some(entry) = r {
                             *self = entry;
-                        },
-                    Err(e) => { seed::log(e); },
+                        }
+                    }
+                    Err(e) => {
+                        seed::log(e);
+                    }
                 }
-            },
+            }
             Msg::Delete => {
                 //orders.perform_cmd(
                 //    T::delete(self.id).map(|res| Msg::Deleted(res))
                 //);
-            },
+            }
             Msg::Deleted(res) => {
                 match res {
-                    Ok(r) => { seed::log(r); },
-                    Err(e) => { seed::log(e); },
+                    Ok(r) => {
+                        seed::log(r);
+                    }
+                    Err(e) => {
+                        seed::log(e);
+                    }
                 }
-            },
+            }
             Msg::Update => {
                 //orders.perform_cmd(
                 //    <T as TableItem>::update(self.id, T::Update::from(self.data.clone()))
                 //        .map(|res| Msg::Updated(res))
                 //);
-            },
+            }
             Msg::Updated(res) => {
                 match res {
-                    Ok(r) => { seed::log(r); },
-                    Err(e) => { seed::log(e); },
+                    Ok(r) => {
+                        seed::log(r);
+                    }
+                    Err(e) => {
+                        seed::log(e);
+                    }
                 }
-            },
+            }
             Msg::Data(msg) => {
                 self.data.update(msg.clone(), &mut orders.proxy(Msg::Data));
-            },
-            Msg::Preview(_) => {
-            },
+            }
+            Msg::Preview(_) => {}
         }
     }
 }

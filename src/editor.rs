@@ -1,24 +1,22 @@
-use seed::{
-    *,
-    prelude::*,
-};
-use rql::{
-    Id,
+use crate::{
+    entry,
+    newdata,
+    remote,
+    Component,
+    Init,
 };
 use database_table::{
     Entry,
     TableItem,
 };
-use crate::{
-    Init,
-    Component,
-    newdata,
-    remote,
-    entry,
+use rql::Id;
+use seed::{
+    prelude::*,
+    *,
 };
 use std::fmt::Debug;
 
-pub trait Edit : Component {
+pub trait Edit: Component {
     fn edit(&self) -> Node<Self::Msg>;
 }
 impl<T: TableItem + Edit + Debug> Edit for Entry<T> {
@@ -26,7 +24,7 @@ impl<T: TableItem + Edit + Debug> Edit for Entry<T> {
         self.data.edit().map_msg(entry::Msg::Data)
     }
 }
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Editor<T: TableItem> {
     Remote(remote::Model<T>),
     New(newdata::Model<T>),
@@ -51,7 +49,7 @@ impl<T: TableItem + Component + Debug> Init<Id<T>> for Editor<T> {
         Self::Remote(Init::init(id, &mut orders.proxy(Msg::Remote)))
     }
 }
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Msg<T: Component + TableItem + std::fmt::Debug> {
     Cancel,
     Submit,
@@ -62,40 +60,37 @@ impl<T: Component + TableItem + Debug> Component for Editor<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
         match msg {
-            Msg::Cancel => {},
+            Msg::Cancel => {}
             Msg::Submit => {
                 match self {
-                    Self::New(new) =>
-                        new.update(
-                            newdata::Msg::Post,
-                            &mut orders.proxy(Msg::New)
-                            ),
-                    Self::Remote(remote) =>
+                    Self::New(new) => new.update(newdata::Msg::Post, &mut orders.proxy(Msg::New)),
+                    Self::Remote(remote) => {
                         remote.update(
                             remote::Msg::Entry(entry::Msg::Update),
-                            &mut orders.proxy(Msg::Remote)
-                            ),
+                            &mut orders.proxy(Msg::Remote),
+                        )
+                    }
                 }
-            },
+            }
             Msg::New(msg) => {
                 match self {
                     Self::New(new) => new.update(msg, &mut orders.proxy(Msg::New)),
-                    _ => {},
+                    _ => {}
                 }
-            },
+            }
             Msg::Remote(msg) => {
                 match self {
                     Self::Remote(remote) => remote.update(msg, &mut orders.proxy(Msg::Remote)),
-                    _ => {},
+                    _ => {}
                 }
-            },
+            }
         }
     }
 }
 impl<T: Component + TableItem + Edit + Debug> Edit for Editor<T> {
     fn edit(&self) -> Node<Msg<T>> {
         form![
-            style!{
+            style! {
                 St::Display => "grid",
                 St::GridTemplateColumns => "1fr",
                 St::GridGap => "10px",
@@ -110,7 +105,7 @@ impl<T: Component + TableItem + Edit + Debug> Edit for Editor<T> {
                         new.edit().map_msg(Msg::New),
                         // Submit Button
                         button![
-                            attrs!{
+                            attrs! {
                                 At::Type => "submit",
                             },
                             "Create"
@@ -121,7 +116,7 @@ impl<T: Component + TableItem + Edit + Debug> Edit for Editor<T> {
                         h1!["Edit"],
                         entry.edit().map_msg(Msg::Remote),
                         button![
-                            attrs!{
+                            attrs! {
                                 At::Type => "submit",
                             },
                             "Update"

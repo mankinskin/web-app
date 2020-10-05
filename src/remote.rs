@@ -1,32 +1,28 @@
-use seed::{
-    *,
-    prelude::*,
-};
-use rql::{
-    Id,
-};
 use crate::{
-    Init,
-    Component,
-    Viewable,
-    editor::{
-        Edit,
-    },
+    editor::Edit,
     entry,
     preview::{
         self,
         Preview,
     },
+    Component,
+    Init,
+    Viewable,
 };
 use database_table::{
+    Entry,
     Routable,
     TableItem,
-    Entry,
 };
-use std::result::Result;
+use rql::Id;
+use seed::{
+    prelude::*,
+    *,
+};
 use std::fmt::Debug;
+use std::result::Result;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Model<T: TableItem> {
     Loading(Id<T>),
     Ready(Entry<T>),
@@ -59,83 +55,58 @@ impl<T: TableItem + Component + Debug> Component for Model<T> {
                         //orders.perform_cmd(
                         //    T::get(*id).map(|res| Msg::Got(res))
                         //);
-                    },
+                    }
                     Msg::Got(res) => {
                         match res {
-                            Ok(r) =>
+                            Ok(r) => {
                                 if let Some(entry) = r {
                                     *self = Model::Ready(entry);
-                                },
-                            Err(e) => { seed::log(e); },
+                                }
+                            }
+                            Err(e) => {
+                                seed::log(e);
+                            }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
+            }
             Model::Ready(entry) => {
                 match msg {
                     Msg::Entry(msg) => {
-                        entry.update(
-                            msg.clone(),
-                            &mut orders.proxy(Msg::Entry)
-                        );
-                    },
-                    Msg::Preview(_) => {
-                    },
+                        entry.update(msg.clone(), &mut orders.proxy(Msg::Entry));
+                    }
+                    Msg::Preview(_) => {}
                     Msg::Get => {
-                        entry.update(
-                            entry::Msg::Refresh,
-                            &mut orders.proxy(Msg::Entry)
-                        );
-                    },
-                    _ => {},
+                        entry.update(entry::Msg::Refresh, &mut orders.proxy(Msg::Entry));
+                    }
+                    _ => {}
                 }
-            },
+            }
         }
     }
 }
 impl<T: TableItem + Preview + Debug> Preview for Model<T> {
     fn preview(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => {
-                entry.preview().map_msg(Msg::Entry)
-            },
-            Model::Loading(_) => {
-                div![
-                    h1!["Preview"],
-                    p!["Loading..."],
-                ]
-            },
+            Model::Ready(entry) => entry.preview().map_msg(Msg::Entry),
+            Model::Loading(_) => div![h1!["Preview"], p!["Loading..."],],
         }
     }
 }
 impl<T: TableItem + Viewable + Debug> Viewable for Model<T> {
     fn view(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => {
-                entry.view().map_msg(Msg::Entry)
-            },
-            Model::Loading(_) => {
-                div![
-                    h1!["Viewable"],
-                    p!["Loading..."],
-                ]
-            },
+            Model::Ready(entry) => entry.view().map_msg(Msg::Entry),
+            Model::Loading(_) => div![h1!["Viewable"], p!["Loading..."],],
         }
     }
 }
 impl<T: TableItem + Edit + Debug> Edit for Model<T> {
     fn edit(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => {
-                entry.edit().map_msg(Msg::Entry)
-            },
-            Model::Loading(_) => {
-                div![
-                    h1!["Editor"],
-                    p!["Loading..."],
-                ]
-            },
+            Model::Ready(entry) => entry.edit().map_msg(Msg::Entry),
+            Model::Loading(_) => div![h1!["Editor"], p!["Loading..."],],
         }
     }
 }
