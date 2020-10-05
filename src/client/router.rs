@@ -1,22 +1,26 @@
-pub mod page;
-use page::*;
-use enum_paths::ParsePath;
+use seed::{
+    *,
+    prelude::*,
+    app::subs,
+};
 use components::{
     Init,
     Component,
     Viewable,
 };
-use seed::{
-    *,
-    prelude::*,
-};
 use tracing::{
     debug,
 };
+use enum_paths::ParsePath;
 use app_model::route::Route;
-use seed::app::subs;
+use crate::page::{
+    self,
+    *,
+};
+
 #[derive(Debug)]
 pub struct Router {
+    host: String,
     page: Page,
     url_changed_sub: SubHandle,
 }
@@ -51,7 +55,9 @@ impl Init<Url> for Router {
 }
 impl Init<Route> for Router {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
+        let host = crate::get_host().unwrap();
         Self {
+            host,
             page: Page::init(route, &mut orders.proxy(Msg::Page)),
             url_changed_sub: orders.subscribe_with_handle(Msg::UrlChanged),
         }
@@ -79,10 +85,12 @@ impl Component for Router {
 impl Viewable for Router {
     fn view(&self) -> Node<Msg> {
         div![
+            // TODO
             a!["Home", attrs!{ At::Href => "/" }],
             a!["Chart", attrs!{ At::Href => "/chart" }],
             a!["Login", attrs!{ At::Href => "/login" }],
             a!["Register", attrs!{ At::Href => "/register" }],
+
             self.page.view().map_msg(Msg::Page)
         ]
     }

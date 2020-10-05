@@ -2,7 +2,6 @@ use super::*;
 use components::{
     Init,
     Component,
-    auth::Auth,
 };
 use seed::{
     *,
@@ -15,18 +14,19 @@ use crate::chart::{
     self,
     Chart,
 };
-use app_model::route::{
+use app_model::{
     Route,
+    auth::Auth,
 };
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Auth(components::auth::Msg),
+    Auth(app_model::auth::Msg),
     Chart(chart::Msg),
 }
 #[derive(Debug)]
 pub enum Page {
-    Auth(components::auth::Auth),
+    Auth(app_model::auth::Auth),
     Chart(Chart),
     Users,
     User,
