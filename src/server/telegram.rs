@@ -1,44 +1,32 @@
-use telegram_bot::{
-    UpdateKind,
-    MessageKind,
-    Message,
-    CanReplySendMessage,
+use crate::server::{
+    command::run_command,
+    keys,
+};
+use async_std::sync::{
+    channel,
+    Arc,
+    Receiver,
+    RwLock,
+};
+use futures::StreamExt;
+use futures_core::stream::Stream;
+use lazy_static::lazy_static;
+use std::{
+    pin::Pin,
+    task::Poll,
 };
 pub use telegram_bot::{
     Api,
     Error,
     Update,
 };
-use crate::{
-    server::{
-        keys,
-        command::run_command,
-    },
+use telegram_bot::{
+    CanReplySendMessage,
+    Message,
+    MessageKind,
+    UpdateKind,
 };
-use lazy_static::lazy_static;
-use tracing::{
-    debug,
-};
-use futures_core::{
-    stream::{
-        Stream,
-    },
-};
-use std::{
-    pin::Pin,
-    task::Poll,
-};
-use async_std::{
-    sync::{
-        Arc,
-        RwLock,
-        Receiver,
-        channel,
-    },
-};
-use futures::{
-    StreamExt,
-};
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct Telegram {
@@ -46,7 +34,8 @@ pub struct Telegram {
 }
 lazy_static! {
     pub static ref TELEGRAM: Telegram = Telegram::new();
-    pub static ref STREAM: Arc<RwLock<Option<Receiver<Result<Update, Error>>>>> = Arc::new(RwLock::new(None));
+    pub static ref STREAM: Arc<RwLock<Option<Receiver<Result<Update, Error>>>>> =
+        Arc::new(RwLock::new(None));
 }
 pub async fn run() {
     let (tx, rx) = channel(100);
@@ -67,9 +56,7 @@ impl Telegram {
     pub fn new() -> Self {
         let telegram_key = keys::read_key_file("keys/telegram");
         let api = Api::new(telegram_key);
-        Self {
-            api,
-        }
+        Self { api }
     }
     pub async fn handle_message(&mut self, message: Message) -> Result<(), crate::Error> {
         match message.kind.clone() {
@@ -77,35 +64,32 @@ impl Telegram {
                 let cmd = data;
                 println!("<{}>: {}", &message.from.first_name, cmd);
                 let output = run_command(cmd).await?;
-                let result = self.api.send(message.text_reply(format!(
-                    "{}", remove_coloring(output),
-                ))).await;
+                let result = self
+                    .api
+                    .send(message.text_reply(format!("{}", remove_coloring(output),)))
+                    .await;
                 if let Err(e) = result {
-                    self.api.send(message.text_reply(format!(
-                        "{:#?}", e,
-                    ))).await?;
+                    self.api
+                        .send(message.text_reply(format!("{:#?}", e,)))
+                        .await?;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         Ok(())
     }
     pub async fn update(&mut self, update: Update) -> Result<(), crate::Error> {
         debug!("Telegram Update");
-        Ok(
-            match update.kind {
-                UpdateKind::Message(message) => {
-                    self.handle_message(message).await?
-                },
-                UpdateKind::EditedMessage(_message) => {},
-                UpdateKind::ChannelPost(_post) => { },
-                UpdateKind::EditedChannelPost(_post) => { },
-                UpdateKind::InlineQuery(_query) => { },
-                UpdateKind::CallbackQuery(_query) => { },
-                UpdateKind::Error(_error) => { },
-                UpdateKind::Unknown => { },
-            }
-        )
+        Ok(match update.kind {
+            UpdateKind::Message(message) => self.handle_message(message).await?,
+            UpdateKind::EditedMessage(_message) => {}
+            UpdateKind::ChannelPost(_post) => {}
+            UpdateKind::EditedChannelPost(_post) => {}
+            UpdateKind::InlineQuery(_query) => {}
+            UpdateKind::CallbackQuery(_query) => {}
+            UpdateKind::Error(_error) => {}
+            UpdateKind::Unknown => {}
+        })
     }
 }
 impl std::ops::Deref for Telegram {
@@ -124,14 +108,19 @@ impl Stream for TelegramStream {
                 let mut stream = stream;
                 let telegram_poll = Stream::poll_next(Pin::new(&mut stream), cx);
                 if telegram_poll.is_ready() {
-                    telegram_poll.map(|opt|
-                        opt.map(|result|
-                            result.map(crate::message_stream::Message::Telegram)
+                    telegram_poll.map(|opt| {
+                        opt.map(|result| {
+                            result
+                                .map(crate::message_stream::Message::Telegram)
                                 .map_err(Into::into)
-                        )
-                    )
-                } else { Poll::Pending }
-            } else { Poll::Pending };
+                        })
+                    })
+                } else {
+                    Poll::Pending
+                }
+            } else {
+                Poll::Pending
+            };
             if let Poll::Ready(Some(Err(_))) = poll {
                 *stream_opt = None;
             }

@@ -1,30 +1,26 @@
-use openlimits::{
-    model::{
-        Candle,
-        Interval,
-    },
-};
-use seed::{
-    *,
-    prelude::*,
-};
-use components::{
-    Component,
-    Viewable,
-    Init,
-};
-use tracing::{
-    debug,
-};
-use rust_decimal::prelude::ToPrimitive;
 use crate::shared::{
-    ServerMessage,
     ClientMessage,
+    ServerMessage,
 };
 use crate::websocket::{
     self,
     WebSocket,
 };
+use components::{
+    Component,
+    Init,
+    Viewable,
+};
+use openlimits::model::{
+    Candle,
+    Interval,
+};
+use rust_decimal::prelude::ToPrimitive;
+use seed::{
+    prelude::*,
+    *,
+};
+use tracing::debug;
 #[derive(Debug)]
 pub struct Chart {
     pub svg_node: Option<web_sys::Node>,
@@ -62,14 +58,16 @@ impl Init<()> for Chart {
         let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
             debug!("Received Server Message");
             match msg {
-                ServerMessage::PriceHistory(price_history) => Some(Msg::AppendCandles(price_history.candles)),
+                ServerMessage::PriceHistory(price_history) => {
+                    Some(Msg::AppendCandles(price_history.candles))
+                }
             }
         });
         let chart_msg_sub = orders.subscribe_with_handle(|msg: Msg| {
             debug!("Chart received message");
             match msg {
                 Msg::SubscribePriceHistory => Some(msg),
-                _ => None
+                _ => None,
             }
         });
         let host = crate::get_host().unwrap();
@@ -104,24 +102,25 @@ impl Component for Chart {
             Msg::Panning(x, y) => {
                 self.view_x += x;
                 self.view_y += y;
-            },
+            }
             Msg::SetTimeInterval(interval) => {
                 if self.time_interval != interval {
                     self.time_interval = interval;
                     self.last_candle_update = None;
                     self.data.clear();
                 }
-            },
+            }
             Msg::SubscribePriceHistory => {
                 debug!("SubscribePriceHistory");
                 orders.notify(self.subscribe_price_history_request());
-            },
+            }
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
-            },
+            }
             Msg::Websocket(msg) => {
-                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
-            },
+                self.websocket
+                    .update(msg, &mut orders.proxy(Msg::Websocket));
+            }
         }
     }
 }
@@ -129,10 +128,7 @@ impl Chart {
     #[allow(unused)]
     async fn fetch_candles(url: &str) -> Result<Vec<Candle>, FetchError> {
         let url = format!("http://{}/api/price_history", url);
-        seed::fetch::fetch(
-            Request::new(url)
-                .method(Method::Get)
-            )
+        seed::fetch::fetch(Request::new(url).method(Method::Get))
             .await?
             .check_status()?
             .json()
@@ -159,7 +155,7 @@ impl Chart {
     }
     fn graph_view(&self) -> Node<<Self as Component>::Msg> {
         div![
-            style!{
+            style! {
                 St::Overflow => "scroll",
                 //St::OverflowY => "auto",
                 //St::Height => "auto",
@@ -175,7 +171,7 @@ impl Chart {
                 Msg::Panning(x, y)
             }),
             svg![
-                attrs!{
+                attrs! {
                     At::ViewBox => format!("{} {} {} {}", self.view_x, self.view_y, self.width, self.height),
                     At::PreserveAspectRatio => "xMinYMin meet",
                     At::Width => self.width,
@@ -183,7 +179,7 @@ impl Chart {
                     At::Id => "graph-svg",
                     At::Overflow => "scroll",
                 },
-                style!{
+                style! {
                     St::BackgroundColor => "gray";
                     St::Width => "100%",
                 },
@@ -204,7 +200,9 @@ impl Chart {
                 "3m"
             ],
             button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::FifteenMinutes)),
+                ev(Ev::Click, |_| {
+                    Msg::SetTimeInterval(Interval::FifteenMinutes)
+                }),
                 "15m"
             ],
             button![
@@ -242,66 +240,64 @@ impl Chart {
         ]
     }
     fn plot_view(&self) -> Vec<Node<<Self as Component>::Msg>> {
-        let candles: Vec<(_, _)> =
-                self.data
-                    .iter()
-                    .enumerate()
-                    .collect();
-        candles
-            .iter()
-            .fold(
-                Vec::with_capacity(self.data.len()*2),
-                |mut acc, (i, candle)| {
-                    let open = candle.open.to_f32().unwrap();
-                    let close = candle.close.to_f32().unwrap();
-                    let high = candle.high.to_f32().unwrap();
-                    let low = candle.low.to_f32().unwrap();
-                    let height = self.to_y_pixels((open - close).abs());
-                    let top = open.max(close);
-                    let x_px = *i as u32*self.x_interval;
-                    let y_px = self.height - self.to_y_pixels(top - self.data_min) as u32;
-                    let color = if open > close {
-                                    "red"
-                                } else if open == close {
-                                    "gray"
-                                } else {
-                                    "green"
-                                };
-                    acc.push(
-                        rect![
-                            attrs!{
-                                At::X => x_px,
-                                At::Y => y_px,
-                                At::Width => self.x_interval,
-                                At::Height => height,
-                                At::Fill => color,
-                            },
-                        ]
-                    );
-                    let x_px = x_px + self.x_interval/2;
-                    let y_px = self.height - self.to_y_pixels(high - self.data_min) as u32;
-                    let height = self.to_y_pixels(high - low);
-                    acc.push(
-                        path![
-                            attrs!{
-                                At::D => format!("M {} {} v {}", x_px, y_px, height),
-                                At::Stroke => color,
-                                At::StrokeWidth => 1,
-                            },
-                        ]
-                    );
-                    acc
-                }
-            )
+        let candles: Vec<(_, _)> = self.data.iter().enumerate().collect();
+        candles.iter().fold(
+            Vec::with_capacity(self.data.len() * 2),
+            |mut acc, (i, candle)| {
+                let open = candle.open.to_f32().unwrap();
+                let close = candle.close.to_f32().unwrap();
+                let high = candle.high.to_f32().unwrap();
+                let low = candle.low.to_f32().unwrap();
+                let height = self.to_y_pixels((open - close).abs());
+                let top = open.max(close);
+                let x_px = *i as u32 * self.x_interval;
+                let y_px = self.height - self.to_y_pixels(top - self.data_min) as u32;
+                let color = if open > close {
+                    "red"
+                } else if open == close {
+                    "gray"
+                } else {
+                    "green"
+                };
+                acc.push(rect![attrs! {
+                    At::X => x_px,
+                    At::Y => y_px,
+                    At::Width => self.x_interval,
+                    At::Height => height,
+                    At::Fill => color,
+                },]);
+                let x_px = x_px + self.x_interval / 2;
+                let y_px = self.height - self.to_y_pixels(high - self.data_min) as u32;
+                let height = self.to_y_pixels(high - low);
+                acc.push(path![attrs! {
+                    At::D => format!("M {} {} v {}", x_px, y_px, height),
+                    At::Stroke => color,
+                    At::StrokeWidth => 1,
+                },]);
+                acc
+            },
+        )
     }
     fn update_values(&mut self) {
-        self.data_max = self.data.iter().map(|candle| candle.high).max().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
-        self.data_min = self.data.iter().map(|candle| candle.low).min().map(|d| d.to_f32().unwrap()).unwrap_or(0.0);
-        self.data_range = self.data_max-self.data_min;
+        self.data_max = self
+            .data
+            .iter()
+            .map(|candle| candle.high)
+            .max()
+            .map(|d| d.to_f32().unwrap())
+            .unwrap_or(0.0);
+        self.data_min = self
+            .data
+            .iter()
+            .map(|candle| candle.low)
+            .min()
+            .map(|d| d.to_f32().unwrap())
+            .unwrap_or(0.0);
+        self.data_range = self.data_max - self.data_min;
         if self.data_range != 0.0 {
-            self.y_factor = self.height as f32/self.data_range;
+            self.y_factor = self.height as f32 / self.data_range;
         }
-        self.y_interval = (0.000001*self.y_factor).round() as u32;
+        self.y_interval = (0.000001 * self.y_factor).round() as u32;
         //log!(self)
     }
     fn to_y_pixels(&self, d: f32) -> i32 {
@@ -309,21 +305,21 @@ impl Chart {
     }
     #[allow(unused)]
     fn vertical_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
-        (0..(self.width/10)).fold(Vec::with_capacity(self.width as usize/10*2), |mut acc, index| {
-            let x = index*10;
-            let y = self.height as i32;
-            let h = 10;
-            let padding = 10;
+        (0..(self.width / 10)).fold(
+            Vec::with_capacity(self.width as usize / 10 * 2),
+            |mut acc, index| {
+                let x = index * 10;
+                let y = self.height as i32;
+                let h = 10;
+                let padding = 10;
 
-            let center_dir = (-1 * self.height as i32/2).clamp(-1, 1);
-            acc.push(path![
-                    attrs!{
-                        At::D => format!("M {} {} V {}", x, y, y + center_dir * h)
-                        At::Stroke => "black"
-                    }
-                ]);
-            if index % 10 == 0 {
-                acc.push(text![
+                let center_dir = (-1 * self.height as i32 / 2).clamp(-1, 1);
+                acc.push(path![attrs! {
+                    At::D => format!("M {} {} V {}", x, y, y + center_dir * h)
+                    At::Stroke => "black"
+                }]);
+                if index % 10 == 0 {
+                    acc.push(text![
                     attrs!{
                         At::X => x,
                         At::Y => y + center_dir * (h + padding),
@@ -335,35 +331,33 @@ impl Chart {
                     },
                     index.to_string()
                 ])
-            }
-            acc
-        })
+                }
+                acc
+            },
+        )
     }
     #[allow(unused)]
     fn horizontal_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
-        let count: usize = self.height as usize/self.y_interval.max(1) as usize;
-        (0..count)
-            .fold(Vec::with_capacity(count*2), |mut acc, index| {
-            let y: i32 = self.height as i32 - index as i32*self.y_interval as i32;
+        let count: usize = self.height as usize / self.y_interval.max(1) as usize;
+        (0..count).fold(Vec::with_capacity(count * 2), |mut acc, index| {
+            let y: i32 = self.height as i32 - index as i32 * self.y_interval as i32;
             let x: i32 = 0;
             let l = self.width as i32;
             let xp: i32 = 10;
             let yp: i32 = 10;
 
-            let center_dir = (self.width as i32/2 - x).clamp(-1, 1);
+            let center_dir = (self.width as i32 / 2 - x).clamp(-1, 1);
             let emphathize = index % 10 == 0;
             let opacity = if emphathize { 0.3 } else { 0.1 };
-            acc.push(path![
-                    attrs!{
-                        At::D => format!("M {} {} h {}", x, y, center_dir * l),
-                        At::Stroke => "black",
-                        At::StrokeWidth => 1,
-                        At::Opacity => opacity,
-                    }
-            ]);
+            acc.push(path![attrs! {
+                At::D => format!("M {} {} h {}", x, y, center_dir * l),
+                At::Stroke => "black",
+                At::StrokeWidth => 1,
+                At::Opacity => opacity,
+            }]);
             if emphathize {
                 acc.push(text![
-                    attrs!{
+                    attrs! {
                         At::X => x + xp,
                         At::Y => y + yp,
                         At::FontFamily => "-apple-system, system-ui, BlinkMacSystemFont, Roboto",
@@ -372,7 +366,7 @@ impl Chart {
                         At::FontSize => "9",
                         At::Fill => "black",
                     },
-                    ((self.height as i32 - y)/10).to_string()
+                    ((self.height as i32 - y) / 10).to_string()
                 ]);
             }
             acc
@@ -382,9 +376,6 @@ impl Chart {
 impl Viewable for Chart {
     fn view(&self) -> Node<Self::Msg> {
         //debug!("Chart redraw!");
-        div![
-            self.interval_selection(),
-            self.graph_view(),
-        ]
+        div![self.interval_selection(), self.graph_view(),]
     }
 }

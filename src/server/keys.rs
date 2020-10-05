@@ -1,10 +1,6 @@
 use std::{
-    convert::{
-        AsRef,
-    },
-    path::{
-        Path,
-    },
+    convert::AsRef,
+    path::Path,
 };
 
 pub fn read_key_file<P: AsRef<Path>>(path: P) -> String {

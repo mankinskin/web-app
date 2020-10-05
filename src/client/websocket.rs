@@ -1,20 +1,18 @@
-use seed::{
-    *,
-    prelude::*,
-    prelude::WebSocket as SeedWebSocket,
+use crate::chart;
+use crate::shared::{
+    ClientMessage,
+    ServerMessage,
 };
 use components::{
     Component,
     Init,
 };
-use crate::shared::{
-    ClientMessage,
-    ServerMessage,
+use seed::{
+    prelude::WebSocket as SeedWebSocket,
+    prelude::*,
+    *,
 };
-use tracing::{
-    debug,
-};
-use crate::chart;
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct WebSocket {
@@ -54,7 +52,7 @@ impl WebSocket {
             let msg = message
                 .json::<ServerMessage>()
                 .expect("Failed to decode WebSocket text message");
-    
+
             msg_sender(Some(Msg::MessageReceived(msg)));
         } else {
             spawn_local(async move {
@@ -62,7 +60,7 @@ impl WebSocket {
                     .bytes()
                     .await
                     .expect("websocket::Error on binary data");
-    
+
                 let msg: ServerMessage = serde_json::de::from_slice(&bytes).unwrap();
                 msg_sender(Some(Msg::MessageReceived(msg)));
             });
@@ -70,12 +68,11 @@ impl WebSocket {
     }
     fn send_message(&self, msg: ClientMessage, orders: &mut impl Orders<Msg>) {
         //debug!("Sending message");
-        self.websocket.as_ref().map(|ws|
-            ws.send_json(&msg)
-                .unwrap_or_else(|err| {
-                    orders.send_msg(Msg::Error(format!("{:?}", err)));
-                })
-        );
+        self.websocket.as_ref().map(|ws| {
+            ws.send_json(&msg).unwrap_or_else(|err| {
+                orders.send_msg(Msg::Error(format!("{:?}", err)));
+            })
+        });
     }
 }
 #[derive(Clone, Debug)]
@@ -95,33 +92,32 @@ impl Component for WebSocket {
             Msg::Opened => {
                 debug!("WebSocket opened");
                 orders.notify(chart::Msg::SubscribePriceHistory);
-            },
+            }
             Msg::Closed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
                 self.websocket = None;
                 if !event.was_clean() && self.websocket_reconnector.is_none() {
-                    self.websocket_reconnector = Some(
-                        orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect))
-                    );
+                    self.websocket_reconnector =
+                        Some(orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect)));
                 }
-            },
+            }
             Msg::Error(err) => {
                 debug!("WebSocket error: {:#?}", err);
-            },
+            }
             Msg::Reconnect => {
                 debug!("Reconnect websocket");
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
-            },
+            }
             Msg::SendMessage(msg) => {
                 //debug!("Send ClientMessage");
                 //debug!("{:#?}", msg);
                 self.send_message(msg, orders);
-            },
+            }
             Msg::MessageReceived(msg) => {
                 //debug!("ServerMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
-            },
+            }
         }
     }
 }

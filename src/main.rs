@@ -1,62 +1,48 @@
 #![feature(async_closure)]
 #![feature(bool_to_option)]
 
-extern crate serde;
-extern crate serde_json;
-extern crate openlimits;
-extern crate tokio;
-extern crate async_std;
+extern crate app_model;
 extern crate async_h1;
+extern crate async_std;
+extern crate chrono;
+extern crate clap;
 extern crate futures;
 extern crate futures_core;
 extern crate lazy_static;
-extern crate clap;
-extern crate regex;
-extern crate chrono;
-extern crate telegram_bot;
-extern crate warp;
-extern crate tracing;
-extern crate tracing_subscriber;
-extern crate tracing_appender;
+extern crate openlimits;
 extern crate parallel_stream;
-extern crate app_model;
+extern crate regex;
+extern crate serde;
+extern crate serde_json;
+extern crate telegram_bot;
+extern crate tokio;
+extern crate tracing;
+extern crate tracing_appender;
+extern crate tracing_subscriber;
+extern crate warp;
 
-mod shared;
 mod server;
+mod shared;
+use async_std::sync::MutexGuard;
 pub use server::*;
 use server::{
-    error::Error,
-    telegram::{
-        self,
-    },
     binance::{
         self,
         Binance,
     },
+    error::Error,
+    message_stream,
     model::{
         self,
         Model,
     },
-    message_stream,
+    telegram::{self,},
 };
-use async_std::{
-    sync::{
-        MutexGuard,
-    },
-};
-use tracing::{
-    debug,
-};
+use tracing::debug;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
     fmt,
-    layer::{
-        SubscriberExt,
-    },
-};
-use tracing_appender::{
-    non_blocking::{
-        WorkerGuard,
-    },
+    layer::SubscriberExt,
 };
 
 pub async fn binance() -> MutexGuard<'static, Binance> {
@@ -73,8 +59,9 @@ fn init_tracing() -> WorkerGuard {
         fmt::Subscriber::builder()
             .with_env_filter("server=debug")
             .finish()
-            .with(fmt::Layer::default().with_writer(file_writer))
-    ).expect("Unable to set global tracing subscriber");
+            .with(fmt::Layer::default().with_writer(file_writer)),
+    )
+    .expect("Unable to set global tracing subscriber");
     debug!("Tracing initialized.");
     guard
 }
@@ -82,11 +69,7 @@ fn init_tracing() -> WorkerGuard {
 async fn main() -> Result<(), Error> {
     let _guard = init_tracing();
     binance().await.init().await;
-    let (
-        _telegram_result,
-        _server_result,
-        ms_result,
-    ) = futures::join! {
+    let (_telegram_result, _server_result, ms_result) = futures::join! {
         telegram::run(),
         server::listen(),
         message_stream::run(),

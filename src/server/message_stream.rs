@@ -1,38 +1,30 @@
+use crate::shared::ClientMessage;
 use crate::{
-    Error,
-    telegram::telegram,
     server::{
-        websocket,
-        interval,
-        telegram::{
-            Update,
-            TelegramStream,
-        },
         command::{
             run_command,
             CommandLine,
         },
+        interval,
+        telegram::{
+            TelegramStream,
+            Update,
+        },
+        websocket,
     },
+    telegram::telegram,
+    Error,
 };
-use futures_core::{
-    stream::{
-        Stream,
-    },
-};
+use futures_core::stream::Stream;
+use parallel_stream::ParallelStream;
 use std::{
     pin::Pin,
     task::Poll,
 };
 #[allow(unused)]
 use tracing::{
-    error,
     debug,
-};
-use parallel_stream::{
-    ParallelStream,
-};
-use crate::shared::{
-    ClientMessage,
+    error,
 };
 
 #[derive(Debug)]
@@ -52,7 +44,7 @@ pub async fn run() -> Result<(), Error> {
                         error!("{:#?}", e);
                     }
                 });
-            },
+            }
             Err(err) => handle_error(err).await?,
         }
     }
@@ -60,19 +52,17 @@ pub async fn run() -> Result<(), Error> {
 }
 async fn handle_message(msg: Message) -> Result<(), Error> {
     match msg {
-        Message::Telegram(update) => {
-            telegram().update(update).await?
-        },
+        Message::Telegram(update) => telegram().update(update).await?,
         Message::CommandLine(text) => {
             match run_command(text).await {
                 Ok(ok) => println!("{}", ok),
                 Err(err) => error!("{:#?}", err),
             };
-        },
+        }
         Message::Interval => {
             crate::model().await.update().await?;
             websocket::update().await?;
-        },
+        }
         Message::WebSocket(id, msg) => {
             debug!("Websocket message from connection {} {:?}", id, msg);
             if let Err(err) = websocket::handle_message(id, msg).await {

@@ -1,12 +1,6 @@
-use crate::{
-    Error,
-};
-use crate::shared::{
-    PriceHistoryRequest,
-};
-use app_model::market::{
-    PriceHistory,
-};
+use crate::shared::PriceHistoryRequest;
+use crate::Error;
+use app_model::market::PriceHistory;
 use openlimits::model::Paginator;
 
 #[derive(Debug, Clone)]
@@ -26,9 +20,11 @@ impl From<String> for PriceSubscription {
 }
 impl PriceSubscription {
     pub async fn latest_price_history(&self) -> Result<PriceHistory, Error> {
-        let paginator = self.last_update.map(|datetime| Paginator {
-            start_time: Some(datetime.timestamp_millis() as u64),
-            ..Default::default()
+        let paginator = self.last_update.map(|datetime| {
+            Paginator {
+                start_time: Some(datetime.timestamp_millis() as u64),
+                ..Default::default()
+            }
         });
         let req = PriceHistoryRequest {
             market_pair: self.market_pair.clone(),

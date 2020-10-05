@@ -1,21 +1,15 @@
 use crate::{
-    Error,
     message_stream::Message,
+    Error,
 };
 use async_std::{
+    stream::Interval,
     sync::{
         Arc,
         RwLock,
     },
-    stream::{
-        Interval,
-    },
 };
-use futures_core::{
-    stream::{
-        Stream,
-    },
-};
+use futures_core::stream::Stream;
 use lazy_static::lazy_static;
 use std::{
     pin::Pin,
@@ -28,8 +22,9 @@ lazy_static! {
 
 pub fn set(new: Interval) {
     crate::server::interval::INTERVAL
-        .try_write().unwrap()
-        .get_or_insert(new);    
+        .try_write()
+        .unwrap()
+        .get_or_insert(new);
 }
 pub struct IntervalStream;
 

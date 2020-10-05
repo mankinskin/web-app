@@ -1,38 +1,22 @@
-use lazy_static::lazy_static;
-use openlimits::{
-    model::{
-        Candle,
-    },
-};
-use async_std::{
-    sync::{
-        Arc,
-        Mutex,
-    },
-};
-use std::{
-    collections::{
-        HashMap,
-    },
+use crate::shared::PriceHistoryRequest;
+use async_std::sync::{
+    Arc,
+    Mutex,
 };
 use chrono::{
     DateTime,
     Utc,
 };
+use futures::StreamExt;
+use lazy_static::lazy_static;
+use openlimits::model::Candle;
 use serde::{
-    Serialize,
     Deserialize,
+    Serialize,
 };
-use tracing::{
-    debug,
-};
+use std::collections::HashMap;
 use std::convert::TryInto;
-use crate::shared::{
-    PriceHistoryRequest,
-};
-use futures::{
-    StreamExt,
-};
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -54,7 +38,7 @@ pub struct SymbolModel {
 }
 impl SymbolModel {
     pub fn from_symbol(symbol: String) -> Self {
-        Self{
+        Self {
             symbol,
             prices: Vec::new(),
             last_update: None,
@@ -62,21 +46,23 @@ impl SymbolModel {
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
         //debug!("SymbolModel update");
-        let paginator = self.last_update.and_then(|date_time|
-                date_time.timestamp().try_into().ok()
-            ).map(|timestamp: u64| 
-                        openlimits::model::Paginator {
-                            start_time: Some(timestamp),
-                            ..Default::default()
-                        }
-                    );
-        let prices = crate::binance().await.get_symbol_price_history(
-                PriceHistoryRequest {
-                    market_pair: self.symbol.clone(),
-                    interval: None,
-                    paginator,
+        let paginator = self
+            .last_update
+            .and_then(|date_time| date_time.timestamp().try_into().ok())
+            .map(|timestamp: u64| {
+                openlimits::model::Paginator {
+                    start_time: Some(timestamp),
+                    ..Default::default()
                 }
-            ).await?;
+            });
+        let prices = crate::binance()
+            .await
+            .get_symbol_price_history(PriceHistoryRequest {
+                market_pair: self.symbol.clone(),
+                interval: None,
+                paginator,
+            })
+            .await?;
         self.prices = prices;
         self.last_update = Some(Utc::now());
         Ok(())
@@ -95,7 +81,7 @@ impl Model {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn with_symbols<I: Iterator<Item=String>>(symbols: I) -> Self {
+    pub fn with_symbols<I: Iterator<Item = String>>(symbols: I) -> Self {
         Self {
             symbols: symbols
                 .map(|symbol| (symbol.clone(), SymbolModel::from_symbol(symbol)))
@@ -106,20 +92,26 @@ impl Model {
     pub async fn filter_available_symbols(&mut self) -> Result<(), crate::Error> {
         let mut errors = Vec::new();
         self.symbols = futures::stream::iter(self.symbols.clone().into_iter())
-            .then(async move |(symbol, model)|
+            .then(async move |(symbol, model)| {
                 if model.is_available().await {
                     Ok((symbol, model))
                 } else {
-                    Err(Error::from(format!("Symbol {} does not exist on binance.", symbol)))
+                    Err(Error::from(format!(
+                        "Symbol {} does not exist on binance.",
+                        symbol
+                    )))
                 }
-            )
+            })
             .collect::<Vec<_>>()
             .await
             .into_iter()
             .filter_map(|result: Result<(String, SymbolModel), Error>| {
                 match result {
                     Ok(pair) => Some(pair),
-                    Err(error) => { errors.push(error); None }
+                    Err(error) => {
+                        errors.push(error);
+                        None
+                    }
                 }
             })
             .collect();
@@ -130,21 +122,29 @@ impl Model {
             Err(crate::Error::from(errors))
         }
     }
-    pub async fn get_symbol_model<'a>(&'a self, symbol: String) -> Result<&'a SymbolModel, crate::Error> {
-        self.symbols.get(&symbol.to_uppercase())
-            .ok_or(crate::Error::from(Error::from(format!("No Model for Symbol: {}", symbol))))
+    pub async fn get_symbol_model<'a>(
+        &'a self,
+        symbol: String,
+    ) -> Result<&'a SymbolModel, crate::Error> {
+        self.symbols
+            .get(&symbol.to_uppercase())
+            .ok_or(crate::Error::from(Error::from(format!(
+                "No Model for Symbol: {}",
+                symbol
+            ))))
     }
     pub async fn add_symbol(&mut self, symbol: String) -> Result<(), crate::Error> {
         debug!("Adding symbol to model...");
         if !self.symbols.contains_key(&symbol) {
-            self.symbols.insert(symbol.clone(), SymbolModel::from_symbol(symbol));
+            self.symbols
+                .insert(symbol.clone(), SymbolModel::from_symbol(symbol));
             self.new_symbols = true;
         } else {
             debug!("Model already exists.");
         }
         Ok(())
     }
-    pub async fn update(&mut self) -> Result<(), crate::Error>{
+    pub async fn update(&mut self) -> Result<(), crate::Error> {
         //debug!("Model update");
         if self.new_symbols {
             self.filter_available_symbols().await?;

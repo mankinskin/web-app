@@ -1,22 +1,20 @@
-use seed::{
-    *,
-    prelude::*,
-    app::subs,
-};
-use components::{
-    Init,
-    Component,
-    Viewable,
-};
-use tracing::{
-    debug,
-};
-use enum_paths::ParsePath;
-use app_model::route::Route;
 use crate::page::{
     self,
     *,
 };
+use app_model::route::Route;
+use components::{
+    Component,
+    Init,
+    Viewable,
+};
+use enum_paths::ParsePath;
+use seed::{
+    app::subs,
+    prelude::*,
+    *,
+};
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct Router {
@@ -69,15 +67,15 @@ pub enum Msg {
     UrlChanged(subs::UrlChanged),
 }
 impl Component for Router {
-    type Msg = Msg; 
+    type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
         //debug!("Router Update");
         match msg {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
-            Msg::UrlChanged(subs::UrlChanged(url)) =>{
+            Msg::UrlChanged(subs::UrlChanged(url)) => {
                 debug!("UrlChanged");
                 self.go_to_url(url, orders);
-            },
+            }
         }
     }
 }
@@ -86,11 +84,10 @@ impl Viewable for Router {
     fn view(&self) -> Node<Msg> {
         div![
             // TODO
-            a!["Home", attrs!{ At::Href => "/" }],
-            a!["Chart", attrs!{ At::Href => "/chart" }],
-            a!["Login", attrs!{ At::Href => "/login" }],
-            a!["Register", attrs!{ At::Href => "/register" }],
-
+            a!["Home", attrs! { At::Href => "/" }],
+            a!["Chart", attrs! { At::Href => "/chart" }],
+            a!["Login", attrs! { At::Href => "/login" }],
+            a!["Register", attrs! { At::Href => "/register" }],
             self.page.view().map_msg(Msg::Page)
         ]
     }

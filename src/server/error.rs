@@ -1,15 +1,9 @@
-use crate::{
-    server::{
-        telegram,
-        model,
-    },
+use crate::server::{
+    model,
+    telegram,
 };
 
-use openlimits::{
-    errors::{
-        OpenLimitError,
-    },
-};
+use openlimits::errors::OpenLimitError;
 
 #[derive(Debug)]
 pub enum Error {

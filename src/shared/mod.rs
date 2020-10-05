@@ -1,18 +1,12 @@
 use serde::{
-    Serialize,
     Deserialize,
+    Serialize,
 };
 
-use openlimits::{
-    model::{
-        Paginator,
-        Interval,
-    },
-};
-use app_model::{
-    market::{
-        PriceHistory,
-    },
+use app_model::market::PriceHistory;
+use openlimits::model::{
+    Interval,
+    Paginator,
 };
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceHistoryRequest {
@@ -34,11 +28,9 @@ pub enum ServerMessage {
     PriceHistory(PriceHistory),
 }
 #[cfg(not(target_arch = "wasm32"))]
-use std::{
-    convert::{
-        TryFrom,
-        TryInto,
-    },
+use std::convert::{
+    TryFrom,
+    TryInto,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,9 +38,8 @@ impl TryInto<warp::ws::Message> for ServerMessage {
     type Error = crate::Error;
     fn try_into(self) -> Result<warp::ws::Message, Self::Error> {
         Ok(warp::ws::Message::text(
-            serde_json::to_string(&self)
-                .map_err(crate::Error::SerdeJson)?)
-        )
+            serde_json::to_string(&self).map_err(crate::Error::SerdeJson)?,
+        ))
     }
 }
 #[cfg(not(target_arch = "wasm32"))]
@@ -68,7 +59,10 @@ impl TryFrom<warp::ws::Message> for ClientMessage {
                 let bytes = msg.as_bytes().to_vec();
                 Ok(ClientMessage::Binary(bytes))
             } else {
-                Err(crate::Error::WebSocket(format!("Unable to read message: {:#?}", msg)))
+                Err(crate::Error::WebSocket(format!(
+                    "Unable to read message: {:#?}",
+                    msg
+                )))
             }
         }
     }
