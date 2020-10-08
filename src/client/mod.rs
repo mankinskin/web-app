@@ -22,16 +22,46 @@ fn init_tracing() {
 pub fn get_host() -> Result<String, JsValue> {
     web_sys::window().unwrap().location().host()
 }
+struct Root {
+    router: Router,
+}
+#[derive(Clone, Debug)]
+enum Msg {
+    Router(router::Msg),
+}
+impl Init<Url> for Root {
+    fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
+        Self {
+            router: Router::init(url, &mut orders.proxy(Msg::Router))
+        }
+    }
+}
+impl Component for Root {
+    type Msg = Msg;
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
+        //debug!("Router Update");
+        match msg {
+            Msg::Router(msg) => self.router.update(msg, &mut orders.proxy(Msg::Router)),
+        }
+    }
+}
 #[wasm_bindgen(start)]
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_tracing();
     App::start(
         "app",
-        |url, orders| Router::init(url, orders),
+        Root::init,
         |msg, model, orders| model.update(msg, orders),
         Viewable::view,
     );
+}
+impl Viewable for Root {
+    fn view(&self) -> Node<Msg> {
+        div![
+            self.router.view().map_msg(Msg::Router)
+        ]
+    }
 }
 #[allow(unused)]
 fn mutation_observer() {
