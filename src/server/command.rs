@@ -73,8 +73,8 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    crate::model().await.add_symbol(symbol.to_string()).await?;
-                    crate::server::interval::set(interval(Duration::from_secs(1)));
+                    //crate::subscriptions().await.add_subscription(symbol.to_string()).await?;
+                    //crate::server::interval::set(interval(Duration::from_secs(1)));
                     String::new()
                 } else {
                     watch_app.usage().to_string()

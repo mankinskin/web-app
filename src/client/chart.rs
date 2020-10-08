@@ -1,10 +1,7 @@
 use crate::shared::{
     ClientMessage,
     ServerMessage,
-};
-use crate::websocket::{
-    self,
-    WebSocket,
+    PriceHistoryRequest,
 };
 use components::{
     Component,
@@ -39,18 +36,15 @@ pub struct Chart {
     pub last_candle_update: Option<u64>,
     pub time_interval: Interval,
     pub error: Option<String>,
-    pub websocket: WebSocket,
 
     server_msg_sub: SubHandle,
     chart_msg_sub: SubHandle,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Panning(i32, i32),
     SetTimeInterval(Interval),
     SubscribePriceHistory,
     AppendCandles(Vec<Candle>),
-    Websocket(websocket::Msg),
 }
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
@@ -60,7 +54,8 @@ impl Init<()> for Chart {
             match msg {
                 ServerMessage::PriceHistory(price_history) => {
                     Some(Msg::AppendCandles(price_history.candles))
-                }
+                },
+                _ => None,
             }
         });
         let chart_msg_sub = orders.subscribe_with_handle(|msg: Msg| {
@@ -70,8 +65,6 @@ impl Init<()> for Chart {
                 _ => None,
             }
         });
-        let host = crate::get_host().unwrap();
-        //debug!("Host: {}", host);
         Self {
             view_x: 0,
             view_y: 0,
@@ -88,7 +81,6 @@ impl Init<()> for Chart {
             last_candle_update: None,
             time_interval: Interval::OneMinute,
             error: None,
-            websocket: WebSocket::init(host, &mut orders.proxy(Msg::Websocket)),
             server_msg_sub,
             chart_msg_sub,
         }
@@ -99,10 +91,6 @@ impl Component for Chart {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         //debug!("Chart update");
         match msg {
-            Msg::Panning(x, y) => {
-                self.view_x += x;
-                self.view_y += y;
-            }
             Msg::SetTimeInterval(interval) => {
                 if self.time_interval != interval {
                     self.time_interval = interval;
@@ -116,10 +104,6 @@ impl Component for Chart {
             }
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
-            }
-            Msg::Websocket(msg) => {
-                self.websocket
-                    .update(msg, &mut orders.proxy(Msg::Websocket));
             }
         }
     }
@@ -135,7 +119,13 @@ impl Chart {
             .await
     }
     pub fn subscribe_price_history_request(&self) -> ClientMessage {
-        ClientMessage::SubscribePrice("SOLBTC".into())
+        ClientMessage::SubscribePrice(
+            PriceHistoryRequest {
+                market_pair: "SOLBTC".into(),
+                interval: Some(self.time_interval),
+                paginator: None,
+            }
+        )
     }
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
         if let Some(timestamp) = self.last_candle_update {
@@ -162,14 +152,14 @@ impl Chart {
                 //St::Cursor => "move",
                 //St::Resize => "horizontal",
             },
-            ev(Ev::Click, |event| {
-                event.prevent_default();
-                let event = to_mouse_event(&event);
-                let x = event.movement_x();
-                let y = event.movement_y();
-                log!("Panning {} {}", x, y);
-                Msg::Panning(x, y)
-            }),
+            //ev(Ev::Click, |event| {
+            //    event.prevent_default();
+            //    let event = to_mouse_event(&event);
+            //    let x = event.movement_x();
+            //    let y = event.movement_y();
+            //    log!("Panning {} {}", x, y);
+            //    Msg::Panning(x, y)
+            //}),
             svg![
                 attrs! {
                     At::ViewBox => format!("{} {} {} {}", self.view_x, self.view_y, self.width, self.height),

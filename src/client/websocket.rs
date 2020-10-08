@@ -1,4 +1,3 @@
-use crate::chart;
 use crate::shared::{
     ClientMessage,
     ServerMessage,
@@ -12,7 +11,10 @@ use seed::{
     prelude::*,
     *,
 };
-use tracing::debug;
+use tracing::{
+    debug,
+    error,
+};
 
 #[derive(Debug)]
 pub struct WebSocket {
@@ -20,14 +22,20 @@ pub struct WebSocket {
     websocket: Option<SeedWebSocket>,
     websocket_reconnector: Option<StreamHandle>,
     send_sub: SubHandle,
+    open: bool,
+    msg_queue: Vec<ClientMessage>,
 }
-impl Init<String> for WebSocket {
-    fn init(host: String, orders: &mut impl Orders<Msg>) -> Self {
+impl Init<()> for WebSocket {
+    fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
+        let host = crate::get_host().unwrap();
+        //debug!("Host: {}", host);
         Self {
             host: host.clone(),
             websocket: Some(Self::create_websocket(&host, orders)),
             websocket_reconnector: None,
             send_sub: orders.subscribe_with_handle(Msg::SendMessage),
+            open: false,
+            msg_queue: Vec::new(),
         }
     }
 }
@@ -66,13 +74,13 @@ impl WebSocket {
             });
         }
     }
-    fn send_message(&self, msg: ClientMessage, orders: &mut impl Orders<Msg>) {
-        //debug!("Sending message");
-        self.websocket.as_ref().map(|ws| {
-            ws.send_json(&msg).unwrap_or_else(|err| {
-                orders.send_msg(Msg::Error(format!("{:?}", err)));
-            })
-        });
+    fn send_message(&self, msg: ClientMessage) {
+        debug!("Sending message");
+        if let Some(ws) = &self.websocket {
+            if let Err(err) = ws.send_json(&msg) {
+                error!("{:?}", err);
+            }
+        }
     }
 }
 #[derive(Clone, Debug)]
@@ -91,7 +99,12 @@ impl Component for WebSocket {
         match msg {
             Msg::Opened => {
                 debug!("WebSocket opened");
-                orders.notify(chart::Msg::SubscribePriceHistory);
+                orders.notify(Msg::Opened);
+                self.open = true;
+                for msg in &self.msg_queue {
+                    self.send_message(msg.clone());
+                }
+                self.msg_queue.clear();
             }
             Msg::Closed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
@@ -100,6 +113,7 @@ impl Component for WebSocket {
                     self.websocket_reconnector =
                         Some(orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect)));
                 }
+                self.open = false;
             }
             Msg::Error(err) => {
                 debug!("WebSocket error: {:#?}", err);
@@ -107,11 +121,18 @@ impl Component for WebSocket {
             Msg::Reconnect => {
                 debug!("Reconnect websocket");
                 self.websocket = Some(Self::create_websocket(&self.host, orders));
+                self.open = false;
             }
             Msg::SendMessage(msg) => {
-                //debug!("Send ClientMessage");
+                debug!("Sending ClientMessage");
                 //debug!("{:#?}", msg);
-                self.send_message(msg, orders);
+                if self.open {
+                    for msg in &self.msg_queue {
+                        self.send_message(msg.clone());
+                    }
+                } else {
+                    self.msg_queue.push(msg);
+                }
             }
             Msg::MessageReceived(msg) => {
                 //debug!("ServerMessage received");

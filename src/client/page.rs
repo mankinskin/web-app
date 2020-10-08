@@ -1,8 +1,4 @@
 use super::*;
-use crate::chart::{
-    self,
-    Chart,
-};
 use app_model::{
     auth::Auth,
     Route,
@@ -16,22 +12,26 @@ use seed::{
     *,
 };
 use tracing::debug;
+use crate::subscriptions::{
+    self,
+    SubscriptionList,
+};
 
-#[derive(Clone, Debug)]
-pub enum Msg {
-    Auth(app_model::auth::Msg),
-    Chart(chart::Msg),
-}
 #[derive(Debug)]
 pub enum Page {
     Auth(app_model::auth::Auth),
-    Chart(Chart),
+    SubscriptionList(SubscriptionList),
     Users,
     User,
     Projects,
     Project,
     Task,
     Root,
+}
+#[derive(Clone, Debug)]
+pub enum Msg {
+    Auth(app_model::auth::Msg),
+    SubscriptionList(subscriptions::Msg),
 }
 impl Init<Route> for Page {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
@@ -40,7 +40,7 @@ impl Init<Route> for Page {
             Route::Auth(auth_route) => {
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth)))
             }
-            Route::Chart => Self::Chart(Chart::init((), &mut orders.proxy(Msg::Chart))),
+            Route::Subscriptions => Self::SubscriptionList(SubscriptionList::init((), &mut orders.proxy(Msg::SubscriptionList))),
             Route::Project(_id) => Self::Project,
             Route::Projects => Self::Projects,
             Route::User(_id) => Self::User,
@@ -60,9 +60,9 @@ impl Component for Page {
                     auth.update(msg, &mut orders.proxy(Msg::Auth));
                 }
             }
-            Self::Chart(chart) => {
-                if let Msg::Chart(msg) = msg {
-                    chart.update(msg, &mut orders.proxy(Msg::Chart));
+            Self::SubscriptionList(list) => {
+                if let Msg::SubscriptionList(msg) = msg {
+                    list.update(msg, &mut orders.proxy(Msg::SubscriptionList));
                 }
             }
             Self::Users => {}
@@ -78,7 +78,7 @@ impl Viewable for Page {
     fn view(&self) -> Node<Msg> {
         match self {
             Self::Auth(auth) => auth.view().map_msg(Msg::Auth),
-            Self::Chart(chart) => chart.view().map_msg(Msg::Chart),
+            Self::SubscriptionList(list) => list.view().map_msg(Msg::SubscriptionList),
             _ => p!["Hello World!"],
         }
     }

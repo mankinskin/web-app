@@ -1,5 +1,5 @@
 use crate::server::{
-    model,
+    subscriptions,
     telegram,
 };
 
@@ -11,7 +11,7 @@ pub enum Error {
     OpenLimits(OpenLimitError),
     AsyncIO(async_std::io::Error),
     Clap(clap::Error),
-    Model(model::Error),
+    Subscriptions(subscriptions::Error),
     Tokio(tokio::task::JoinError),
     SerdeJson(serde_json::Error),
     WebSocket(String),
@@ -60,9 +60,9 @@ impl From<async_std::io::Error> for Error {
         Self::AsyncIO(err)
     }
 }
-impl From<model::Error> for Error {
-    fn from(err: model::Error) -> Self {
-        Self::Model(err)
+impl From<subscriptions::Error> for Error {
+    fn from(err: subscriptions::Error) -> Self {
+        Self::Subscriptions(err)
     }
 }
 impl From<tokio::task::JoinError> for Error {

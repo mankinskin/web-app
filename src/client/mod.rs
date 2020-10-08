@@ -2,6 +2,7 @@ pub mod chart;
 pub mod page;
 pub mod router;
 pub mod websocket;
+pub mod subscriptions;
 
 use components::{
     Component,
@@ -14,6 +15,9 @@ use seed::{
     *,
 };
 use tracing::debug;
+use crate::websocket::{
+    WebSocket,
+};
 
 fn init_tracing() {
     tracing_wasm::set_as_global_default();
@@ -24,15 +28,18 @@ pub fn get_host() -> Result<String, JsValue> {
 }
 struct Root {
     router: Router,
+    websocket: WebSocket,
 }
 #[derive(Clone, Debug)]
 enum Msg {
     Router(router::Msg),
+    Websocket(websocket::Msg),
 }
 impl Init<Url> for Root {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
         Self {
-            router: Router::init(url, &mut orders.proxy(Msg::Router))
+            router: Router::init(url, &mut orders.proxy(Msg::Router)),
+            websocket: WebSocket::init((), &mut orders.proxy(Msg::Websocket)),
         }
     }
 }
@@ -42,6 +49,9 @@ impl Component for Root {
         //debug!("Router Update");
         match msg {
             Msg::Router(msg) => self.router.update(msg, &mut orders.proxy(Msg::Router)),
+            Msg::Websocket(msg) => {
+                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
+            }
         }
     }
 }

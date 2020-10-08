@@ -1,3 +1,4 @@
+use async_std::sync::MutexGuard;
 use crate::shared::PriceHistoryRequest;
 use crate::{
     server::keys,
@@ -18,6 +19,7 @@ use openlimits::{
         GetPriceTickerRequest,
         Interval,
         Ticker,
+        Paginator,
     },
 };
 use serde::{
@@ -27,6 +29,9 @@ use serde::{
 
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
+}
+pub async fn binance() -> MutexGuard<'static, Binance> {
+    BINANCE.lock().await
 }
 #[derive(Serialize, Deserialize)]
 pub struct BinanceCredential {
@@ -89,7 +94,15 @@ impl Binance {
             .get_historic_rates(&GetHistoricRatesRequest {
                 market_pair: req.market_pair.to_uppercase(),
                 interval: req.interval.unwrap_or(Interval::OneMinute),
-                paginator: req.paginator,
+                paginator: req.paginator.map(|p: Paginator<u32>|
+                    Paginator {
+                        after: p.after.map(|x| x as u64),
+                        before: p.before.map(|x| x as u64),
+                        start_time: p.start_time,
+                        end_time: p.end_time,
+                        limit: p.limit,
+                    }
+                )
             })
             .await
             .map_err(Into::into)

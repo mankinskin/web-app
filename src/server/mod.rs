@@ -4,8 +4,7 @@ pub mod error;
 pub mod interval;
 pub mod keys;
 pub mod message_stream;
-pub mod model;
-pub mod subscription;
+pub mod subscriptions;
 pub mod telegram;
 pub mod websocket;
 

@@ -1,9 +1,10 @@
 [package]
 authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 default-run = "server"
-edition = "2018"
 name = "binance-bot"
 version = "0.1.0"
+edition = "2018"
+
 [[bin]]
 name = "server"
 path = "src/main.rs"

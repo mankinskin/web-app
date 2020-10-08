@@ -1,3 +1,6 @@
+pub mod subscription;
+pub use subscription::PriceSubscription;
+
 use serde::{
     Deserialize,
     Serialize,
@@ -8,16 +11,18 @@ use openlimits::model::{
     Interval,
     Paginator,
 };
+use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceHistoryRequest {
     pub market_pair: String,
     pub interval: Option<Interval>,
-    pub paginator: Option<Paginator<u64>>,
+    pub paginator: Option<Paginator<u32>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
-    SubscribePrice(String),
+    GetPriceSubscriptionList,
+    SubscribePrice(PriceHistoryRequest),
     Close,
     Ping,
     Pong,
@@ -26,6 +31,7 @@ pub enum ClientMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
     PriceHistory(PriceHistory),
+    SubscriptionList(HashMap<usize, PriceSubscription>),
 }
 #[cfg(not(target_arch = "wasm32"))]
 use std::convert::{

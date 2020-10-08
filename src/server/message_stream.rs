@@ -35,45 +35,48 @@ pub enum Message {
     Interval,
 }
 pub struct MessageStream;
-pub async fn run() -> Result<(), Error> {
-    while let Some(result) = parallel_stream::from_stream(MessageStream).next().await {
+impl MessageStream {
+    async fn spawn_handler(message: Message) {
+        tokio::spawn(async {
+            if let Err(e) = Self::handle_message(message).await {
+                error!("{:#?}", e);
+            }
+        });
+    }
+    async fn handle_stream_result(result: Result<Message, Error>) {
         match result {
-            Ok(message) => {
-                tokio::spawn(async {
-                    if let Err(e) = handle_message(message).await {
-                        error!("{:#?}", e);
-                    }
-                });
-            }
-            Err(err) => handle_error(err).await?,
+            Ok(message) => Self::spawn_handler(message).await,
+            Err(e) => error!("{:#?}", e),
         }
     }
-    Ok(())
-}
-async fn handle_message(msg: Message) -> Result<(), Error> {
-    match msg {
-        Message::Telegram(update) => telegram().update(update).await?,
-        Message::CommandLine(text) => {
-            match run_command(text).await {
-                Ok(ok) => println!("{}", ok),
-                Err(err) => error!("{:#?}", err),
-            };
-        }
-        Message::Interval => {
-            crate::model().await.update().await?;
-            websocket::update().await?;
-        }
-        Message::WebSocket(id, msg) => {
-            debug!("Websocket message from connection {} {:?}", id, msg);
-            if let Err(err) = websocket::handle_message(id, msg).await {
-                error!("{:#?}", err);
+    async fn handle_message(msg: Message) -> Result<(), Error> {
+        match msg {
+            Message::Telegram(update) => telegram().update(update).await?,
+            Message::CommandLine(text) => {
+                match run_command(text).await {
+                    Ok(ok) => println!("{}", ok),
+                    Err(err) => error!("{:#?}", err),
+                };
+            }
+            Message::Interval => {
+                crate::subscriptions().await.update().await?;
+                websocket::update().await?;
+            }
+            Message::WebSocket(id, msg) => {
+                debug!("Websocket message from connection {} {:?}", id, msg);
+                if let Err(err) = websocket::handle_message(id, msg).await {
+                    error!("{:#?}", err);
+                }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
-async fn handle_error(error: Error) -> Result<(), Error> {
-    error!("{:#?}", error);
+pub async fn run() -> Result<(), Error> {
+    let mut stream = parallel_stream::from_stream(MessageStream);
+    while let Some(result) = stream.next().await {
+        MessageStream::handle_stream_result(result).await
+    }
     Ok(())
 }
 impl Stream for MessageStream {

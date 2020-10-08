@@ -79,15 +79,18 @@ impl Component for Router {
         }
     }
 }
-
+use enum_paths::{
+    AsPath,
+};
+use app_model::route::AuthRoute;
 impl Viewable for Router {
     fn view(&self) -> Node<Msg> {
         div![
             // TODO
-            a!["Home", attrs! { At::Href => "/" }],
-            a!["Chart", attrs! { At::Href => "/chart" }],
-            a!["Login", attrs! { At::Href => "/login" }],
-            a!["Register", attrs! { At::Href => "/register" }],
+            a!["Home", attrs! { At::Href => &format!("/{}", Route::Root.as_path()) }],
+            a!["Subscriptions", attrs! { At::Href => &Route::Subscriptions.as_path() }],
+            a!["Login", attrs! { At::Href => &Route::Auth(AuthRoute::Login).as_path() }],
+            a!["Register", attrs! { At::Href => &Route::Auth(AuthRoute::Register).as_path() }],
             self.page.view().map_msg(Msg::Page)
         ]
     }

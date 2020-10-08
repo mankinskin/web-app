@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(bool_to_option)]
+#![feature(map_into_keys_values)]
 
 extern crate app_model;
 extern crate async_h1;
@@ -26,16 +27,8 @@ mod shared;
 use async_std::sync::MutexGuard;
 pub use server::*;
 use server::{
-    binance::{
-        self,
-        Binance,
-    },
     error::Error,
     message_stream,
-    model::{
-        self,
-        Model,
-    },
     telegram::{self,},
 };
 use tracing::debug;
@@ -44,13 +37,8 @@ use tracing_subscriber::{
     fmt,
     layer::SubscriberExt,
 };
-
-pub async fn binance() -> MutexGuard<'static, Binance> {
-    binance::BINANCE.lock().await
-}
-pub async fn model() -> MutexGuard<'static, Model> {
-    model::MODEL.lock().await
-}
+pub use subscriptions::subscriptions;
+pub use binance::binance;
 
 fn init_tracing() -> WorkerGuard {
     let file_appender = tracing_appender::rolling::hourly("./logs", "log");
