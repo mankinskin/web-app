@@ -55,16 +55,24 @@ pub async fn connection(websocket: WebSocket) {
         Connections::remove(id).await;
     }
 }
-
 pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> {
     let response = match msg {
         ClientMessage::AddPriceSubscription(request) => {
             debug!("Subscribing to market pair {}", &request.market_pair);
-            crate::subscriptions().await.add_subscription(request.clone()).await?;
-            //crate::server::interval::set(interval(Duration::from_secs(1)));
-            let subscription = PriceSubscription::from(request);
-            let response = ServerMessage::PriceHistory(subscription.latest_price_history().await?);
-            Some(response)
+            let id = crate::subscriptions().await.add_subscription(request.clone()).await?;
+            // TODO interval/timer handles
+            crate::server::interval::set(interval(Duration::from_secs(1)));
+            Some(
+                ServerMessage::PriceHistory(
+                    crate::subscriptions()
+                        .await
+                        .get_subscription(id)
+                        .await?
+                        .subscription
+                        .latest_price_history()
+                        .await?
+                )
+            )
         },
         ClientMessage::GetPriceSubscriptionList => {
             debug!("Getting subscription list");
@@ -94,7 +102,7 @@ pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> 
     Ok(())
 }
 pub async fn update() -> Result<(), Error> {
-
+    // TODO send subscription updates for each connection
     //Connections::send_all(ServerMessage::PriceHistory(history)).await;
     Ok(())
 }

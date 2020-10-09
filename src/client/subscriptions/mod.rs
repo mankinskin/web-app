@@ -85,7 +85,6 @@ impl Component for SubscriptionList {
                 } else {
                     error!("Subscription {} not found!", id);
                 }
-                    
             }
         }
     }

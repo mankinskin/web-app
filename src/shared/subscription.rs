@@ -33,6 +33,11 @@ impl From<PriceHistoryRequest> for PriceSubscription {
         }
     }
 }
+impl PartialEq<PriceHistoryRequest> for PriceSubscription {
+    fn eq(&self, rhs: &PriceHistoryRequest) -> bool {
+        self.market_pair == rhs.market_pair
+    }
+}
 impl PriceSubscription {
     pub fn paginator(&self) -> Option<Paginator<u32>> {
         self.last_update.map(|datetime| {

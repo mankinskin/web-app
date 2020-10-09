@@ -53,16 +53,31 @@ impl Subscriptions {
     fn new_subscription_id() -> usize {
         SUBSCRIPTION_IDS.fetch_add(1, Ordering::Relaxed)
     }
-    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<(), crate::Error> {
-        debug!("Adding symbol to model...");
-        let id = Self::new_subscription_id();
-        if !self.subscriptions.contains_key(&id) {
-            self.subscriptions.insert(id, SubscriptionCache::from(request));
-            self.new_subscriptions = true;
-        } else {
+    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<usize, crate::Error> {
+        debug!("Adding subscription...");
+        if let Some(id) = self.subscriptions
+            .iter()
+            .find_map(|(id, cache)| if cache.subscription == request { Some(id) } else { None })
+        {
             debug!("Model already exists.");
+            Ok(id.clone())
+        } else {
+            let id = Self::new_subscription_id();
+            self.subscriptions.insert(id.clone(), SubscriptionCache::from(request));
+            self.new_subscriptions = true;
+            Ok(id)
         }
-        Ok(())
+    }
+    pub async fn get_subscription<'a>(
+        &'a self,
+        id: usize,
+    ) -> Result<&'a SubscriptionCache, crate::Error> {
+        self.subscriptions
+            .get(&id)
+            .ok_or(crate::Error::from(Error::from(format!(
+                "No Subscription with ID: {}",
+                id
+            ))))
     }
     pub async fn filter_available_symbols(&mut self) -> Result<(), crate::Error> {
         let mut errors = Vec::new();
@@ -96,17 +111,6 @@ impl Subscriptions {
         } else {
             Err(crate::Error::from(errors))
         }
-    }
-    pub async fn get_subscription<'a>(
-        &'a self,
-        id: usize,
-    ) -> Result<&'a SubscriptionCache, crate::Error> {
-        self.subscriptions
-            .get(&id)
-            .ok_or(crate::Error::from(Error::from(format!(
-                "No Subscription with ID: {}",
-                id
-            ))))
     }
     pub async fn update(&mut self) -> Result<(), crate::Error> {
         //debug!("Model update");
