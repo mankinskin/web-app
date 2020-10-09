@@ -2,26 +2,6 @@
 #![feature(bool_to_option)]
 #![feature(map_into_keys_values)]
 
-extern crate app_model;
-extern crate async_h1;
-extern crate async_std;
-extern crate chrono;
-extern crate clap;
-extern crate futures;
-extern crate futures_core;
-extern crate lazy_static;
-extern crate openlimits;
-extern crate parallel_stream;
-extern crate regex;
-extern crate serde;
-extern crate serde_json;
-extern crate telegram_bot;
-extern crate tokio;
-extern crate tracing;
-extern crate tracing_appender;
-extern crate tracing_subscriber;
-extern crate warp;
-
 mod server;
 mod shared;
 use async_std::sync::MutexGuard;
