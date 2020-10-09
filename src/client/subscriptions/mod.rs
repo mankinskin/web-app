@@ -13,6 +13,7 @@ use crate::{
     websocket,
     shared::{
         PriceSubscription,
+        PriceHistoryRequest,
         ServerMessage,
         ClientMessage,
     },
@@ -24,6 +25,17 @@ pub struct SubscriptionList {
     subscriptions: HashMap<usize, chart::SubscriptionChart>,
     server_msg_sub: SubHandle,
 }
+impl SubscriptionList {
+    fn subscribe_price_history_request() -> ClientMessage {
+        ClientMessage::AddPriceSubscription(
+            PriceHistoryRequest {
+                market_pair: "SOLBTC".into(),
+                interval: None,
+                paginator: None,
+            }
+        )
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Msg {
     GetList,
@@ -32,6 +44,7 @@ pub enum Msg {
 }
 impl Init<()> for SubscriptionList {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
+        orders.notify(Self::subscribe_price_history_request());
         orders.notify(ClientMessage::GetPriceSubscriptionList);
         let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
             debug!("Received Server Message");

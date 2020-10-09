@@ -22,7 +22,7 @@ pub struct PriceHistoryRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
     GetPriceSubscriptionList,
-    SubscribePrice(PriceHistoryRequest),
+    AddPriceSubscription(PriceHistoryRequest),
     Close,
     Ping,
     Pong,

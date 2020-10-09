@@ -1,23 +1,23 @@
 use crate::shared::{
     ClientMessage,
     ServerMessage,
-    PriceHistoryRequest,
 };
 use components::{
     Component,
     Init,
     Viewable,
 };
-use openlimits::model::{
-    Candle,
-    Interval,
-};
 use rust_decimal::prelude::ToPrimitive;
 use seed::{
     prelude::*,
     *,
 };
-use tracing::debug;
+use tracing::{
+    debug,
+};
+use openlimits::model::{
+    Candle,
+};
 #[derive(Debug)]
 pub struct Chart {
     pub svg_node: Option<web_sys::Node>,
@@ -32,39 +32,13 @@ pub struct Chart {
     pub view_y: i32,
     pub width: u32,
     pub height: u32,
-
-    pub last_candle_update: Option<u64>,
-    pub time_interval: Interval,
-    pub error: Option<String>,
-
-    server_msg_sub: SubHandle,
-    chart_msg_sub: SubHandle,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
-    SetTimeInterval(Interval),
-    SubscribePriceHistory,
-    AppendCandles(Vec<Candle>),
 }
 impl Init<()> for Chart {
     fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         debug!("Creating chart");
-        let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
-            debug!("Received Server Message");
-            match msg {
-                ServerMessage::PriceHistory(price_history) => {
-                    Some(Msg::AppendCandles(price_history.candles))
-                },
-                _ => None,
-            }
-        });
-        let chart_msg_sub = orders.subscribe_with_handle(|msg: Msg| {
-            debug!("Chart received message");
-            match msg {
-                Msg::SubscribePriceHistory => Some(msg),
-                _ => None,
-            }
-        });
         Self {
             view_x: 0,
             view_y: 0,
@@ -78,11 +52,6 @@ impl Init<()> for Chart {
             y_factor: 0.0,
             svg_node: None,
             data_range: 0.0,
-            last_candle_update: None,
-            time_interval: Interval::OneMinute,
-            error: None,
-            server_msg_sub,
-            chart_msg_sub,
         }
     }
 }
@@ -90,58 +59,42 @@ impl Component for Chart {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         //debug!("Chart update");
-        match msg {
-            Msg::SetTimeInterval(interval) => {
-                if self.time_interval != interval {
-                    self.time_interval = interval;
-                    self.last_candle_update = None;
-                    self.data.clear();
-                }
-            }
-            Msg::SubscribePriceHistory => {
-                debug!("SubscribePriceHistory");
-                orders.notify(self.subscribe_price_history_request());
-            }
-            Msg::AppendCandles(candles) => {
-                self.append_price_history(candles);
-            }
-        }
     }
 }
 impl Chart {
-    #[allow(unused)]
-    async fn fetch_candles(url: &str) -> Result<Vec<Candle>, FetchError> {
-        let url = format!("http://{}/api/price_history", url);
-        seed::fetch::fetch(Request::new(url).method(Method::Get))
-            .await?
-            .check_status()?
-            .json()
-            .await
+    pub fn clear(&mut self) {
+        self.data.clear();
     }
-    pub fn subscribe_price_history_request(&self) -> ClientMessage {
-        ClientMessage::SubscribePrice(
-            PriceHistoryRequest {
-                market_pair: "SOLBTC".into(),
-                interval: Some(self.time_interval),
-                paginator: None,
-            }
-        )
+    pub fn append_data<I: IntoIterator<Item=Candle>>(&mut self, new_data: I) {
+        self.data.extend(new_data);
     }
-    pub fn append_price_history(&mut self, candles: Vec<Candle>) {
-        if let Some(timestamp) = self.last_candle_update {
-            let new_candles = candles.iter().skip_while(|candle| candle.time <= timestamp);
-            let count = new_candles.clone().count();
-            if count > 0 {
-                let candle_plural = if count == 1 { "" } else { "s" };
-                debug!("Appending {} new candle{}.", count, candle_plural);
-                self.data.extend(new_candles.cloned());
-            }
-        } else {
-            debug!("Setting {} initial candles.", candles.len());
-            self.data = candles;
+    pub fn set_data<I: IntoIterator<Item=Candle>>(&mut self, new_data: I) {
+        self.data = new_data.into_iter().collect();
+    }
+    pub fn update_values(&mut self) {
+        self.data_max = self
+            .data
+            .iter()
+            .map(|candle| candle.high)
+            .max()
+            .map(|d| d.to_f32().unwrap())
+            .unwrap_or(0.0);
+        self.data_min = self
+            .data
+            .iter()
+            .map(|candle| candle.low)
+            .min()
+            .map(|d| d.to_f32().unwrap())
+            .unwrap_or(0.0);
+        self.data_range = self.data_max - self.data_min;
+        if self.data_range != 0.0 {
+            self.y_factor = self.height as f32 / self.data_range;
         }
-        self.update_values();
-        self.last_candle_update = self.data.last().map(|candle| candle.time);
+        self.y_interval = (0.000001 * self.y_factor).round() as u32;
+        //log!(self)
+    }
+    fn to_y_pixels(&self, d: f32) -> i32 {
+        (d * self.y_factor).round() as i32
     }
     fn graph_view(&self) -> Node<<Self as Component>::Msg> {
         div![
@@ -176,56 +129,6 @@ impl Chart {
                 self.plot_view(),
                 self.vertical_lines(),
                 self.horizontal_lines(),
-            ],
-        ]
-    }
-    fn interval_selection(&self) -> Node<<Self as Component>::Msg> {
-        div![
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneMinute)),
-                "1m"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::ThreeMinutes)),
-                "3m"
-            ],
-            button![
-                ev(Ev::Click, |_| {
-                    Msg::SetTimeInterval(Interval::FifteenMinutes)
-                }),
-                "15m"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneHour)),
-                "1h"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::FourHours)),
-                "4h"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::SixHours)),
-                "6h"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::TwelveHours)),
-                "12h"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneDay)),
-                "1d"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::ThreeDays)),
-                "3d"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneWeek)),
-                "1w"
-            ],
-            button![
-                ev(Ev::Click, |_| Msg::SetTimeInterval(Interval::OneMonth)),
-                "1M"
             ],
         ]
     }
@@ -267,31 +170,6 @@ impl Chart {
                 acc
             },
         )
-    }
-    fn update_values(&mut self) {
-        self.data_max = self
-            .data
-            .iter()
-            .map(|candle| candle.high)
-            .max()
-            .map(|d| d.to_f32().unwrap())
-            .unwrap_or(0.0);
-        self.data_min = self
-            .data
-            .iter()
-            .map(|candle| candle.low)
-            .min()
-            .map(|d| d.to_f32().unwrap())
-            .unwrap_or(0.0);
-        self.data_range = self.data_max - self.data_min;
-        if self.data_range != 0.0 {
-            self.y_factor = self.height as f32 / self.data_range;
-        }
-        self.y_interval = (0.000001 * self.y_factor).round() as u32;
-        //log!(self)
-    }
-    fn to_y_pixels(&self, d: f32) -> i32 {
-        (d * self.y_factor).round() as i32
     }
     #[allow(unused)]
     fn vertical_lines(&self) -> Vec<Node<<Self as Component>::Msg>> {
@@ -366,6 +244,8 @@ impl Chart {
 impl Viewable for Chart {
     fn view(&self) -> Node<Self::Msg> {
         //debug!("Chart redraw!");
-        div![self.interval_selection(), self.graph_view(),]
+        div![
+            self.graph_view(),
+        ]
     }
 }

@@ -58,14 +58,13 @@ pub async fn connection(websocket: WebSocket) {
 
 pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> {
     let response = match msg {
-        ClientMessage::SubscribePrice(request) => {
+        ClientMessage::AddPriceSubscription(request) => {
             debug!("Subscribing to market pair {}", &request.market_pair);
-            //crate::subscriptions().await.add_subscription(request).await?;
+            crate::subscriptions().await.add_subscription(request.clone()).await?;
             //crate::server::interval::set(interval(Duration::from_secs(1)));
-            //let subscription = PriceSubscription::from(request);
-            //let response = ServerMessage::PriceHistory(subscription.latest_price_history().await?);
-            //Some(response)
-            None
+            let subscription = PriceSubscription::from(request);
+            let response = ServerMessage::PriceHistory(subscription.latest_price_history().await?);
+            Some(response)
         },
         ClientMessage::GetPriceSubscriptionList => {
             debug!("Getting subscription list");
