@@ -4,7 +4,6 @@ use crate::shared::{
     ServerMessage,
 };
 use crate::{
-    message_stream::Message,
     Error,
 };
 use async_std::sync::{
@@ -144,13 +143,15 @@ impl Connections {
         }
     }
 }
+pub struct ConnectionClientMessage(pub usize, pub ClientMessage);
+
 impl Stream for Connections {
-    type Item = Result<Message, Error>;
+    type Item = Result<ConnectionClientMessage, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut connections) = CONNECTIONS.try_write() {
             //debug!("Polling Connections");
             let poll = Stream::poll_next(Pin::new(&mut *connections), cx)
-                .map(|opt| opt.map(|(id, res)| res.map(|msg| Message::WebSocket(id, msg))));
+                .map(|opt| opt.map(|(id, res)| res.map(|msg| ConnectionClientMessage(id, msg))));
             if let Poll::Ready(None) = poll {
                 Poll::Pending
             } else {

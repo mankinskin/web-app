@@ -1,6 +1,5 @@
 use crate::shared::PriceHistoryRequest;
 use crate::{
-    server::message_stream::Message,
     Error,
 };
 use async_std::stream::interval;
@@ -30,6 +29,9 @@ use tracing::debug;
 use lazy_static::lazy_static;
 lazy_static! {
     pub static ref STREAM: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
+}
+pub enum Msg {
+    Line(String),
 }
 pub async fn run_command(text: String) -> Result<String, crate::Error> {
     debug!("Running command...");
@@ -89,7 +91,7 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
 
 pub struct CommandLine;
 impl Stream for CommandLine {
-    type Item = Result<Message, Error>;
+    type Item = Result<Msg, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut stream) = STREAM.try_write() {
             let stdin = BufReader::new(&mut *stream);
@@ -100,7 +102,7 @@ impl Stream for CommandLine {
                 return cli_poll.map(|opt| {
                     opt.map(|result| {
                         result
-                            .map(|line| Message::CommandLine(line))
+                            .map(|line| Msg::Line(line))
                             .map_err(|err| Error::from(err))
                     })
                 });

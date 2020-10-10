@@ -26,6 +26,8 @@ use tracing::{
 };
 use warp::ws::WebSocket;
 use std::collections::HashMap;
+pub use connections::ConnectionClientMessage;
+
 
 pub async fn connection(websocket: WebSocket) {
     let (ws_server_sender, ms_server_receiver) = channel(100); // ClientMessages

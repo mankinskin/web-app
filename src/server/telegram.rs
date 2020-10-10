@@ -100,7 +100,7 @@ impl std::ops::Deref for Telegram {
 }
 pub struct TelegramStream;
 impl Stream for TelegramStream {
-    type Item = Result<crate::message_stream::Message, crate::Error>;
+    type Item = Result<Update, crate::Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         //debug!("Polling TelegramStream...");
         if let Some(mut stream_opt) = STREAM.try_write() {
@@ -110,9 +110,7 @@ impl Stream for TelegramStream {
                 if telegram_poll.is_ready() {
                     telegram_poll.map(|opt| {
                         opt.map(|result| {
-                            result
-                                .map(crate::message_stream::Message::Telegram)
-                                .map_err(Into::into)
+                            result.map_err(Into::into)
                         })
                     })
                 } else {
