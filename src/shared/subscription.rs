@@ -14,8 +14,8 @@ use serde::{
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    crate::Error,
     app_model::market::PriceHistory,
+    tracing::error,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -62,12 +62,13 @@ impl PriceSubscription {
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn latest_price_candles(&self) -> Result<Vec<Candle>, Error> {
+    pub async fn latest_price_candles(&self) -> Result<Vec<Candle>, crate::subscriptions::Error> {
         let req = self.get_price_history_request().await;
-        crate::binance().await.get_symbol_price_history(req).await
+        crate::binance().await.get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
+
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn latest_price_history(&self) -> Result<PriceHistory, Error> {
+    pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::subscriptions::Error> {
         let candles = self.latest_price_candles().await?;
         Ok(PriceHistory {
             market_pair: self.market_pair.clone(),

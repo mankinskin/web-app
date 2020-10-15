@@ -1,7 +1,4 @@
 use crate::shared::PriceHistoryRequest;
-use crate::{
-    Error,
-};
 use async_std::stream::interval;
 use async_std::{
     io::{
@@ -24,16 +21,33 @@ use std::{
     pin::Pin,
     task::Poll,
 };
-use tracing::debug;
+use tracing::{
+    debug,
+    error,
+};
 
 use lazy_static::lazy_static;
 lazy_static! {
     pub static ref STREAM: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
 }
+#[derive(Clone, Debug)]
 pub enum Msg {
     Line(String),
 }
-pub async fn run_command(text: String) -> Result<String, crate::Error> {
+#[derive(Clone, Debug)]
+pub struct Error(String);
+impl From<String> for Error {
+    fn from(err: String) -> Self {
+        Self(err)
+    }
+}
+impl ToString for Error {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+pub async fn run_command(text: String) -> Result<String, Error> {
     debug!("Running command...");
     let mut args = vec![""];
     args.extend(text.split(" "));
@@ -54,22 +68,24 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
         Ok(app) => {
             if let Some(price_app) = app.subcommand_matches("price") {
                 if let Some(symbol) = price_app.value_of("symbol") {
-                    let price = crate::binance().await.get_symbol_price(symbol).await?;
-                    format!("{:#?}", price)
+                    //let price = crate::binance().await.get_symbol_price(symbol).await?;
+                    //format!("{:#?}", price)
+                    unimplemented!()
                 } else {
                     price_app.usage().to_string()
                 }
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
-                    let price_history = crate::binance()
-                        .await
-                        .get_symbol_price_history(PriceHistoryRequest {
-                            market_pair: symbol.to_string().clone(),
-                            interval: None,
-                            paginator: None,
-                        })
-                        .await?;
-                    format!("{:#?}", price_history)
+                    //let price_history = crate::binance()
+                    //    .await
+                    //    .get_symbol_price_history(PriceHistoryRequest {
+                    //        market_pair: symbol.to_string().clone(),
+                    //        interval: None,
+                    //        paginator: None,
+                    //    })
+                    //    .await?;
+                    //format!("{:#?}", price_history)
+                    unimplemented!()
                 } else {
                     history_app.usage().to_string()
                 }
@@ -77,7 +93,7 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
                 if let Some(symbol) = watch_app.value_of("symbol") {
                     //crate::subscriptions().await.add_subscription(symbol.to_string()).await?;
                     //crate::server::interval::set(interval(Duration::from_secs(1)));
-                    String::new()
+                    unimplemented!()
                 } else {
                     watch_app.usage().to_string()
                 }
@@ -91,7 +107,7 @@ pub async fn run_command(text: String) -> Result<String, crate::Error> {
 
 pub struct CommandLine;
 impl Stream for CommandLine {
-    type Item = Result<Msg, Error>;
+    type Item = Msg;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut stream) = STREAM.try_write() {
             let stdin = BufReader::new(&mut *stream);
@@ -99,13 +115,12 @@ impl Stream for CommandLine {
             let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
             if cli_poll.is_ready() {
                 //debug!("CLI poll ready");
-                return cli_poll.map(|opt| {
-                    opt.map(|result| {
-                        result
-                            .map(|line| Msg::Line(line))
-                            .map_err(|err| Error::from(err))
-                    })
-                });
+                if let Poll::Ready(Some(result)) = cli_poll {
+                    match result {
+                        Ok(line) => { return Poll::Ready(Some(Msg::Line(line))); },
+                        Err(e) => error!("{:#?}", e),
+                    }
+                }
             }
         }
         Poll::Pending

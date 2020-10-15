@@ -1,10 +1,10 @@
 use super::connection::Connection;
-use crate::shared::{
-    ClientMessage,
-    ServerMessage,
-};
 use crate::{
-    Error,
+    shared::{
+        ClientMessage,
+        ServerMessage,
+    },
+    websocket::Error,
 };
 use async_std::sync::{
     Arc,
@@ -143,6 +143,7 @@ impl Connections {
         }
     }
 }
+#[derive(Debug, Clone)]
 pub struct ConnectionClientMessage(pub usize, pub ClientMessage);
 
 impl Stream for Connections {

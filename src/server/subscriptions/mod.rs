@@ -22,12 +22,19 @@ use std::convert::TryInto;
 use tracing::debug;
 use subscription_cache::SubscriptionCache;
 
-#[derive(Debug)]
-pub struct Error(String);
-
+#[derive(Clone, Debug)]
+pub enum Error {
+    Text(String),
+    Multiple(Vec<Error>),
+}
 impl From<String> for Error {
-    fn from(s: String) -> Self {
-        Self(s)
+    fn from(err: String) -> Self {
+        Self::Text(err)
+    }
+}
+impl From<Vec<Error>> for Error {
+    fn from(errs: Vec<Error>) -> Self {
+        Self::Multiple(errs)
     }
 }
 use std::sync::atomic::{
@@ -53,7 +60,7 @@ impl Subscriptions {
     fn new_subscription_id() -> usize {
         SUBSCRIPTION_IDS.fetch_add(1, Ordering::Relaxed)
     }
-    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<usize, crate::Error> {
+    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<usize, Error> {
         debug!("Adding subscription...");
         if let Some(id) = self.subscriptions
             .iter()
@@ -79,7 +86,7 @@ impl Subscriptions {
                 id
             ))))
     }
-    pub async fn filter_available_symbols(&mut self) -> Result<(), crate::Error> {
+    pub async fn filter_available_symbols(&mut self) -> Result<(), Error> {
         let mut errors = Vec::new();
         self.subscriptions = futures::stream::iter(self.subscriptions.clone().into_iter())
             .then(async move |(id, cache)| {
@@ -109,10 +116,10 @@ impl Subscriptions {
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(crate::Error::from(errors))
+            Err(Error::from(errors))
         }
     }
-    pub async fn update(&mut self) -> Result<(), crate::Error> {
+    pub async fn update(&mut self) -> Result<(), Error> {
         //debug!("Model update");
         if self.new_subscriptions {
             self.filter_available_symbols().await?;

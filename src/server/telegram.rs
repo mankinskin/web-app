@@ -17,7 +17,6 @@ use std::{
 };
 pub use telegram_bot::{
     Api,
-    Error,
     Update,
 };
 use telegram_bot::{
@@ -28,6 +27,13 @@ use telegram_bot::{
 };
 use tracing::debug;
 
+#[derive(Clone, Debug)]
+pub struct Error(String);
+impl<T: ToString> From<T> for Error {
+    fn from(err: T) -> Self {
+        Self(err.to_string())
+    }
+}
 #[derive(Clone)]
 pub struct Telegram {
     pub api: Api,
@@ -42,7 +48,7 @@ pub async fn run() {
     *STREAM.try_write().unwrap() = Some(rx);
     let mut stream = telegram().api.stream();
     while let Some(msg) = stream.next().await {
-        tx.send(msg).await
+        tx.send(msg.map_err(Into::into)).await
     }
 }
 pub fn telegram() -> Telegram {
@@ -58,7 +64,7 @@ impl Telegram {
         let api = Api::new(telegram_key);
         Self { api }
     }
-    pub async fn handle_message(&mut self, message: Message) -> Result<(), crate::Error> {
+    pub async fn handle_message(&mut self, message: Message) -> Result<(), Error> {
         match message.kind.clone() {
             MessageKind::Text { data, .. } => {
                 let cmd = data;
@@ -100,7 +106,7 @@ impl std::ops::Deref for Telegram {
 }
 pub struct TelegramStream;
 impl Stream for TelegramStream {
-    type Item = Result<Update, crate::Error>;
+    type Item = Result<Update, Error>;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         //debug!("Polling TelegramStream...");
         if let Some(mut stream_opt) = STREAM.try_write() {

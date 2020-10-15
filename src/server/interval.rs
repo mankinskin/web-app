@@ -24,16 +24,17 @@ pub fn set(new: Interval) {
         .get_or_insert(new);
 }
 pub struct IntervalStream;
+#[derive(Clone, Debug)]
 pub enum Msg {
     Tick,
 }
 impl Stream for IntervalStream {
-    type Item = Result<Msg, Error>;
+    type Item = Msg;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
         if let Some(mut interval) = INTERVAL.try_write() {
             if let Some(interval) = &mut *interval {
                 return Stream::poll_next(Pin::new(interval), cx)
-                    .map(|opt| opt.map(|_| Ok(Msg::Tick)));
+                    .map(|opt| opt.map(|_| Msg::Tick));
             }
         }
         Poll::Pending

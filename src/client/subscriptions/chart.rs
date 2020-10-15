@@ -7,7 +7,6 @@ use crate::{
     shared::{
         PriceSubscription,
         ServerMessage,
-        ClientMessage,
     },
     chart::{
         self,

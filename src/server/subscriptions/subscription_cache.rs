@@ -23,6 +23,7 @@ use serde::{
 use std::collections::HashMap;
 use std::convert::TryInto;
 use tracing::debug;
+use super::Error;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SubscriptionCache {
@@ -38,7 +39,7 @@ impl From<PriceHistoryRequest> for SubscriptionCache {
     }
 }
 impl SubscriptionCache {
-    pub async fn update(&mut self) -> Result<(), crate::Error> {
+    pub async fn update(&mut self) -> Result<(), Error> {
         //debug!("SymbolModel update");
         let candles = self.subscription.latest_price_candles().await?;
         self.prices.extend(candles.into_iter());

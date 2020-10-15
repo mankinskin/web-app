@@ -1,24 +1,21 @@
 use crate::server::{
     subscriptions,
     telegram,
+    command,
 };
 
-use openlimits::errors::OpenLimitError;
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     Telegram(telegram::Error),
-    OpenLimits(OpenLimitError),
-    AsyncIO(async_std::io::Error),
-    Clap(clap::Error),
+    Command(command::Error),
     Subscriptions(subscriptions::Error),
-    Tokio(tokio::task::JoinError),
-    SerdeJson(serde_json::Error),
-    WebSocket(String),
-    Warp(warp::Error),
+    WebSocket(crate::websocket::Error),
+    Server(crate::server::Error),
     Mpsc(futures::channel::mpsc::SendError),
     Multiple(Vec<Error>),
 }
+unsafe impl Send for Error {}
+unsafe impl Sync for Error {}
 
 impl<E: Into<Error>> From<Vec<E>> for Error {
     fn from(errors: Vec<E>) -> Self {
@@ -30,19 +27,9 @@ impl From<futures::channel::mpsc::SendError> for Error {
         Self::Mpsc(err)
     }
 }
-impl From<warp::Error> for Error {
-    fn from(err: warp::Error) -> Self {
-        Self::Warp(err)
-    }
-}
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
-        Self::SerdeJson(err)
-    }
-}
-impl From<clap::Error> for Error {
-    fn from(err: clap::Error) -> Self {
-        Self::Clap(err)
+impl From<crate::server::Error> for Error {
+    fn from(err: crate::server::Error) -> Self {
+        Self::Server(err)
     }
 }
 impl From<telegram::Error> for Error {
@@ -50,23 +37,13 @@ impl From<telegram::Error> for Error {
         Self::Telegram(err)
     }
 }
-impl From<OpenLimitError> for Error {
-    fn from(err: OpenLimitError) -> Self {
-        Self::OpenLimits(err)
-    }
-}
-impl From<async_std::io::Error> for Error {
-    fn from(err: async_std::io::Error) -> Self {
-        Self::AsyncIO(err)
-    }
-}
 impl From<subscriptions::Error> for Error {
     fn from(err: subscriptions::Error) -> Self {
         Self::Subscriptions(err)
     }
 }
-impl From<tokio::task::JoinError> for Error {
-    fn from(err: tokio::task::JoinError) -> Self {
-        Self::Tokio(err)
+impl From<command::Error> for Error {
+    fn from(err: command::Error) -> Self {
+        Self::Command(err)
     }
 }

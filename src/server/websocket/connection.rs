@@ -1,8 +1,10 @@
-use crate::shared::{
-    ClientMessage,
-    ServerMessage,
+use crate::{
+    shared::{
+        ClientMessage,
+        ServerMessage,
+    },
+    websocket::Error,
 };
-use crate::Error;
 use futures::{
     channel::mpsc::{
         Receiver,

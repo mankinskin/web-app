@@ -26,11 +26,15 @@ use crate::{
         telegram,
         Update,
     },
-    websocket,
+    websocket::{
+        self,
+        ConnectionClientMessage,
+    },
     interval,
     error::Error,
-    message_stream,
+    message_stream::EventManager,
 };
+
 #[derive(Debug)]
 pub enum Message {
     Telegram(Update),
@@ -73,41 +77,38 @@ fn init_tracing() -> WorkerGuard {
     debug!("Tracing initialized.");
     guard
 }
+use crate::message_stream::Events;
+
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() {
     let _guard = init_tracing();
     binance().await.init().await;
-    let msg_stream = message_stream::MessageStream::new()
-        .with_stream(interval::IntervalStream)
-        .with_stream(websocket::Connections)
-        .with_stream(command::CommandLine)
-        .with_stream(telegram::TelegramStream);
-    let msg_stream_future = msg_stream.spawn_handlers(|msg: Message| async {
-            match msg {
-                Message::Telegram(update) => telegram().update(update).await?,
-                Message::CommandLine(text) => {
-                    match run_command(text).await {
-                        Ok(ok) => println!("{}", ok),
-                        Err(err) => error!("{:#?}", err),
-                    };
-                }
-                Message::Interval => {
-                    crate::subscriptions().await.update().await?;
-                    websocket::update().await?;
-                }
-                Message::WebSocket(id, msg) => {
-                    debug!("Websocket message from connection {} {:?}", id, msg);
-                    if let Err(err) = websocket::handle_message(id, msg).await {
-                        error!("{:#?}", err);
-                    }
-                }
-            }
-            Ok(())
-        });
-    let (_telegram_result, _server_result, ms_result) = futures::join! {
+    Events::stream(interval::IntervalStream).await;
+    Events::stream(websocket::Connections).await;
+    Events::stream(telegram::TelegramStream).await;
+    Events::stream(command::CommandLine).await;
+    //Events::handler(async move |update: telegram_bot::Update| {
+    //    if let Err(e) = telegram().update(update).await {
+    //        error!("{:#?}", e);
+    //    };
+    //}).await;
+    // TODO add type for CLI command
+    Events::handler(async move |msg: command::Msg| {
+        debug!("{:#?}", msg)
+    }).await;
+    Events::handler(async move |_: interval::Msg| {
+        //crate::subscriptions().await.update().await.unwrap();
+        websocket::update().await.unwrap();
+    }).await;
+    Events::handler(async move |msg: ConnectionClientMessage| {
+        let ConnectionClientMessage(id, msg) = msg;
+        if let Err(err) = websocket::handle_message(id, msg).await {
+            error!("{:#?}", err);
+        }
+    }).await;
+    futures::join! {
         telegram::run(),
         server::listen(),
-        msg_stream_future,
+        Events::listen(),
     };
-    ms_result
 }

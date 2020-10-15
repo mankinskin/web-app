@@ -8,7 +8,6 @@ use crate::{
         ServerMessage,
         subscription::PriceSubscription,
     },
-    Error,
 };
 use async_std::stream::interval;
 use connection::Connection;
@@ -28,6 +27,13 @@ use warp::ws::WebSocket;
 use std::collections::HashMap;
 pub use connections::ConnectionClientMessage;
 
+#[derive(Debug, Clone)]
+pub struct Error(String);
+impl<T: ToString> From<T> for Error {
+    fn from(err: T) -> Self {
+        Self(err.to_string())
+    }
+}
 
 pub async fn connection(websocket: WebSocket) {
     let (ws_server_sender, ms_server_receiver) = channel(100); // ClientMessages
@@ -40,7 +46,7 @@ pub async fn connection(websocket: WebSocket) {
         ws_stream
             .map(|msg: Result<warp::ws::Message, warp::Error>| msg.map_err(Into::into))
             .forward(ws_server_sender.with(|msg: warp::ws::Message| {
-                async { msg.try_into() as Result<ClientMessage, _> }
+                async { msg.try_into() as Result<ClientMessage, Error> }
             }))
             .await
             .expect("Failed to forward websocket receiving stream")
@@ -58,35 +64,38 @@ pub async fn connection(websocket: WebSocket) {
     }
 }
 pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> {
+    debug!("Websocket message from connection {} {:?}", id, msg);
     let response = match msg {
         ClientMessage::AddPriceSubscription(request) => {
             debug!("Subscribing to market pair {}", &request.market_pair);
-            let id = crate::subscriptions().await.add_subscription(request.clone()).await?;
-            // TODO interval/timer handles
-            crate::server::interval::set(interval(Duration::from_secs(1)));
-            Some(
-                ServerMessage::PriceHistory(
-                    crate::subscriptions()
-                        .await
-                        .get_subscription(id)
-                        .await?
-                        .subscription
-                        .latest_price_history()
-                        .await?
-                )
-            )
+            //let id = crate::subscriptions().await.add_subscription(request.clone()).await?;
+            //// TODO interval/timer handles
+            //crate::server::interval::set(interval(Duration::from_secs(1)));
+            //Some(
+            //    ServerMessage::PriceHistory(
+            //        crate::subscriptions()
+            //            .await
+            //            .get_subscription(id)
+            //            .await?
+            //            .subscription
+            //            .latest_price_history()
+            //            .await?
+            //    )
+            //)
+            unimplemented!()
         },
         ClientMessage::GetPriceSubscriptionList => {
-            debug!("Getting subscription list");
-            crate::server::interval::set(interval(Duration::from_secs(1)));
-            let list: HashMap<usize, PriceSubscription> =
-                crate::subscriptions()
-                .await
-                .subscriptions.clone()
-                .into_iter()
-                .map(|(id, cache)| (id, cache.subscription))
-                .collect();
-            Some(ServerMessage::SubscriptionList(list))
+            //debug!("Getting subscription list");
+            //crate::server::interval::set(interval(Duration::from_secs(1)));
+            //let list: HashMap<usize, PriceSubscription> =
+            //    crate::subscriptions()
+            //    .await
+            //    .subscriptions.clone()
+            //    .into_iter()
+            //    .map(|(id, cache)| (id, cache.subscription))
+            //    .collect();
+            //Some(ServerMessage::SubscriptionList(list))
+            unimplemented!()
         },
         ClientMessage::Close => {
             Connections::remove(id).await;

@@ -2,7 +2,6 @@ use async_std::sync::MutexGuard;
 use crate::shared::PriceHistoryRequest;
 use crate::{
     server::keys,
-    Error,
 };
 use async_std::sync::{
     Arc,
@@ -26,6 +25,19 @@ use serde::{
     Deserialize,
     Serialize,
 };
+#[derive(Clone, Debug)]
+pub struct Error(String);
+
+impl ToString for Error {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+impl From<String> for Error {
+    fn from(err: String) -> Self {
+        Self(err)
+    }
+}
 
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
@@ -64,13 +76,15 @@ impl Binance {
     fn api<'a>(&'a self) -> Result<&'a OpenLimits<Api>, Error> {
         self.api
             .as_ref()
-            .ok_or(Error::from(OpenLimitError::NoApiKeySet()))
+            .ok_or(OpenLimitError::NoApiKeySet().to_string())
+            .map_err(Into::into)
     }
     #[allow(unused)]
     fn api_mut<'a>(&'a mut self) -> Result<&'a mut OpenLimits<Api>, Error> {
         self.api
             .as_mut()
-            .ok_or(Error::from(OpenLimitError::NoApiKeySet()))
+            .ok_or(OpenLimitError::NoApiKeySet().to_string())
+            .map_err(Into::into)
     }
     pub async fn get_symbol_price(&self, symbol: &str) -> Result<Ticker, Error> {
         //debug!("Requesting symbol price...");
@@ -80,7 +94,7 @@ impl Binance {
                 ..Default::default()
             })
             .await
-            .map_err(Into::into)
+            .map_err(|e| Error::from(e.to_string()))
     }
     pub async fn symbol_available(&self, symbol: &str) -> bool {
         self.get_symbol_price(symbol).await.is_ok()
@@ -105,6 +119,6 @@ impl Binance {
                 )
             })
             .await
-            .map_err(Into::into)
+            .map_err(|e| Error::from(e.to_string()))
     }
 }

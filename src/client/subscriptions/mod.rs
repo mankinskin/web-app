@@ -26,7 +26,7 @@ pub struct SubscriptionList {
     server_msg_sub: SubHandle,
 }
 impl SubscriptionList {
-    fn subscribe_price_history_request() -> ClientMessage {
+    fn add_subscription_request() -> ClientMessage {
         ClientMessage::AddPriceSubscription(
             PriceHistoryRequest {
                 market_pair: "SOLBTC".into(),
@@ -40,12 +40,12 @@ impl SubscriptionList {
 pub enum Msg {
     GetList,
     SetList(HashMap<usize, PriceSubscription>),
-    Subscription(usize, chart::Msg)
+    Subscription(usize, chart::Msg),
+    AddSubscription,
 }
 impl Init<()> for SubscriptionList {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
-        orders.notify(Self::subscribe_price_history_request());
-        orders.notify(ClientMessage::GetPriceSubscriptionList);
+        orders.send_msg(Msg::AddSubscription);
         let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
             debug!("Received Server Message");
             match msg {
@@ -85,6 +85,11 @@ impl Component for SubscriptionList {
                 } else {
                     error!("Subscription {} not found!", id);
                 }
+            }
+            Msg::AddSubscription => {
+                // TODO do this over http maybe
+                // TODO identify responses over websocket
+                orders.notify(Self::add_subscription_request());
             }
         }
     }

@@ -34,23 +34,26 @@ pub enum ServerMessage {
     SubscriptionList(HashMap<usize, PriceSubscription>),
 }
 #[cfg(not(target_arch = "wasm32"))]
-use std::convert::{
-    TryFrom,
-    TryInto,
+use {
+    crate::server::websocket::Error,
+    std::convert::{
+        TryFrom,
+        TryInto,
+    }
 };
 
 #[cfg(not(target_arch = "wasm32"))]
 impl TryInto<warp::ws::Message> for ServerMessage {
-    type Error = crate::Error;
+    type Error = Error;
     fn try_into(self) -> Result<warp::ws::Message, Self::Error> {
         Ok(warp::ws::Message::text(
-            serde_json::to_string(&self).map_err(crate::Error::SerdeJson)?,
+            serde_json::to_string(&self).map_err(|e| Error::from(e.to_string()))?,
         ))
     }
 }
 #[cfg(not(target_arch = "wasm32"))]
 impl TryFrom<warp::ws::Message> for ClientMessage {
-    type Error = crate::Error;
+    type Error = Error;
     fn try_from(msg: warp::ws::Message) -> Result<Self, Self::Error> {
         if let Ok(text) = msg.to_str() {
             serde_json::de::from_str(text).map_err(Into::into)
@@ -65,7 +68,7 @@ impl TryFrom<warp::ws::Message> for ClientMessage {
                 let bytes = msg.as_bytes().to_vec();
                 Ok(ClientMessage::Binary(bytes))
             } else {
-                Err(crate::Error::WebSocket(format!(
+                Err(Error::from(format!(
                     "Unable to read message: {:#?}",
                     msg
                 )))

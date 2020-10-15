@@ -3,60 +3,211 @@ use tracing::{
     debug,
     error,
 };
-// for parallel_stream compatibility
-use futures_core::{
-    stream::Stream,
-};
-use parallel_stream::ParallelStream;
 use futures::{
+    Stream,
     StreamExt,
     future::Future,
 };
 use crate::{
     Error,
 };
-pub struct MessageStream<M: Send> {
-    streams: Vec<Box<dyn MsgStream<M>>>,
+use std::any::{
+    TypeId,
+    Any,
+};
+use std::sync::Arc;
+use std::collections::HashMap;
+use tokio::stream::StreamMap;
+use std::pin::Pin;
+use std::marker::Unpin;
+
+pub trait AnyMessage : Any + Send + Sync {}
+impl<M: Any + Send + Sync> AnyMessage for M {}
+
+pub trait AnyStream : Stream<Item=Arc<dyn Any + Send + Sync>> + Send + Sync + Unpin + 'static {}
+impl<S: Stream<Item=Arc<dyn Any + Send + Sync>> + Send + Sync + Unpin + 'static> AnyStream for S {}
+
+pub trait MessageStream<M> : Stream<Item=M> + Send + Sync + Unpin + Sized + 'static {}
+impl<M, S: Stream<Item=M> + Send + Sync + Unpin + 'static + Sized> MessageStream<M> for S {}
+
+pub trait AnyHandlerArg : Any + Sync + Send + 'static {}
+impl<A: Any + Sync + Send + 'static> AnyHandlerArg for A {}
+
+pub trait HandlerMessage : Any + 'static + Clone {}
+impl<M: Any + 'static + Clone> HandlerMessage for M {}
+
+pub trait AsyncAnyHandler : Fn(Arc<dyn Any + Send + Sync + 'static>) -> Pin<Box<dyn AsyncHandlerResult>> + Sync + Send + 'static {}
+impl<H: Fn(Arc<dyn Any + Send + Sync + 'static>) -> Pin<Box<dyn AsyncHandlerResult>> + Sync + Send + 'static> AsyncAnyHandler for H {}
+
+pub trait AsyncHandler<M: AsyncHandlerMessage, R: AsyncHandlerResult> : Fn(M) -> R + Sync + Send + 'static + Clone {}
+impl<M: AsyncHandlerMessage, R: AsyncHandlerResult, H: Fn(M) -> R + Sync + Send + 'static + Clone> AsyncHandler<M, R> for H {}
+
+pub trait AsyncHandlerResult : Future<Output=()> + Send + Sync + 'static {}
+impl<T: Future<Output=()> + Send + Sync + 'static> AsyncHandlerResult for T {}
+
+pub trait AsyncHandlerMessage : Any + Send + Sync + 'static + Clone {}
+impl<M: Any + Send + Sync + 'static + Clone> AsyncHandlerMessage for M {}
+
+pub struct EventTypeManager {
+    stream: Option<Box<dyn AnyStream>>,
+    handlers: Vec<Arc<dyn AsyncAnyHandler>>,
 }
-pub trait MsgStream<M> : Stream<Item=Result<M, Error>> + Send + Sync + Unpin + 'static {}
-impl<M, S: Stream<Item=Result<M, Error>> + Send + Sync + Unpin + 'static> MsgStream<M> for S {}
-
-pub trait Handler<M, R: HandlerResult> : Fn(M) -> R + Sync + Send + Clone + 'static {}
-impl<M, R: HandlerResult, T: Fn(M) -> R + Sync + Send + Clone + 'static> Handler<M, R> for T {}
-
-pub trait HandlerResult : Future<Output=Result<(), Error>> + Send {}
-impl<T: Future<Output=Result<(), Error>> + Send> HandlerResult for T {}
-
-pub trait HandlerMessage : Send + 'static {}
-impl<T: Send + 'static> HandlerMessage for T {}
-
-impl<M: HandlerMessage> MessageStream<M> {
+impl EventTypeManager {
     pub fn new() -> Self {
         Self {
-            streams: Vec::new(),
+            stream: None,
+            handlers: Vec::new(),
         }
     }
-    pub fn with_stream<I: Into<M>>(mut self, stream: impl MsgStream<I>) -> Self {
-        self.streams.push(Box::new(stream.map(|r| r.map(Into::into))));
+    pub fn from_stream<M: AnyMessage>(stream: impl MessageStream<M>) -> Self {
+        Self {
+            stream: Some(Box::new(Self::any_stream(stream))),
+            handlers: Vec::new(),
+        }
+    }
+    pub fn with_stream<M: AnyMessage>(mut self, other: impl MessageStream<M>) -> Self{
+        let other = Self::any_stream(other);
+        if let Some(stream) = self.stream {
+            let new = futures::stream::select(
+                stream,
+                other,
+                );
+            self.stream = Some(Box::new(new));
+        } else {
+            self.stream = Some(Box::new(other));
+        }
         self
     }
-    pub async fn spawn_handlers<R: HandlerResult>(self, handler: impl Handler<M, R>) -> Result<(), Error> {
-        let mut stream = parallel_stream::from_stream(
-            tokio::stream::iter(self.streams.into_iter()).flatten()
-        );
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(message) => {
-                    let handler = handler.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = handler(message).await {
-                            error!("{:#?}", e);
-                        }
-                    });
-                },
-                Err(e) => error!("{:#?}", e),
+    fn any_stream<M: Any + Send + Sync>(stream: impl MessageStream<M>) -> impl AnyStream {
+        stream.map(|m| Arc::new(m) as Arc<dyn Any + Send + Sync>)
+    }
+    pub fn with_handler<M: AsyncHandlerMessage, R: AsyncHandlerResult>(&mut self, handler: impl AsyncHandler<M, R>) {
+        self.handlers
+            .push(Arc::new(move |a: Arc<dyn Any + Send + Sync + 'static>| {
+                let a = Arc::downcast::<M>(a)
+                    .expect("Downcast to `M` in Handler");
+                let handler = handler.clone();
+                let fut = (async move |a: M| handler(a).await)((*a).clone());
+                Box::pin(fut)
+            }));
+    }
+}
+impl Stream for EventTypeManager {
+    type Item=();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        if let Some(stream) = &mut self.stream {
+            let poll = Stream::poll_next(Pin::new(stream), cx);
+            if let Poll::Ready(Some(arc)) = poll {
+                for handler in self.handlers.iter() {
+                    tokio::spawn((*handler)(arc.clone()));
+                }
+                return Poll::Ready(Some(()));
             }
         }
-        Ok(())
+        Poll::Pending
+    }
+}
+
+//struct IdHandlers(TypeId, Vec<Arc<dyn AsyncAnyHandler>>);
+//impl PartialEq for IdHandlers {
+//    fn eq(&self, o: &Self) -> bool {
+//        self.0 == o.0
+//    }
+//}
+//impl Eq for IdHandlers {}
+//impl std::hash::Hash for IdHandlers {
+//    fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
+//        self.0.hash(hasher)
+//    }
+//}
+impl Stream for EventManager {
+    type Item=();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        Stream::poll_next(Pin::new(&mut self.tys), cx).map(|o| o.map(|(_, r)| r))
+    }
+}
+pub struct EventManager {
+    tys: StreamMap<TypeId, EventTypeManager>
+}
+impl EventManager {
+    pub fn new() -> Self {
+        Self {
+            tys: StreamMap::new(),
+        }
+    }
+    pub fn stream<M: AnyMessage>(&mut self, stream: impl MessageStream<M>) {
+        let id = TypeId::of::<M>();
+        let new = if let Some(man) = self.tys.remove(&id) {
+            man.with_stream(stream)
+        } else {
+            EventTypeManager::from_stream(stream)
+        };
+        self.tys.insert(id, new);
+    }
+    pub fn handler<M: AsyncHandlerMessage, R: AsyncHandlerResult>(&mut self, handler: impl AsyncHandler<M, R>) {
+        let id = TypeId::of::<M>();
+        //debug!("Adding handler to {:#?}", &id);
+
+        // TODO add entry API to tokio::StreamMap
+        if !self.tys.contains_key(&id) {
+            self.tys.insert(id, EventTypeManager::new());
+        }
+        let keys: Vec<_> = self.tys.keys().cloned().collect();
+        keys.into_iter().zip(self.tys.values_mut())
+            .find(|(i, _)| *i == id)
+            .unwrap()
+            .1
+            .with_handler(handler);
+    }
+}
+
+pub struct Events;
+impl Events {
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn stream<M: AnyMessage>(stream: impl MessageStream<M>) {
+        events_mut().await.stream(stream)
+    }
+    pub async fn handler<M: AsyncHandlerMessage, R: AsyncHandlerResult>(handler: impl AsyncHandler<M, R>) {
+        events_mut().await.handler(handler);
+    }
+    pub async fn listen() {
+        StreamExt::collect::<Vec<_>>(Events).await;
+    }
+}
+use lazy_static::lazy_static;
+use async_std::sync::{
+    RwLock,
+    RwLockReadGuard,
+    RwLockWriteGuard,
+};
+use std::task::{
+    Poll,
+    Context,
+};
+lazy_static! {
+    pub static ref EVENTS: Arc<RwLock<EventManager>> = Arc::new(RwLock::new(EventManager::new()));
+}
+async fn events() -> RwLockReadGuard<'static, EventManager> {
+    EVENTS.read().await
+}
+async fn events_mut() -> RwLockWriteGuard<'static, EventManager> {
+    EVENTS.write().await
+}
+fn try_events() -> Option<RwLockReadGuard<'static, EventManager>> {
+    EVENTS.try_read()
+}
+fn try_events_mut() -> Option<RwLockWriteGuard<'static, EventManager>> {
+    EVENTS.try_write()
+}
+impl Stream for Events {
+    type Item=();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        if let Some(mut events) = try_events_mut() {
+            Stream::poll_next(Pin::new(&mut *events), cx)
+        } else {
+            Poll::Pending
+        }
     }
 }

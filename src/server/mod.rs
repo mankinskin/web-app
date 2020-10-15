@@ -27,6 +27,14 @@ use warp::reply::Reply;
 use warp::Filter;
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 
+#[derive(Debug, Clone)]
+pub struct Error(String);
+impl<T: ToString> From<T> for Error {
+    fn from(err: T) -> Self {
+        Self(err.to_string())
+    }
+}
+
 pub async fn listen() {
     let websocket = warp::path("wss")
         .and(warp::ws())
