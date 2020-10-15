@@ -17,6 +17,11 @@ pub enum Error {
 unsafe impl Send for Error {}
 unsafe impl Sync for Error {}
 
+impl ToString for Error {
+    fn to_string(&self) -> String {
+        format!("{:#?}", self)
+    }
+}
 impl<E: Into<Error>> From<Vec<E>> for Error {
     fn from(errors: Vec<E>) -> Self {
         Self::Multiple(errors.into_iter().map(Into::into).collect())

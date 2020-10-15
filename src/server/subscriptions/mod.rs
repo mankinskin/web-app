@@ -37,6 +37,19 @@ impl From<Vec<Error>> for Error {
         Self::Multiple(errs)
     }
 }
+use std::fmt::{
+    Formatter,
+    Display,
+    self,
+};
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Text(s) => write!(f, "{}", s),
+            Self::Multiple(v) => write!(f, "{:#?}", v),
+        }
+    }
+}
 use std::sync::atomic::{
     AtomicUsize,
     Ordering,

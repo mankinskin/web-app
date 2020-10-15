@@ -49,60 +49,50 @@ pub trait AsyncHandlerMessage : Any + Send + Sync + 'static + Clone {}
 impl<M: Any + Send + Sync + 'static + Clone> AsyncHandlerMessage for M {}
 
 pub struct EventTypeManager {
-    stream: Option<Box<dyn AnyStream>>,
+    streams: Vec<Box<dyn AnyStream>>,
     handlers: Vec<Arc<dyn AsyncAnyHandler>>,
 }
 impl EventTypeManager {
     pub fn new() -> Self {
         Self {
-            stream: None,
+            streams: Vec::new(),
             handlers: Vec::new(),
         }
     }
     pub fn from_stream<M: AnyMessage>(stream: impl MessageStream<M>) -> Self {
         Self {
-            stream: Some(Box::new(Self::any_stream(stream))),
+            streams: vec![Self::boxed_any_stream(stream)],
             handlers: Vec::new(),
         }
     }
     pub fn with_stream<M: AnyMessage>(mut self, other: impl MessageStream<M>) -> Self{
-        let other = Self::any_stream(other);
-        if let Some(stream) = self.stream {
-            let new = futures::stream::select(
-                stream,
-                other,
-                );
-            self.stream = Some(Box::new(new));
-        } else {
-            self.stream = Some(Box::new(other));
-        }
+        let other = Self::boxed_any_stream(other);
+        self.streams.push(other);
         self
     }
-    fn any_stream<M: Any + Send + Sync>(stream: impl MessageStream<M>) -> impl AnyStream {
-        stream.map(|m| Arc::new(m) as Arc<dyn Any + Send + Sync>)
+    fn boxed_any_stream<M: Any + Send + Sync>(stream: impl MessageStream<M>) -> Box<impl AnyStream> {
+        Box::new(stream.map(|m| Arc::new(m) as Arc<dyn Any + Send + Sync>))
     }
     pub fn with_handler<M: AsyncHandlerMessage, R: AsyncHandlerResult>(&mut self, handler: impl AsyncHandler<M, R>) {
         self.handlers
             .push(Arc::new(move |a: Arc<dyn Any + Send + Sync + 'static>| {
-                let a = Arc::downcast::<M>(a)
-                    .expect("Downcast to `M` in Handler");
+                let a = Arc::downcast::<M>(a).expect("Downcast to `M` in Handler");
                 let handler = handler.clone();
-                let fut = (async move |a: M| handler(a).await)((*a).clone());
-                Box::pin(fut)
+                Box::pin((async move |a: M| handler(a).await)((*a).clone()))
             }));
     }
 }
 impl Stream for EventTypeManager {
     type Item=();
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        if let Some(stream) = &mut self.stream {
-            let poll = Stream::poll_next(Pin::new(stream), cx);
-            if let Poll::Ready(Some(arc)) = poll {
-                for handler in self.handlers.iter() {
-                    tokio::spawn((*handler)(arc.clone()));
-                }
-                return Poll::Ready(Some(()));
+        let Self { streams, handlers } = &mut*self;
+        let mut stream = futures::stream::select_all(streams);
+        let poll = Stream::poll_next(Pin::new(&mut stream), cx);
+        if let Poll::Ready(Some(arc)) = poll {
+            for handler in handlers.iter() {
+                tokio::spawn((*handler)(arc.clone()));
             }
+            return Poll::Ready(Some(()));
         }
         Poll::Pending
     }

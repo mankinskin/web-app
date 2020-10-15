@@ -29,9 +29,20 @@ const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 
 #[derive(Debug, Clone)]
 pub struct Error(String);
-impl<T: ToString> From<T> for Error {
-    fn from(err: T) -> Self {
-        Self(err.to_string())
+impl From<String> for Error {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+use std::fmt::{
+    Formatter,
+    Display,
+    self,
+};
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let Self(s) = self;
+        write!(f, "{}", s)
     }
 }
 

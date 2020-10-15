@@ -29,9 +29,9 @@ pub use connections::ConnectionClientMessage;
 
 #[derive(Debug, Clone)]
 pub struct Error(String);
-impl<T: ToString> From<T> for Error {
-    fn from(err: T) -> Self {
-        Self(err.to_string())
+impl<E: ToString> From<E> for Error {
+    fn from(s: E) -> Self {
+        Self(s.to_string())
     }
 }
 
@@ -67,7 +67,7 @@ pub async fn handle_message(id: usize, msg: ClientMessage) -> Result<(), Error> 
     debug!("Websocket message from connection {} {:?}", id, msg);
     let response = match msg {
         ClientMessage::AddPriceSubscription(request) => {
-            debug!("Subscribing to market pair {}", &request.market_pair);
+            //debug!("Subscribing to market pair {}", &request.market_pair);
             //let id = crate::subscriptions().await.add_subscription(request.clone()).await?;
             //// TODO interval/timer handles
             //crate::server::interval::set(interval(Duration::from_secs(1)));
