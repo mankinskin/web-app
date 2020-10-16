@@ -12,8 +12,7 @@ use crate::shared::PriceHistoryRequest;
 use app_model::{
     auth::{
         credentials::Credentials,
-        login,
-        register,
+        self,
     },
     user::User,
 };
@@ -45,74 +44,93 @@ impl Display for Error {
         write!(f, "{}", s)
     }
 }
+use actix_files::{
+    NamedFile,
+    Files,
+};
+use actix_web::{
+    get,
+    post,
+    web,
+    App,
+    HttpServer,
+    HttpResponse,
+    HttpRequest,
+    Responder,
+    middleware::Logger,
+};
+use openssl::ssl::{
+    SslFiletype,
+    SslAcceptor,
+    SslMethod,
+};
+use actix::{Actor, StreamHandler};
+use actix_web_actors::ws;
+struct WebsocketActor;
 
-pub async fn listen() {
-    let websocket = warp::path("wss")
-        .and(warp::ws())
-        .map(move |ws: warp::ws::Ws| {
-            debug!("Websocket connection request");
-            ws.on_upgrade(websocket::connection)
-        });
-    let price_history = warp::get()
-        .and(warp::path!("api" / "price_history"))
-        .and_then(|| {
-            async {
-                crate::binance()
-                    .await
-                    .get_symbol_price_history(PriceHistoryRequest {
-                        market_pair: "SOLBTC".into(),
-                        interval: Some(openlimits::model::Interval::OneHour),
-                        paginator: None,
-                    })
-                    .await
-                    .map(|data| serde_json::to_string(&data).unwrap())
-                    .map_err(|_err| warp::reject::not_found())
-            }
-        });
-    let login = warp::post()
-        .and(warp::path!("api" / "login"))
-        .and(warp::body::json())
-        .and_then(|credentials: Credentials| {
-            async {
-                Ok(match login(credentials).await {
-                    Ok(session) => warp::reply::json(&session).into_response(),
-                    Err(status) => warp::reply::with_status("", status).into_response(),
-                }) as Result<warp::reply::Response, core::convert::Infallible>
-            }
-        });
-    let register = warp::post()
-        .and(warp::path!("api" / "register"))
-        .and(warp::body::json())
-        .and_then(|user: User| {
-            async {
-                Ok(match register(user).await {
-                    Ok(session) => warp::reply::json(&session).into_response(),
-                    Err(status) => warp::reply::with_status("", status).into_response(),
-                }) as Result<warp::reply::Response, core::convert::Infallible>
-            }
-        });
-    let api = price_history.or(login).or(register);
-    let pkg_dir = warp::fs::dir(PKG_PATH.to_string());
-    let logger = warp::log::custom(|info| {
-        debug!(
-            "request from {:?}: {} {} {}ms {}",
-            info.remote_addr(),
-            info.method(),
-            info.path(),
-            info.elapsed().as_millis(),
-            info.status(),
-        )
-    });
-    let routes = websocket
-        .or(api)
-        .or(pkg_dir)
-        .or(warp::fs::file(format!("{}/index.html", PKG_PATH)))
-        .with(logger);
+impl Actor for WebsocketActor {
+    type Context = ws::WebsocketContext<Self>;
+}
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebsocketActor {
+    fn handle(
+        &mut self,
+        msg: Result<ws::Message, ws::ProtocolError>,
+        ctx: &mut Self::Context,
+    ) {
+
+    }
+}
+pub async fn run() -> std::io::Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
-    let server = warp::serve(routes)
-        .tls()
-        .cert_path("./keys/tls.crt")
-        .key_path("./keys/tls.key");
+    let mut ssl_builder = SslAcceptor::mozilla_modern(SslMethod::tls())?;
+    ssl_builder.set_certificate_chain_file("./keys/tls.crt")?;
+    ssl_builder.set_private_key_file("./keys/tls.key", SslFiletype::PEM)?;
+    let server = HttpServer::new(||
+            App::new()
+                .wrap(tracing_actix_web::TracingLogger)
+                .route("/", web::get().to(index))
+                .route("/subscriptions", web::get().to(index))
+                .route("/login", web::get().to(index))
+                .route("/register", web::get().to(index))
+                .service(
+                    web::scope("/api")
+                        .service(price_history)
+                        .service(login)
+                        .service(register)
+                )
+                .service(ws_route)
+                .service(Files::new("/", PKG_PATH))
+        )
+        .bind_openssl(addr, ssl_builder)?;
     info!("Starting Server");
-    server.run(addr).await;
+    server.run().await
+}
+#[get("/ws")]
+async fn ws_route(request: HttpRequest, stream: web::Payload) -> impl Responder {
+    ws::start(WebsocketActor, &request, stream)
+}
+async fn index() -> impl Responder {
+    NamedFile::open(format!("{}/index.html", PKG_PATH))
+}
+#[get("/price_history")]
+async fn price_history() -> impl Responder {
+    crate::binance()
+        .await
+        .get_symbol_price_history(PriceHistoryRequest {
+            market_pair: "SOLBTC".into(),
+            interval: Some(openlimits::model::Interval::OneHour),
+            paginator: None,
+        })
+        .await
+        .map(|data| serde_json::to_string(&data).unwrap())
+}
+#[post("/login")]
+async fn login(credentials: web::Json<Credentials>) -> impl Responder {
+    auth::login(credentials.into_inner()).await
+        .map(|session| web::Json(session))
+}
+#[post("/register")]
+async fn register(user: web::Json<User>) -> impl Responder {
+    auth::register(user.into_inner()).await
+        .map(|session| web::Json(session))
 }

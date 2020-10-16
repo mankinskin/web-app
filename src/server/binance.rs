@@ -28,16 +28,24 @@ use serde::{
 #[derive(Clone, Debug)]
 pub struct Error(String);
 
-impl ToString for Error {
-    fn to_string(&self) -> String {
-        self.0.clone()
+use std::fmt::{
+    Display,
+    Formatter,
+    self,
+};
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
+
 impl From<String> for Error {
     fn from(err: String) -> Self {
         Self(err)
     }
 }
+use actix_web::ResponseError;
+impl ResponseError for Error {}
 
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Binance>> = Arc::new(Mutex::new(Binance::new()));
