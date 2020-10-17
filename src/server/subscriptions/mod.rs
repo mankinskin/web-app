@@ -21,6 +21,24 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use tracing::debug;
 use subscription_cache::SubscriptionCache;
+use std::fmt::{
+    Formatter,
+    Display,
+    self,
+};
+use actix_web::{
+    get,
+    post,
+    web,
+    App,
+    HttpServer,
+    HttpRequest,
+    Responder,
+};
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
 
 #[derive(Clone, Debug)]
 pub enum Error {
@@ -37,11 +55,6 @@ impl From<Vec<Error>> for Error {
         Self::Multiple(errs)
     }
 }
-use std::fmt::{
-    Formatter,
-    Display,
-    self,
-};
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
@@ -50,10 +63,6 @@ impl Display for Error {
         }
     }
 }
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
 lazy_static! {
     pub static ref SUBSCRIPTIONS: Arc<Mutex<Subscriptions>> = Arc::new(Mutex::new(Subscriptions::new()));
     static ref SUBSCRIPTION_IDS: AtomicUsize = AtomicUsize::new(0);

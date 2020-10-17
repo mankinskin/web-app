@@ -13,8 +13,7 @@ use tracing_subscriber::{
     fmt,
     layer::SubscriberExt,
 };
-pub use subscriptions::subscriptions;
-pub use binance::binance;
+//pub use subscriptions::subscriptions;
 use crate::shared::ClientMessage;
 use crate::{
     telegram::{
@@ -52,11 +51,6 @@ impl From<telegram::Update> for Message {
         Message::Telegram(update)
     }
 }
-impl From<websocket::ConnectionClientMessage> for Message {
-    fn from(msg: websocket::ConnectionClientMessage) -> Self {
-        Message::WebSocket(msg.0, msg.1)
-    }
-}
 fn init_tracing() -> WorkerGuard {
     tracing_log::LogTracer::init_with_filter(log::LevelFilter::Trace).unwrap();
     let file_appender = tracing_appender::rolling::hourly("./logs", "log");
@@ -73,6 +67,5 @@ fn init_tracing() -> WorkerGuard {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let _guard = init_tracing();
-    binance().await.init().await;
     server::run().await
 }

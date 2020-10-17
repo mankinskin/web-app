@@ -1,5 +1,5 @@
 use crate::server::{
-    subscriptions,
+//subscriptions,
     telegram,
     command,
 };
@@ -8,7 +8,7 @@ use crate::server::{
 pub enum Error {
     Telegram(telegram::Error),
     Command(command::Error),
-    Subscriptions(subscriptions::Error),
+    //Subscriptions(subscriptions::Error),
     WebSocket(crate::websocket::Error),
     Server(crate::server::Error),
     Mpsc(futures::channel::mpsc::SendError),
@@ -42,11 +42,11 @@ impl From<telegram::Error> for Error {
         Self::Telegram(err)
     }
 }
-impl From<subscriptions::Error> for Error {
-    fn from(err: subscriptions::Error) -> Self {
-        Self::Subscriptions(err)
-    }
-}
+//impl From<subscriptions::Error> for Error {
+//    fn from(err: subscriptions::Error) -> Self {
+//        Self::Subscriptions(err)
+//    }
+//}
 impl From<command::Error> for Error {
     fn from(err: command::Error) -> Self {
         Self::Command(err)

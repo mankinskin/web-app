@@ -58,17 +58,15 @@ tracing-actix-web = "0.2"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.tracing-log]
 version = "^0.1"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.actix-interop]
+git = "https://github.com/Diggsey/actix-interop"
+branch = "master"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.actix-web]
 version = "3"
 features = [
   "openssl",
   "secure-cookies",
-]
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies.warp]
-version = "^0.2"
-features = [
-  "tls",
 ]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio]

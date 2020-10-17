@@ -50,7 +50,7 @@ impl PriceSubscription {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn is_available(&self) -> bool {
         let symbol = self.market_pair.to_uppercase();
-        crate::binance().await.symbol_available(&symbol).await
+        crate::binance::Binance::symbol_available(&symbol).await
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn get_price_history_request(&self) -> PriceHistoryRequest {
@@ -61,19 +61,18 @@ impl PriceSubscription {
             paginator,
         }
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn latest_price_candles(&self) -> Result<Vec<Candle>, crate::subscriptions::Error> {
-        let req = self.get_price_history_request().await;
-        crate::binance().await.get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
-
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::subscriptions::Error> {
-        let candles = self.latest_price_candles().await?;
-        Ok(PriceHistory {
-            market_pair: self.market_pair.clone(),
-            time_interval: self.time_interval,
-            candles,
-        })
-    }
+    //#[cfg(not(target_arch = "wasm32"))]
+    //pub async fn latest_price_candles(&self) -> Result<Vec<Candle>, crate::subscriptions::Error> {
+    //    let req = self.get_price_history_request().await;
+    //    crate::binance().await.get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
+    //}
+    //#[cfg(not(target_arch = "wasm32"))]
+    //pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
+    //    let candles = self.latest_price_candles().await?;
+    //    Ok(PriceHistory {
+    //        market_pair: self.market_pair.clone(),
+    //        time_interval: self.time_interval,
+    //        candles,
+    //    })
+    //}
 }
