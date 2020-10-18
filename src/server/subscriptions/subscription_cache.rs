@@ -41,7 +41,7 @@ impl From<PriceHistoryRequest> for SubscriptionCache {
 impl SubscriptionCache {
     pub async fn update(&mut self) -> Result<(), Error> {
         //debug!("SymbolModel update");
-        let candles = self.subscription.latest_price_candles().await?;
+        let candles = self.subscription.latest_price_history().await?.candles;
         self.prices.extend(candles.into_iter());
         Ok(())
     }

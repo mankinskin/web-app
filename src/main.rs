@@ -13,7 +13,7 @@ use tracing_subscriber::{
     fmt,
     layer::SubscriberExt,
 };
-//pub use subscriptions::subscriptions;
+pub use subscriptions::subscriptions;
 use crate::shared::ClientMessage;
 use crate::{
     telegram::{

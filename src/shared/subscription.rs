@@ -3,10 +3,6 @@ use openlimits::model::{
     Paginator,
     Interval,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use openlimits::model::{
-    Candle,
-};
 use serde::{
     Deserialize,
     Serialize,
@@ -16,6 +12,10 @@ use serde::{
 use {
     app_model::market::PriceHistory,
     tracing::error,
+    crate::binance::Binance,
+    openlimits::model::{
+        Candle,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -33,9 +33,9 @@ impl From<PriceHistoryRequest> for PriceSubscription {
         }
     }
 }
-impl PartialEq<PriceHistoryRequest> for PriceSubscription {
-    fn eq(&self, rhs: &PriceHistoryRequest) -> bool {
-        self.market_pair == rhs.market_pair
+impl PartialEq<&PriceHistoryRequest> for PriceSubscription {
+    fn eq(&self, rhs: &&PriceHistoryRequest) -> bool {
+        self.market_pair == *rhs.market_pair
     }
 }
 impl PriceSubscription {
@@ -61,18 +61,9 @@ impl PriceSubscription {
             paginator,
         }
     }
-    //#[cfg(not(target_arch = "wasm32"))]
-    //pub async fn latest_price_candles(&self) -> Result<Vec<Candle>, crate::subscriptions::Error> {
-    //    let req = self.get_price_history_request().await;
-    //    crate::binance().await.get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
-    //}
-    //#[cfg(not(target_arch = "wasm32"))]
-    //pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
-    //    let candles = self.latest_price_candles().await?;
-    //    Ok(PriceHistory {
-    //        market_pair: self.market_pair.clone(),
-    //        time_interval: self.time_interval,
-    //        candles,
-    //    })
-    //}
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
+        let req = self.get_price_history_request().await;
+        Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
+    }
 }

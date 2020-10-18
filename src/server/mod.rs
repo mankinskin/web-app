@@ -3,7 +3,7 @@ pub mod command;
 pub mod error;
 pub mod interval;
 pub mod keys;
-//pub mod subscriptions;
+pub mod subscriptions;
 pub mod telegram;
 pub mod websocket;
 
@@ -47,6 +47,7 @@ use actix::{
     Addr,
 };
 use binance::Binance;
+use subscriptions::Subscriptions;
 use std::fmt::{
     Formatter,
     Display,
@@ -68,8 +69,8 @@ impl Display for Error {
     }
 }
 #[get("/ws")]
-async fn ws_route(request: HttpRequest, stream: web::Payload, binance: web::Data<Addr<Binance>>) -> impl Responder {
-    ws::start(websocket::Session::new(binance.get_ref().clone()), &request, stream)
+async fn ws_route(request: HttpRequest, stream: web::Payload, subscriptions: web::Data<Addr<Subscriptions>>) -> impl Responder {
+    ws::start(websocket::Session::new(subscriptions.get_ref().clone()), &request, stream)
 }
 async fn index() -> impl Responder {
     NamedFile::open(format!("{}/index.html", PKG_PATH))
@@ -97,6 +98,7 @@ async fn register(user: web::Json<User>) -> impl Responder {
 }
 pub async fn run() -> std::io::Result<()> {
     let binance = binance::Binance::init().await;
+    let subscriptions = subscriptions::Subscriptions::init().await;
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let mut ssl_builder = SslAcceptor::mozilla_modern(SslMethod::tls())?;
     ssl_builder.set_certificate_chain_file("./keys/tls.crt")?;
@@ -105,6 +107,7 @@ pub async fn run() -> std::io::Result<()> {
             App::new()
                 .wrap(tracing_actix_web::TracingLogger)
                 .data(binance.clone())
+                .data(subscriptions.clone())
                 .route("/", web::get().to(index))
                 .route("/subscriptions", web::get().to(index))
                 .route("/login", web::get().to(index))

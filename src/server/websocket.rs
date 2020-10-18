@@ -1,5 +1,6 @@
 use crate::{
     binance::Binance,
+    subscriptions::Subscriptions,
     shared::{
         ClientMessage,
         ServerMessage,
@@ -46,13 +47,13 @@ impl<E: ToString> From<E> for Error {
 }
 pub struct Session {
     id: usize,
-    binance: Addr<Binance>,
+    subscriptions: Addr<Subscriptions>,
 }
 impl Session {
-    pub fn new(binance: Addr<Binance>) -> Self {
+    pub fn new(subscriptions: Addr<Subscriptions>) -> Self {
         Self {
             id: Self::new_id(),
-            binance,
+            subscriptions,
         }
     }
     fn new_id() -> usize {
@@ -111,9 +112,9 @@ impl Handler<ClientMessage> for Session {
         _: &mut Self::Context,
     ) -> Self::Result
     {
-        let binance = self.binance.clone();
+        let subscriptions = self.subscriptions.clone();
         async move {
-            let response = binance.send(msg).await.expect("Send failed");
+            let response = subscriptions.send(msg).await.expect("Send failed");
             if let Some(response) = response {
                 with_ctx::<Self, _, _>(|_act, ctx| {
                     ctx.notify(response);

@@ -47,4 +47,5 @@ pub enum ClientMessage {
 pub enum ServerMessage {
     PriceHistory(PriceHistory),
     SubscriptionList(HashMap<usize, PriceSubscription>),
+    SubscriptionAdded(usize),
 }
