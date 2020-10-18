@@ -3,10 +3,8 @@ use crate::{
     subscriptions::Subscriptions,
     shared::{
         PriceHistoryRequest,
-        PriceSubscription,
     },
 };
-use async_std::stream::interval;
 use async_std::{
     io::{
         prelude::BufReadExt,
@@ -23,7 +21,6 @@ use clap::{
     Arg,
 };
 use futures_core::stream::Stream;
-use std::time::Duration;
 use std::{
     pin::Pin,
     task::Poll,
@@ -35,9 +32,10 @@ use tracing::{
 
 use lazy_static::lazy_static;
 lazy_static! {
-    pub static ref STREAM: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
+    pub static ref STDIN: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Message)]
+#[rtype(result = "()")]
 pub enum Msg {
     Line(String),
 }
@@ -114,12 +112,64 @@ pub async fn run_command(text: String) -> Result<String, Error> {
     })
 }
 
+use actix::{
+    Actor,
+    Handler,
+    Context,
+    Addr,
+    ResponseActFuture,
+    StreamHandler,
+    AsyncContext,
+    Message,
+};
+use actix_interop::{
+    FutureInterop,
+};
 pub struct CommandLine;
+impl CommandLine {
+    pub async fn init() -> Addr<Self> {
+        Self::create(|_| Self)
+    }
+}
+impl Actor for CommandLine {
+    type Context = Context<Self>;
+   fn started(&mut self, ctx: &mut Context<Self>) {
+       // add stream
+       Self::add_stream(Self, ctx);
+   }
+}
+impl StreamHandler<Msg> for CommandLine {
+    fn handle(
+        &mut self,
+        msg: Msg,
+        ctx: &mut Self::Context,
+    ) {
+        ctx.notify(msg);
+    }
+}
+impl Handler<Msg> for CommandLine {
+    type Result = ResponseActFuture<Self, ()>;
+    fn handle(
+        &mut self,
+        msg: Msg,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        async move {
+            match msg {
+                Msg::Line(line) => match run_command(line).await {
+                    Ok(text) => println!["{}", text],
+                    Err(e) => error!("{:#?}", e),
+                },
+            }
+        }.interop_actor_boxed(self)
+    }
+}
+
 impl Stream for CommandLine {
     type Item = Msg;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        if let Some(mut stream) = STREAM.try_write() {
-            let stdin = BufReader::new(&mut *stream);
+        if let Some(mut stdin) = STDIN.try_write() {
+            let stdin = BufReader::new(&mut *stdin);
             let mut lines = stdin.lines();
             let cli_poll = Stream::poll_next(Pin::new(&mut lines), cx);
             if cli_poll.is_ready() {

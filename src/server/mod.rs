@@ -97,6 +97,7 @@ async fn register(user: web::Json<User>) -> impl Responder {
 }
 pub async fn run() -> std::io::Result<()> {
     let _telegram = telegram::Telegram::init().await;
+    let _cli = command::CommandLine::init().await;
     let binance = binance::Binance::init().await;
     let subscriptions = subscriptions::Subscriptions::init().await;
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
