@@ -85,6 +85,66 @@ impl Display for Error {
         }
     }
 }
+pub struct Subscriptions;
+impl Subscriptions {
+    pub async fn init() -> Addr<Self> {
+        Self::create(move |_| Self)
+    }
+    pub async fn add_subscription(req: PriceHistoryRequest) -> Result<usize, Error> {
+        subscriptions_mut()
+            .await
+            .add_subscription(req)
+            .await
+    }
+    pub async fn get_subscription(id: usize) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
+        subscriptions()
+            .await
+            .get_subscription(id)
+            .await
+            .clone()
+    }
+    pub async fn get_subscription_list() -> Result<HashMap<usize, PriceSubscription>, crate::Error> {
+        crate::subscriptions()
+            .await
+            .get_subscription_list()
+            .await
+    }
+    pub async fn update() -> Result<(), Error> {
+        subscriptions_mut().await.update().await
+    }
+}
+impl Handler<ClientMessage> for Subscriptions {
+    type Result = ResponseActFuture<Self, Option<ServerMessage>>;
+    fn handle(
+        &mut self,
+        msg: ClientMessage,
+        _: &mut Self::Context,
+    ) -> Self::Result {
+        async move {
+            match msg {
+                ClientMessage::AddPriceSubscription(request) => {
+                    info!("Subscribing to market pair {}", &request.market_pair);
+                    let id = Self::add_subscription(request.clone()).await.unwrap();
+                    // TODO interval/timer handles
+                    //crate::server::interval::set(interval(Duration::from_secs(1)));
+                    Some(ServerMessage::SubscriptionAdded(id))
+                },
+                ClientMessage::GetPriceSubscriptionList => {
+                    info!("Getting subscription list");
+                    let list = Self::get_subscription_list().await.unwrap();
+                    //self.get_symbol_price_history(request.clone()).await
+                    //crate::server::interval::set(interval(Duration::from_secs(1)));
+                    Some(ServerMessage::SubscriptionList(list))
+                },
+                _ => None,
+            }
+        }.interop_actor_boxed(self)
+    }
+}
+impl Actor for Subscriptions {
+    type Context = Context<Self>;
+}
+
 lazy_static! {
     static ref SUBSCRIPTIONS: Arc<RwLock<StaticSubscriptions>> = Arc::new(RwLock::new(StaticSubscriptions::new()));
     static ref SUBSCRIPTION_IDS: AtomicUsize = AtomicUsize::new(0);
@@ -198,63 +258,3 @@ impl StaticSubscriptions {
         Ok(())
     }
 }
-pub struct Subscriptions;
-impl Subscriptions {
-    pub async fn init() -> Addr<Self> {
-        Self::create(move |_| Self)
-    }
-    pub async fn add_subscription(req: PriceHistoryRequest) -> Result<usize, Error> {
-        subscriptions_mut()
-            .await
-            .add_subscription(req)
-            .await
-    }
-    pub async fn get_subscription(id: usize) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
-        subscriptions()
-            .await
-            .get_subscription(id)
-            .await
-            .clone()
-    }
-    pub async fn get_subscription_list() -> Result<HashMap<usize, PriceSubscription>, crate::Error> {
-        crate::subscriptions()
-            .await
-            .get_subscription_list()
-            .await
-    }
-    pub async fn update() -> Result<(), Error> {
-        subscriptions_mut().await.update().await
-    }
-}
-impl Handler<ClientMessage> for Subscriptions {
-    type Result = ResponseActFuture<Self, Option<ServerMessage>>;
-    fn handle(
-        &mut self,
-        msg: ClientMessage,
-        _: &mut Self::Context,
-    ) -> Self::Result {
-        async move {
-            match msg {
-                ClientMessage::AddPriceSubscription(request) => {
-                    info!("Subscribing to market pair {}", &request.market_pair);
-                    let id = Self::add_subscription(request.clone()).await.unwrap();
-                    // TODO interval/timer handles
-                    //crate::server::interval::set(interval(Duration::from_secs(1)));
-                    Some(ServerMessage::SubscriptionAdded(id))
-                },
-                ClientMessage::GetPriceSubscriptionList => {
-                    info!("Getting subscription list");
-                    let list = Self::get_subscription_list().await.unwrap();
-                    //self.get_symbol_price_history(request.clone()).await
-                    //crate::server::interval::set(interval(Duration::from_secs(1)));
-                    Some(ServerMessage::SubscriptionList(list))
-                },
-                _ => None,
-            }
-        }.interop_actor_boxed(self)
-    }
-}
-impl Actor for Subscriptions {
-    type Context = Context<Self>;
-}
-

@@ -2,30 +2,35 @@ use crate::server::{
     command::run_command,
     keys,
 };
-use async_std::sync::{
-    channel,
-    Arc,
-    Receiver,
-    RwLock,
-};
 use futures::StreamExt;
-use futures_core::stream::Stream;
 use lazy_static::lazy_static;
-use std::{
-    pin::Pin,
-    task::Poll,
-};
 pub use telegram_bot::{
     Api,
-    Update,
 };
 use telegram_bot::{
     CanReplySendMessage,
-    Message,
     MessageKind,
     UpdateKind,
 };
-use tracing::debug;
+use tracing::{
+    debug,
+    error,
+    info,
+};
+use actix::{
+    Actor,
+    Handler,
+    Context,
+    Addr,
+    ResponseActFuture,
+    StreamHandler,
+    AsyncContext,
+    Message,
+    Supervisor,
+};
+use actix_interop::{
+    FutureInterop,
+};
 
 #[derive(Clone, Debug)]
 pub struct Error(String);
@@ -34,37 +39,31 @@ impl<T: ToString> From<T> for Error {
         Self(err.to_string())
     }
 }
+#[derive(Clone, Debug, Message)]
+#[rtype(result = "()")]
+pub struct Update(pub telegram_bot::Update);
+
 #[derive(Clone)]
-pub struct Telegram {
+pub struct StaticTelegram {
     pub api: Api,
 }
 lazy_static! {
-    pub static ref TELEGRAM: Telegram = Telegram::new();
-    pub static ref STREAM: Arc<RwLock<Option<Receiver<Result<Update, Error>>>>> =
-        Arc::new(RwLock::new(None));
+    pub static ref TELEGRAM: StaticTelegram = StaticTelegram::new();
 }
-pub async fn run() {
-    let (tx, rx) = channel(100);
-    *STREAM.try_write().unwrap() = Some(rx);
-    let mut stream = telegram().api.stream();
-    while let Some(msg) = stream.next().await {
-        tx.send(msg.map_err(Into::into)).await
-    }
-}
-pub fn telegram() -> Telegram {
+pub fn telegram() -> StaticTelegram {
     TELEGRAM.clone()
 }
 fn remove_coloring(text: String) -> String {
     let reg = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     reg.replace_all(&text, "").to_string()
 }
-impl Telegram {
+impl StaticTelegram {
     pub fn new() -> Self {
         let telegram_key = keys::read_key_file("keys/telegram");
         let api = Api::new(telegram_key);
         Self { api }
     }
-    pub async fn handle_message(&mut self, message: Message) -> Result<(), Error> {
+    pub async fn handle_message(&mut self, message: telegram_bot::Message) -> Result<(), Error> {
         match message.kind.clone() {
             MessageKind::Text { data, .. } => {
                 let cmd = data;
@@ -86,6 +85,7 @@ impl Telegram {
     }
     pub async fn update(&mut self, update: Update) -> Result<(), crate::Error> {
         debug!("Telegram Update");
+        let Update(update) = update;
         Ok(match update.kind {
             UpdateKind::Message(message) => self.handle_message(message).await?,
             UpdateKind::EditedMessage(_message) => {}
@@ -98,39 +98,53 @@ impl Telegram {
         })
     }
 }
-impl std::ops::Deref for Telegram {
+impl std::ops::Deref for StaticTelegram {
     type Target = Api;
     fn deref(&self) -> &Self::Target {
         &self.api
     }
 }
-pub struct TelegramStream;
-impl Stream for TelegramStream {
-    type Item = Result<Update, Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {
-        //debug!("Polling TelegramStream...");
-        if let Some(mut stream_opt) = STREAM.try_write() {
-            let poll = if let Some(stream) = &mut *stream_opt {
-                let mut stream = stream;
-                let telegram_poll = Stream::poll_next(Pin::new(&mut stream), cx);
-                if telegram_poll.is_ready() {
-                    telegram_poll.map(|opt| {
-                        opt.map(|result| {
-                            result.map_err(Into::into)
-                        })
-                    })
-                } else {
-                    Poll::Pending
-                }
-            } else {
-                Poll::Pending
-            };
-            if let Poll::Ready(Some(Err(_))) = poll {
-                *stream_opt = None;
-            }
-            poll
-        } else {
-            Poll::Pending
+pub struct Telegram;
+impl Telegram {
+    pub async fn init() -> Addr<Self> {
+        Supervisor::start(|_| Self)
+    }
+}
+impl Actor for Telegram {
+    type Context = Context<Self>;
+   fn started(&mut self, ctx: &mut Context<Self>) {
+       // add stream
+       Self::add_stream(telegram().api.stream().map(|res| res.map_err(Into::into)), ctx);
+   }
+}
+impl StreamHandler<Result<telegram_bot::Update, Error>> for Telegram {
+    fn handle(
+        &mut self,
+        msg: Result<telegram_bot::Update, Error>,
+        ctx: &mut Self::Context,
+    ) {
+        match msg {
+            Ok(msg) => ctx.notify(Update(msg)),
+            Err(err) => error!("{:#?}", err),
         }
+    }
+}
+impl Handler<Update> for Telegram {
+    type Result = ResponseActFuture<Self, ()>;
+    fn handle(
+        &mut self,
+        msg: Update,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        async move {
+            if let Err(e) = telegram().update(msg).await {
+                error!("{:#?}", e);
+            }
+        }.interop_actor_boxed(self)
+    }
+}
+impl actix::Supervised for Telegram {
+    fn restarting(&mut self, _ctx: &mut Context<Self>) {
+        info!["Restarting telegram actor"];
     }
 }

@@ -46,7 +46,6 @@ use actix_web_actors::ws;
 use actix::{
     Addr,
 };
-use binance::Binance;
 use subscriptions::Subscriptions;
 use std::fmt::{
     Formatter,
@@ -97,6 +96,7 @@ async fn register(user: web::Json<User>) -> impl Responder {
         .map(|session| web::Json(session))
 }
 pub async fn run() -> std::io::Result<()> {
+    let _telegram = telegram::Telegram::init().await;
     let binance = binance::Binance::init().await;
     let subscriptions = subscriptions::Subscriptions::init().await;
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));

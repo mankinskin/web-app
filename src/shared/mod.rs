@@ -27,6 +27,15 @@ pub struct PriceHistoryRequest {
     pub interval: Option<Interval>,
     pub paginator: Option<Paginator<u32>>,
 }
+impl From<String> for PriceHistoryRequest {
+    fn from(market_pair: String) -> Self {
+        Self {
+            market_pair,
+            interval: None,
+            paginator: None,
+        }
+    }
+}
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -1,4 +1,11 @@
-use crate::shared::PriceHistoryRequest;
+use crate::{
+    binance::Binance,
+    subscriptions::Subscriptions,
+    shared::{
+        PriceHistoryRequest,
+        PriceSubscription,
+    },
+};
 use async_std::stream::interval;
 use async_std::{
     io::{
@@ -68,32 +75,34 @@ pub async fn run_command(text: String) -> Result<String, Error> {
         Ok(app) => {
             if let Some(price_app) = app.subcommand_matches("price") {
                 if let Some(symbol) = price_app.value_of("symbol") {
-                    //let price = crate::binance().await.get_symbol_price(symbol).await?;
-                    //format!("{:#?}", price)
-                    unimplemented!()
+                    let price = Binance::get_symbol_price(symbol)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    format!("{:#?}", price)
                 } else {
                     price_app.usage().to_string()
                 }
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
-                    //let price_history = crate::binance()
-                    //    .await
-                    //    .get_symbol_price_history(PriceHistoryRequest {
-                    //        market_pair: symbol.to_string().clone(),
-                    //        interval: None,
-                    //        paginator: None,
-                    //    })
-                    //    .await?;
-                    //format!("{:#?}", price_history)
-                    unimplemented!()
+                    let price_history = 
+                        Binance::get_symbol_price_history(PriceHistoryRequest {
+                            market_pair: symbol.to_string().clone(),
+                            interval: None,
+                            paginator: None,
+                        })
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    format!("{:#?}", price_history)
                 } else {
                     history_app.usage().to_string()
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    //crate::subscriptions().await.add_subscription(symbol.to_string()).await?;
+                    let id = Subscriptions::add_subscription(PriceHistoryRequest::from(symbol.to_string()))
+                        .await
+                        .map_err(|e| e.to_string())?;
                     //crate::server::interval::set(interval(Duration::from_secs(1)));
-                    unimplemented!()
+                    format!("Ok {}", id)
                 } else {
                     watch_app.usage().to_string()
                 }
