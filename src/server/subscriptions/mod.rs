@@ -15,21 +15,10 @@ use async_std::{
     },
 };
 use futures::stream::{
-    Stream,
     StreamExt,
 };
-use chrono::{
-    DateTime,
-    Utc,
-};
 use lazy_static::lazy_static;
-use openlimits::model::Candle;
-use serde::{
-    Deserialize,
-    Serialize,
-};
 use std::collections::HashMap;
-use std::convert::TryInto;
 use tracing::{
     debug,
     info,
@@ -96,12 +85,17 @@ impl Subscriptions {
             .add_subscription(req)
             .await
     }
+    pub async fn find_subscription(request: PriceHistoryRequest) -> Option<(usize, Arc<RwLock<SubscriptionCache>>)> {
+        subscriptions()
+            .await
+            .find_subscription(request)
+            .await
+    }
     pub async fn get_subscription(id: usize) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
         subscriptions()
             .await
             .get_subscription(id)
             .await
-            .clone()
     }
     pub async fn get_subscription_list() -> Result<HashMap<usize, PriceSubscription>, crate::Error> {
         crate::subscriptions()
@@ -169,13 +163,27 @@ impl StaticSubscriptions {
     }
     pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<usize, Error> {
         debug!("Adding subscription...");
-        let req = Arc::new(request.clone());
-        if let Some(id) = futures::stream::iter(self.subscriptions.iter())
+        if let Some((id, _)) = self.find_subscription(request.clone()).await {
+            debug!("Model already exists.");
+            Ok(id)
+        } else {
+            let id = Self::new_subscription_id();
+            self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(request))));
+            self.new_subscriptions = true;
+            Ok(id)
+        }
+    }
+    pub async fn find_subscription<'a>(
+        &'a self,
+        request: PriceHistoryRequest,
+    ) -> Option<(usize, Arc<RwLock<SubscriptionCache>>)> {
+        let req = Arc::new(request);
+        futures::stream::iter(self.subscriptions.iter())
             .then(move |(id, cache)| {
                 let req = req.clone(); 
                 async move {
                     if cache.read().await.subscription == req.as_ref() {
-                        Some(id)
+                        Some((id.clone(), cache.clone()))
                     } else {
                         None
                     }
@@ -185,15 +193,6 @@ impl StaticSubscriptions {
             .await
             .into_iter()
             .find_map(|opt| opt)
-        {
-            debug!("Model already exists.");
-            Ok(id.clone())
-        } else {
-            let id = Self::new_subscription_id();
-            self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(request))));
-            self.new_subscriptions = true;
-            Ok(id)
-        }
     }
     pub async fn get_subscription<'a>(
         &'a self,
