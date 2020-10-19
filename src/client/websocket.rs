@@ -25,6 +25,15 @@ pub struct WebSocket {
     open: bool,
     msg_queue: Vec<ClientMessage>,
 }
+#[derive(Clone, Debug)]
+pub enum Msg {
+    Opened,
+    Closed(CloseEvent),
+    Error(String),
+    Reconnect,
+    MessageReceived(ServerMessage),
+    SendMessage(ClientMessage),
+}
 impl Init<()> for WebSocket {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
         let host = crate::get_host().unwrap();
@@ -118,15 +127,6 @@ impl WebSocket {
         self.open = true;
         self.send_message_queue();
     }
-}
-#[derive(Clone, Debug)]
-pub enum Msg {
-    Opened,
-    Closed(CloseEvent),
-    Error(String),
-    Reconnect,
-    MessageReceived(ServerMessage),
-    SendMessage(ClientMessage),
 }
 impl Component for WebSocket {
     type Msg = Msg;

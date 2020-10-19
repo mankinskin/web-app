@@ -64,6 +64,7 @@ impl Component for SubscriptionList {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::GetList => {
+                orders.notify(ClientMessage::GetPriceSubscriptionList);
             },
             Msg::SetList(list) => {
                 debug!("Setting SubscriptionList");
@@ -77,7 +78,7 @@ impl Component for SubscriptionList {
                     )
                 })
                 .collect();
-
+                orders.notify(ClientMessage::AddPriceSubscription(PriceHistoryRequest::from("SOLBTC".to_string())));
             },
             Msg::Subscription(id, msg) => {
                 if let Some(subscription) = self.subscriptions.get_mut(&id) {

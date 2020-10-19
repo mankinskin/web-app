@@ -153,12 +153,16 @@ pub struct StaticSubscriptions {
     new_subscriptions: bool,
 }
 impl StaticSubscriptions {
+    fn load_subscriptions_table() -> HashMap<Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>> {
+        PriceSubscription::table()
+            .rows()
+            .map(|row| (row.id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(row.data.clone())))))
+            .collect()
+    }
     pub fn new() -> Self {
+        let subscriptions = Self::load_subscriptions_table();
         Self {
-            subscriptions: PriceSubscription::table()
-                .rows()
-                .map(|row| (row.id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(row.data.clone())))))
-                .collect(),
+            subscriptions,
             new_subscriptions: false,
         }
     }
@@ -168,8 +172,10 @@ impl StaticSubscriptions {
             debug!("Model already exists.");
             Ok(id)
         } else {
-            let id = Id::new();
-            self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(request))));
+            let sub = PriceSubscription::from(request);
+            let id = PriceSubscription::table_mut()
+                .insert(sub.clone());
+            self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(sub))));
             self.new_subscriptions = true;
             Ok(id)
         }
