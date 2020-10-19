@@ -31,9 +31,19 @@ use tracing::debug;
 pub use {
     credentials::*,
     database_table::DatabaseTable,
-    http::status::StatusCode,
     jwt::*,
     std::convert::TryFrom,
+    actix_web::error::{
+        Error,
+        ErrorUnauthorized,
+        ErrorNotFound,
+        ErrorInternalServerError,
+        ErrorConflict,
+    },
+};
+use serde::{
+    Serialize,
+    Deserialize,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,22 +52,22 @@ pub struct UserSession {
     pub token: String,
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn login(credentials: Credentials) -> Result<UserSession, StatusCode> {
+pub async fn login(credentials: Credentials) -> Result<UserSession, Error> {
     User::find(|user| *user.name() == credentials.username)
-        .ok_or(StatusCode::NOT_FOUND)
+        .ok_or(ErrorNotFound("User not found"))
         .and_then(|entry| {
             let user = entry.data();
             if *user.password() == credentials.password {
                 Ok(entry)
             } else {
-                Err(StatusCode::UNAUTHORIZED)
+                Err(ErrorUnauthorized("Unauthorized"))
             }
         })
         .and_then(|entry| {
             let user = entry.data().clone();
             let id = entry.id().clone();
             JWT::try_from(&user)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+                .map_err(|_| ErrorInternalServerError(""))
                 .map(move |jwt| (id, jwt))
         })
         .map(|(id, jwt)| {
@@ -68,11 +78,11 @@ pub async fn login(credentials: Credentials) -> Result<UserSession, StatusCode> 
         })
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn register(user: User) -> Result<UserSession, StatusCode> {
+pub async fn register(user: User) -> Result<UserSession, Error> {
     if User::find(|u| u.name() == user.name()).is_none() {
         let id = User::insert(user.clone());
         JWT::try_from(&user)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            .map_err(|_| ErrorInternalServerError(""))
             .map(move |jwt| {
                 UserSession {
                     user_id: id.clone(),
@@ -80,7 +90,7 @@ pub async fn register(user: User) -> Result<UserSession, StatusCode> {
                 }
             })
     } else {
-        Err(StatusCode::CONFLICT)
+        Err(ErrorConflict("Username already taken"))
     }
 }
 
