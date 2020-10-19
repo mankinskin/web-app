@@ -82,6 +82,42 @@ impl WebSocket {
             }
         }
     }
+    fn push_message(&mut self, msg: ClientMessage) {
+        if self.open {
+            self.send_message_queue();
+            self.send_message(msg);
+        } else {
+            self.msg_queue.push(msg);
+        }
+    }
+    fn send_message_queue(&mut self) {
+        for msg in &self.msg_queue {
+            self.send_message(msg.clone());
+        }
+        self.msg_queue.clear();
+    }
+    fn start_reconnecting(&mut self, orders: &mut impl Orders<Msg>) {
+        self.websocket_reconnector =
+            Some(orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect)));
+    }
+    fn reconnect(&mut self, orders: &mut impl Orders<Msg>) {
+        self.websocket = Some(Self::create_websocket(&self.host, orders));
+        self.open = true;
+    }
+    fn closed(&mut self, event: CloseEvent, orders: &mut impl Orders<Msg>) {
+        self.websocket = None;
+        if !event.was_clean() && self.websocket_reconnector.is_none() {
+            self.start_reconnecting(orders);
+        }
+        self.open = false;
+    }
+    fn opened(&mut self, orders: &mut impl Orders<Msg>) {
+        // notify listeners
+        orders.notify(Msg::Opened);
+
+        self.open = true;
+        self.send_message_queue();
+    }
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -99,43 +135,26 @@ impl Component for WebSocket {
         match msg {
             Msg::Opened => {
                 debug!("WebSocket opened");
-                orders.notify(Msg::Opened);
-                self.open = true;
-                for msg in &self.msg_queue {
-                    self.send_message(msg.clone());
-                }
-                self.msg_queue.clear();
+                self.opened(orders);
             }
             Msg::Closed(event) => {
                 debug!("WebSocket closed: {:#?}", event);
-                self.websocket = None;
-                if !event.was_clean() && self.websocket_reconnector.is_none() {
-                    self.websocket_reconnector =
-                        Some(orders.stream_with_handle(streams::backoff(None, |_| Msg::Reconnect)));
-                }
-                self.open = false;
+                self.closed(event, orders);
             }
             Msg::Error(err) => {
                 debug!("WebSocket error: {:#?}", err);
             }
             Msg::Reconnect => {
                 debug!("Reconnect websocket");
-                self.websocket = Some(Self::create_websocket(&self.host, orders));
-                self.open = false;
+                self.reconnect(orders);
             }
             Msg::SendMessage(msg) => {
                 debug!("Sending ClientMessage");
                 //debug!("{:#?}", msg);
-                if self.open {
-                    for msg in &self.msg_queue {
-                        self.send_message(msg.clone());
-                    }
-                } else {
-                    self.msg_queue.push(msg);
-                }
+                self.push_message(msg);
             }
             Msg::MessageReceived(msg) => {
-                //debug!("ServerMessage received");
+                debug!("ServerMessage received");
                 //debug!("{:#?}", msg);
                 orders.notify(msg);
             }
