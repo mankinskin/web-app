@@ -1,6 +1,3 @@
-use crate::{
-    Error,
-};
 use async_std::{
     stream::Interval,
     sync::{
@@ -17,6 +14,7 @@ use std::{
 lazy_static! {
     pub static ref INTERVAL: Arc<RwLock<Option<Interval>>> = Arc::new(RwLock::new(None));
 }
+#[allow(unused)]
 pub fn set(new: Interval) {
     crate::server::interval::INTERVAL
         .try_write()

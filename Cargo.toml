@@ -31,6 +31,12 @@ path = "../openlimits"
 [dependencies.app-model]
 path = "../app-model"
 
+[dependencies.database-table]
+path = "../database-table"
+
+[dependencies.rql]
+path = "../rql"
+
 [dependencies.serde]
 version = "^1"
 features = [

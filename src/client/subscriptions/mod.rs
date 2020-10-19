@@ -10,7 +10,6 @@ use seed::{
 };
 use std::collections::HashMap;
 use crate::{
-    websocket,
     shared::{
         PriceSubscription,
         PriceHistoryRequest,
@@ -19,10 +18,11 @@ use crate::{
     },
 };
 use tracing::debug;
+use rql::*;
 
 #[derive(Debug)]
 pub struct SubscriptionList {
-    subscriptions: HashMap<usize, chart::SubscriptionChart>,
+    subscriptions: HashMap<Id<PriceSubscription>, chart::SubscriptionChart>,
     server_msg_sub: SubHandle,
 }
 impl SubscriptionList {
@@ -39,13 +39,13 @@ impl SubscriptionList {
 #[derive(Clone, Debug)]
 pub enum Msg {
     GetList,
-    SetList(HashMap<usize, PriceSubscription>),
-    Subscription(usize, chart::Msg),
+    SetList(HashMap<Id<PriceSubscription>, PriceSubscription>),
+    Subscription(Id<PriceSubscription>, chart::Msg),
     AddSubscription,
 }
 impl Init<()> for SubscriptionList {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
-        orders.send_msg(Msg::AddSubscription);
+        orders.send_msg(Msg::GetList);
         let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
             debug!("Received Server Message");
             match msg {

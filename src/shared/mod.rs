@@ -1,5 +1,6 @@
 pub mod subscription;
 pub use subscription::PriceSubscription;
+use rql::*;
 
 use serde::{
     Deserialize,
@@ -14,12 +15,7 @@ use openlimits::model::{
 use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    crate::server::websocket::Error,
     actix::Message,
-    std::convert::{
-        TryFrom,
-        TryInto,
-    }
 };
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceHistoryRequest {
@@ -55,6 +51,6 @@ pub enum ClientMessage {
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
 pub enum ServerMessage {
     PriceHistory(PriceHistory),
-    SubscriptionList(HashMap<usize, PriceSubscription>),
-    SubscriptionAdded(usize),
+    SubscriptionList(HashMap<Id<PriceSubscription>, PriceSubscription>),
+    SubscriptionAdded(Id<PriceSubscription>),
 }

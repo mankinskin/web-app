@@ -1,28 +1,14 @@
-use async_std::sync::MutexGuard;
 use crate::{
     shared::{
         PriceHistoryRequest,
         PriceSubscription,
     },
 };
-use async_std::sync::{
-    Arc,
-    Mutex,
-};
-use chrono::{
-    DateTime,
-    Utc,
-};
-use futures::StreamExt;
-use lazy_static::lazy_static;
 use openlimits::model::Candle;
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::collections::HashMap;
-use std::convert::TryInto;
-use tracing::debug;
 use super::Error;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -30,12 +16,17 @@ pub struct SubscriptionCache {
     pub subscription: PriceSubscription,
     prices: Vec<Candle>,
 }
-impl From<PriceHistoryRequest> for SubscriptionCache {
-    fn from(request: PriceHistoryRequest) -> Self {
+impl From<PriceSubscription> for SubscriptionCache {
+    fn from(sub: PriceSubscription) -> Self {
         Self {
-            subscription: PriceSubscription::from(request),
+            subscription: sub,
             prices: Vec::new(),
         }
+    }
+}
+impl From<PriceHistoryRequest> for SubscriptionCache {
+    fn from(request: PriceHistoryRequest) -> Self {
+        Self::from(PriceSubscription::from(request))
     }
 }
 impl SubscriptionCache {

@@ -6,6 +6,7 @@ pub mod keys;
 pub mod subscriptions;
 pub mod telegram;
 pub mod websocket;
+pub mod database;
 
 use crate::shared::{
     PriceHistoryRequest,

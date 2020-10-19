@@ -1,6 +1,4 @@
 use crate::shared::{
-    ServerMessage,
-    ClientMessage,
     PriceHistoryRequest,
 };
 use crate::{
@@ -33,19 +31,10 @@ use std::fmt::{
     Formatter,
     self,
 };
-use tracing::{
-    info,
-    error,
-};
 use actix::{
     Actor,
-    Handler,
     Context,
     Addr,
-    ResponseActFuture,
-};
-use actix_interop::{
-    FutureInterop,
 };
 use actix_web::ResponseError;
 #[derive(Clone, Debug)]

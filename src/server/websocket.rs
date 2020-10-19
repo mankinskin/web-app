@@ -1,5 +1,4 @@
 use crate::{
-    binance::Binance,
     subscriptions::Subscriptions,
     shared::{
         ClientMessage,

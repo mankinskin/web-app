@@ -39,10 +39,9 @@ use actix::{
 use actix_interop::{
     FutureInterop,
 };
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
+use rql::*;
+use std::result::Result;
+use database_table::DatabaseTable;
 
 #[derive(Clone, Debug)]
 pub enum Error {
@@ -79,32 +78,32 @@ impl Subscriptions {
     pub async fn init() -> Addr<Self> {
         Self::create(move |_| Self)
     }
-    pub async fn add_subscription(req: PriceHistoryRequest) -> Result<usize, Error> {
-        subscriptions_mut()
+    pub async fn add_subscription(req: PriceHistoryRequest) -> Result<Id<PriceSubscription>, Error> {
+        caches_mut()
             .await
             .add_subscription(req)
             .await
     }
-    pub async fn find_subscription(request: PriceHistoryRequest) -> Option<(usize, Arc<RwLock<SubscriptionCache>>)> {
-        subscriptions()
+    pub async fn find_subscription(request: PriceHistoryRequest) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
+        caches()
             .await
             .find_subscription(request)
             .await
     }
-    pub async fn get_subscription(id: usize) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
-        subscriptions()
+    pub async fn get_subscription(id: Id<PriceSubscription>) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
+        caches()
             .await
             .get_subscription(id)
             .await
     }
-    pub async fn get_subscription_list() -> Result<HashMap<usize, PriceSubscription>, crate::Error> {
-        crate::subscriptions()
+    pub async fn get_subscription_list() -> Result<HashMap<Id<PriceSubscription>, PriceSubscription>, crate::Error> {
+        caches()
             .await
             .get_subscription_list()
             .await
     }
     pub async fn update() -> Result<(), Error> {
-        subscriptions_mut().await.update().await
+        caches_mut().await.update().await
     }
 }
 impl Handler<ClientMessage> for Subscriptions {
@@ -140,34 +139,36 @@ impl Actor for Subscriptions {
 }
 
 lazy_static! {
-    static ref SUBSCRIPTIONS: Arc<RwLock<StaticSubscriptions>> = Arc::new(RwLock::new(StaticSubscriptions::new()));
-    static ref SUBSCRIPTION_IDS: AtomicUsize = AtomicUsize::new(0);
+    static ref CACHES: Arc<RwLock<StaticSubscriptions>> = Arc::new(RwLock::new(StaticSubscriptions::new()));
 }
-pub async fn subscriptions() -> RwLockReadGuard<'static, StaticSubscriptions> {
-    SUBSCRIPTIONS.read().await
+pub async fn caches() -> RwLockReadGuard<'static, StaticSubscriptions> {
+    CACHES.read().await
 }
-pub async fn subscriptions_mut() -> RwLockWriteGuard<'static, StaticSubscriptions> {
-    SUBSCRIPTIONS.write().await
+pub async fn caches_mut() -> RwLockWriteGuard<'static, StaticSubscriptions> {
+    CACHES.write().await
 }
 #[derive(Default)]
 pub struct StaticSubscriptions {
-    pub subscriptions: HashMap<usize, Arc<RwLock<SubscriptionCache>>>,
+    pub subscriptions: HashMap<Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>>,
     new_subscriptions: bool,
 }
 impl StaticSubscriptions {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            subscriptions: PriceSubscription::table()
+                .rows()
+                .map(|row| (row.id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(row.data.clone())))))
+                .collect(),
+            new_subscriptions: false,
+        }
     }
-    fn new_subscription_id() -> usize {
-        SUBSCRIPTION_IDS.fetch_add(1, Ordering::Relaxed)
-    }
-    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<usize, Error> {
+    pub async fn add_subscription(&mut self, request: PriceHistoryRequest) -> Result<Id<PriceSubscription>, Error> {
         debug!("Adding subscription...");
         if let Some((id, _)) = self.find_subscription(request.clone()).await {
             debug!("Model already exists.");
             Ok(id)
         } else {
-            let id = Self::new_subscription_id();
+            let id = Id::new();
             self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(request))));
             self.new_subscriptions = true;
             Ok(id)
@@ -176,7 +177,7 @@ impl StaticSubscriptions {
     pub async fn find_subscription<'a>(
         &'a self,
         request: PriceHistoryRequest,
-    ) -> Option<(usize, Arc<RwLock<SubscriptionCache>>)> {
+    ) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
         let req = Arc::new(request);
         futures::stream::iter(self.subscriptions.iter())
             .then(move |(id, cache)| {
@@ -196,7 +197,7 @@ impl StaticSubscriptions {
     }
     pub async fn get_subscription<'a>(
         &'a self,
-        id: usize,
+        id: Id<PriceSubscription>,
     ) -> Result<Arc<RwLock<SubscriptionCache>>, crate::Error> {
         self.subscriptions
             .get(&id)
@@ -222,7 +223,7 @@ impl StaticSubscriptions {
             .collect::<Vec<_>>()
             .await
             .into_iter()
-            .filter_map(|result: Result<(usize, Arc<RwLock<SubscriptionCache>>), Error>| {
+            .filter_map(|result: Result<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>), Error>| {
                 match result {
                     Ok(pair) => Some(pair),
                     Err(error) => {
@@ -239,7 +240,7 @@ impl StaticSubscriptions {
             Err(Error::from(errors))
         }
     }
-    pub async fn get_subscription_list(&self) -> Result<HashMap<usize, PriceSubscription>, crate::Error> {
+    pub async fn get_subscription_list(&self) -> Result<HashMap<Id<PriceSubscription>, PriceSubscription>, crate::Error> {
         Ok(futures::stream::iter(self.subscriptions.iter())
             .then(async move |(id, cache)| (id.clone(), cache.read().await.subscription.clone()))
             .collect()
