@@ -1,12 +1,3 @@
-extern crate database_table;
-extern crate enum_paths;
-extern crate lazy_static;
-extern crate rql;
-extern crate seed;
-extern crate tracing;
-extern crate tracing_subscriber;
-extern crate tracing_wasm;
-
 pub mod editor;
 pub mod entry;
 pub mod preview;

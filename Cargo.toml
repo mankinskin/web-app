@@ -14,8 +14,7 @@ tracing = "^0.1"
 tracing-subscriber = "^0.2"
 
 [dependencies.seed]
-git = "https://github.com/seed-rs/seed"
-branch = "master"
+path = "../seed"
 
 [dependencies.database-table]
 path = "../database-table"
