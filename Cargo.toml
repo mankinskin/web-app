@@ -24,8 +24,7 @@ rocket = "0.4.5"
 actix-web = "3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.seed]
-git = "https://github.com/seed-rs/seed"
-branch = "master"
+path = "../seed"
 
 [dependencies.serde]
 version = "^1"
@@ -47,9 +46,6 @@ path = "../rql"
 
 [dependencies.database-table]
 path = "../database-table"
-
-[dependencies.updatable]
-path = "../updatable"
 
 [dependencies.enum_paths]
 path = "../enum_paths"

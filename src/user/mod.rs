@@ -23,11 +23,14 @@ use seed::{
     prelude::*,
     *,
 };
-use updatable::*;
-
+use serde::{
+    Serialize,
+    Deserialize,
+};
 #[cfg(target_arch = "wasm32")]
 pub mod profile;
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Updatable)]
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
     credentials: Credentials,
     full_name: Option<String>,

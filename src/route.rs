@@ -14,7 +14,7 @@ use enum_paths::{
 
 #[derive(Clone, Debug, AsPath)]
 pub enum Route {
-    Chart,
+    Subscriptions,
     #[as_path = ""]
     Auth(AuthRoute),
     Users,

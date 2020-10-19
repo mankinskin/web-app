@@ -1,30 +1,3 @@
-#[macro_use]
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate derive_builder;
-extern crate components;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate database_table;
-extern crate enum_paths;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate http;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate jsonwebtoken;
-extern crate lazy_static;
-extern crate openlimits;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate rocket;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate rql;
-#[cfg(target_arch = "wasm32")]
-extern crate seed;
-extern crate tracing;
-extern crate tracing_subscriber;
-extern crate tracing_wasm;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate updatable;
-
 pub mod auth;
 pub use auth::*;
 pub mod project;
@@ -48,5 +21,5 @@ schema! {
 }
 
 lazy_static! {
-    pub static ref DB: Schema = Schema::new("test_database", rql::BinaryStable).unwrap();
+    pub static ref DB: Schema = Schema::new("app_model_database", rql::BinaryStable).unwrap();
 }

@@ -27,7 +27,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use updatable::*;
+use derive_builder::Builder;
 
 #[cfg(target_arch = "wasm32")]
 pub mod editor;
@@ -36,7 +36,7 @@ pub mod list;
 #[cfg(target_arch = "wasm32")]
 pub mod profile;
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Builder, Updatable)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Builder)]
 pub struct Project {
     name: String,
     description: String,

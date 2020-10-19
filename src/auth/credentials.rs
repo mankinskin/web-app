@@ -1,7 +1,10 @@
 use crate::user::*;
-use updatable::*;
+use serde::{
+    Serialize,
+    Deserialize,
+};
 
-#[derive(Clone, Debug, Default, PartialEq, Updatable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,

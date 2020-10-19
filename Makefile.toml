@@ -1,0 +1,10 @@
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+dependencies = ["build"]
+
+[tasks.build]
+description = "Build"
+command = "cargo"
+args = ["build"]

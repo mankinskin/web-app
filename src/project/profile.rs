@@ -13,10 +13,6 @@ use components::{
 };
 use database_table::Entry;
 use rql::Id;
-use seed::{
-    prelude::*,
-    *,
-};
 
 #[derive(Clone)]
 pub struct Model {

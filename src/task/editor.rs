@@ -5,7 +5,6 @@ use components::{
     Edit,
     Editor,
 };
-use seed::prelude::*;
 
 #[derive(Clone, Default)]
 pub struct Model {

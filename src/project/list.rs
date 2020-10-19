@@ -10,11 +10,6 @@ use components::{
     Viewable,
 };
 use database_table::Entry;
-use rql::*;
-use seed::{
-    prelude::*,
-    *,
-};
 use std::result::Result;
 
 #[derive(Clone, Default)]

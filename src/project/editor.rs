@@ -6,7 +6,6 @@ use components::{
     Editor,
 };
 use rql::Id;
-use seed::prelude::*;
 
 #[derive(Clone, Default)]
 pub struct Model {

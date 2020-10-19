@@ -7,7 +7,7 @@ use components::{
     Viewable,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, Updatable, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct UserProfile {
     user: User,
 }
