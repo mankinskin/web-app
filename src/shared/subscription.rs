@@ -8,14 +8,17 @@ use serde::{
     Serialize,
 };
 
+use app_model::market::PriceHistory;
+
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    app_model::market::PriceHistory,
     crate::binance::Binance,
     database_table::DatabaseTable,
-    rql::*,
     std::result::Result,
+    actix::Message,
 };
+use rql::*;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceSubscription {
@@ -74,4 +77,23 @@ impl<'a> DatabaseTable<'a> for PriceSubscription {
     fn table_mut() -> TableGuardMut<'a, Self> {
         crate::database::DB.subscription_mut()
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
+#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
+pub enum Request {
+    GetPriceSubscriptionList,
+    AddPriceSubscription(PriceHistoryRequest),
+    GetHistoryUpdates(Id<PriceSubscription>),
+    SendPriceHistory(Id<PriceSubscription>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
+#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
+pub enum Response {
+    SubscriptionList(HashMap<Id<PriceSubscription>, PriceSubscription>),
+    PriceHistory(Id<PriceSubscription>, PriceHistory),
+    SubscriptionAdded(Id<PriceSubscription>),
 }

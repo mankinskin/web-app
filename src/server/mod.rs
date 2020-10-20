@@ -1,7 +1,6 @@
 pub mod binance;
 pub mod command;
 pub mod error;
-pub mod interval;
 pub mod keys;
 pub mod subscriptions;
 pub mod telegram;
@@ -93,7 +92,8 @@ async fn login(credentials: web::Json<Credentials>) -> impl Responder {
 }
 #[post("/register")]
 async fn register(user: web::Json<User>) -> impl Responder {
-    auth::register(user.into_inner()).await
+    auth::register(user.into_inner())
+        .await
         .map(|session| web::Json(session))
 }
 pub async fn run() -> std::io::Result<()> {

@@ -11,9 +11,12 @@ use seed::{
 use std::collections::HashMap;
 use crate::{
     shared::{
+        subscription::{
+            Request,
+            Response,
+        },
         PriceSubscription,
         PriceHistoryRequest,
-        ServerMessage,
         ClientMessage,
     },
 };
@@ -27,13 +30,13 @@ pub struct SubscriptionList {
 }
 impl SubscriptionList {
     fn add_subscription_request() -> ClientMessage {
-        ClientMessage::AddPriceSubscription(
+        ClientMessage::Subscriptions(Request::AddPriceSubscription(
             PriceHistoryRequest {
                 market_pair: "SOLBTC".into(),
                 interval: None,
                 paginator: None,
             }
-        )
+        ))
     }
 }
 #[derive(Clone, Debug)]
@@ -47,10 +50,11 @@ impl Init<()> for SubscriptionList {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
         orders.send_msg(Msg::GetList);
         Self {
-            server_msg_sub: orders.subscribe_with_handle(|msg: ServerMessage| {
-                debug!("Received Server Message");
+            server_msg_sub: orders.subscribe_with_handle(|msg: Response| {
+                debug!("Received Subscription Response");
                 match msg {
-                    ServerMessage::SubscriptionList(list) => Some(Msg::SetList(list)),
+                    Response::SubscriptionList(list) => Some(Msg::SetList(list)),
+                    Response::PriceHistory(id, history) => Some(Msg::Subscription(id, chart::Msg::AppendCandles(history.candles))),
                     _ => None,
                 }
             }),
@@ -63,12 +67,14 @@ impl Component for SubscriptionList {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::GetList => {
-                orders.notify(ClientMessage::GetPriceSubscriptionList);
+                orders.notify(ClientMessage::Subscriptions(Request::GetPriceSubscriptionList));
             },
             Msg::SetList(list) => {
                 debug!("Setting SubscriptionList");
                 self.subscriptions = list.into_iter().map(|(id, sub)| {
-                    orders.notify(ClientMessage::GetHistoryUpdates(id.clone()));
+                    orders.notify(ClientMessage::Subscriptions(
+                        Request::GetHistoryUpdates(id.clone())
+                    ));
                     (
                         id.clone(),
                         chart::SubscriptionChart::init(
@@ -85,7 +91,7 @@ impl Component for SubscriptionList {
                 } else {
                     error!("Subscription {} not found!", id);
                 }
-            }
+            },
             Msg::AddSubscription => {
                 // TODO do this over http maybe
                 // TODO identify responses over websocket

@@ -13,43 +13,13 @@ use tracing_subscriber::{
     fmt,
     layer::SubscriberExt,
 };
-use crate::shared::ClientMessage;
 use crate::{
-    telegram::{
-        self,
-        Update,
-    },
     websocket::{
         self,
     },
-    interval,
     error::Error,
 };
 
-#[derive(Debug)]
-pub enum Message {
-    Telegram(Update),
-    CommandLine(String),
-    WebSocket(usize, ClientMessage),
-    Interval,
-}
-impl From<interval::Msg> for Message {
-    fn from(_: interval::Msg) -> Self {
-        Message::Interval
-    }
-}
-impl From<command::Msg> for Message {
-    fn from(msg: command::Msg) -> Self {
-        match msg {
-            command::Msg::Line(line) => Message::CommandLine(line),
-        }
-    }
-}
-impl From<telegram::Update> for Message {
-    fn from(update: telegram::Update) -> Self {
-        Message::Telegram(update)
-    }
-}
 fn init_tracing() -> WorkerGuard {
     tracing_log::LogTracer::init_with_filter(log::LevelFilter::Trace).unwrap();
     let file_appender = tracing_appender::rolling::hourly("./logs", "log");

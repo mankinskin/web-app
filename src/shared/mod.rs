@@ -1,18 +1,15 @@
 pub mod subscription;
 pub use subscription::PriceSubscription;
-use rql::*;
 
 use serde::{
     Deserialize,
     Serialize,
 };
 
-use app_model::market::PriceHistory;
 use openlimits::model::{
     Interval,
     Paginator,
 };
-use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     actix::Message,
@@ -33,14 +30,11 @@ impl From<String> for PriceHistoryRequest {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<ServerMessage>"))]
 pub enum ClientMessage {
-    GetPriceSubscriptionList,
-    AddPriceSubscription(PriceHistoryRequest),
-    GetHistoryUpdates(Id<PriceSubscription>),
+    Subscriptions(subscription::Request),
     Close,
     Ping,
     Pong,
@@ -51,7 +45,5 @@ pub enum ClientMessage {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
 pub enum ServerMessage {
-    PriceHistory(PriceHistory),
-    SubscriptionList(HashMap<Id<PriceSubscription>, PriceSubscription>),
-    SubscriptionAdded(Id<PriceSubscription>),
+    Subscriptions(subscription::Response),
 }

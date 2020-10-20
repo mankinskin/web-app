@@ -6,7 +6,6 @@ use components::{
 use crate::{
     shared::{
         PriceSubscription,
-        ServerMessage,
     },
     chart::{
         self,
@@ -30,8 +29,6 @@ pub struct SubscriptionChart {
     pub last_candle_update: Option<u64>,
     pub time_interval: Interval,
     pub error: Option<String>,
-
-    server_msg_sub: SubHandle,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -41,19 +38,9 @@ pub enum Msg {
 }
 impl Init<PriceSubscription> for SubscriptionChart {
     fn init(subscription: PriceSubscription, orders: &mut impl Orders<Msg>) -> Self {
-        let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
-            debug!("Received Server Message");
-            match msg {
-                ServerMessage::PriceHistory(price_history) => {
-                    Some(Msg::AppendCandles(price_history.candles))
-                },
-                _ => None,
-            }
-        });
         Self {
             chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
             subscription,
-            server_msg_sub,
             last_candle_update: None,
             time_interval: Interval::OneMinute,
             error: None,
@@ -129,7 +116,6 @@ impl SubscriptionChart {
         ]
     }
 }
-
 impl Component for SubscriptionChart {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {

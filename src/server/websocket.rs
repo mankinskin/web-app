@@ -113,13 +113,18 @@ impl Handler<ClientMessage> for Session {
     {
         let subscriptions = self.subscriptions.clone();
         async move {
-            let response = subscriptions.send(msg).await.expect("Send failed");
-            if let Some(response) = response {
-                with_ctx::<Self, _, _>(|_act, ctx| {
-                    ctx.notify(response);
-                })
-            };
-            None
+            match msg {
+                ClientMessage::Subscriptions(msg) => {
+                    let response = subscriptions.send(msg).await.expect("Send failed");
+                    if let Some(response) = response {
+                        with_ctx::<Self, _, _>(|_act, ctx| {
+                            ctx.notify(ServerMessage::Subscriptions(response));
+                        })
+                    };
+                    None
+                },
+                _ => None,
+            }
         }.interop_actor_boxed(self)
     }
 }

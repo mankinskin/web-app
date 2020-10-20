@@ -156,7 +156,12 @@ impl Component for WebSocket {
             Msg::MessageReceived(msg) => {
                 debug!("ServerMessage received");
                 //debug!("{:#?}", msg);
-                orders.notify(msg);
+                match msg {
+                    ServerMessage::Subscriptions(response) => {
+                        debug!("Subscription response");
+                        orders.notify(response)
+                    },
+                };
             }
         }
     }

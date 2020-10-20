@@ -3,8 +3,10 @@ pub mod subscription_cache;
 use crate::shared::{
     PriceSubscription,
     PriceHistoryRequest,
-    ClientMessage,
-    ServerMessage,
+    subscription::{
+        Request,
+        Response,
+    },
 };
 use async_std::{
     sync::{
@@ -13,6 +15,7 @@ use async_std::{
         RwLockReadGuard,
         RwLockWriteGuard,
     },
+    stream,
 };
 use futures::stream::{
     StreamExt,
@@ -32,12 +35,15 @@ use std::fmt::{
 use actix::{
     Actor,
     Handler,
+    StreamHandler,
+    AsyncContext,
     Context,
     Addr,
     ResponseActFuture,
 };
 use actix_interop::{
     FutureInterop,
+    with_ctx,
 };
 use rql::*;
 use std::result::Result;
@@ -106,42 +112,62 @@ impl Subscriptions {
         caches_mut().await.update().await
     }
 }
-impl Handler<ClientMessage> for Subscriptions {
-    type Result = ResponseActFuture<Self, Option<ServerMessage>>;
+impl Handler<Request> for Subscriptions {
+    type Result = ResponseActFuture<Self, Option<Response>>;
     fn handle(
         &mut self,
-        msg: ClientMessage,
-        _: &mut Self::Context,
+        msg: Request,
+        _ctx: &mut Self::Context,
     ) -> Self::Result {
         async move {
             match msg {
-                ClientMessage::AddPriceSubscription(request) => {
+                Request::AddPriceSubscription(request) => {
                     info!("Subscribing to market pair {}", &request.market_pair);
                     let id = Self::add_subscription(request.clone()).await.unwrap();
                     // TODO interval/timer handles
                     //crate::server::interval::set(interval(Duration::from_secs(1)));
-                    Some(ServerMessage::SubscriptionAdded(id))
+                    Some(Response::SubscriptionAdded(id))
                 },
-                ClientMessage::GetPriceSubscriptionList => {
+                Request::GetPriceSubscriptionList => {
                     info!("Getting subscription list");
                     let list = Self::get_subscription_list().await.unwrap();
-                    Some(ServerMessage::SubscriptionList(list))
+                    Some(Response::SubscriptionList(list))
                 },
-                ClientMessage::GetHistoryUpdates(id) => {
+                Request::GetHistoryUpdates(id) => {
                     info!("Starting history updates of subscription {:#?}", id);
                     let sub = Self::get_subscription(id).await.unwrap();
+                    let sub = sub.read().await;
+                    with_ctx::<Self, _, _>(|_act, ctx| {
+                        ctx.add_stream(stream::interval(sub.time_interval.to_duration().to_std().unwrap())
+                            .map(move |_| Request::SendPriceHistory(id.clone()))
+                        );
+                    });
+                    let sub = Self::get_subscription(id).await.unwrap();
                     let history = sub.read().await.latest_price_history().await.unwrap();
-                    Some(ServerMessage::PriceHistory(history))
+                    Some(Response::PriceHistory(id, history))
                 },
-                _ => None,
+                Request::SendPriceHistory(id) => {
+                    info!("Sending price history for {:#?}", id);
+                    let sub = Self::get_subscription(id).await.unwrap();
+                    let history = sub.read().await.latest_price_history().await.unwrap();
+                    Some(Response::PriceHistory(id, history))
+                },
             }
         }.interop_actor_boxed(self)
+    }
+}
+impl StreamHandler<Request> for Subscriptions {
+    fn handle(
+        &mut self,
+        msg: Request,
+        ctx: &mut Self::Context,
+    ) {
+        ctx.notify(msg);
     }
 }
 impl Actor for Subscriptions {
     type Context = Context<Self>;
 }
-
 lazy_static! {
     static ref CACHES: Arc<RwLock<StaticSubscriptions>> = Arc::new(RwLock::new(StaticSubscriptions::new()));
 }
