@@ -46,15 +46,14 @@ pub enum Msg {
 impl Init<()> for SubscriptionList {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
         orders.send_msg(Msg::GetList);
-        let server_msg_sub = orders.subscribe_with_handle(|msg: ServerMessage| {
-            debug!("Received Server Message");
-            match msg {
-                ServerMessage::SubscriptionList(list) => Some(Msg::SetList(list)),
-                _ => None,
-            }
-        });
         Self {
-            server_msg_sub,
+            server_msg_sub: orders.subscribe_with_handle(|msg: ServerMessage| {
+                debug!("Received Server Message");
+                match msg {
+                    ServerMessage::SubscriptionList(list) => Some(Msg::SetList(list)),
+                    _ => None,
+                }
+            }),
             subscriptions: HashMap::new(),
         }
     }
