@@ -68,6 +68,7 @@ impl Component for SubscriptionList {
             Msg::SetList(list) => {
                 debug!("Setting SubscriptionList");
                 self.subscriptions = list.into_iter().map(|(id, sub)| {
+                    orders.notify(ClientMessage::GetHistoryUpdates(id.clone()));
                     (
                         id.clone(),
                         chart::SubscriptionChart::init(
@@ -77,7 +78,6 @@ impl Component for SubscriptionList {
                     )
                 })
                 .collect();
-                orders.notify(ClientMessage::AddPriceSubscription(PriceHistoryRequest::from("SOLBTC".to_string())));
             },
             Msg::Subscription(id, msg) => {
                 if let Some(subscription) = self.subscriptions.get_mut(&id) {

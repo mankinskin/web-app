@@ -40,6 +40,7 @@ impl From<String> for PriceHistoryRequest {
 pub enum ClientMessage {
     GetPriceSubscriptionList,
     AddPriceSubscription(PriceHistoryRequest),
+    GetHistoryUpdates(Id<PriceSubscription>),
     Close,
     Ping,
     Pong,

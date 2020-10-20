@@ -10,6 +10,7 @@ use serde::{
     Serialize,
 };
 use super::Error;
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SubscriptionCache {
@@ -35,5 +36,11 @@ impl SubscriptionCache {
         let candles = self.subscription.latest_price_history().await?.candles;
         self.prices.extend(candles.into_iter());
         Ok(())
+    }
+}
+impl Deref for SubscriptionCache {
+    type Target = PriceSubscription;
+    fn deref(&self) -> &Self::Target {
+        &self.subscription
     }
 }

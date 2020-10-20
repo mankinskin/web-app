@@ -125,9 +125,13 @@ impl Handler<ClientMessage> for Subscriptions {
                 ClientMessage::GetPriceSubscriptionList => {
                     info!("Getting subscription list");
                     let list = Self::get_subscription_list().await.unwrap();
-                    //self.get_symbol_price_history(request.clone()).await
-                    //crate::server::interval::set(interval(Duration::from_secs(1)));
                     Some(ServerMessage::SubscriptionList(list))
+                },
+                ClientMessage::GetHistoryUpdates(id) => {
+                    info!("Starting history updates of subscription {:#?}", id);
+                    let sub = Self::get_subscription(id).await.unwrap();
+                    let history = sub.read().await.latest_price_history().await.unwrap();
+                    Some(ServerMessage::PriceHistory(history))
                 },
                 _ => None,
             }
