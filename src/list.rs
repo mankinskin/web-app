@@ -17,10 +17,10 @@ use std::fmt::Debug;
 use std::result::Result;
 
 #[derive(Debug, Clone, Default)]
-pub struct Model<T: TableItem + Component + std::fmt::Debug> {
+pub struct Model<T: TableItem + Component + Debug> {
     previews: Vec<preview::Model<T>>,
 }
-impl<T: Component + TableItem + Default + std::fmt::Debug + std::fmt::Debug + std::fmt::Debug>
+impl<T: Component + TableItem + Default + Debug>
     Init<Msg<T>> for Model<T>
 {
     fn init(msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
@@ -28,7 +28,7 @@ impl<T: Component + TableItem + Default + std::fmt::Debug + std::fmt::Debug + st
         Model::default()
     }
 }
-impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug> From<Vec<Entry<T>>>
+impl<T: Component + TableItem + Debug> From<Vec<Entry<T>>>
     for Model<T>
 {
     fn from(entries: Vec<Entry<T>>) -> Self {
@@ -43,13 +43,13 @@ fn init_previews<T: Component + TableItem + Debug>(
     entries.iter().cloned().map(preview::Model::from).collect()
 }
 #[derive(Clone, Debug)]
-pub enum Msg<T: Component + TableItem + std::fmt::Debug> {
+pub enum Msg<T: Component + TableItem + Debug> {
     GetAll,
     All(Result<Vec<Entry<T>>, String>),
 
     Preview(usize, preview::Msg<T>),
 }
-impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug + std::fmt::Debug> Component
+impl<T: Component + TableItem + Debug> Component
     for Model<T>
 {
     type Msg = Msg<T>;
@@ -81,7 +81,7 @@ impl<T: Component + TableItem + std::fmt::Debug + std::fmt::Debug + std::fmt::De
         }
     }
 }
-impl<T: Component + preview::Preview + TableItem + std::fmt::Debug + std::fmt::Debug> Viewable
+impl<T: Component + preview::Preview + TableItem + Debug> Viewable
     for Model<T>
 {
     fn view(&self) -> Node<Msg<T>> {
