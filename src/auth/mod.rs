@@ -30,7 +30,10 @@ use tracing::debug;
 #[cfg(not(target_arch = "wasm32"))]
 pub use {
     credentials::*,
-    database_table::DatabaseTable,
+    database_table::{
+        Database,
+        DatabaseTable,
+    },
     jwt::*,
     std::convert::TryFrom,
     actix_web::error::{
@@ -45,6 +48,9 @@ use serde::{
     Serialize,
     Deserialize,
 };
+use enum_paths::{
+    AsPath,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserSession {
@@ -52,8 +58,8 @@ pub struct UserSession {
     pub token: String,
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn login(credentials: Credentials) -> Result<UserSession, Error> {
-    User::find(|user| *user.name() == credentials.username)
+pub async fn login<'db, D: Database<'db, User>>(credentials: Credentials) -> Result<UserSession, Error> {
+    DatabaseTable::<'db, D>::find(|user| *user.name() == credentials.username)
         .ok_or(ErrorNotFound("User not found"))
         .and_then(|entry| {
             let user = entry.data();
@@ -78,9 +84,9 @@ pub async fn login(credentials: Credentials) -> Result<UserSession, Error> {
         })
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn register(user: User) -> Result<UserSession, Error> {
-    if User::find(|u| u.name() == user.name()).is_none() {
-        let id = User::insert(user.clone());
+pub async fn register<'db, D: Database<'db, User>>(user: User) -> Result<UserSession, Error> {
+    if DatabaseTable::<'db, D>::find(|u| u.name() == user.name()).is_none() {
+        let id = DatabaseTable::<'db, D>::insert(user.clone());
         JWT::try_from(&user)
             .map_err(|_| ErrorInternalServerError(""))
             .map(move |jwt| {
@@ -113,6 +119,14 @@ impl Auth {
         Auth::Session(session)
     }
 }
+
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    Login,
+    Register,
+}
+impl database_table::Route for Route {}
+
 #[cfg(target_arch = "wasm32")]
 impl Init<()> for Auth {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
@@ -121,13 +135,11 @@ impl Init<()> for Auth {
     }
 }
 #[cfg(target_arch = "wasm32")]
-use crate::route::AuthRoute;
-#[cfg(target_arch = "wasm32")]
-impl From<AuthRoute> for Auth {
-    fn from(route: AuthRoute) -> Self {
+impl From<Route> for Auth {
+    fn from(route: Route) -> Self {
         match route {
-            AuthRoute::Login => Self::login(),
-            AuthRoute::Register => Self::register(),
+            Route::Login => Self::login(),
+            Route::Register => Self::register(),
         }
     }
 }

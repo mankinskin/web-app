@@ -1,7 +1,5 @@
-use crate::route::Route;
 use crate::{
     auth::credentials::*,
-    DB,
 };
 #[cfg(target_arch = "wasm32")]
 use components::{
@@ -10,10 +8,7 @@ use components::{
     Component,
     Viewable,
 };
-#[cfg(target_arch = "wasm32")]
-use database_table::Entry;
 use database_table::{
-    DatabaseTable,
     TableItem,
     TableRoutable,
 };
@@ -27,23 +22,21 @@ use serde::{
     Serialize,
     Deserialize,
 };
-#[cfg(target_arch = "wasm32")]
-pub mod profile;
+use std::fmt::{
+    self,
+    Display,
+};
+use enum_paths::{
+    AsPath,
+};
+//#[cfg(target_arch = "wasm32")]
+//pub mod profile;
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
     credentials: Credentials,
     full_name: Option<String>,
     followers: Vec<Id<User>>,
-}
-impl TableRoutable for User {
-    type Route = Route;
-    fn table_route() -> Route {
-        Route::Users
-    }
-    fn entry_route(id: Id<Self>) -> Route {
-        Route::User(id)
-    }
 }
 impl From<Credentials> for User {
     fn from(credentials: Credentials) -> Self {
@@ -54,10 +47,6 @@ impl From<Credentials> for User {
         }
     }
 }
-use std::fmt::{
-    self,
-    Display,
-};
 impl Display for User {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.credentials.username)
@@ -93,15 +82,23 @@ impl User {
         &self.full_name
     }
 }
-impl TableItem for User {}
-impl<'a> DatabaseTable<'a> for User {
-    fn table() -> TableGuard<'a, Self> {
-        DB.user()
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    Users,
+    #[as_path = ""]
+    User(Id<User>),
+}
+impl database_table::Route for Route {}
+impl TableRoutable for User {
+    type Route = Route;
+    fn table_route() -> Route {
+        Route::Users
     }
-    fn table_mut() -> TableGuardMut<'a, Self> {
-        DB.user_mut()
+    fn entry_route(id: Id<Self>) -> Route {
+        Route::User(id)
     }
 }
+impl TableItem for User {}
 
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
