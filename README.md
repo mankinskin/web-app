@@ -30,7 +30,7 @@ impl<'db> Database<'db, Subscription> for Schema {
     }
 }
 ```
-```
+```rust
 // login into any Database for Users
 pub async fn login<'db, D: Database<'db, User>>(credentials: Credentials) -> Result<UserSession, Error> {
     DatabaseTable::<'db, D>::find(|user| *user.name() == credentials.username)
@@ -41,5 +41,4 @@ pub async fn login<'db, D: Database<'db, User>>(credentials: Credentials) -> Res
         })
         ...
 }
-
 ```
