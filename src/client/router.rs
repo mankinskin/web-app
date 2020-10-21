@@ -1,8 +1,10 @@
-use crate::page::{
-    self,
-    *,
+use crate::{
+    shared::Route,
+    page::{
+        self,
+        *,
+    },
 };
-use app_model::route::Route;
 use components::{
     Component,
     Init,
@@ -15,6 +17,10 @@ use seed::{
     *,
 };
 use tracing::debug;
+use enum_paths::{
+    AsPath,
+};
+use app_model::auth::Route as AuthRoute;
 
 #[derive(Debug)]
 pub struct Router {
@@ -79,10 +85,6 @@ impl Component for Router {
         }
     }
 }
-use enum_paths::{
-    AsPath,
-};
-use app_model::route::AuthRoute;
 impl Viewable for Router {
     fn view(&self) -> Node<Msg> {
         div![

@@ -1,6 +1,11 @@
 use super::*;
 use app_model::{
-    auth::Auth,
+    auth::{
+        Auth,
+    },
+    user::Route as UserRoute,
+};
+use crate::shared::{
     Route,
 };
 use components::{
@@ -23,15 +28,20 @@ pub enum Page {
     SubscriptionList(SubscriptionList),
     Users,
     User,
-    Projects,
-    Project,
-    Task,
     Root,
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
     Auth(app_model::auth::Msg),
     SubscriptionList(subscriptions::Msg),
+}
+impl Init<UserRoute> for Page {
+    fn init(route: UserRoute, _orders: &mut impl Orders<Msg>) -> Self {
+        match route {
+            UserRoute::User(_id) => Self::User,
+            UserRoute::Users => Self::Users,
+        }
+    }
 }
 impl Init<Route> for Page {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
@@ -41,11 +51,7 @@ impl Init<Route> for Page {
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth)))
             }
             Route::Subscriptions => Self::SubscriptionList(SubscriptionList::init((), &mut orders.proxy(Msg::SubscriptionList))),
-            Route::Project(_id) => Self::Project,
-            Route::Projects => Self::Projects,
-            Route::User(_id) => Self::User,
-            Route::Users => Self::Users,
-            Route::Task(_id) => Self::Task,
+            Route::User(route) => Self::init(route, orders),
             Route::Root => Self::Root,
         }
     }
@@ -67,9 +73,6 @@ impl Component for Page {
             }
             Self::Users => {}
             Self::User => {}
-            Self::Projects => {}
-            Self::Project => {}
-            Self::Task => {}
             Self::Root => {}
         }
     }

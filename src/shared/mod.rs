@@ -5,10 +5,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-
 use openlimits::model::{
     Interval,
     Paginator,
+};
+use enum_paths::AsPath;
+use app_model::{
+    user::Route as UserRoute,
+    auth::Route as AuthRoute,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -46,4 +50,23 @@ pub enum ClientMessage {
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
 pub enum ServerMessage {
     Subscriptions(subscription::Response),
+}
+
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    Subscriptions,
+    #[as_path = ""]
+    Auth(AuthRoute),
+    #[as_path = ""]
+    User(UserRoute),
+    #[as_path = ""]
+    Root,
+}
+impl database_table::Route for Route {}
+
+impl database_table::Routable for Route {
+    type Route = Self;
+    fn route(&self) -> Self::Route {
+        self.clone()
+    }
 }

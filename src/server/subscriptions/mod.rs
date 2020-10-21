@@ -1,12 +1,15 @@
 pub mod subscription_cache;
 
-use crate::shared::{
-    PriceSubscription,
-    PriceHistoryRequest,
-    subscription::{
-        Request,
-        Response,
-    },
+use crate::{
+    database::Schema,
+    shared::{
+        PriceSubscription,
+        PriceHistoryRequest,
+        subscription::{
+            Request,
+            Response,
+        },
+    }
 };
 use async_std::{
     sync::{
@@ -184,7 +187,7 @@ pub struct StaticSubscriptions {
 }
 impl StaticSubscriptions {
     fn load_subscriptions_table() -> HashMap<Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>> {
-        PriceSubscription::table()
+        <PriceSubscription as DatabaseTable<'_, Schema>>::table()
             .rows()
             .map(|row| (row.id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(row.data.clone())))))
             .collect()
@@ -203,7 +206,7 @@ impl StaticSubscriptions {
             Ok(id)
         } else {
             let sub = PriceSubscription::from(request);
-            let id = PriceSubscription::table_mut()
+            let id = DatabaseTable::<'_, Schema>::table_mut()
                 .insert(sub.clone());
             self.subscriptions.insert(id.clone(), Arc::new(RwLock::new(SubscriptionCache::from(sub))));
             self.new_subscriptions = true;

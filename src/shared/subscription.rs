@@ -13,7 +13,6 @@ use app_model::market::PriceHistory;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::binance::Binance,
-    database_table::DatabaseTable,
     std::result::Result,
     actix::Message,
 };
@@ -35,6 +34,7 @@ impl From<PriceHistoryRequest> for PriceSubscription {
         }
     }
 }
+
 impl PartialEq<&PriceHistoryRequest> for PriceSubscription {
     fn eq(&self, rhs: &&PriceHistoryRequest) -> bool {
         self.market_pair == *rhs.market_pair
@@ -67,15 +67,6 @@ impl PriceSubscription {
     pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
         let req = self.get_price_history_request().await;
         Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
-    }
-}
-#[cfg(not(target_arch = "wasm32"))]
-impl<'a> DatabaseTable<'a> for PriceSubscription {
-    fn table() -> TableGuard<'a, Self> {
-        crate::database::DB.subscription()
-    }
-    fn table_mut() -> TableGuardMut<'a, Self> {
-        crate::database::DB.subscription_mut()
     }
 }
 

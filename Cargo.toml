@@ -37,6 +37,9 @@ path = "../database-table"
 [dependencies.rql]
 path = "../rql"
 
+[dependencies.enum_paths]
+path = "../enum_paths"
+
 [dependencies.serde]
 version = "^1"
 features = [

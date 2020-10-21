@@ -87,12 +87,12 @@ async fn price_history() -> impl Responder {
 }
 #[post("/login")]
 async fn login(credentials: web::Json<Credentials>) -> impl Responder {
-    auth::login(credentials.into_inner()).await
+    auth::login::<database::Schema>(credentials.into_inner()).await
         .map(|session| web::Json(session))
 }
 #[post("/register")]
 async fn register(user: web::Json<User>) -> impl Responder {
-    auth::register(user.into_inner())
+    auth::register::<database::Schema>(user.into_inner())
         .await
         .map(|session| web::Json(session))
 }
