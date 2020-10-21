@@ -7,7 +7,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-
+use database_table::Entry;
 use app_model::market::PriceHistory;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -17,7 +17,25 @@ use {
     actix::Message,
 };
 use rql::*;
-use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
+#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
+pub enum Request {
+    GetPriceSubscriptionList,
+    AddPriceSubscription(PriceHistoryRequest),
+    GetHistoryUpdates(Id<PriceSubscription>),
+    SendPriceHistory(Id<PriceSubscription>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
+#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
+pub enum Response {
+    SubscriptionList(Vec<Entry<PriceSubscription>>),
+    PriceHistory(Id<PriceSubscription>, PriceHistory),
+    SubscriptionAdded(Id<PriceSubscription>),
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceSubscription {
@@ -68,23 +86,4 @@ impl PriceSubscription {
         let req = self.get_price_history_request().await;
         Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
-#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
-pub enum Request {
-    GetPriceSubscriptionList,
-    AddPriceSubscription(PriceHistoryRequest),
-    GetHistoryUpdates(Id<PriceSubscription>),
-    SendPriceHistory(Id<PriceSubscription>),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
-#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
-pub enum Response {
-    SubscriptionList(HashMap<Id<PriceSubscription>, PriceSubscription>),
-    PriceHistory(Id<PriceSubscription>, PriceHistory),
-    SubscriptionAdded(Id<PriceSubscription>),
 }

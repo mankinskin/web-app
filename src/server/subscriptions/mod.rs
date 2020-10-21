@@ -13,6 +13,10 @@ use crate::{
     },
     websocket::Session,
 };
+use database_table::{
+    Database,
+    Entry,
+};
 use async_std::{
     sync::{
         Arc,
@@ -110,7 +114,8 @@ impl Subscriptions {
             .get_subscription(id)
             .await
     }
-    pub async fn get_subscription_list() -> Result<HashMap<Id<PriceSubscription>, PriceSubscription>, crate::Error> {
+    pub async fn get_subscription_list() -> Vec<Entry<PriceSubscription>> {
+
         caches()
             .await
             .get_subscription_list()
@@ -138,7 +143,7 @@ impl Handler<Request> for Subscriptions {
                 },
                 Request::GetPriceSubscriptionList => {
                     info!("Getting subscription list");
-                    let list = Self::get_subscription_list().await.unwrap();
+                    let list = Self::get_subscription_list().await;
                     Some(Response::SubscriptionList(list))
                 },
                 Request::GetHistoryUpdates(id) => {
@@ -300,12 +305,10 @@ impl StaticSubscriptions {
             Err(Error::from(errors))
         }
     }
-    pub async fn get_subscription_list(&self) -> Result<HashMap<Id<PriceSubscription>, PriceSubscription>, crate::Error> {
-        Ok(futures::stream::iter(self.subscriptions.iter())
-            .then(async move |(id, cache)| (id.clone(), cache.read().await.subscription.clone()))
-            .collect()
-            .await)
+    pub async fn get_subscription_list(&self) -> Vec<Entry<PriceSubscription>> {
+        <Schema as Database::<'_, PriceSubscription>>::get_all()
     }
+
     pub async fn update(&mut self) -> Result<(), Error> {
         //debug!("Model update");
         if self.new_subscriptions {

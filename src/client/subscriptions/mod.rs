@@ -20,6 +20,7 @@ use crate::{
         ClientMessage,
     },
 };
+use database_table::Entry;
 use tracing::debug;
 use rql::*;
 
@@ -42,7 +43,7 @@ impl SubscriptionList {
 #[derive(Clone, Debug)]
 pub enum Msg {
     GetList,
-    SetList(HashMap<Id<PriceSubscription>, PriceSubscription>),
+    SetList(Vec<Entry<PriceSubscription>>),
     Subscription(Id<PriceSubscription>, chart::Msg),
     AddSubscription,
 }
@@ -71,15 +72,16 @@ impl Component for SubscriptionList {
             },
             Msg::SetList(list) => {
                 debug!("Setting SubscriptionList");
-                self.subscriptions = list.into_iter().map(|(id, sub)| {
+                self.subscriptions = list.into_iter().map(|entry| {
+                    let id = entry.id.clone();
                     orders.notify(ClientMessage::Subscriptions(
                         Request::GetHistoryUpdates(id.clone())
                     ));
                     (
                         id.clone(),
                         chart::SubscriptionChart::init(
-                            sub,
-                            &mut orders.proxy(move |msg| Msg::Subscription(id, msg))
+                            entry.data,
+                            &mut orders.proxy(move |msg| Msg::Subscription(id.clone(), msg))
                         )
                     )
                 })
