@@ -5,11 +5,13 @@ use crate::{
     shared::{
         PriceSubscription,
         PriceHistoryRequest,
+        ServerMessage,
         subscription::{
             Request,
             Response,
         },
-    }
+    },
+    websocket::Session,
 };
 use async_std::{
     sync::{
@@ -82,10 +84,13 @@ impl Display for Error {
         }
     }
 }
-pub struct Subscriptions;
+#[derive(Debug)]
+pub struct Subscriptions {
+    session: Addr<Session>,
+}
 impl Subscriptions {
-    pub async fn init() -> Addr<Self> {
-        Self::create(move |_| Self)
+    pub fn init(session: Addr<Session>) -> Addr<Self> {
+        Self::create(move |_| Self { session })
     }
     pub async fn add_subscription(req: PriceHistoryRequest) -> Result<Id<PriceSubscription>, Error> {
         caches_mut()
@@ -153,9 +158,25 @@ impl Handler<Request> for Subscriptions {
                     info!("Sending price history for {:#?}", id);
                     let sub = Self::get_subscription(id).await.unwrap();
                     let history = sub.read().await.latest_price_history().await.unwrap();
-                    Some(Response::PriceHistory(id, history))
+                    with_ctx::<Self, _, _>(|_act, ctx| {
+                        ctx.notify(Response::PriceHistory(id, history));
+                    });
+                    None
                 },
             }
+        }.interop_actor_boxed(self)
+    }
+}
+impl Handler<Response> for Subscriptions {
+    type Result = ResponseActFuture<Self, ()>;
+    fn handle(
+        &mut self,
+        msg: Response,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let session = self.session.clone();
+        async move {
+            session.do_send(ServerMessage::Subscriptions(msg));
         }.interop_actor_boxed(self)
     }
 }

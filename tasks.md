@@ -1,9 +1,10 @@
 
 ### Task List
 
-- [ ] Identify clients with Id
-- [ ] Identify websocket session with Id
-- [ ] Websocket Push Updates for Price Subscriptions
+- [x] Identify websocket session with Id
+- [x] Push updates to websocket session from Subscriptions
+- [x] Allow defining Schema in different crate than table types
+
 - [ ] Allow Responses to Messages
   - [ ] Execute functions of multiple actors in a single future
     - Accesses state of multiple actors in a single future.

@@ -29,14 +29,6 @@ use actix_interop::{
     FutureInterop,
     with_ctx,
 };
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
-use lazy_static::lazy_static;
-lazy_static! {
-    static ref SESSION_COUNT: AtomicUsize = AtomicUsize::new(0);
-}
 #[derive(Debug, Clone)]
 pub struct Error(String);
 impl<E: ToString> From<E> for Error {
@@ -44,23 +36,26 @@ impl<E: ToString> From<E> for Error {
         Self(s.to_string())
     }
 }
+#[derive(Debug)]
 pub struct Session {
-    id: usize,
-    subscriptions: Addr<Subscriptions>,
+    id: Option<Addr<Self>>,
+    subscriptions: Option<Addr<Subscriptions>>,
 }
 impl Session {
-    pub fn new(subscriptions: Addr<Subscriptions>) -> Self {
+    pub fn new() -> Self {
         Self {
-            id: Self::new_id(),
-            subscriptions,
+            id: None,
+            subscriptions: None,
         }
-    }
-    fn new_id() -> usize {
-        SESSION_COUNT.fetch_add(1, Ordering::Relaxed)
     }
 }
 impl Actor for Session {
     type Context = WebsocketContext<Self>;
+    fn started(&mut self, ctx: &mut Self::Context) {
+        let addr = ctx.address();
+        self.id = Some(addr.clone());
+        self.subscriptions = Some(Subscriptions::init(addr));
+    }
 }
 impl StreamHandler<Result<ws::Message, ProtocolError>> for Session {
     fn handle(
@@ -87,7 +82,7 @@ impl StreamHandler<Result<ws::Message, ProtocolError>> for Session {
                     ws::Message::Pong(_bytes) => {},
                     ws::Message::Close(reason) => {
                         if let Some(reason) = reason {
-                            debug!("Closing websocket connection {} ({:#?}{})",
+                            debug!("Closing websocket connection {:?} ({:#?}{})",
                                 self.id,
                                 reason.code,
                                 match &reason.description {
@@ -111,20 +106,20 @@ impl Handler<ClientMessage> for Session {
         _: &mut Self::Context,
     ) -> Self::Result
     {
-        let subscriptions = self.subscriptions.clone();
+        let subscriptions = self.subscriptions.clone().expect("Subscriptions not available");
         async move {
             match msg {
-                ClientMessage::Subscriptions(msg) => {
-                    let response = subscriptions.send(msg).await.expect("Send failed");
+                ClientMessage::Subscriptions(req) => {
+                    let response = subscriptions.send(req).await.expect("Send failed");
                     if let Some(response) = response {
                         with_ctx::<Self, _, _>(|_act, ctx| {
                             ctx.notify(ServerMessage::Subscriptions(response));
                         })
                     };
-                    None
                 },
-                _ => None,
-            }
+                _ => {},
+            };
+            None
         }.interop_actor_boxed(self)
     }
 }
