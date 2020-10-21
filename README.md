@@ -1,5 +1,4 @@
 # database-table
-Traits for relational database tables using rql
 
 Utility crate for generic access to schemas defined using [rql](https://github.com/kaikalii/rql).
 
