@@ -1,6 +1,4 @@
-use crate::shared::PriceHistoryRequest;
 use openlimits::model::{
-    Paginator,
     Interval,
 };
 use serde::{
@@ -12,18 +10,31 @@ use app_model::market::PriceHistory;
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    crate::binance::Binance,
-    std::result::Result,
     actix::Message,
 };
 use rql::*;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PriceSubscriptionRequest {
+    pub market_pair: String,
+    pub interval: Option<Interval>,
+}
+impl From<String> for PriceSubscriptionRequest {
+    fn from(market_pair: String) -> Self {
+        Self {
+            market_pair,
+            interval: None,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
 pub enum Request {
     GetPriceSubscriptionList,
-    AddPriceSubscription(PriceHistoryRequest),
+    AddPriceSubscription(PriceSubscriptionRequest),
+    UpdatePriceSubscription(PriceSubscriptionRequest),
     GetHistoryUpdates(Id<PriceSubscription>),
     SendPriceHistory(Id<PriceSubscription>),
 }
@@ -35,55 +46,24 @@ pub enum Response {
     SubscriptionList(Vec<Entry<PriceSubscription>>),
     PriceHistory(Id<PriceSubscription>, PriceHistory),
     SubscriptionAdded(Id<PriceSubscription>),
+    SubscriptionUpdated,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceSubscription {
     pub market_pair: String,
-    pub time_interval: Interval,
-    pub last_update: Option<chrono::DateTime<chrono::Utc>>,
+    pub interval: Option<Interval>,
 }
-impl From<PriceHistoryRequest> for PriceSubscription {
-    fn from(request: PriceHistoryRequest) -> Self {
+impl From<PriceSubscriptionRequest> for PriceSubscription {
+    fn from(request: PriceSubscriptionRequest) -> Self {
         Self {
             market_pair: request.market_pair,
-            time_interval: request.interval.unwrap_or(Interval::OneMinute),
-            last_update: None,
+            interval: request.interval,
         }
     }
 }
-
-impl PartialEq<&PriceHistoryRequest> for PriceSubscription {
-    fn eq(&self, rhs: &&PriceHistoryRequest) -> bool {
+impl PartialEq<&PriceSubscriptionRequest> for PriceSubscription {
+    fn eq(&self, rhs: &&PriceSubscriptionRequest) -> bool {
         self.market_pair == *rhs.market_pair
-    }
-}
-impl PriceSubscription {
-    pub fn paginator(&self) -> Option<Paginator<u32>> {
-        self.last_update.map(|datetime| {
-            Paginator {
-                start_time: Some(datetime.timestamp_millis() as u64),
-                ..Default::default()
-            }
-        })
-    }
-}
-#[cfg(not(target_arch = "wasm32"))]
-impl PriceSubscription {
-    pub async fn is_available(&self) -> bool {
-        let symbol = self.market_pair.to_uppercase();
-        crate::binance::Binance::symbol_available(&symbol).await
-    }
-    pub async fn get_price_history_request(&self) -> PriceHistoryRequest {
-        let paginator = self.paginator();
-        PriceHistoryRequest {
-            market_pair: self.market_pair.clone(),
-            interval: Some(self.time_interval),
-            paginator,
-        }
-    }
-    pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
-        let req = self.get_price_history_request().await;
-        Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
     }
 }

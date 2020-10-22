@@ -132,7 +132,7 @@ impl Handler<ServerMessage> for Session {
     ) -> Self::Result
     {
         let resp = serde_json::to_string(&msg).unwrap();
-        info!("Sending response {}", &resp);
+        info!("Sending response");
         ctx.text(resp);
         MessageResult(())
     }

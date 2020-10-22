@@ -1,6 +1,3 @@
-use crate::shared::{
-    PriceHistoryRequest,
-};
 use crate::{
     server::keys,
 };
@@ -62,6 +59,12 @@ impl ResponseError for Error {}
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Option<Arc<OpenLimits<Api>>>>> = Arc::new(Mutex::new(None));
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PriceHistoryRequest {
+    pub market_pair: String,
+    pub interval: Option<Interval>,
+    pub paginator: Option<Paginator<u32>>,
+}
 #[derive(Serialize, Deserialize)]
 pub struct BinanceCredential {
     secret_key: String,
@@ -111,7 +114,7 @@ impl Binance {
     pub async fn get_symbol_price_history(
         req: PriceHistoryRequest,
     ) -> Result<PriceHistory, Error> {
-        //debug!("Requesting symbol price history...");
+        debug!("Requesting symbol price history {:#?}", req);
         let time_interval = req.interval.unwrap_or(Interval::OneMinute);
         let market_pair = req.market_pair.to_uppercase();
         Self::api().await?

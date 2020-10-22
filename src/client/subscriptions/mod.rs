@@ -14,9 +14,9 @@ use crate::{
         subscription::{
             Request,
             Response,
+            PriceSubscriptionRequest,
+            PriceSubscription,
         },
-        PriceSubscription,
-        PriceHistoryRequest,
         ClientMessage,
     },
 };
@@ -32,10 +32,9 @@ pub struct SubscriptionList {
 impl SubscriptionList {
     fn add_subscription_request() -> ClientMessage {
         ClientMessage::Subscriptions(Request::AddPriceSubscription(
-            PriceHistoryRequest {
+            PriceSubscriptionRequest {
                 market_pair: "SOLBTC".into(),
                 interval: None,
-                paginator: None,
             }
         ))
     }
@@ -67,6 +66,11 @@ impl Component for SubscriptionList {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
+            Msg::AddSubscription => {
+                // TODO do this over http maybe
+                // TODO identify responses over websocket
+                orders.notify(Self::add_subscription_request());
+            }
             Msg::GetList => {
                 orders.notify(ClientMessage::Subscriptions(Request::GetPriceSubscriptionList));
             },
@@ -94,11 +98,6 @@ impl Component for SubscriptionList {
                     error!("Subscription {} not found!", id);
                 }
             },
-            Msg::AddSubscription => {
-                // TODO do this over http maybe
-                // TODO identify responses over websocket
-                orders.notify(Self::add_subscription_request());
-            }
         }
     }
 }

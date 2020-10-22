@@ -7,8 +7,8 @@ pub mod telegram;
 pub mod websocket;
 pub mod database;
 
-use crate::shared::{
-    PriceHistoryRequest,
+use crate::{
+    binance::PriceHistoryRequest,
 };
 use app_model::{
     auth::{
@@ -81,8 +81,7 @@ async fn index() -> impl Responder {
 }
 #[get("/price_history")]
 async fn price_history() -> impl Responder {
-    crate::binance::Binance
-        ::get_symbol_price_history(PriceHistoryRequest {
+    crate::binance::Binance::get_symbol_price_history(PriceHistoryRequest {
             market_pair: "SOLBTC".into(),
             interval: Some(openlimits::model::Interval::OneHour),
             paginator: None,

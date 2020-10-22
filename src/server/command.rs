@@ -1,8 +1,11 @@
 use crate::{
-    binance::Binance,
+    binance::{
+        Binance,
+        PriceHistoryRequest,
+    },
     subscriptions::Subscriptions,
     shared::{
-        PriceHistoryRequest,
+        subscription::PriceSubscriptionRequest,
     },
 };
 use async_std::{
@@ -96,7 +99,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    let id = Subscriptions::add_subscription(PriceHistoryRequest::from(symbol.to_string()))
+                    let id = Subscriptions::add_subscription(PriceSubscriptionRequest::from(symbol.to_string()))
                         .await
                         .map_err(|e| e.to_string())?;
                     //crate::server::interval::set(interval(Duration::from_secs(1)));

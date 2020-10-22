@@ -83,7 +83,7 @@ impl StaticTelegram {
         }
         Ok(())
     }
-    pub async fn update(&mut self, update: Update) -> Result<(), crate::Error> {
+    pub async fn update(&mut self, update: Update) -> Result<(), Error> {
         debug!("Telegram Update");
         let Update(update) = update;
         Ok(match update.kind {

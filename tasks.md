@@ -5,8 +5,8 @@
 - [x] Push updates to websocket session from Subscriptions
 - [x] Allow defining Schema in different crate than table types
 
-- [ ] server cache price history for each interval
-- [ ] client get new price history for selected time interval
+- [x] server cache price history for each interval
+- [x] client get new price history for selected time interval
 
 - [ ] server detect which price time ranges to get from binance
 - [ ] only send update when server gets an update from binance

@@ -5,7 +5,12 @@ use components::{
 };
 use crate::{
     shared::{
-        PriceSubscription,
+        subscription::{
+            PriceSubscription,
+            PriceSubscriptionRequest,
+            Request,
+        },
+        ClientMessage,
     },
     chart::{
         self,
@@ -26,8 +31,8 @@ use tracing::debug;
 pub struct SubscriptionChart {
     subscription: PriceSubscription,
     chart: Chart,
+    pub interval: Interval,
     pub last_candle_update: Option<u64>,
-    pub time_interval: Interval,
     pub error: Option<String>,
 }
 #[derive(Clone, Debug)]
@@ -42,13 +47,22 @@ impl Init<PriceSubscription> for SubscriptionChart {
             chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
             subscription,
             last_candle_update: None,
-            time_interval: Interval::OneMinute,
+            interval: Interval::OneMinute,
             error: None,
         }
     }
 }
 impl SubscriptionChart {
+    fn set_interval_request(&self) -> ClientMessage {
+        ClientMessage::Subscriptions(Request::UpdatePriceSubscription(
+            PriceSubscriptionRequest {
+                market_pair: "SOLBTC".into(),
+                interval: Some(self.interval),
+            }
+        ))
+    }
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
+        debug!["appending price history"];
         let new_data: Vec<Candle> = if let Some(timestamp) = self.last_candle_update {
             let new_candles = candles.into_iter().skip_while(|candle| candle.time <= timestamp);
             let count = new_candles.clone().count();
@@ -61,9 +75,9 @@ impl SubscriptionChart {
             debug!("Setting {} initial candles.", candles.len());
             candles.into_iter().collect()
         };
-        self.last_candle_update = new_data.last().map(|candle| candle.time);
         self.chart.append_data(new_data);
         self.chart.update_values();
+        self.last_candle_update = self.chart.data.last().map(|candle| candle.time);
     }
     fn interval_selection(&self) -> Node<<Self as Component>::Msg> {
         div![
@@ -121,11 +135,12 @@ impl Component for SubscriptionChart {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::SetTimeInterval(interval) => {
-                if self.time_interval != interval {
-                    self.time_interval = interval;
+                if self.interval != interval {
+                    self.interval = interval;
                     self.last_candle_update = None;
                     self.chart.clear();
                 }
+                orders.notify(self.set_interval_request());
             }
             Msg::AppendCandles(candles) => {
                 self.append_price_history(candles);
