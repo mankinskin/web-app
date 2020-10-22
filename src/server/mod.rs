@@ -23,6 +23,8 @@ use tracing::{
     debug,
     info,
     error,
+    warn,
+    trace,
 };
 use actix_files::{
     NamedFile,
@@ -43,17 +45,20 @@ use openssl::ssl::{
     SslMethod,
 };
 use actix_web_actors::ws;
-use actix::{
-    Addr,
-};
-use subscriptions::Subscriptions;
 use std::fmt::{
     Formatter,
     Display,
     self,
 };
 const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
-
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::{
+    fmt::{
+        Layer,
+        Subscriber,
+    },
+    layer::SubscriberExt,
+};
 #[derive(Debug, Clone)]
 pub struct Error(String);
 impl From<String> for Error {
@@ -96,7 +101,26 @@ async fn register(user: web::Json<User>) -> impl Responder {
         .await
         .map(|session| web::Json(session))
 }
+fn init_tracing() -> WorkerGuard {
+    tracing_log::LogTracer::init().unwrap();
+    let file_appender = tracing_appender::rolling::hourly("./logs", "log");
+    let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+    let subscriber = Subscriber::builder()
+            .with_env_filter("hyper=error,reqwest=error,h2=error,[]=debug")
+            .finish()
+            .with(Layer::default().with_writer(file_writer));
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Unable to set global tracing subscriber");
+    info!("Tracing initialized.");
+    info!["Info logs enabled"];
+    trace!["Trace logs enabled"];
+    debug!["Debug logs enabled"];
+    warn!["Warning logs enabled"];
+    error!["Error logs enabled"];
+    guard
+}
 pub async fn run() -> std::io::Result<()> {
+    let _tracing = init_tracing();
     let _telegram = telegram::Telegram::init().await;
     let _cli = command::CommandLine::init().await;
     let binance = binance::Binance::init().await;
