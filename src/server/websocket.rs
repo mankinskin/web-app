@@ -19,6 +19,7 @@ use actix::{
     Addr,
     MessageResult,
     ResponseActFuture,
+    SpawnHandle,
 };
 use actix_web_actors::ws::{
     self,
@@ -40,21 +41,30 @@ impl<E: ToString> From<E> for Error {
 pub struct Session {
     id: Option<Addr<Self>>,
     subscriptions: Option<Addr<SubscriptionsActor>>,
+    init_subscriptions: Option<SpawnHandle>,
 }
 impl Session {
     pub fn new() -> Self {
         Self {
             id: None,
             subscriptions: None,
+            init_subscriptions: None,
         }
     }
 }
 impl Actor for Session {
     type Context = WebsocketContext<Self>;
     fn started(&mut self, ctx: &mut Self::Context) {
+        info!["Started Websocket Session"];
         let addr = ctx.address();
         self.id = Some(addr.clone());
-        self.subscriptions = Some(SubscriptionsActor::init(addr));
+
+        self.init_subscriptions = Some(ctx.spawn(async move {
+            let addr = SubscriptionsActor::init(addr).await;
+            with_ctx::<Self, _, _>(|act, _ctx| {
+                act.subscriptions = Some(addr);
+            });
+        }.interop_actor_boxed(self)));
     }
 }
 impl StreamHandler<Result<ws::Message, ProtocolError>> for Session {

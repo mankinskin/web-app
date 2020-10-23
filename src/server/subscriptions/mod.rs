@@ -21,21 +21,24 @@ use async_std::{
         Arc,
         RwLock,
     },
-    stream,
-};
-use futures::stream::{
-    StreamExt,
 };
 #[allow(unused)]
 use tracing::{
     debug,
     info,
 };
-use subscription_cache::SubscriptionCache;
-use std::fmt::{
-    Formatter,
-    Display,
-    self,
+pub use subscription_cache::{
+    SubscriptionCache,
+    SubscriptionCacheActor,
+};
+use std::{
+    result::Result,
+    fmt::{
+        Formatter,
+        Display,
+        self,
+    },
+    collections::HashMap,
 };
 use actix::{
     Actor,
@@ -45,7 +48,6 @@ use actix::{
     Context,
     Addr,
     ResponseActFuture,
-    SpawnHandle,
     Message,
 };
 use actix_interop::{
@@ -53,7 +55,6 @@ use actix_interop::{
     with_ctx,
 };
 use rql::*;
-use std::result::Result;
 use subscriptions::{
     caches,
     caches_mut,
@@ -92,13 +93,27 @@ impl Display for Error {
 #[derive(Debug)]
 pub struct SubscriptionsActor {
     session: Addr<Session>,
-    update_stream: Option<SpawnHandle>,
+    actors: HashMap<Id<PriceSubscription>, Addr<SubscriptionCacheActor>>,
+}
+impl Actor for SubscriptionsActor {
+    type Context = Context<Self>;
 }
 impl SubscriptionsActor {
-    pub fn init(session: Addr<Session>) -> Addr<Self> {
+    pub async fn init(session: Addr<Session>) -> Addr<Self> {
+        info!("Creating SubscriptionsActor");
+        let actors = caches().await
+            .subscriptions
+            .iter()
+            .map(|(id, _)|
+                (
+                    id.clone(), 
+                    SubscriptionCacheActor::init(id.clone(), session.clone())
+                )
+            )
+            .collect();
         Self::create(move |_| Self {
             session,
-            update_stream: None,
+            actors,
         })
     }
     pub async fn add_subscription(req: PriceSubscriptionRequest) -> Result<Id<PriceSubscription>, Error> {
@@ -140,8 +155,6 @@ impl SubscriptionsActor {
 #[derive(Message)]
 #[rtype(result = "()")]
 enum Msg {
-    UpdateSubscription(Id<PriceSubscription>),
-    SendPriceHistory(Id<PriceSubscription>),
 }
 impl Handler<Msg> for SubscriptionsActor {
     type Result = ResponseActFuture<Self, ()>;
@@ -152,17 +165,6 @@ impl Handler<Msg> for SubscriptionsActor {
     ) -> Self::Result {
         async move {
             match msg {
-                Msg::UpdateSubscription(id) => {
-                    info!("Updating price history {:#?}", id);
-                },
-                Msg::SendPriceHistory(id) => {
-                    info!("Sending price history for {:#?}", id);
-                    let sub = Self::get_subscription(id).await.unwrap();
-                    let history = sub.read().await.get_latest_price_history().await.unwrap();
-                    with_ctx::<Self, _, _>(|_act, ctx| {
-                        ctx.notify(Response::PriceHistory(id, history));
-                    });
-                },
             }
         }.interop_actor_boxed(self)
     }
@@ -174,6 +176,7 @@ impl Handler<Request> for SubscriptionsActor {
         msg: Request,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
+        let session = self.session.clone();
         async move {
             match msg {
                 Request::GetPriceSubscriptionList => {
@@ -184,23 +187,24 @@ impl Handler<Request> for SubscriptionsActor {
                 Request::AddPriceSubscription(request) => {
                     info!("Subscribing to market pair {}", &request.market_pair);
                     let id = Self::add_subscription(request.clone()).await.unwrap();
+                    with_ctx::<Self, _, _>(|act, _ctx| {
+                        act.actors.insert(id.clone(), SubscriptionCacheActor::init(id.clone(), session));
+                    });
                     Some(Response::SubscriptionAdded(id))
                 },
-                Request::UpdatePriceSubscription(request) => {
-                    info!("Updating subscription {}", &request.market_pair);
-                    Self::update_subscription(request.clone()).await.unwrap();
-                    Some(Response::SubscriptionUpdated)
-                },
-                Request::StartHistoryUpdates(id) => {
-                    info!("Starting history updates of subscription {:#?}", id);
-                    with_ctx::<Self, _, _>(|act, ctx| {
-                        act.update_stream = Some(ctx.add_stream(stream::interval(std::time::Duration::from_secs(3))
-                            .map(move |_| Msg::SendPriceHistory(id.clone()))
-                        ));
-                        ctx.notify(Msg::SendPriceHistory(id.clone()));
+                Request::Subscription(id, req) => {
+                    let id = id.clone();
+                    info!("Request for Subscription {:#?}", id);
+                    let addr = with_ctx::<Self, _, _>(move |act, _ctx| {
+                        act.actors.get(&id).map(Clone::clone)
                     });
-                    None
-                },
+                    if let Some(sub) = addr {
+                        sub.send(req.clone()).await.unwrap()
+                    } else {
+                        info!("Subscription {:#?} not found", id);
+                        Some(Response::SubscriptionNotFound(id))
+                    }
+                }
             }
         }.interop_actor_boxed(self)
     }
@@ -214,7 +218,7 @@ impl Handler<Response> for SubscriptionsActor {
     ) -> Self::Result {
         let session = self.session.clone();
         async move {
-            session.do_send(ServerMessage::Subscriptions(msg));
+            session.send(ServerMessage::Subscriptions(msg)).await.unwrap();
         }.interop_actor_boxed(self)
     }
 }
@@ -235,7 +239,4 @@ impl StreamHandler<Msg> for SubscriptionsActor {
     ) {
         ctx.notify(msg);
     }
-}
-impl Actor for SubscriptionsActor {
-    type Context = Context<Self>;
 }

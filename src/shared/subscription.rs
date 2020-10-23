@@ -34,8 +34,14 @@ impl From<String> for PriceSubscriptionRequest {
 pub enum Request {
     GetPriceSubscriptionList,
     AddPriceSubscription(PriceSubscriptionRequest),
+    Subscription(Id<PriceSubscription>, SubscriptionRequest),
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
+#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
+pub enum SubscriptionRequest {
     UpdatePriceSubscription(PriceSubscriptionRequest),
-    StartHistoryUpdates(Id<PriceSubscription>),
+    StartHistoryUpdates,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,6 +51,7 @@ pub enum Response {
     SubscriptionList(Vec<Entry<PriceSubscription>>),
     PriceHistory(Id<PriceSubscription>, PriceHistory),
     SubscriptionAdded(Id<PriceSubscription>),
+    SubscriptionNotFound(Id<PriceSubscription>),
     SubscriptionUpdated,
 }
 

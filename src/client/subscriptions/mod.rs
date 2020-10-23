@@ -78,13 +78,10 @@ impl Component for SubscriptionList {
                 debug!("Setting SubscriptionList");
                 self.subscriptions = list.into_iter().map(|entry| {
                     let id = entry.id.clone();
-                    orders.notify(ClientMessage::Subscriptions(
-                        Request::StartHistoryUpdates(id.clone())
-                    ));
                     (
                         id.clone(),
                         chart::SubscriptionChart::init(
-                            entry.data,
+                            id.clone(),
                             &mut orders.proxy(move |msg| Msg::Subscription(id.clone(), msg))
                         )
                     )

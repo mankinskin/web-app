@@ -9,6 +9,7 @@ use crate::{
             PriceSubscription,
             PriceSubscriptionRequest,
             Request,
+            SubscriptionRequest,
         },
         ClientMessage,
     },
@@ -26,10 +27,11 @@ use seed::{
     prelude::*,
 };
 use tracing::debug;
+use rql::Id;
 
 #[derive(Debug)]
 pub struct SubscriptionChart {
-    subscription: PriceSubscription,
+    id: Id<PriceSubscription>,
     chart: Chart,
     pub interval: Interval,
     pub last_candle_update: Option<u64>,
@@ -41,11 +43,14 @@ pub enum Msg {
     SetTimeInterval(Interval),
     AppendCandles(Vec<Candle>),
 }
-impl Init<PriceSubscription> for SubscriptionChart {
-    fn init(subscription: PriceSubscription, orders: &mut impl Orders<Msg>) -> Self {
+impl Init<Id<PriceSubscription>> for SubscriptionChart {
+    fn init(id: Id<PriceSubscription>, orders: &mut impl Orders<Msg>) -> Self {
+        orders.notify(ClientMessage::Subscriptions(
+            Request::Subscription(id.clone(), SubscriptionRequest::StartHistoryUpdates)
+        ));
         Self {
             chart: Chart::init((), &mut orders.proxy(Msg::Chart)),
-            subscription,
+            id,
             last_candle_update: None,
             interval: Interval::OneMinute,
             error: None,
@@ -54,11 +59,14 @@ impl Init<PriceSubscription> for SubscriptionChart {
 }
 impl SubscriptionChart {
     fn set_interval_request(&self) -> ClientMessage {
-        ClientMessage::Subscriptions(Request::UpdatePriceSubscription(
-            PriceSubscriptionRequest {
-                market_pair: "SOLBTC".into(),
-                interval: Some(self.interval),
-            }
+        ClientMessage::Subscriptions(Request::Subscription(
+            self.id.clone(), 
+            SubscriptionRequest::UpdatePriceSubscription(
+                PriceSubscriptionRequest {
+                    market_pair: "SOLBTC".into(),
+                    interval: Some(self.interval),
+                }
+            )
         ))
     }
     pub fn append_price_history(&mut self, candles: Vec<Candle>) {
@@ -154,7 +162,6 @@ impl Component for SubscriptionChart {
 impl Viewable for SubscriptionChart {
     fn view(&self) -> Node<Msg> {
         div![
-            format!("{:#?}", self.subscription),
             self.interval_selection(),
             self.chart.view().map_msg(Msg::Chart),
         ]

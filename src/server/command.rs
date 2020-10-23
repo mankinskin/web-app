@@ -3,7 +3,10 @@ use crate::{
         Binance,
         PriceHistoryRequest,
     },
-    subscriptions::SubscriptionsActor,
+    subscriptions::{
+        SubscriptionsActor,
+        SubscriptionCacheActor,
+    },
     shared::{
         subscription::PriceSubscriptionRequest,
     },
@@ -104,7 +107,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
                         )
                         .await
                         .map_err(|e| e.to_string())?;
-                    format!("Ok {}", id)
+                    format!("Ok {:#?}", id)
                 } else {
                     watch_app.usage().to_string()
                 }
