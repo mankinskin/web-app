@@ -1,5 +1,5 @@
 use crate::{
-    subscriptions::Subscriptions,
+    subscriptions::SubscriptionsActor,
     shared::{
         ClientMessage,
         ServerMessage,
@@ -39,7 +39,7 @@ impl<E: ToString> From<E> for Error {
 #[derive(Debug)]
 pub struct Session {
     id: Option<Addr<Self>>,
-    subscriptions: Option<Addr<Subscriptions>>,
+    subscriptions: Option<Addr<SubscriptionsActor>>,
 }
 impl Session {
     pub fn new() -> Self {
@@ -54,7 +54,7 @@ impl Actor for Session {
     fn started(&mut self, ctx: &mut Self::Context) {
         let addr = ctx.address();
         self.id = Some(addr.clone());
-        self.subscriptions = Some(Subscriptions::init(addr));
+        self.subscriptions = Some(SubscriptionsActor::init(addr));
     }
 }
 impl StreamHandler<Result<ws::Message, ProtocolError>> for Session {

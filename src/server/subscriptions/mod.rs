@@ -90,11 +90,11 @@ impl Display for Error {
     }
 }
 #[derive(Debug)]
-pub struct Subscriptions {
+pub struct SubscriptionsActor {
     session: Addr<Session>,
     update_stream: Option<SpawnHandle>,
 }
-impl Subscriptions {
+impl SubscriptionsActor {
     pub fn init(session: Addr<Session>) -> Addr<Self> {
         Self::create(move |_| Self {
             session,
@@ -143,7 +143,7 @@ enum Msg {
     UpdateSubscription(Id<PriceSubscription>),
     SendPriceHistory(Id<PriceSubscription>),
 }
-impl Handler<Msg> for Subscriptions {
+impl Handler<Msg> for SubscriptionsActor {
     type Result = ResponseActFuture<Self, ()>;
     fn handle(
         &mut self,
@@ -167,7 +167,7 @@ impl Handler<Msg> for Subscriptions {
         }.interop_actor_boxed(self)
     }
 }
-impl Handler<Request> for Subscriptions {
+impl Handler<Request> for SubscriptionsActor {
     type Result = ResponseActFuture<Self, Option<Response>>;
     fn handle(
         &mut self,
@@ -205,7 +205,7 @@ impl Handler<Request> for Subscriptions {
         }.interop_actor_boxed(self)
     }
 }
-impl Handler<Response> for Subscriptions {
+impl Handler<Response> for SubscriptionsActor {
     type Result = ResponseActFuture<Self, ()>;
     fn handle(
         &mut self,
@@ -218,7 +218,7 @@ impl Handler<Response> for Subscriptions {
         }.interop_actor_boxed(self)
     }
 }
-impl StreamHandler<Request> for Subscriptions {
+impl StreamHandler<Request> for SubscriptionsActor {
     fn handle(
         &mut self,
         msg: Request,
@@ -227,7 +227,7 @@ impl StreamHandler<Request> for Subscriptions {
         ctx.notify(msg);
     }
 }
-impl StreamHandler<Msg> for Subscriptions {
+impl StreamHandler<Msg> for SubscriptionsActor {
     fn handle(
         &mut self,
         msg: Msg,
@@ -236,6 +236,6 @@ impl StreamHandler<Msg> for Subscriptions {
         ctx.notify(msg);
     }
 }
-impl Actor for Subscriptions {
+impl Actor for SubscriptionsActor {
     type Context = Context<Self>;
 }

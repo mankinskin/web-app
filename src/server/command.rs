@@ -3,7 +3,7 @@ use crate::{
         Binance,
         PriceHistoryRequest,
     },
-    subscriptions::Subscriptions,
+    subscriptions::SubscriptionsActor,
     shared::{
         subscription::PriceSubscriptionRequest,
     },
@@ -99,10 +99,11 @@ pub async fn run_command(text: String) -> Result<String, Error> {
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    let id = Subscriptions::add_subscription(PriceSubscriptionRequest::from(symbol.to_string()))
+                    let id = SubscriptionsActor::add_subscription(
+                            PriceSubscriptionRequest::from(symbol.to_string())
+                        )
                         .await
                         .map_err(|e| e.to_string())?;
-                    //crate::server::interval::set(interval(Duration::from_secs(1)));
                     format!("Ok {}", id)
                 } else {
                     watch_app.usage().to_string()
