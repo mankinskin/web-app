@@ -46,6 +46,7 @@ use actix::{
     Addr,
     ResponseActFuture,
     SpawnHandle,
+    Message,
 };
 use actix_interop::{
     FutureInterop,
@@ -135,6 +136,37 @@ impl Subscriptions {
         caches_mut().await.update().await
     }
 }
+
+#[derive(Message)]
+#[rtype(result = "()")]
+enum Msg {
+    UpdateSubscription(Id<PriceSubscription>),
+    SendPriceHistory(Id<PriceSubscription>),
+}
+impl Handler<Msg> for Subscriptions {
+    type Result = ResponseActFuture<Self, ()>;
+    fn handle(
+        &mut self,
+        msg: Msg,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        async move {
+            match msg {
+                Msg::UpdateSubscription(id) => {
+                    info!("Updating price history {:#?}", id);
+                },
+                Msg::SendPriceHistory(id) => {
+                    info!("Sending price history for {:#?}", id);
+                    let sub = Self::get_subscription(id).await.unwrap();
+                    let history = sub.read().await.get_latest_price_history().await.unwrap();
+                    with_ctx::<Self, _, _>(|_act, ctx| {
+                        ctx.notify(Response::PriceHistory(id, history));
+                    });
+                },
+            }
+        }.interop_actor_boxed(self)
+    }
+}
 impl Handler<Request> for Subscriptions {
     type Result = ResponseActFuture<Self, Option<Response>>;
     fn handle(
@@ -163,19 +195,9 @@ impl Handler<Request> for Subscriptions {
                     info!("Starting history updates of subscription {:#?}", id);
                     with_ctx::<Self, _, _>(|act, ctx| {
                         act.update_stream = Some(ctx.add_stream(stream::interval(std::time::Duration::from_secs(3))
-                            .map(move |_| Request::SendPriceHistory(id.clone()))
+                            .map(move |_| Msg::SendPriceHistory(id.clone()))
                         ));
-                    });
-                    let sub = Self::get_subscription(id).await.unwrap();
-                    let history = sub.read().await.latest_price_history().await.unwrap();
-                    Some(Response::PriceHistory(id, history))
-                },
-                Request::SendPriceHistory(id) => {
-                    info!("Sending price history for {:#?}", id);
-                    let sub = Self::get_subscription(id).await.unwrap();
-                    let history = sub.read().await.latest_price_history().await.unwrap();
-                    with_ctx::<Self, _, _>(|_act, ctx| {
-                        ctx.notify(Response::PriceHistory(id, history));
+                        ctx.notify(Msg::SendPriceHistory(id.clone()));
                     });
                     None
                 },
@@ -200,6 +222,15 @@ impl StreamHandler<Request> for Subscriptions {
     fn handle(
         &mut self,
         msg: Request,
+        ctx: &mut Self::Context,
+    ) {
+        ctx.notify(msg);
+    }
+}
+impl StreamHandler<Msg> for Subscriptions {
+    fn handle(
+        &mut self,
+        msg: Msg,
         ctx: &mut Self::Context,
     ) {
         ctx.notify(msg);

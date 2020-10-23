@@ -80,7 +80,7 @@ impl SubscriptionCache {
         let symbol = self.market_pair.to_uppercase();
         crate::binance::Binance::symbol_available(&symbol).await
     }
-    pub async fn get_price_history_request(&self) -> PriceHistoryRequest {
+    async fn price_history_request(&self) -> PriceHistoryRequest {
         let paginator = self.paginator().await;
         PriceHistoryRequest {
             market_pair: self.market_pair.clone(),
@@ -88,8 +88,8 @@ impl SubscriptionCache {
             paginator: paginator,
         }
     }
-    pub async fn latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
-        let req = self.get_price_history_request().await;
+    pub async fn get_latest_price_history(&self) -> Result<PriceHistory, crate::binance::Error> {
+        let req = self.price_history_request().await;
         Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
     }
 }

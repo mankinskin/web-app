@@ -36,7 +36,6 @@ pub enum Request {
     AddPriceSubscription(PriceSubscriptionRequest),
     UpdatePriceSubscription(PriceSubscriptionRequest),
     StartHistoryUpdates(Id<PriceSubscription>),
-    SendPriceHistory(Id<PriceSubscription>),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
