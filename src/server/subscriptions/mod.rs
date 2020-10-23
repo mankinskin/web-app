@@ -144,22 +144,22 @@ impl Handler<Request> for Subscriptions {
     ) -> Self::Result {
         async move {
             match msg {
-                Request::UpdatePriceSubscription(request) => {
-                    info!("Updating subscription {}", &request.market_pair);
-                    Self::update_subscription(request.clone()).await.unwrap();
-                    Some(Response::SubscriptionUpdated)
+                Request::GetPriceSubscriptionList => {
+                    info!("Getting subscription list");
+                    let list = Self::get_subscription_list().await;
+                    Some(Response::SubscriptionList(list))
                 },
                 Request::AddPriceSubscription(request) => {
                     info!("Subscribing to market pair {}", &request.market_pair);
                     let id = Self::add_subscription(request.clone()).await.unwrap();
                     Some(Response::SubscriptionAdded(id))
                 },
-                Request::GetPriceSubscriptionList => {
-                    info!("Getting subscription list");
-                    let list = Self::get_subscription_list().await;
-                    Some(Response::SubscriptionList(list))
+                Request::UpdatePriceSubscription(request) => {
+                    info!("Updating subscription {}", &request.market_pair);
+                    Self::update_subscription(request.clone()).await.unwrap();
+                    Some(Response::SubscriptionUpdated)
                 },
-                Request::GetHistoryUpdates(id) => {
+                Request::StartHistoryUpdates(id) => {
                     info!("Starting history updates of subscription {:#?}", id);
                     with_ctx::<Self, _, _>(|act, ctx| {
                         act.update_stream = Some(ctx.add_stream(stream::interval(std::time::Duration::from_secs(3))

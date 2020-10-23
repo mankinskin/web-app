@@ -79,7 +79,7 @@ impl Component for SubscriptionList {
                 self.subscriptions = list.into_iter().map(|entry| {
                     let id = entry.id.clone();
                     orders.notify(ClientMessage::Subscriptions(
-                        Request::GetHistoryUpdates(id.clone())
+                        Request::StartHistoryUpdates(id.clone())
                     ));
                     (
                         id.clone(),
