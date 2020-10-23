@@ -5,7 +5,6 @@ use crate::{
     },
     subscriptions::{
         SubscriptionsActor,
-        SubscriptionCacheActor,
     },
     shared::{
         subscription::PriceSubscriptionRequest,
