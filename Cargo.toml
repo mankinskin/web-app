@@ -51,7 +51,6 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-async-std = "^1"
 async-h1 = "^2"
 clap = "^2"
 regex = "^1.3"
@@ -61,8 +60,18 @@ openssl = "0.10"
 actix = "0.10"
 actix-files = "0.4"
 actix-web-actors = "3"
-log = "0.4"
 tracing-actix-web = "0.2"
+log = "0.4"
+riker = "0.4"
+tide = "0.14"
+tide-tracing = "0.0.6"
+tide-rustls = "0.1.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.async-std]
+version = "^1"
+features = [
+  "attributes",
+]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.tracing-log]
 version = "^0.1"
