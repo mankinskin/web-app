@@ -114,7 +114,8 @@ impl Binance {
     pub async fn get_symbol_price_history(
         req: PriceHistoryRequest,
     ) -> Result<PriceHistory, Error> {
-        debug!("Requesting symbol price history {:#?}", req);
+        //info!("Requesting symbol price history",);
+        //debug!("{:#?}", req);
         let time_interval = req.interval.unwrap_or(Interval::OneMinute);
         let market_pair = req.market_pair.to_uppercase();
         Self::api().await?

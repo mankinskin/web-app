@@ -89,7 +89,7 @@ impl Actor for SubscriptionCacheActor {
 #[rtype(result = "Option<Response>")]
 enum Msg {
     Request(SubscriptionRequest),
-    SendPriceHistory,
+    Update,
 }
 impl Handler<Msg> for SubscriptionCacheActor {
     type Result = ResponseActFuture<Self, Option<Response>>;
@@ -111,21 +111,25 @@ impl Handler<Msg> for SubscriptionCacheActor {
                         SubscriptionRequest::StartHistoryUpdates => {
                             info!("Starting history updates of subscription {:#?}", id);
                             with_ctx::<Self, _, _>(|act, ctx| {
-                                act.update_stream = Some(ctx.add_stream(stream::interval(std::time::Duration::from_secs(3))
-                                    .map(move |_| Msg::SendPriceHistory)
+                                act.update_stream = Some(ctx.add_stream(
+                                    stream::interval(std::time::Duration::from_secs(3))
+                                        .map(move |_| Msg::Update)
                                 ));
-                                ctx.notify(Msg::SendPriceHistory);
+                                ctx.notify(Msg::Update);
                             });
                             None
                         },
                     },
-                Msg::SendPriceHistory => {
-                    info!("Sending price history for {:#?}", id);
+                Msg::Update => {
+                    //info!("Updating price history for {:#?}", id);
                     let sub = Self::get_subscription(id).await.unwrap();
-                    let history = sub.read().await.get_latest_price_history().await.unwrap();
-                    with_ctx::<Self, _, _>(|_act, ctx| {
-                        ctx.notify(Response::PriceHistory(id.clone(), history));
-                    });
+                    let mut sub = sub.write().await;
+                    sub.update().await.unwrap();
+                    if let Some(history) = sub.get_new_history().await {
+                        with_ctx::<Self, _, _>(|_act, ctx| {
+                            ctx.notify(Response::PriceHistory(id.clone(), history));
+                        });
+                    }
                     None
                 },
             }

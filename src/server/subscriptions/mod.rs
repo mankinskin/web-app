@@ -110,7 +110,9 @@ impl StaticSubscriptions {
     pub async fn update_subscription(&mut self, request: PriceSubscriptionRequest) -> Result<(), Error> {
         debug!("Updating subscription...");
         if let Some((_, cache)) = self.find_subscription(request.clone()).await {
-            cache.write().await.process(request).await?;
+            if let Some(interval) = request.interval {
+                cache.write().await.set_interval(interval).await?;
+            }
             Ok(())
         } else {
             let err = format!("Subscription {} for not found", request.market_pair);

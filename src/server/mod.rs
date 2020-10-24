@@ -74,9 +74,11 @@ impl Display for Error {
 }
 #[get("/ws")]
 async fn ws_route(request: HttpRequest, stream: web::Payload) -> impl Responder {
+    info!("Websocket session request");
     ws::start(websocket::Session::new(), &request, stream)
 }
 async fn index() -> impl Responder {
+    info!("Index request");
     NamedFile::open(format!("{}/index.html", PKG_PATH))
 }
 #[get("/price_history")]
