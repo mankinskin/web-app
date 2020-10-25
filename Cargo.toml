@@ -24,7 +24,7 @@ rocket = "0.4.5"
 actix-web = "3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.seed]
-path = "../seed"
+version = "^0.8"
 
 [dependencies.serde]
 version = "^1"
