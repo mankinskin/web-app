@@ -7,7 +7,7 @@ use crate::{
         SubscriptionsActor,
     },
     shared::{
-        subscription::PriceSubscriptionRequest,
+        subscriptions::PriceSubscription,
     },
 };
 use async_std::{
@@ -102,7 +102,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
                     let id = SubscriptionsActor::add_subscription(
-                            PriceSubscriptionRequest::from(symbol.to_string())
+                            PriceSubscription::from(symbol.to_string())
                         )
                         .await
                         .map_err(|e| e.to_string())?;

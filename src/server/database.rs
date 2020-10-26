@@ -1,4 +1,4 @@
-use crate::shared::subscription::PriceSubscription;
+use crate::shared::subscriptions::PriceSubscription;
 use rql::*;
 use lazy_static::lazy_static;
 use database_table::{

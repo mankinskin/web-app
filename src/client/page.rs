@@ -19,21 +19,21 @@ use seed::{
 use tracing::debug;
 use crate::subscriptions::{
     self,
-    SubscriptionList,
+    Subscriptions,
 };
 
 #[derive(Debug)]
 pub enum Page {
     Auth(app_model::auth::Auth),
-    SubscriptionList(SubscriptionList),
+    Subscriptions(Subscriptions),
     Users,
     User,
     Root,
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Auth(app_model::auth::Msg),
-    SubscriptionList(subscriptions::Msg),
+    Subscriptions(subscriptions::Msg),
 }
 impl Init<UserRoute> for Page {
     fn init(route: UserRoute, _orders: &mut impl Orders<Msg>) -> Self {
@@ -50,7 +50,7 @@ impl Init<Route> for Page {
             Route::Auth(auth_route) => {
                 Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth)))
             }
-            Route::Subscriptions => Self::SubscriptionList(SubscriptionList::init((), &mut orders.proxy(Msg::SubscriptionList))),
+            Route::Subscriptions(route) => Self::Subscriptions(Subscriptions::init(route, &mut orders.proxy(Msg::Subscriptions))),
             Route::User(route) => Self::init(route, orders),
             Route::Root => Self::Root,
         }
@@ -66,9 +66,9 @@ impl Component for Page {
                     auth.update(msg, &mut orders.proxy(Msg::Auth));
                 }
             }
-            Self::SubscriptionList(list) => {
-                if let Msg::SubscriptionList(msg) = msg {
-                    list.update(msg, &mut orders.proxy(Msg::SubscriptionList));
+            Self::Subscriptions(list) => {
+                if let Msg::Subscriptions(msg) = msg {
+                    list.update(msg, &mut orders.proxy(Msg::Subscriptions));
                 }
             }
             Self::Users => {}
@@ -81,7 +81,7 @@ impl Viewable for Page {
     fn view(&self) -> Node<Msg> {
         match self {
             Self::Auth(auth) => auth.view().map_msg(Msg::Auth),
-            Self::SubscriptionList(list) => list.view().map_msg(Msg::SubscriptionList),
+            Self::Subscriptions(list) => list.view().map_msg(Msg::Subscriptions),
             _ => p!["Hello World!"],
         }
     }

@@ -1,5 +1,8 @@
 use crate::{
-    shared::Route,
+    shared::{
+        Route,
+        subscriptions::Route as SubscriptionRoute,
+    },
     page::{
         self,
         *,
@@ -67,7 +70,7 @@ impl Init<Route> for Router {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Page(page::Msg),
     UrlChanged(subs::UrlChanged),
@@ -90,7 +93,7 @@ impl Viewable for Router {
         div![
             // TODO
             a!["Home", attrs! { At::Href => &format!("/{}", Route::Root.as_path()) }],
-            a!["Subscriptions", attrs! { At::Href => &Route::Subscriptions.as_path() }],
+            a!["Subscriptions", attrs! { At::Href => &Route::Subscriptions(SubscriptionRoute::List).as_path() }],
             a!["Login", attrs! { At::Href => &Route::Auth(AuthRoute::Login).as_path() }],
             a!["Register", attrs! { At::Href => &Route::Auth(AuthRoute::Register).as_path() }],
             self.page.view().map_msg(Msg::Page)

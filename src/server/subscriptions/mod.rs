@@ -8,9 +8,9 @@ pub use {
 use crate::{
     database::Schema,
     shared::{
-        subscription::{
+        subscriptions::{
             PriceSubscription,
-            PriceSubscriptionRequest,
+            UpdatePriceSubscriptionRequest,
         },
     },
 };
@@ -107,20 +107,13 @@ impl StaticSubscriptions {
             new_subscriptions: false,
         }
     }
-    pub async fn update_subscription(&mut self, request: PriceSubscriptionRequest) -> Result<(), Error> {
+    pub async fn update_subscription(&mut self, id: Id<PriceSubscription>, request: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
         debug!("Updating subscription...");
-        if let Some((_, cache)) = self.find_subscription(request.clone()).await {
-            if let Some(interval) = request.interval {
-                cache.write().await.set_interval(interval).await?;
-            }
-            Ok(())
-        } else {
-            let err = format!("Subscription {} for not found", request.market_pair);
-            info!["{}", err];
-            Err(Error::Text(err))
-        }
+        self.get_subscription(id).await?
+            .write().await
+            .update(request).await
     }
-    pub async fn add_subscription(&mut self, request: PriceSubscriptionRequest) -> Result<Id<PriceSubscription>, Error> {
+    pub async fn add_subscription(&mut self, request: PriceSubscription) -> Result<Id<PriceSubscription>, Error> {
         debug!("Adding subscription...");
         if let Some((id, _)) = self.find_subscription(request.clone()).await {
             debug!("Model already exists.");
@@ -136,7 +129,7 @@ impl StaticSubscriptions {
     }
     pub async fn find_subscription<'a>(
         &'a self,
-        request: PriceSubscriptionRequest,
+        request: PriceSubscription,
     ) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
         let req = Arc::new(request);
         futures::stream::iter(self.subscriptions.iter())
@@ -204,14 +197,14 @@ impl StaticSubscriptions {
         <Schema as Database::<'_, PriceSubscription>>::get_all()
     }
 
-    pub async fn update(&mut self) -> Result<(), Error> {
+    pub async fn refresh(&mut self) -> Result<(), Error> {
         //debug!("Model update");
         if self.new_subscriptions {
             self.filter_available_symbols().await?;
             self.new_subscriptions = false;
         }
         for (_, cache) in &mut self.subscriptions {
-            cache.write().await.update().await?
+            cache.write().await.refresh().await?
         }
         Ok(())
     }

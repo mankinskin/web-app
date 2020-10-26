@@ -1,9 +1,9 @@
 pub mod actor;
 use crate::{
     shared::{
-        subscription::{
+        subscriptions::{
             PriceSubscription,
-            PriceSubscriptionRequest,
+            UpdatePriceSubscriptionRequest,
         },
     },
     binance::{
@@ -70,7 +70,7 @@ impl IntervalCache {
 }
 impl From<PriceSubscription> for SubscriptionCache {
     fn from(sub: PriceSubscription) -> Self {
-        let interval = sub.interval.unwrap_or(Interval::OneMinute);
+        let interval = Interval::OneMinute;
         let mut caches = HashMap::new();
         caches.insert(interval, IntervalCache::from(interval));
         Self {
@@ -79,11 +79,6 @@ impl From<PriceSubscription> for SubscriptionCache {
             current_interval: interval,
             new_history_index: None,
         }
-    }
-}
-impl From<PriceSubscriptionRequest> for SubscriptionCache {
-    fn from(request: PriceSubscriptionRequest) -> Self {
-        Self::from(PriceSubscription::from(request))
     }
 }
 impl SubscriptionCache {
@@ -96,11 +91,14 @@ impl SubscriptionCache {
         self.new_history_index = None;
         Ok(())
     }
-    pub async fn update(&mut self) -> Result<(), Error> {
-        //let candles = self.latest_price_history().await?.candles;
-        //self.prices.extend(candles.into_iter());
-        self.update_price_history().await.unwrap();
+    pub async fn update(&mut self, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
+        if let Some(interval) = req.interval {
+            self.set_interval(interval).await?;
+        }
         Ok(())
+    }
+    pub async fn refresh(&mut self) -> Result<(), Error> {
+        self.update_price_history().await
     }
     pub async fn paginator(&self) -> Option<Paginator<u32>> {
         self.current_cache().await.paginator().await

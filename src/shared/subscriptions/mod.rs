@@ -13,34 +13,45 @@ use {
     actix::Message,
 };
 use rql::*;
+use enum_paths::AsPath;
+
+pub mod subscription;
+pub use subscription::PriceSubscription;
+
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    #[as_path = ""]
+    Entry(Id<PriceSubscription>),
+    #[as_path = ""]
+    List,
+}
+#[cfg(target_arch = "wasm32")]
+impl database_table::Route for Route {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PriceSubscriptionRequest {
-    pub market_pair: String,
+pub struct UpdatePriceSubscriptionRequest {
     pub interval: Option<Interval>,
 }
-impl From<String> for PriceSubscriptionRequest {
-    fn from(market_pair: String) -> Self {
+impl From<Interval> for UpdatePriceSubscriptionRequest {
+    fn from(interval: Interval) -> Self {
         Self {
-            market_pair,
-            interval: None,
+            interval: Some(interval),
         }
     }
 }
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
 pub enum Request {
     GetPriceSubscriptionList,
-    AddPriceSubscription(PriceSubscriptionRequest),
+    AddPriceSubscription(PriceSubscription),
     Subscription(Id<PriceSubscription>, SubscriptionRequest),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<Response>"))]
 pub enum SubscriptionRequest {
-    UpdatePriceSubscription(PriceSubscriptionRequest),
+    UpdatePriceSubscription(UpdatePriceSubscriptionRequest),
     StartHistoryUpdates,
 }
 
@@ -53,23 +64,4 @@ pub enum Response {
     SubscriptionAdded(Id<PriceSubscription>),
     SubscriptionNotFound(Id<PriceSubscription>),
     SubscriptionUpdated,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PriceSubscription {
-    pub market_pair: String,
-    pub interval: Option<Interval>,
-}
-impl From<PriceSubscriptionRequest> for PriceSubscription {
-    fn from(request: PriceSubscriptionRequest) -> Self {
-        Self {
-            market_pair: request.market_pair,
-            interval: request.interval,
-        }
-    }
-}
-impl PartialEq<&PriceSubscriptionRequest> for PriceSubscription {
-    fn eq(&self, rhs: &&PriceSubscriptionRequest) -> bool {
-        self.market_pair == *rhs.market_pair
-    }
 }

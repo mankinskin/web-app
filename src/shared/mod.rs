@@ -1,5 +1,5 @@
-pub mod subscription;
-pub use subscription::PriceSubscription;
+pub mod subscriptions;
+pub use subscriptions::PriceSubscription;
 
 use serde::{
     Deserialize,
@@ -18,7 +18,7 @@ use {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<ServerMessage>"))]
 pub enum ClientMessage {
-    Subscriptions(subscription::Request),
+    Subscriptions(subscriptions::Request),
     Close,
     Ping,
     Pong,
@@ -29,12 +29,13 @@ pub enum ClientMessage {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
 #[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
 pub enum ServerMessage {
-    Subscriptions(subscription::Response),
+    Subscriptions(subscriptions::Response),
 }
 
 #[derive(Clone, Debug, AsPath)]
 pub enum Route {
-    Subscriptions,
+    #[as_path = "api/subscriptions"]
+    Subscriptions(subscriptions::Route),
     #[as_path = ""]
     Auth(AuthRoute),
     #[as_path = ""]

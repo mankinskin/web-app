@@ -2,6 +2,8 @@ use components::{
     Component,
     Init,
     Viewable,
+    Editor,
+    editor,
 };
 pub mod chart;
 use seed::{
@@ -11,11 +13,11 @@ use seed::{
 use std::collections::HashMap;
 use crate::{
     shared::{
-        subscription::{
+        subscriptions::{
             Request,
             Response,
-            PriceSubscriptionRequest,
             PriceSubscription,
+            Route,
         },
         ClientMessage,
     },
@@ -25,29 +27,39 @@ use tracing::debug;
 use rql::*;
 
 #[derive(Debug)]
-pub struct SubscriptionList {
+pub struct Subscriptions {
     subscriptions: HashMap<Id<PriceSubscription>, chart::SubscriptionChart>,
+    editor: Option<Editor<PriceSubscription>>,
     server_msg_sub: SubHandle,
+    update_list: bool,
 }
-impl SubscriptionList {
-    fn add_subscription_request() -> ClientMessage {
-        ClientMessage::Subscriptions(Request::AddPriceSubscription(
-            PriceSubscriptionRequest {
-                market_pair: "SOLBTC".into(),
-                interval: None,
-            }
-        ))
+impl Subscriptions {
+    fn subscription_editor(&self) -> Node<Msg> {
+        if let Some(editor) = &self.editor {
+            editor.view().map_msg(Msg::Editor)
+        } else {
+            self.add_subscription_button()
+        }
+    }
+    fn add_subscription_button(&self) -> Node<Msg> {
+        button![
+            ev(Ev::Click, |_| Msg::OpenEditor),
+            "Add Subscription", 
+        ]
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     GetList,
+    OpenEditor,
+    Editor(<Editor<PriceSubscription> as Component>::Msg),
     SetList(Vec<Entry<PriceSubscription>>),
     Subscription(Id<PriceSubscription>, chart::Msg),
-    AddSubscription,
+    AddSubscription(PriceSubscription),
 }
-impl Init<()> for SubscriptionList {
-    fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
+impl Init<Route> for Subscriptions {
+    fn init(_: Route, orders: &mut impl Orders<Msg>) -> Self {
+        // TODO add components for list and entry
         orders.send_msg(Msg::GetList);
         Self {
             server_msg_sub: orders.subscribe_with_handle(|msg: Response| {
@@ -59,19 +71,27 @@ impl Init<()> for SubscriptionList {
                 }
             }),
             subscriptions: HashMap::new(),
+            editor: None,
+            update_list: true,
         }
     }
 }
-impl Component for SubscriptionList {
+impl Component for Subscriptions {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
+        //self.update_list = false;
         match msg {
-            Msg::AddSubscription => {
-                // TODO do this over http maybe
-                // TODO identify responses over websocket
-                orders.notify(Self::add_subscription_request());
+            Msg::OpenEditor => {
+                self.editor = Some(Editor::default());
+            }
+            Msg::AddSubscription(req) => {
+                debug!("AddSubscription");
+                orders.notify(ClientMessage::Subscriptions(
+                    Request::AddPriceSubscription(req)
+                ));
             }
             Msg::GetList => {
+                debug!("Getting SubscriptionList");
                 orders.notify(ClientMessage::Subscriptions(Request::GetPriceSubscriptionList));
             },
             Msg::SetList(list) => {
@@ -87,6 +107,20 @@ impl Component for SubscriptionList {
                     )
                 })
                 .collect();
+                self.update_list = true;
+            },
+            Msg::Editor(msg) => {
+                if let Some(ed) = &mut self.editor {
+                    //let new = match msg {
+                    //    editor::Msg::Cancel => Some(None),
+                    //    editor::Msg::Submit => Some(None),
+                    //    _ => None,
+                    //};
+                    ed.update(msg, &mut orders.proxy(Msg::Editor));
+                    //if let Some(new) = new {
+                    //    self.editor = new;
+                    //}
+                }
             },
             Msg::Subscription(id, msg) => {
                 if let Some(subscription) = self.subscriptions.get_mut(&id) {
@@ -94,20 +128,29 @@ impl Component for SubscriptionList {
                 } else {
                     error!("Subscription {} not found!", id);
                 }
+                self.update_list = true;
             },
         }
     }
 }
-impl Viewable for SubscriptionList {
+impl Viewable for Subscriptions {
     fn view(&self) -> Node<Msg> {
-        let list = self.subscriptions
-                .iter()
-                .map(move |(id, chart)| {
-                    (id.clone(), chart.view())
+        let _list = if self.update_list {
+            let list = self.subscriptions.iter()
+                    .map(move |(id, chart)| {
+                        (id.clone(), chart.view())
+                    });
+            div![
+                list.map(move |(id, chart)| {
+                    chart.map_msg(move |msg| Msg::Subscription(id.clone(), msg))
                 })
-                .collect::<Vec<_>>();
+            ]
+        } else {
+            div![Node::NoChange]
+        };
         div![
-            list.into_iter().map(|(id, item)| item.map_msg(move |msg| Msg::Subscription(id, msg)))
+            self.subscription_editor(),
+            //list,
         ]
     }
 }

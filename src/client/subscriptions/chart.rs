@@ -5,9 +5,9 @@ use components::{
 };
 use crate::{
     shared::{
-        subscription::{
+        subscriptions::{
             PriceSubscription,
-            PriceSubscriptionRequest,
+            UpdatePriceSubscriptionRequest,
             Request,
             SubscriptionRequest,
         },
@@ -62,8 +62,7 @@ impl SubscriptionChart {
         ClientMessage::Subscriptions(Request::Subscription(
             self.id.clone(), 
             SubscriptionRequest::UpdatePriceSubscription(
-                PriceSubscriptionRequest {
-                    market_pair: "SOLBTC".into(),
+                UpdatePriceSubscriptionRequest {
                     interval: Some(self.interval),
                 }
             )

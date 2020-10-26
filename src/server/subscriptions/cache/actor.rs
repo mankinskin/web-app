@@ -1,8 +1,8 @@
 use crate::{
     shared::{
-        subscription::{
+        subscriptions::{
             PriceSubscription,
-            PriceSubscriptionRequest,
+            UpdatePriceSubscriptionRequest,
             SubscriptionRequest,
             Response,
         },
@@ -75,10 +75,10 @@ impl SubscriptionCacheActor {
             .get_subscription(id)
             .await
     }
-    pub async fn update_subscription(req: PriceSubscriptionRequest) -> Result<(), Error> {
+    pub async fn update_subscription(id: Id<PriceSubscription>, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
         caches_mut()
             .await
-            .update_subscription(req)
+            .update_subscription(id, req)
             .await
     }
 }
@@ -89,7 +89,7 @@ impl Actor for SubscriptionCacheActor {
 #[rtype(result = "Option<Response>")]
 enum Msg {
     Request(SubscriptionRequest),
-    Update,
+    Refresh,
 }
 impl Handler<Msg> for SubscriptionCacheActor {
     type Result = ResponseActFuture<Self, Option<Response>>;
@@ -104,8 +104,8 @@ impl Handler<Msg> for SubscriptionCacheActor {
                 Msg::Request(req) =>
                     match req {
                         SubscriptionRequest::UpdatePriceSubscription(request) => {
-                            info!("Updating subscription {}", &request.market_pair);
-                            Self::update_subscription(request.clone()).await.unwrap();
+                            info!("Updating subscription {}", &id);
+                            Self::update_subscription(id, request.clone()).await.unwrap();
                             Some(Response::SubscriptionUpdated)
                         },
                         SubscriptionRequest::StartHistoryUpdates => {
@@ -113,18 +113,18 @@ impl Handler<Msg> for SubscriptionCacheActor {
                             with_ctx::<Self, _, _>(|act, ctx| {
                                 act.update_stream = Some(ctx.add_stream(
                                     stream::interval(std::time::Duration::from_secs(3))
-                                        .map(move |_| Msg::Update)
+                                        .map(move |_| Msg::Refresh)
                                 ));
-                                ctx.notify(Msg::Update);
+                                ctx.notify(Msg::Refresh);
                             });
                             None
                         },
                     },
-                Msg::Update => {
+                Msg::Refresh => {
                     //info!("Updating price history for {:#?}", id);
                     let sub = Self::get_subscription(id).await.unwrap();
                     let mut sub = sub.write().await;
-                    sub.update().await.unwrap();
+                    sub.refresh().await.unwrap();
                     if let Some(history) = sub.get_new_history().await {
                         with_ctx::<Self, _, _>(|_act, ctx| {
                             ctx.notify(Response::PriceHistory(id.clone(), history));

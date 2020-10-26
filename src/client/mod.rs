@@ -30,7 +30,7 @@ struct Root {
     router: Router,
     websocket: WebSocket,
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum Msg {
     Router(router::Msg),
     Websocket(websocket::Msg),

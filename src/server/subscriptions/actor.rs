@@ -1,11 +1,11 @@
 use crate::{
     shared::{
         ServerMessage,
-        subscription::{
+        subscriptions::{
             Request,
             Response,
             PriceSubscription,
-            PriceSubscriptionRequest,
+            UpdatePriceSubscriptionRequest,
         },
     },
     websocket::Session,
@@ -79,19 +79,19 @@ impl SubscriptionsActor {
             actors,
         })
     }
-    pub async fn add_subscription(req: PriceSubscriptionRequest) -> Result<Id<PriceSubscription>, Error> {
+    pub async fn add_subscription(req: PriceSubscription) -> Result<Id<PriceSubscription>, Error> {
         caches_mut()
             .await
             .add_subscription(req)
             .await
     }
-    pub async fn update_subscription(req: PriceSubscriptionRequest) -> Result<(), Error> {
+    pub async fn update_subscription(id: Id<PriceSubscription>, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
         caches_mut()
             .await
-            .update_subscription(req)
+            .update_subscription(id, req)
             .await
     }
-    pub async fn find_subscription(request: PriceSubscriptionRequest) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
+    pub async fn find_subscription(request: PriceSubscription) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
         caches()
             .await
             .find_subscription(request)
@@ -110,8 +110,8 @@ impl SubscriptionsActor {
             .get_subscription_list()
             .await
     }
-    pub async fn update() -> Result<(), Error> {
-        caches_mut().await.update().await
+    pub async fn refresh() -> Result<(), Error> {
+        caches_mut().await.refresh().await
     }
 }
 
