@@ -5,38 +5,41 @@ use crate::{
 };
 use database_table::{
     Entry,
-    TableItem,
+    RemoteTable,
 };
-use seed::prelude::*;
+use seed::{
+    prelude::*,
+};
 use std::fmt::Debug;
 
-impl<T: TableItem + Viewable + Debug> Viewable for Entry<T> {
+impl<D, T: RemoteTable<D> + Viewable + Debug> Viewable for Entry<T> {
     fn view(&self) -> Node<Self::Msg> {
         self.data.view().map_msg(Msg::Data)
     }
 }
-#[derive(Clone, Debug)]
-pub enum Msg<T: TableItem + Component + Debug> {
+#[derive(Debug)]
+pub enum Msg<D, T: RemoteTable<D> + Component + Debug> {
     Refresh,
-    Refreshed(Result<Option<Entry<T>>, String>),
+    Refreshed(Result<Option<Entry<T>>, <T as RemoteTable>::Error>),
 
     Delete,
-    Deleted(Result<Option<T>, String>),
+    Deleted(Result<Option<T>, <T as RemoteTable>::Error>),
 
     Update,
-    Updated(Result<Option<T>, String>),
+    Updated(Result<Option<T>, <T as RemoteTable>::Error>),
 
     Data(<T as Component>::Msg),
     Preview(Box<preview::Msg<T>>),
 }
-impl<T: TableItem + Component + Debug> Component for Entry<T> {
+use futures::future::FutureExt;
+impl<T: RemoteTable + Component + Debug> Component for Entry<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Refresh => {
-                //orders.perform_cmd(
-                //    T::get(self.id).map(|res| Msg::Refreshed(res))
-                //);
+                orders.perform_cmd(
+                    T::get(self.id).map(Msg::Refreshed)
+                );
             }
             Msg::Refreshed(res) => {
                 match res {
@@ -51,9 +54,9 @@ impl<T: TableItem + Component + Debug> Component for Entry<T> {
                 }
             }
             Msg::Delete => {
-                //orders.perform_cmd(
-                //    T::delete(self.id).map(|res| Msg::Deleted(res))
-                //);
+                orders.perform_cmd(
+                    T::delete(self.id).map(Msg::Deleted)
+                );
             }
             Msg::Deleted(res) => {
                 match res {
@@ -67,7 +70,7 @@ impl<T: TableItem + Component + Debug> Component for Entry<T> {
             }
             Msg::Update => {
                 //orders.perform_cmd(
-                //    <T as TableItem>::update(self.id, T::Update::from(self.data.clone()))
+                //    <T as RemoteTable>::update(self.id, T::Update::from(self.data.clone()))
                 //        .map(|res| Msg::Updated(res))
                 //);
             }
@@ -82,7 +85,7 @@ impl<T: TableItem + Component + Debug> Component for Entry<T> {
                 }
             }
             Msg::Data(msg) => {
-                self.data.update(msg.clone(), &mut orders.proxy(Msg::Data));
+                self.data.update(msg, &mut orders.proxy(Msg::Data));
             }
             Msg::Preview(_) => {}
         }

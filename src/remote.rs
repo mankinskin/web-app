@@ -3,7 +3,7 @@ use crate::{
     entry,
     preview::{
         self,
-        Preview,
+        Previewable,
     },
     Component,
     Init,
@@ -12,7 +12,7 @@ use crate::{
 use database_table::{
     Entry,
     Routable,
-    TableItem,
+    RemoteTable,
 };
 use rql::Id;
 use seed::{
@@ -23,44 +23,45 @@ use std::fmt::Debug;
 use std::result::Result;
 
 #[derive(Debug, Clone)]
-pub enum Model<T: TableItem> {
+pub enum Remote<T: RemoteTable> {
     Loading(Id<T>),
     Ready(Entry<T>),
 }
-impl<T: TableItem + Component + Debug> Init<Id<T>> for Model<T> {
-    fn init(id: Id<T>, orders: &mut impl Orders<Msg<T>>) -> Model<T> {
+impl<T: RemoteTable + Component + Debug> Init<Id<T>> for Remote<T> {
+    fn init(id: Id<T>, orders: &mut impl Orders<Msg<T>>) -> Self {
         orders.send_msg(Msg::Get);
-        Model::Loading(id)
+        Self::Loading(id)
     }
 }
-impl<T: TableItem + Component> From<Entry<T>> for Model<T> {
-    fn from(entry: Entry<T>) -> Model<T> {
-        Model::Ready(entry)
+impl<T: RemoteTable + Component> From<Entry<T>> for Remote<T> {
+    fn from(entry: Entry<T>) -> Self {
+        Self::Ready(entry)
     }
 }
-#[derive(Clone, Debug)]
-pub enum Msg<T: TableItem + Component + Debug> {
+#[derive(Debug)]
+pub enum Msg<T: RemoteTable + Component + Debug> {
     Get,
-    Got(Result<Option<Entry<T>>, String>),
+    Got(Result<Option<Entry<T>>, <T as RemoteTable>::Error>),
     Entry(entry::Msg<T>),
     Preview(Box<preview::Msg<T>>),
 }
-impl<T: TableItem + Component + Debug> Component for Model<T> {
+use futures::future::FutureExt;
+impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match self {
-            Model::Loading(_id) => {
+            Self::Loading(id) => {
                 match msg {
                     Msg::Get => {
-                        //orders.perform_cmd(
-                        //    T::get(*id).map(|res| Msg::Got(res))
-                        //);
+                        orders.perform_cmd(
+                            T::get(*id).map(Msg::Got)
+                        );
                     }
                     Msg::Got(res) => {
                         match res {
                             Ok(r) => {
                                 if let Some(entry) = r {
-                                    *self = Model::Ready(entry);
+                                    *self = Self::Ready(entry);
                                 }
                             }
                             Err(e) => {
@@ -71,10 +72,10 @@ impl<T: TableItem + Component + Debug> Component for Model<T> {
                     _ => {}
                 }
             }
-            Model::Ready(entry) => {
+            Self::Ready(entry) => {
                 match msg {
                     Msg::Entry(msg) => {
-                        entry.update(msg.clone(), &mut orders.proxy(Msg::Entry));
+                        entry.update(msg, &mut orders.proxy(Msg::Entry));
                     }
                     Msg::Preview(_) => {}
                     Msg::Get => {
@@ -86,36 +87,36 @@ impl<T: TableItem + Component + Debug> Component for Model<T> {
         }
     }
 }
-impl<T: TableItem + Preview + Debug> Preview for Model<T> {
+impl<T: RemoteTable + Previewable + Debug> Previewable for Remote<T> {
     fn preview(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => entry.preview().map_msg(Msg::Entry),
-            Model::Loading(_) => div![h1!["Preview"], p!["Loading..."],],
+            Self::Ready(entry) => entry.preview().map_msg(Msg::Entry),
+            Self::Loading(_) => div![h1!["Preview"], p!["Loading..."],],
         }
     }
 }
-impl<T: TableItem + Viewable + Debug> Viewable for Model<T> {
+impl<T: RemoteTable + Viewable + Debug> Viewable for Remote<T> {
     fn view(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => entry.view().map_msg(Msg::Entry),
-            Model::Loading(_) => div![h1!["Viewable"], p!["Loading..."],],
+            Self::Ready(entry) => entry.view().map_msg(Msg::Entry),
+            Self::Loading(_) => div![h1!["Viewable"], p!["Loading..."],],
         }
     }
 }
-impl<T: TableItem + Edit + Debug> Edit for Model<T> {
+impl<T: RemoteTable + Edit + Debug> Edit for Remote<T> {
     fn edit(&self) -> Node<Self::Msg> {
         match self {
-            Model::Ready(entry) => entry.edit().map_msg(Msg::Entry),
-            Model::Loading(_) => div![h1!["Editor"], p!["Loading..."],],
+            Self::Ready(entry) => entry.edit().map_msg(Msg::Entry),
+            Self::Loading(_) => div![h1!["Editor"], p!["Loading..."],],
         }
     }
 }
-impl<T: TableItem> Routable for Model<T> {
+impl<T: RemoteTable> Routable for Remote<T> {
     type Route = T::Route;
     fn route(&self) -> Self::Route {
         match self {
-            Model::Ready(entry) => entry.route(),
-            Model::Loading(id) => id.route(),
+            Self::Ready(entry) => entry.route(),
+            Self::Loading(id) => id.route(),
         }
     }
 }

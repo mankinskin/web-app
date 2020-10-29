@@ -5,7 +5,13 @@ pub use editor::{
     Edit,
     Editor,
 };
+pub use preview::{
+    Previewable,
+};
 pub mod list;
+pub use list::{
+    List,
+};
 pub mod newdata;
 pub mod remote;
 
@@ -24,8 +30,8 @@ where
         config.into()
     }
 }
-pub trait ComponentMsg: Clone + Debug + 'static {}
-impl<T: Clone + Debug + 'static> ComponentMsg for T {}
+pub trait ComponentMsg: Debug + 'static {}
+impl<T: Debug + 'static> ComponentMsg for T {}
 pub trait Component {
     type Msg: ComponentMsg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>);

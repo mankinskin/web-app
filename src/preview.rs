@@ -6,7 +6,7 @@ use crate::{
 use database_table::{
     Entry,
     Routable,
-    TableItem,
+    RemoteTable,
 };
 use enum_paths::AsPath;
 use seed::{
@@ -39,16 +39,16 @@ impl<T: Component + TableItem + Debug> Component for Model<T> {
         }
     }
 }
-impl<T: TableItem + Preview + Debug> Viewable for Model<T> {
+impl<D, T: Component + RemoteTable<D> + Debug + Previewable> Viewable for Preview<D, T> {
     fn view(&self) -> Node<Self::Msg> {
         self.entry.preview().map_msg(Msg::Entry)
     }
 }
 
-pub trait Preview: Component {
+pub trait Previewable: Component {
     fn preview(&self) -> Node<Self::Msg>;
 }
-impl<T: Component + TableItem + Preview + Debug> Preview for Entry<T> {
+impl<D, T: Component + RemoteTable<D> + Previewable + Debug> Previewable for Entry<T> {
     fn preview(&self) -> Node<Self::Msg> {
         div![
             attrs! {

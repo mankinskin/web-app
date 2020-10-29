@@ -4,10 +4,11 @@ use crate::{
     remote,
     Component,
     Init,
+    Viewable,
 };
 use database_table::{
     Entry,
-    TableItem,
+    RemoteTable,
 };
 use rql::Id;
 use seed::{
@@ -19,44 +20,44 @@ use std::fmt::Debug;
 pub trait Edit: Component {
     fn edit(&self) -> Node<Self::Msg>;
 }
-impl<T: TableItem + Edit + Debug> Edit for Entry<T> {
+impl<T: RemoteTable + Edit + Debug> Edit for Entry<T> {
     fn edit(&self) -> Node<Self::Msg> {
         self.data.edit().map_msg(entry::Msg::Data)
     }
 }
 #[derive(Debug, Clone)]
-pub enum Editor<T: TableItem> {
-    Remote(remote::Model<T>),
-    New(newdata::Model<T>),
+pub enum Editor<T: RemoteTable> {
+    Remote(remote::Remote<T>),
+    New(newdata::NewData<T>),
 }
-impl<T: TableItem + Default> Default for Editor<T> {
+impl<T: RemoteTable + Default> Default for Editor<T> {
     fn default() -> Self {
         Self::New(Default::default())
     }
 }
-impl<T: TableItem + Component> From<Entry<T>> for Editor<T> {
+impl<T: RemoteTable + Component> From<Entry<T>> for Editor<T> {
     fn from(model: Entry<T>) -> Self {
-        Self::from(remote::Model::from(model))
+        Self::from(remote::Remote::from(model))
     }
 }
-impl<T: TableItem> From<remote::Model<T>> for Editor<T> {
-    fn from(model: remote::Model<T>) -> Self {
+impl<T: RemoteTable> From<remote::Remote<T>> for Editor<T> {
+    fn from(model: remote::Remote<T>) -> Self {
         Self::Remote(model)
     }
 }
-impl<T: TableItem + Component + Debug> Init<Id<T>> for Editor<T> {
+impl<T: RemoteTable + Component + Debug + Clone> Init<Id<T>> for Editor<T> {
     fn init(id: Id<T>, orders: &mut impl Orders<Msg<T>>) -> Self {
         Self::Remote(Init::init(id, &mut orders.proxy(Msg::Remote)))
     }
 }
-#[derive(Debug, Clone)]
-pub enum Msg<T: Component + TableItem + std::fmt::Debug> {
+#[derive(Debug)]
+pub enum Msg<T: Component + RemoteTable + std::fmt::Debug> {
     Cancel,
     Submit,
     New(newdata::Msg<T>),
     Remote(remote::Msg<T>),
 }
-impl<T: Component + TableItem + Debug> Component for Editor<T> {
+impl<T: Component + RemoteTable + Debug + Clone> Component for Editor<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
         match msg {
@@ -87,8 +88,8 @@ impl<T: Component + TableItem + Debug> Component for Editor<T> {
         }
     }
 }
-impl<T: Component + TableItem + Edit + Debug> Edit for Editor<T> {
-    fn edit(&self) -> Node<Msg<T>> {
+impl<T: Component + RemoteTable + Edit + Debug + Clone> Viewable for Editor<T> {
+    fn view(&self) -> Node<Msg<T>> {
         form![
             style! {
                 St::Display => "grid",
