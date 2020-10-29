@@ -33,6 +33,7 @@ use actix_files::{
 use actix_web::{
     get,
     post,
+    delete,
     web,
     App,
     HttpServer,
@@ -140,6 +141,10 @@ pub async fn run() -> std::io::Result<()> {
                 .service(
                     web::scope("/api")
                         .service(price_history)
+                        .route("/subscriptions", web::get().to(get_subscriptions))
+                        .service(get_subscription)
+                        .service(delete_subscription)
+                        .service(post_subscription)
                         .service(login)
                         .service(register)
                 )
@@ -149,4 +154,30 @@ pub async fn run() -> std::io::Result<()> {
         .bind_openssl(addr, ssl_builder)?;
     info!("Starting Server");
     server.run().await
+}
+use crate::shared::PriceSubscription;
+use database_table::{
+    Database,
+};
+use database::Schema;
+use rql::*;
+use subscriptions::SubscriptionsActor;
+async fn get_subscriptions() -> impl Responder {
+    web::Json(<Schema as Database<PriceSubscription>>::get_all())
+}
+#[get("subscriptions/{id}")]
+async fn get_subscription(id: web::Path<Id<PriceSubscription>>) -> impl Responder {
+    web::Json(Schema::get(id.into_inner()))
+}
+#[post("subscriptions")]
+async fn post_subscription(data: web::Json<PriceSubscription>) -> impl Responder {
+    web::Json(
+        SubscriptionsActor::add_subscription(data.into_inner())
+        .await
+        .map_err(|e| format!("{:#?}", e))
+        )
+}
+#[delete("subscriptions/{id}")]
+async fn delete_subscription(id: web::Path<Id<PriceSubscription>>) -> impl Responder {
+    web::Json(Schema::delete(id.into_inner()))
 }

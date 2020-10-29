@@ -5,7 +5,11 @@ use serde::{
 
 #[cfg(target_arch = "wasm32")]
 use {
-    crate::shared::subscriptions::Route,
+    crate::shared::{
+        Route as CrateRoute,
+        ApiRoute,
+        subscriptions::Route,
+    },
     database_table::{
         RemoteTable,
         TableRoutable,
@@ -98,15 +102,14 @@ impl RemoteTable for PriceSubscription {
         .json().await
     }
 }
-
 #[cfg(target_arch = "wasm32")]
 impl TableRoutable for PriceSubscription {
-    type Route = Route;
+    type Route = CrateRoute;
     fn table_route() -> Self::Route {
-        Route::List
+        CrateRoute::Api(ApiRoute::Subscriptions(Route::List))
     }
     fn entry_route(id: Id<Self>) -> Self::Route {
-        Route::Entry(id)
+        CrateRoute::Api(ApiRoute::Subscriptions(Route::Entry(id)))
     }
 }
 

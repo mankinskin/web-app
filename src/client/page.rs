@@ -52,6 +52,7 @@ impl Init<Route> for Page {
             }
             Route::Subscriptions(route) => Self::Subscriptions(Subscriptions::init(route, &mut orders.proxy(Msg::Subscriptions))),
             Route::User(route) => Self::init(route, orders),
+            Route::Api(_) => Self::Root,
             Route::Root => Self::Root,
         }
     }

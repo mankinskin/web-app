@@ -148,6 +148,18 @@ impl StaticSubscriptions {
             .into_iter()
             .find_map(|opt| opt)
     }
+    pub async fn delete_subscription<'a>(
+        &'a mut self,
+        id: Id<PriceSubscription>,
+    ) -> Result<(), Error> {
+        self.subscriptions
+            .remove(&id)
+            .map(|_| ())
+            .ok_or(Error::from(format!(
+                "No Subscription with ID: {}",
+                id
+            )))
+    }
     pub async fn get_subscription<'a>(
         &'a self,
         id: Id<PriceSubscription>,

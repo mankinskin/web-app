@@ -34,7 +34,7 @@ pub enum ServerMessage {
 
 #[derive(Clone, Debug, AsPath)]
 pub enum Route {
-    #[as_path = "api/subscriptions"]
+    Api(ApiRoute),
     Subscriptions(subscriptions::Route),
     #[as_path = ""]
     Auth(AuthRoute),
@@ -45,7 +45,13 @@ pub enum Route {
 }
 impl database_table::Route for Route {}
 
-impl database_table::Routable for Route {
+#[derive(Clone, Debug, AsPath)]
+pub enum ApiRoute {
+    Subscriptions(subscriptions::Route),
+}
+impl database_table::Route for ApiRoute {}
+
+impl database_table::Routable for ApiRoute {
     type Route = Self;
     fn route(&self) -> Self::Route {
         self.clone()

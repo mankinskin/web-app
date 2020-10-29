@@ -103,6 +103,12 @@ impl SubscriptionsActor {
             .get_subscription(id)
             .await
     }
+    pub async fn delete_subscription(id: Id<PriceSubscription>) -> Result<(), Error> {
+        caches_mut()
+            .await
+            .delete_subscription(id)
+            .await
+    }
     pub async fn get_subscription_list() -> Vec<Entry<PriceSubscription>> {
 
         caches()
