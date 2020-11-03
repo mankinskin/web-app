@@ -3,7 +3,6 @@ use components::{
     Init,
     Viewable,
     Editor,
-    editor,
 };
 pub mod chart;
 use seed::{
