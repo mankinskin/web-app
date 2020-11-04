@@ -27,7 +27,7 @@ impl From<Editor<Task>> for Model {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Editor(EditorMsg<Task>),
 }

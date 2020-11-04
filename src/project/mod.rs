@@ -14,12 +14,18 @@ use components::{
 };
 use database_table::{
     DatabaseTable,
-    TableItem,
+    RemoteTable,
     TableRoutable,
+    Entry,
 };
 use rql::*;
 #[cfg(target_arch = "wasm32")]
 use seed::{
+    browser::fetch::{
+        fetch,
+        Request,
+        Method,
+    },
     prelude::*,
     *,
 };
@@ -88,7 +94,44 @@ impl Project {
     }
 }
 
-impl TableItem for Project {}
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl RemoteTable for Project {
+    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String> {
+        fetch(
+            Request::new(Self::entry_route(id))
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
+        fetch(
+            Request::new(Self::entry_route(id))
+                .method(Method::Delete)
+        ).await?
+        .json().await
+    }
+    async fn get_all() -> Result<Vec<Entry<Self>>, String> {
+        fetch(
+            Request::new(Self::table_route())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, String> {
+        fetch(
+            Request::new(Self::table_route())
+                .method(Method::Post)
+                .json(data).await?
+        ).await?
+        .json().await
+    }
+}
+impl From<Entry<Project>> for Project {
+    fn from(entry: Entry<Self>) -> Self {
+        entry.into_inner()
+    }
+}
 impl<'a> DatabaseTable<'a> for Project {
     fn table() -> TableGuard<'a, Self> {
         DB.project()
@@ -98,7 +141,7 @@ impl<'a> DatabaseTable<'a> for Project {
     }
 }
 #[cfg(target_arch = "wasm32")]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     SetName(String),
     SetDescription(String),

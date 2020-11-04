@@ -43,7 +43,7 @@ impl Init<Entry<Project>> for Model {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Entry(remote::Msg<Project>),
     TaskList(task::list::Msg),
@@ -65,7 +65,7 @@ impl Component for Model {
             }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
+                    Component::update(editor, msg, &mut orders.proxy(Msg::Editor));
                 }
                 //match msg {
                 //    editor::Msg::Editor(msg) =>

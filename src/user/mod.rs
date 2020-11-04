@@ -1,22 +1,33 @@
 use crate::{
     auth::credentials::*,
 };
-#[cfg(target_arch = "wasm32")]
-use components::{
-    entry,
-    preview,
-    Component,
-    Viewable,
-};
 use database_table::{
-    TableItem,
     TableRoutable,
+    Entry,
 };
 use rql::*;
 #[cfg(target_arch = "wasm32")]
-use seed::{
-    prelude::*,
-    *,
+use {
+    components::{
+        entry,
+        preview,
+        Component,
+        Viewable,
+    },
+    database_table::{
+        RemoteTable,
+    },
+    seed::{
+        prelude::*,
+        *,
+        browser::fetch::{
+            fetch,
+            Request,
+            Method,
+        },
+    },
+    std::result::Result,
+    async_trait::async_trait,
 };
 use serde::{
     Serialize,
@@ -29,6 +40,7 @@ use std::fmt::{
 use enum_paths::{
     AsPath,
 };
+
 //#[cfg(target_arch = "wasm32")]
 //pub mod profile;
 
@@ -98,10 +110,48 @@ impl TableRoutable for User {
         Route::User(id)
     }
 }
-impl TableItem for User {}
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl RemoteTable for User {
+    type Error = FetchError;
+    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Delete)
+        ).await?
+        .json().await
+    }
+    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Post)
+                .json(&data)?
+        ).await?
+        .json().await
+    }
+}
+impl From<Entry<User>> for User {
+    fn from(entry: Entry<User>) -> Self {
+        entry.into_inner()
+    }
+}
 
 #[cfg(target_arch = "wasm32")]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Entry(Box<entry::Msg<User>>),
 }
@@ -125,7 +175,7 @@ impl Viewable for User {
     }
 }
 #[cfg(target_arch = "wasm32")]
-impl preview::Preview for User {
+impl preview::Previewable for User {
     fn preview(&self) -> Node<Msg> {
         div![
             p!["Preview"],

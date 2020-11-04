@@ -51,7 +51,7 @@ impl From<Vec<Entry<Task>>> for Model {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     GetProjectTasks(Id<Project>),
     ProjectTasks(Result<Vec<Entry<Task>>, String>),
