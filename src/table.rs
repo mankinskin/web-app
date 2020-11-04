@@ -18,10 +18,11 @@ pub trait Routable {
     fn route(&self) -> Self::Route;
 }
 pub trait Route : Clone + Debug + AsPath + ParsePath + 'static{ }
-pub trait TableRoutable: Clone + 'static {
+
+pub trait TableRoutable<T=Self>: 'static {
     type Route: Route;
     fn table_route() -> Self::Route;
-    fn entry_route(id: Id<Self>) -> Self::Route;
+    fn entry_route(id: Id<T>) -> Self::Route;
 }
 impl<T: TableRoutable> Routable for T {
     type Route = T::Route;
@@ -41,18 +42,20 @@ impl<T: TableRoutable> Routable for Id<T> {
         T::entry_route(*self)
     }
 }
-//use std::result::Result;
+use std::result::Result;
 #[async_trait(?Send)]
-pub trait TableItem
-    : Clone
-    + 'static
-    + TableRoutable
+pub trait RemoteTable<T=Self>
+    : TableRoutable<T>
+    + From<T>
+    + Clone
+    + Debug
 {
-    //async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String>;
-    //async fn delete(id: Id<Self>) -> Result<Option<Self>, String>;
-    //async fn get_all() -> Result<Vec<Entry<Self>>, String>;
+    type Error: Debug;
+    async fn get(id: Id<T>) -> Result<Option<Entry<T>>, Self::Error>;
+    async fn delete(id: Id<T>) -> Result<Option<T>, Self::Error>;
+    async fn get_all() -> Result<Vec<Entry<T>>, Self::Error>;
     //async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String>;
-    //async fn post(data: Self) -> Result<Id<Self>, String>;
+    async fn post(data: T) -> Result<Id<T>, Self::Error>;
 }
 pub trait DatabaseTable<'db, D: crate::Database<'db, Self>>
     : Sized

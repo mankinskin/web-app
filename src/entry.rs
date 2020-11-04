@@ -26,6 +26,9 @@ impl<T> Entry<T> {
     pub fn data_mut(&mut self) -> &mut T {
         &mut self.data
     }
+    pub fn into_inner(self) -> T {
+        self.data
+    }
 }
 impl<T> From<Row<'_, T>> for Entry<T>
     where T: Clone
@@ -48,4 +51,9 @@ impl<T> From<(Id<T>, T)> for Entry<T>
         Self::new(id, data)
     }
 }
-
+impl<T> std::ops::Deref for Entry<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.data()
+    }
+}
