@@ -1,7 +1,6 @@
 use crate::*;
 use app_model::{
     Project,
-    Route,
     Task,
     User,
 };
