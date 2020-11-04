@@ -2,9 +2,9 @@
 members = [
   "budget",
   "interpreter",
-  "interpreter/seqraph",
+  "seqraph",
   "server",
-  "server/client",
-  "server/api",
-  "server/define_api",
+  "client",
+  "api",
+  "define_api",
 ]

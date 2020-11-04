@@ -22,7 +22,10 @@ features = [
 ]
 
 [dependencies.define_api]
-path = "./define_api"
+path = "../define_api"
+
+[dependencies.api]
+path = "../api"
 
 [dependencies.rql]
 path = "../../rql"
@@ -33,5 +36,3 @@ path = "../../app-model"
 [dependencies.database-table]
 path = "../../database-table"
 
-[dependencies.api]
-path = "./api"

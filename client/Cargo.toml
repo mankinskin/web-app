@@ -33,29 +33,29 @@ features = [
   'serde-serialize',
 ]
 
-[dependencies.enum_paths]
-path = "../../../enum_paths"
-
-[dependencies.components]
-path = "../../../components"
-
-[dependencies.rql]
-path = "../../../rql"
-
-[dependencies.app-model]
-path = "../../../app-model"
-
-[dependencies.database-table]
-path = "../../../database-table"
-
-[dependencies.updatable]
-path = "../../../updatable"
-
 [dependencies.interpreter]
-path = "../../interpreter"
+path = "../interpreter"
 
 [dependencies.seqraph]
-path = "../../interpreter/seqraph"
+path = "../seqraph"
 
 [dependencies.api]
 path = "../api"
+
+[dependencies.enum_paths]
+path = "../../enum_paths"
+
+[dependencies.components]
+path = "../../components"
+
+[dependencies.rql]
+path = "../../rql"
+
+[dependencies.app-model]
+path = "../../app-model"
+
+[dependencies.database-table]
+path = "../../database-table"
+
+[dependencies.updatable]
+path = "../../updatable"
