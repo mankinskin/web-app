@@ -1,39 +1,44 @@
-use super::*;
 use crate::{
     task::*,
     user::*,
-    DB,
 };
 #[cfg(target_arch = "wasm32")]
-use components::{
-    entry,
-    preview,
-    Component,
-    Edit,
-    Viewable,
+use {
+    components::{
+        entry,
+        preview,
+        Component,
+        Edit,
+        Viewable,
+    },
+    seed::{
+        browser::fetch::{
+            fetch,
+            Request,
+            Method,
+        },
+        prelude::*,
+        *,
+    },
+    async_trait::async_trait,
+    std::result::Result,
+    database_table::{
+        RemoteTable,
+    },
 };
 use database_table::{
-    DatabaseTable,
-    RemoteTable,
     TableRoutable,
     Entry,
 };
 use rql::*;
-#[cfg(target_arch = "wasm32")]
-use seed::{
-    browser::fetch::{
-        fetch,
-        Request,
-        Method,
-    },
-    prelude::*,
-    *,
-};
 use serde::{
     Deserialize,
     Serialize,
 };
 use derive_builder::Builder;
+use enum_paths::{
+    AsPath,
+};
 
 #[cfg(target_arch = "wasm32")]
 pub mod editor;
@@ -49,6 +54,13 @@ pub struct Project {
     members: Vec<Id<User>>,
     tasks: Vec<Id<Task>>,
 }
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    Projects,
+    #[as_path = ""]
+    Project(Id<Project>),
+}
+impl database_table::Route for Route {}
 impl TableRoutable for Project {
     type Route = Route;
     fn table_route() -> Route {
@@ -93,51 +105,45 @@ impl Project {
         self.tasks.push(id);
     }
 }
-
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl RemoteTable for Project {
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String> {
-        fetch(
-            Request::new(Self::entry_route(id))
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
-        fetch(
-            Request::new(Self::entry_route(id))
-                .method(Method::Delete)
-        ).await?
-        .json().await
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, String> {
-        fetch(
-            Request::new(Self::table_route())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, String> {
-        fetch(
-            Request::new(Self::table_route())
-                .method(Method::Post)
-                .json(data).await?
-        ).await?
-        .json().await
-    }
-}
 impl From<Entry<Project>> for Project {
     fn from(entry: Entry<Self>) -> Self {
         entry.into_inner()
     }
 }
-impl<'a> DatabaseTable<'a> for Project {
-    fn table() -> TableGuard<'a, Self> {
-        DB.project()
+
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl RemoteTable for Project {
+    type Error = FetchError;
+    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
     }
-    fn table_mut() -> TableGuardMut<'a, Self> {
-        DB.project_mut()
+    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Delete)
+        ).await?
+        .json().await
+    }
+    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Post)
+                .json(&data)?
+        ).await?
+        .json().await
     }
 }
 #[cfg(target_arch = "wasm32")]
@@ -169,7 +175,7 @@ impl Viewable for Project {
     }
 }
 #[cfg(target_arch = "wasm32")]
-impl preview::Preview for Project {
+impl preview::Previewable for Project {
     fn preview(&self) -> Node<Msg> {
         div![
             style! {

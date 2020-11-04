@@ -15,7 +15,7 @@ use std::result::Result;
 #[derive(Clone, Default)]
 pub struct Model {
     user_id: Option<Id<User>>,
-    list: list::Model<Project>,
+    list: list::List<Project>,
     editor: Option<editor::Model>,
 }
 impl Model {
@@ -51,12 +51,12 @@ impl Init<Id<User>> for Model {
 impl From<Vec<Entry<Project>>> for Model {
     fn from(entries: Vec<Entry<Project>>) -> Self {
         Self {
-            list: list::Model::from(entries),
+            list: list::List::from(entries),
             ..Default::default()
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     GetUserProjects(Id<User>),
     UserProjects(Result<Vec<Entry<Project>>, String>),
@@ -79,7 +79,7 @@ impl Component for Model {
             }
             Msg::UserProjects(res) => {
                 match res {
-                    Ok(entries) => self.list = list::Model::from(entries),
+                    Ok(entries) => self.list = list::List::from(entries),
                     Err(e) => {
                         seed::log(e);
                     }
@@ -96,7 +96,7 @@ impl Component for Model {
             }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
+                    Component::update(editor, msg, &mut orders.proxy(Msg::Editor));
                 }
                 // TODO improve inter component messaging
                 //match msg {

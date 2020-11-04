@@ -16,7 +16,7 @@ use rql::Id;
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: remote::Model<Project>,
+    pub entry: remote::Remote<Project>,
     pub tasks: task::list::Model,
     pub editor: Option<editor::Model>,
 }
@@ -37,7 +37,7 @@ impl Init<Id<Project>> for Model {
 impl Init<Entry<Project>> for Model {
     fn init(entry: Entry<Project>, orders: &mut impl Orders<Msg>) -> Model {
         Model {
-            entry: remote::Model::from(entry.clone()),
+            entry: remote::Remote::from(entry.clone()),
             tasks: Init::init(entry.id, &mut orders.proxy(Msg::TaskList)),
             editor: None,
         }

@@ -41,8 +41,8 @@ use enum_paths::{
     AsPath,
 };
 
-//#[cfg(target_arch = "wasm32")]
-//pub mod profile;
+#[cfg(target_arch = "wasm32")]
+pub mod profile;
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
@@ -110,6 +110,12 @@ impl TableRoutable for User {
         Route::User(id)
     }
 }
+impl From<Entry<User>> for User {
+    fn from(entry: Entry<User>) -> Self {
+        entry.into_inner()
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
 impl RemoteTable for User {
@@ -142,11 +148,6 @@ impl RemoteTable for User {
                 .json(&data)?
         ).await?
         .json().await
-    }
-}
-impl From<Entry<User>> for User {
-    fn from(entry: Entry<User>) -> Self {
-        entry.into_inner()
     }
 }
 

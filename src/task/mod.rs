@@ -1,37 +1,44 @@
-use super::*;
 use crate::{
     user::*,
-    DB,
-};
-#[cfg(target_arch = "wasm32")]
-use components::{
-    entry,
-    preview,
-    Component,
-    Edit,
-    Viewable,
 };
 use database_table::{
-    DatabaseTable,
-    RemoteTable,
     TableRoutable,
     Entry,
 };
 use rql::*;
 #[cfg(target_arch = "wasm32")]
-use seed::{
-    browser::fetch::{
-        fetch,
-        Request,
-        Method,
+use {
+    super::*,
+    seed::{
+        browser::fetch::{
+            fetch,
+            Request,
+            Method,
+        },
+        prelude::*,
+        *,
     },
-    prelude::*,
-    *,
+    components::{
+        entry,
+        preview,
+        Component,
+        Edit,
+        Viewable,
+    },
+    database_table::{
+        RemoteTable,
+    },
+    async_trait::async_trait,
+    std::result::Result,
 };
 use serde::{
     Serialize,
     Deserialize,
 };
+use enum_paths::{
+    AsPath,
+};
+
 use derive_builder::Builder;
 #[cfg(target_arch = "wasm32")]
 pub mod editor;
@@ -48,10 +55,17 @@ pub struct Task {
     assignees: Vec<Id<User>>,
     subtasks: Vec<Id<Task>>,
 }
+#[derive(Clone, Debug, AsPath)]
+pub enum Route {
+    Tasks,
+    #[as_path = ""]
+    Task(Id<Task>),
+}
+impl database_table::Route for Route {}
 impl TableRoutable for Task {
     type Route = Route;
     fn table_route() -> Route {
-        Route::Root
+        Route::Tasks
     }
     fn entry_route(id: Id<Self>) -> Route {
         Route::Task(id)
@@ -99,54 +113,46 @@ impl Task {
         &mut self.subtasks
     }
 }
-
-impl<'a> DatabaseTable<'a> for Task {
-    fn table() -> TableGuard<'a, Self> {
-        DB.task()
-    }
-    fn table_mut() -> TableGuardMut<'a, Self> {
-        DB.task_mut()
-    }
-}
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl RemoteTable for Task {
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, String> {
-        fetch(
-            Request::new(Self::entry_route(id))
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, String> {
-        fetch(
-            Request::new(Self::entry_route(id))
-                .method(Method::Delete)
-        ).await?
-        .json().await
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, String> {
-        fetch(
-            Request::new(Self::table_route())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, String> {
-        fetch(
-            Request::new(Self::table_route())
-                .method(Method::Post)
-                .json(data).await?
-        ).await?
-        .json().await
-    }
-}
 impl From<Entry<Task>> for Task {
     fn from(entry: Entry<Self>) -> Self {
         entry.into_inner()
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl RemoteTable for Task {
+    type Error = FetchError;
+    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Delete)
+        ).await?
+        .json().await
+    }
+    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Get)
+        ).await?
+        .json().await
+    }
+    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Post)
+                .json(&data)?
+        ).await?
+        .json().await
+    }
+}
 #[cfg(target_arch = "wasm32")]
 #[derive(Debug)]
 pub enum Msg {
@@ -176,7 +182,7 @@ impl Viewable for Task {
     }
 }
 #[cfg(target_arch = "wasm32")]
-impl preview::Preview for Task {
+impl preview::Previewable for Task {
     fn preview(&self) -> Node<Msg> {
         div![
             style! {

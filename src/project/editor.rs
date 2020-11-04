@@ -28,7 +28,7 @@ impl From<Editor<Project>> for Model {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Editor(EditorMsg<Project>),
 }
@@ -57,6 +57,6 @@ impl Component for Model {
 }
 impl Edit for Model {
     fn edit(&self) -> Node<Msg> {
-        self.editor.edit().map_msg(Msg::Editor)
+        self.editor.view().map_msg(Msg::Editor)
     }
 }

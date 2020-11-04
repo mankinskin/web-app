@@ -1,5 +1,5 @@
 use super::*;
-//use crate::project;
+use crate::project;
 use components::{
     remote,
     Component,
@@ -19,8 +19,8 @@ impl From<User> for UserProfile {
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: remote::Model<User>,
-    //pub projects: project::list::Model,
+    pub entry: remote::Remote<User>,
+    pub projects: project::list::Model,
 }
 impl Init<Id<User>> for Model {
     fn init(id: Id<User>, orders: &mut impl Orders<Msg>) -> Model {
@@ -33,13 +33,13 @@ impl Init<Id<User>> for Model {
 impl Init<Entry<User>> for Model {
     fn init(entry: Entry<User>, orders: &mut impl Orders<Msg>) -> Model {
         Model {
-            entry: remote::Model::from(entry.clone()),
+            entry: remote::Remote::from(entry.clone()),
             projects: Init::init(entry.id, &mut orders.proxy(Msg::ProjectList)),
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Msg {
     Entry(remote::Msg<User>),
     ProjectList(project::list::Msg),

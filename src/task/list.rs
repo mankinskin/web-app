@@ -16,7 +16,7 @@ use std::result::Result;
 #[derive(Clone, Default)]
 pub struct Model {
     project_id: Option<Id<Project>>,
-    list: list::Model<Task>,
+    list: list::List<Task>,
     editor: Option<editor::Model>,
 }
 impl Model {
@@ -46,7 +46,7 @@ impl Init<Id<Project>> for Model {
 impl From<Vec<Entry<Task>>> for Model {
     fn from(entries: Vec<Entry<Task>>) -> Self {
         Self {
-            list: list::Model::from(entries),
+            list: list::List::from(entries),
             ..Default::default()
         }
     }
@@ -73,14 +73,14 @@ impl Component for Model {
             }
             Msg::ProjectTasks(res) => {
                 match res {
-                    Ok(entries) => self.list = list::Model::from(entries),
+                    Ok(entries) => self.list = list::List::from(entries),
                     Err(e) => {
                         seed::log(e);
                     }
                 }
             }
             Msg::List(msg) => {
-                Component::update(&mut self.list, msg.clone(), &mut orders.proxy(Msg::List));
+                Component::update(&mut self.list, msg, &mut orders.proxy(Msg::List));
             }
             Msg::New => {
                 self.editor = match self.project_id {
@@ -90,7 +90,7 @@ impl Component for Model {
             }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
+                    Component::update(editor, msg, &mut orders.proxy(Msg::Editor));
                 }
                 // TODO improve inter component messaging
                 //match msg {

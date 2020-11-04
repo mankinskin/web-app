@@ -15,7 +15,7 @@ use rql::Id;
 
 #[derive(Clone)]
 pub struct Model {
-    pub entry: remote::Model<Task>,
+    pub entry: remote::Remote<Task>,
     pub editor: Option<editor::Model>,
 }
 impl Model {
@@ -34,7 +34,7 @@ impl Init<Id<Task>> for Model {
 impl From<Entry<Task>> for Model {
     fn from(entry: Entry<Task>) -> Self {
         Self {
-            entry: remote::Model::from(entry),
+            entry: remote::Remote::from(entry),
             editor: None,
         }
     }
@@ -57,7 +57,7 @@ impl Component for Model {
             }
             Msg::Editor(msg) => {
                 if let Some(editor) = &mut self.editor {
-                    Component::update(editor, msg.clone(), &mut orders.proxy(Msg::Editor));
+                    Component::update(editor, msg, &mut orders.proxy(Msg::Editor));
                 }
                 //match msg {
                 //    editor::Msg::Editor(msg) =>
