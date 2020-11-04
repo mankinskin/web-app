@@ -293,9 +293,9 @@ mod tests {
         MutexGuard,
     };
     lazy_static! {
-        static ref ELEMS: Vec<char> = { Vec::from(['a', 'b', 'c']) };
+        static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
         static ref EDGES: Vec<(char, char, usize)> =
-            { Vec::from([('a', 'b', 1), ('b', 'c', 2), ('c', 'a', 3)]) };
+            Vec::from([('a', 'b', 1), ('b', 'c', 2), ('c', 'a', 3)]);
         static ref G: Mutex<Graph<char, usize>> = Mutex::new(Graph::new());
         static ref NODE_INDICES: Vec<NodeIndex> = {
             let mut g = G.lock().unwrap();
