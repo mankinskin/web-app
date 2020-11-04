@@ -1,7 +1,3 @@
-extern crate syn;
-#[macro_use]
-extern crate quote;
-extern crate proc_macro2;
 mod client;
 mod rest;
 mod rpc;
@@ -9,7 +5,11 @@ mod server;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::ToTokens;
+use quote::{
+    format_ident,
+    quote,
+    ToTokens,
+};
 use syn::{
     Macro,
     Type,

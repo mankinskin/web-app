@@ -1,27 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #![allow(unused)]
-#[macro_use]
-extern crate define_api;
-extern crate database_table;
-extern crate interpreter;
-extern crate updatable;
-
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate rocket;
-extern crate app_model;
-extern crate async_trait;
-extern crate futures;
-extern crate rocket_contrib;
-extern crate rql;
-extern crate seed;
-extern crate seqraph;
-extern crate serde;
-extern crate serde_json;
-
-#[cfg(target_arch = "wasm32")]
-extern crate components;
 
 #[cfg(target_arch = "wasm32")]
 mod client;
@@ -33,10 +11,9 @@ mod server;
 pub use server::*;
 
 use app_model::{
-    Project,
-    Route,
-    Task,
-    User,
+    project::Project,
+    task::Task,
+    user::User,
 };
 use database_table::*;
 use futures::future::FutureExt;
@@ -45,6 +22,7 @@ use rql::Id;
 use seqraph::*;
 use std::sync::Mutex;
 use updatable::*;
+use define_api::api;
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {

@@ -1,6 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::ToTokens;
+use quote::{
+    format_ident,
+    quote,
+    ToTokens,
+};
 use syn::{
     export::TokenStream2,
     Type,
@@ -16,13 +20,13 @@ pub fn define_rest_api(input: TokenStream) -> TokenStream {
     let get_all = define_get_all(ty.clone(), ident.clone());
     let post = define_post(ty.clone(), ident.clone());
     let delete = define_delete(ty.clone(), ident.clone());
-    let update = define_update(ty.clone(), ident.clone());
+    //let update = define_update(ty.clone(), ident.clone());
     TokenStream::from(quote! {
         #get
         #get_all
         #post
         #delete
-        #update
+        //#update
     })
 }
 fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
@@ -57,11 +61,11 @@ fn define_delete(ty: Type, ident: Ident) -> TokenStream2 {
         }
     }
 }
-fn define_update(ty: Type, ident: Ident) -> TokenStream2 {
-    let name = format_ident!("update_{}", ident);
-    quote! {
-        fn #name(id: Id<#ty>, update: <#ty as Updatable>::Update) -> Option<#ty> {
-            <#ty as DatabaseTable>::update(id, update)
-        }
-    }
-}
+//fn define_update(ty: Type, ident: Ident) -> TokenStream2 {
+//    let name = format_ident!("update_{}", ident);
+//    quote! {
+//        fn #name(id: Id<#ty>, update: <#ty as Updatable>::Update) -> Option<#ty> {
+//            <#ty as DatabaseTable>::update(id, update)
+//        }
+//    }
+//}
