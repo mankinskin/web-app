@@ -25,4 +25,4 @@ termion = "1.5"
 linefeed = "0.6"
 
 [dependencies.seqraph]
-path = "./seqraph/"
+path = "../seqraph"

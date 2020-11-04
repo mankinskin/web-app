@@ -26,29 +26,29 @@ features = [
   "uuid",
 ]
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.components]
-path = "../../../components"
-
-[dependencies.enum_paths]
-path = "../../../enum_paths"
-
 [dependencies.define_api]
 path = "../define_api"
 
-[dependencies.rql]
-path = "../../../rql"
-
-[dependencies.app-model]
-path = "../../../app-model"
-
-[dependencies.database-table]
-path = "../../../database-table"
-
-[dependencies.updatable]
-path = "../../../updatable"
-
 [dependencies.interpreter]
-path = "../../interpreter"
+path = "../interpreter"
 
 [dependencies.seqraph]
-path = "../../interpreter/seqraph"
+path = "../seqraph"
+
+[dependencies.rql]
+path = "../../rql"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.components]
+path = "../../components"
+
+[dependencies.enum_paths]
+path = "../../enum_paths"
+
+[dependencies.app-model]
+path = "../../app-model"
+
+[dependencies.database-table]
+path = "../../database-table"
+
+[dependencies.updatable]
+path = "../../updatable"
