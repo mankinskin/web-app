@@ -61,7 +61,7 @@ where
         };
         self.get_node_info(&sym)
     }
-    pub fn learn_sequence<T: Into<N>, I: Iterator<Item = T>>(&mut self, seq: I) {
+    pub fn read_sequence<T: Into<N>, I: Iterator<Item = T>>(&mut self, seq: I) {
         let seq = N::sequenced(seq);
         for index in 0..seq.len() {
             self.read_sequence_element(&seq[..], index);
@@ -109,6 +109,7 @@ where
             .mapping_mut()
             .add_transition(le, re);
     }
+    #[allow(unused)]
     fn groups_to_string(groups: Vec<Vec<Symbol<N>>>) -> String {
         let mut lines = Vec::new();
         let max = groups.iter().map(Vec::len).max().unwrap_or(0);
@@ -205,8 +206,8 @@ impl<N: NodeData + Mappable> DerefMut for SequenceGraph<N> {
 mod tests {
     use super::*;
     lazy_static! {
-        static ref ELEMS: Vec<char> = { Vec::from(['a', 'b', 'c']) };
-        static ref SEQS: Vec<&'static str> = { Vec::from(["abc", "abb", "bcb"]) };
+        static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
+        static ref SEQS: Vec<&'static str> = Vec::from(["abc", "abb", "bcb"]);
         static ref EDGES: Vec<(Sequenced<char>, Sequenced<char>, usize)> = {
             Vec::from([
                 (Sequenced::Start, 'a'.into(), 1),

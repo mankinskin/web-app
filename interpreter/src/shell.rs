@@ -93,7 +93,7 @@ impl Shell {
             // - try to parse sequence
             //  - show errors
             Command::Learn(s) => {
-                self.graph.learn_sequence(s.chars());
+                self.graph.read_sequence(s.chars());
                 let info = self.graph.get_node_info(&s.chars().next().unwrap());
                 println!("{:#?}", info);
             }
