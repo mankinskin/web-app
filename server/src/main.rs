@@ -1,29 +1,19 @@
 #![feature(proc_macro_hygiene, decl_macro, concat_idents)]
 
-#[macro_use]
-extern crate rocket;
-extern crate app_model;
-extern crate chrono;
-extern crate database_table;
-extern crate rocket_contrib;
-extern crate rql;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate define_api;
-#[macro_use]
-extern crate anyhow;
-extern crate api;
-
 use app_model::jwt::*;
 use rocket::{
     http::*,
     request::FromParam,
     response::*,
+    routes,
+    get,
 };
+use define_api::rest_handlers;
+use anyhow::anyhow;
 use std::io::Result;
 use std::path::Path;
 use std::str::FromStr;
+
 struct SerdeParam<T>(T)
 where
     T: FromStr;
@@ -61,7 +51,7 @@ where
 pub fn get_file<P: AsRef<Path>>(path: P) -> Result<NamedFile> {
     NamedFile::open(path)
 }
-static CLIENT_DIR: &'static str = "client";
+static CLIENT_DIR: &'static str = "../client";
 
 #[get("/<app>")]
 fn get_html(app: &RawStr) -> Result<NamedFile> {
@@ -130,7 +120,7 @@ fn main() {
                 api::register,
                 api::handlers::get_user_projects,
                 api::handlers::get_project_tasks,
-                api::handlers::project_create_subtask,
+                //api::handlers::project_create_subtask,
                 api::handlers::interpret_text,
                 api::handlers::query_text,
             ],

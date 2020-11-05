@@ -24,8 +24,7 @@ async-trait = "^0.1"
 console_error_panic_hook = "^0.1"
 
 [dependencies.seed]
-git = "https://github.com/seed-rs/seed"
-branch = "master"
+version = "^0.8"
 
 [dependencies.wasm-bindgen]
 version = "^0.2"

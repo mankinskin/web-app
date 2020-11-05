@@ -7,7 +7,9 @@ use app_model::{
         self,
         UserSession,
     },
-    Route,
+    user,
+    project,
+    task,
 };
 use components::{
     Component,
@@ -15,7 +17,10 @@ use components::{
     Viewable,
 };
 use database_table::Routable;
-use enum_paths::ParsePath;
+use enum_paths::{
+    AsPath,
+    ParsePath,
+};
 use seed::{
     prelude::*,
     *,
@@ -26,7 +31,7 @@ pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::start(
         "app",
-        |url, orders| Model::init(Route::parse_path(&url.to_string()).unwrap(), orders),
+        |url, orders| Model::init(url, orders),
         |msg, model, orders| model.update(msg, orders),
         Viewable::view,
     );
@@ -36,8 +41,23 @@ pub struct Model {
     navbar: navbar::Model,
     page: page::Model,
 }
+#[derive(Debug, Clone, AsPath)]
+pub enum Route {
+    Auth(auth::Route),
+    User(user::Route),
+    Project(project::Route),
+    Task(task::Route),
+    #[as_path = ""]
+    Root,
+}
+impl Init<Url> for Model {
+    fn init(url: Url, orders: &mut impl Orders<Self::Msg>) -> Model {
+        let route = Route::parse_path(&url.to_string()).unwrap();
+        Model::init(route, orders)
+    }
+}
 impl Init<Route> for Model {
-    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Model {
+    fn init(route: Route, orders: &mut impl Orders<Self::Msg>) -> Model {
         orders
             .subscribe(|msg: Msg| msg)
             .subscribe(Msg::UrlRequested)
@@ -49,7 +69,7 @@ impl Init<Route> for Model {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum Msg {
     UrlRequested(subs::UrlRequested),
     UrlChanged(subs::UrlChanged),
@@ -70,7 +90,7 @@ pub fn go_to<R: Routable, Ms: 'static>(_r: R, _orders: &mut impl Orders<Ms>) {
 }
 impl Component for Model {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         refresh_session();
         seed::log!(msg);
         match msg {
@@ -88,11 +108,10 @@ impl Component for Model {
                 self.page = page::Model::default();
             }
             Msg::Page(msg) => {
-                self.page.update(msg.clone(), &mut orders.proxy(Msg::Page));
+                self.page.update(msg, &mut orders.proxy(Msg::Page));
             }
             Msg::NavBar(msg) => {
-                self.navbar
-                    .update(msg.clone(), &mut orders.proxy(Msg::NavBar));
+                self.navbar.update(msg, &mut orders.proxy(Msg::NavBar));
             }
         }
     }

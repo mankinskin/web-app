@@ -33,7 +33,7 @@ fn define_get(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("get_{}", ident);
     quote! {
         fn #name(id: Id<#ty>) -> Option<Entry<#ty>> {
-            #ty::get(id)
+            <#ty as DatabaseTable<'_, Schema>>::get(id)
         }
     }
 }
@@ -41,7 +41,7 @@ fn define_post(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("post_{}", ident);
     quote! {
         fn #name(data: #ty) -> Id<#ty> {
-            #ty::insert(data)
+            <#ty as DatabaseTable<'_, Schema>>::insert(data)
         }
     }
 }
@@ -49,7 +49,7 @@ fn define_get_all(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("get_{}s", ident);
     quote! {
         fn #name() -> Vec<Entry<#ty>> {
-            #ty::get_all()
+            <#ty as DatabaseTable<'_, Schema>>::get_all()
         }
     }
 }
@@ -57,7 +57,7 @@ fn define_delete(ty: Type, ident: Ident) -> TokenStream2 {
     let name = format_ident!("delete_{}", ident);
     quote! {
         fn #name(id: Id<#ty>) -> Option<#ty> {
-            #ty::delete(id)
+            <#ty as DatabaseTable<'_, Schema>>::delete(id)
         }
     }
 }
