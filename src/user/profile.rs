@@ -39,7 +39,7 @@ impl Init<Entry<User>> for Model {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(remote::Msg<User>),
     ProjectList(project::list::Msg),

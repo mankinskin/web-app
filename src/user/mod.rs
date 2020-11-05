@@ -14,20 +14,10 @@ use {
         Component,
         Viewable,
     },
-    database_table::{
-        RemoteTable,
-    },
     seed::{
         prelude::*,
         *,
-        browser::fetch::{
-            fetch,
-            Request,
-            Method,
-        },
     },
-    std::result::Result,
-    async_trait::async_trait,
 };
 use serde::{
     Serialize,
@@ -117,42 +107,7 @@ impl From<Entry<User>> for User {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl RemoteTable for User {
-    type Error = FetchError;
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
-        fetch(
-            Request::new(Self::entry_route(id).as_path())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
-        fetch(
-            Request::new(Self::entry_route(id).as_path())
-                .method(Method::Delete)
-        ).await?
-        .json().await
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
-        fetch(
-            Request::new(Self::table_route().as_path())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
-        fetch(
-            Request::new(Self::table_route().as_path())
-                .method(Method::Post)
-                .json(&data)?
-        ).await?
-        .json().await
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(Box<entry::Msg<User>>),
 }

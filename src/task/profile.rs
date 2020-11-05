@@ -39,7 +39,7 @@ impl From<Entry<Task>> for Model {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Entry(remote::Msg<Task>),
     Edit,

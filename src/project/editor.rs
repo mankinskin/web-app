@@ -28,7 +28,7 @@ impl From<Editor<Project>> for Model {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Editor(EditorMsg<Project>),
 }
