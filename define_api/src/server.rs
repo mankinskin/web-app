@@ -114,7 +114,7 @@ fn route(item: ItemFn) -> TokenStream2 {
         })
         .collect();
     quote! {
-        #[post(#route, data="<parameters>")]
+        #[rocket::post(#route, data="<parameters>")]
         pub fn #ident(token: JWT, parameters: Json<#params_ident>) -> Json<#result_ident> {
             let _ = token;
             let Json(parameters) = parameters;

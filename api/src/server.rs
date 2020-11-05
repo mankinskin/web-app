@@ -1,3 +1,4 @@
+use crate::Schema;
 use app_model::{
     auth::{
         credentials::*,
@@ -11,6 +12,7 @@ use rocket::{
     http::*,
     request::FromParam,
     response::*,
+    post,
 };
 use rocket_contrib::json::Json;
 use std::convert::TryFrom;
@@ -18,7 +20,7 @@ use std::convert::TryFrom;
 #[post("/api/auth/login", data = "<credentials>")]
 pub fn login(credentials: Json<Credentials>) -> std::result::Result<Json<UserSession>, Status> {
     let credentials = credentials.into_inner();
-    User::find(|user| *user.name() == credentials.username)
+    <User as DatabaseTable<'_, Schema>>::find(|user| *user.name() == credentials.username)
         .ok_or(Status::NotFound)
         .and_then(|entry| {
             let user = entry.data();
@@ -45,8 +47,8 @@ pub fn login(credentials: Json<Credentials>) -> std::result::Result<Json<UserSes
 #[post("/api/auth/register", data = "<user>")]
 pub fn register(user: Json<User>) -> std::result::Result<Json<UserSession>, Status> {
     let user = user.into_inner();
-    if User::find(|u| u.name() == user.name()).is_none() {
-        let id = User::insert(user.clone());
+    if <User as DatabaseTable<'_, Schema>>::find(|u| u.name() == user.name()).is_none() {
+        let id = <User as DatabaseTable<'_, Schema>>::insert(user.clone());
         JWT::try_from(&user)
             .map_err(|_| Status::InternalServerError)
             .map(move |jwt| {

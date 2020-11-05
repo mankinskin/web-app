@@ -1,0 +1,20 @@
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+dependencies = ["build"]
+
+[tasks.build]
+description = "Build server"
+command = "cargo"
+args = ["build"]
+
+[tasks.start]
+description = "Start server"
+command = "cargo"
+args = ["run"]
+
+[tasks.check]
+description = "Check Server"
+command = "cargo"
+args = ["check", "--bin", "server"]

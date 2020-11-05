@@ -2,6 +2,7 @@ use crate::home;
 use crate::*;
 use app_model::{
     auth::{
+        self,
         login,
         register,
     },
@@ -9,8 +10,6 @@ use app_model::{
     task,
     user,
     user::User,
-    AuthRoute,
-    Route,
 };
 use components::{
     list,
@@ -31,7 +30,7 @@ pub enum Model {
     Login(login::Login),
     Register(register::Register),
     UserProfile(user::profile::Model),
-    UserList(list::Model<User>),
+    UserList(list::List<User>),
     ProjectList(project::list::Model),
     ProjectProfile(project::profile::Model),
     TaskProfile(task::profile::Model),
@@ -47,32 +46,44 @@ impl Init<Route> for Model {
             Route::Root => Model::Home(Default::default()),
             Route::Auth(route) => {
                 match route {
-                    AuthRoute::Login => Model::Login(Default::default()),
-                    AuthRoute::Register => Model::Register(Default::default()),
+                    auth::Route::Login => Model::Login(Default::default()),
+                    auth::Route::Register => Model::Register(Default::default()),
                 }
             }
-            Route::Users => {
-                Model::UserList(Init::init(
-                    list::Msg::GetAll,
-                    &mut orders.proxy(Msg::UserList),
-                ))
+            Route::User(route) => {
+                match route {
+                    user::Route::Users => {
+                        Model::UserList(Init::init(
+                            list::Msg::GetAll,
+                            &mut orders.proxy(Msg::UserList),
+                        ))
+                    }
+                    user::Route::User(id) => {
+                        Model::UserProfile(Init::init(id, &mut orders.proxy(Msg::UserProfile)))
+                    }
+                }
             }
-            Route::User(id) => {
-                Model::UserProfile(Init::init(id, &mut orders.proxy(Msg::UserProfile)))
+            Route::Project(route) => {
+                match route {
+                    project::Route::Projects => {
+                        Model::ProjectList(Init::init(
+                            list::Msg::GetAll,
+                            &mut orders.proxy(Msg::ProjectList),
+                        ))
+                    }
+                    project::Route::Project(id) => {
+                        Model::ProjectProfile(Init::init(id, &mut orders.proxy(Msg::ProjectProfile)))
+                    }
+                }
             }
-            Route::Projects => {
-                Model::ProjectList(Init::init(
-                    list::Msg::GetAll,
-                    &mut orders.proxy(Msg::ProjectList),
-                ))
+            Route::Task(route) => {
+                match route {
+                    task::Route::Task(id) => {
+                        Model::TaskProfile(Init::init(id, &mut orders.proxy(Msg::TaskProfile)))
+                    }
+                    _ => Model::Home(Default::default()),
+                }
             }
-            Route::Project(id) => {
-                Model::ProjectProfile(Init::init(id, &mut orders.proxy(Msg::ProjectProfile)))
-            }
-            Route::Task(id) => {
-                Model::TaskProfile(Init::init(id, &mut orders.proxy(Msg::TaskProfile)))
-            }
-            _ => Model::Home(Default::default()),
         }
     }
 }
@@ -80,17 +91,17 @@ impl From<page::Model> for Route {
     fn from(components: page::Model) -> Self {
         match components {
             Model::Home(_) | page::Model::NotFound => Route::Root,
-            Model::Login(_) => Route::Auth(AuthRoute::Login),
-            Model::Register(_) => Route::Auth(AuthRoute::Register),
-            Model::UserList(_) => Route::Users,
-            Model::UserProfile(profile) => profile.entry.route(),
-            Model::ProjectProfile(profile) => profile.entry.route(),
-            Model::ProjectList(_) => Route::Projects,
-            Model::TaskProfile(profile) => profile.entry.route(),
+            Model::Login(_) => Route::Auth(auth::Route::Login),
+            Model::Register(_) => Route::Auth(auth::Route::Register),
+            Model::UserList(_) => Route::User(user::Route::Users),
+            Model::UserProfile(profile) => Route::User(profile.entry.route()),
+            Model::ProjectProfile(profile) => Route::Project(profile.entry.route()),
+            Model::ProjectList(_) => Route::Project(project::Route::Projects),
+            Model::TaskProfile(profile) => Route::Task(profile.entry.route()),
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum Msg {
     Home(home::Msg),
     Login(login::Msg),

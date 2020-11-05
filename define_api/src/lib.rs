@@ -61,14 +61,14 @@ pub fn rest_handlers(input: TokenStream) -> TokenStream {
     let post_name = format_ident!("post_{}", ident);
     let get_all_name = format_ident!("get_{}s", ident);
     let delete_name = format_ident!("delete_{}", ident);
-    let update_name = format_ident!("update_{}", ident);
+    //let update_name = format_ident!("update_{}", ident);
     TokenStream::from(quote! {
-        routes![
+        rocket::routes![
             api::handlers::#get_name,
             api::handlers::#post_name,
             api::handlers::#get_all_name,
             api::handlers::#delete_name,
-            api::handlers::#update_name,
+            //api::handlers::#update_name,
         ]
     })
 }
