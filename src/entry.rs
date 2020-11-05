@@ -1,5 +1,4 @@
 use crate::{
-    preview,
     Component,
     Viewable,
 };
@@ -12,13 +11,13 @@ use seed::{
 };
 use std::fmt::Debug;
 
-impl<D, T: RemoteTable<D> + Viewable + Debug> Viewable for Entry<T> {
+impl<T: RemoteTable + Viewable> Viewable for Entry<T> {
     fn view(&self) -> Node<Self::Msg> {
         self.data.view().map_msg(Msg::Data)
     }
 }
-#[derive(Debug)]
-pub enum Msg<D, T: RemoteTable<D> + Component + Debug> {
+#[derive(Debug, Clone)]
+pub enum Msg<T: RemoteTable + Component + Debug> {
     Refresh,
     Refreshed(Result<Option<Entry<T>>, <T as RemoteTable>::Error>),
 
@@ -29,10 +28,9 @@ pub enum Msg<D, T: RemoteTable<D> + Component + Debug> {
     Updated(Result<Option<T>, <T as RemoteTable>::Error>),
 
     Data(<T as Component>::Msg),
-    Preview(Box<preview::Msg<T>>),
 }
 use futures::future::FutureExt;
-impl<T: RemoteTable + Component + Debug> Component for Entry<T> {
+impl<T: RemoteTable + Component> Component for Entry<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
@@ -87,7 +85,6 @@ impl<T: RemoteTable + Component + Debug> Component for Entry<T> {
             Msg::Data(msg) => {
                 self.data.update(msg, &mut orders.proxy(Msg::Data));
             }
-            Msg::Preview(_) => {}
         }
     }
 }

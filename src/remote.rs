@@ -2,7 +2,6 @@ use crate::{
     editor::Edit,
     entry,
     preview::{
-        self,
         Previewable,
     },
     Component,
@@ -21,6 +20,7 @@ use seed::{
 };
 use std::fmt::Debug;
 use std::result::Result;
+use futures::future::FutureExt;
 
 #[derive(Debug, Clone)]
 pub enum Remote<T: RemoteTable> {
@@ -38,14 +38,12 @@ impl<T: RemoteTable + Component> From<Entry<T>> for Remote<T> {
         Self::Ready(entry)
     }
 }
-#[derive(Debug)]
-pub enum Msg<T: RemoteTable + Component + Debug> {
+#[derive(Debug, Clone)]
+pub enum Msg<T: Component + RemoteTable> {
     Get,
     Got(Result<Option<Entry<T>>, <T as RemoteTable>::Error>),
     Entry(entry::Msg<T>),
-    Preview(Box<preview::Msg<T>>),
 }
-use futures::future::FutureExt;
 impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
@@ -77,7 +75,6 @@ impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
                     Msg::Entry(msg) => {
                         entry.update(msg, &mut orders.proxy(Msg::Entry));
                     }
-                    Msg::Preview(_) => {}
                     Msg::Get => {
                         entry.update(entry::Msg::Refresh, &mut orders.proxy(Msg::Entry));
                     }

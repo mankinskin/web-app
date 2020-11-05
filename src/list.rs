@@ -1,5 +1,4 @@
 use crate::{
-    entry,
     preview,
     Component,
     Init,
@@ -18,84 +17,79 @@ use std::default::Default;
 use std::result::Result;
 
 #[derive(Debug, Clone, Default)]
-pub struct List<D: Clone + Debug, T: RemoteTable<D> + Debug = D> {
-    entries: Vec<T>,
+pub struct List<D: RemoteTable, T: Component + RemoteTable<D> = D> {
+    items: Vec<T>,
     _ty: std::marker::PhantomData<D>,
 }
-impl<D: Clone + Debug, T: Component + RemoteTable<D> + Debug> List<D, T> {
+impl<D: RemoteTable, T: Component + RemoteTable<D>> List<D, T> {
     pub fn new() -> Self {
         Self {
-            previews: Vec::new(),
+            items: Vec::new(),
             _ty: Default::default(),
         }
     }
 }
-impl<D: Clone + Debug, T: Component + RemoteTable<D> + Default + Debug> Init<Msg<D, T>> for List<D, T>
+impl<D: RemoteTable, T: Component + RemoteTable<D>> Init<Msg<D, T>> for List<D, T>
 {
-    fn init(msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) -> List<T> {
+    fn init(msg: Msg<D, T>, orders: &mut impl Orders<Msg<D, T>>) -> Self {
         orders.send_msg(msg);
-        List::default()
+        Self::new()
     }
 }
-impl<D: Clone + Debug, T: Component + RemoteTable<D> + Debug> From<Vec<Entry<T>>> for List<D, T>
+impl<D: RemoteTable, T: Component + RemoteTable<D>> From<Vec<Entry<D>>> for List<D, T>
 {
-    fn from(entries: Vec<Entry<T>>) -> Self {
+    fn from(entries: Vec<Entry<D>>) -> Self {
         Self {
-            previews: init_previews(entries),
+            items: into_items(entries),
             _ty: Default::default(),
         }
     }
 }
-fn init_previews<D: Clone + Debug, T: Component + RemoteTable<D> + Debug>(
-    entries: Vec<Entry<D>>,
-) -> Vec<preview::Preview<D, T>> {
-    entries.into_iter().map(preview::Preview::from).collect()
+fn into_items<D: RemoteTable, T: Component + RemoteTable<D>>(entries: Vec<Entry<D>>) -> Vec<T> {
+    entries.into_iter().map(|e| e.into_inner().into()).collect()
 }
-#[derive(Debug)]
-pub enum Msg<D: Clone + Debug, T: Component + RemoteTable<D> + Debug> {
+#[derive(Debug, Clone)]
+pub enum Msg<D: RemoteTable, T: Component + RemoteTable<D> = D> {
     GetAll,
     All(Result<Vec<Entry<D>>, <T as RemoteTable<D>>::Error>),
-
-    Preview(usize, preview::Msg<D, T>),
+    Item(usize, <T as Component>::Msg),
 }
-impl<D: Clone + Debug, T: Component + RemoteTable<D> + Debug> Component for List<D, T>
-{
-    type Msg = Msg<T>;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Msg<T>>) {
+impl<D: RemoteTable, T: Component + RemoteTable<D>> Component for List<D, T> {
+    type Msg = Msg<D, T>;
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Msg<D, T>>) {
         match msg {
             Msg::GetAll => {
                 orders.perform_cmd(
-                    T::get_all().map(Msg::All)
+                    T::get_all().map(Msg::<D, T>::All)
                 );
             }
             Msg::All(res) => {
                 match res {
-                    Ok(entries) => self.previews = init_previews(entries),
+                    Ok(entries) => self.items = into_items(entries),
                     Err(e) => {
                         seed::log(e);
                     }
                 }
             }
-            Msg::Preview(index, msg) => {
-                if let preview::Msg::Entry(entry::Msg::Deleted(_)) = msg {
-                    self.previews.remove(index);
-                } else {
-                    self.previews[index].update(
+            Msg::Item(index, msg) => {
+                //if let preview::Msg::Entry(entry::Msg::Deleted(_)) = msg {
+                //    self.previews.remove(index);
+                //} else {
+                    self.items[index].update(
                         msg,
-                        &mut orders.proxy(move |msg| Msg::Preview(index.clone(), msg)),
+                        &mut orders.proxy(move |msg| Msg::Item(index.clone(), msg)),
                     );
-                }
+                //}
             }
         }
     }
 }
-impl<T: Component + preview::Previewable + RemoteTable + Debug> Viewable for List<D, T>
+impl<D: RemoteTable, T: Component + preview::Previewable + RemoteTable<D>> Viewable for List<D, T>
 {
-    fn view(&self) -> Node<Msg<T>> {
-        div![ul![self.previews.iter().enumerate().map(|(i, preview)| {
-            li![preview
-                .view()
-                .map_msg(move |msg| Msg::Preview(i.clone(), msg))]
+    fn view(&self) -> Node<Msg<D, T>> {
+        div![ul![self.items.iter().enumerate().map(|(i, item)| {
+            li![item.preview()
+                .map_msg(move |msg| Msg::Item(i.clone(), msg))]
         })]]
     }
 }

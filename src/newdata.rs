@@ -24,7 +24,7 @@ impl<T> From<T> for NewData<T> {
     }
 }
 use futures::future::FutureExt;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Msg<T: Component + RemoteTable> {
     Post,
     Posted(Result<Id<T>, <T as RemoteTable>::Error>),

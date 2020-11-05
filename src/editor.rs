@@ -50,7 +50,7 @@ impl<T: RemoteTable + Component + Debug + Clone> Init<Id<T>> for Editor<T> {
         Self::Remote(Init::init(id, &mut orders.proxy(Msg::Remote)))
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Msg<T: Component + RemoteTable + std::fmt::Debug> {
     Cancel,
     Submit,
