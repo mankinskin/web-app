@@ -42,6 +42,13 @@ impl<T: TableRoutable> Routable for Id<T> {
         T::entry_route(*self)
     }
 }
+use seed::{
+    browser::fetch::{
+        fetch,
+        Request,
+        Method,
+    },
+};
 use std::result::Result;
 #[async_trait(?Send)]
 pub trait RemoteTable<T=Self>
@@ -50,12 +57,60 @@ pub trait RemoteTable<T=Self>
     + Clone
     + Debug
 {
-    type Error: Debug;
+    type Error: Debug + Clone;
     async fn get(id: Id<T>) -> Result<Option<Entry<T>>, Self::Error>;
     async fn delete(id: Id<T>) -> Result<Option<T>, Self::Error>;
     async fn get_all() -> Result<Vec<Entry<T>>, Self::Error>;
     //async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String>;
     async fn post(data: T) -> Result<Id<T>, Self::Error>;
+}
+#[async_trait(?Send)]
+impl<T> RemoteTable for T
+    where T: Debug
+          + Clone
+          + TableRoutable
+          + for<'de> Deserialize<'de>
+          + Serialize
+{
+    type Error = String;
+    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Get)
+        ).await
+        .map_err(|e| format!("{:?}", e))?
+        .json().await
+        .map_err(|e| format!("{:?}", e))?
+    }
+    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::entry_route(id).as_path())
+                .method(Method::Delete)
+        ).await
+        .map_err(|e| format!("{:?}", e))?
+        .json().await
+        .map_err(|e| format!("{:?}", e))?
+    }
+    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Get)
+        ).await
+        .map_err(|e| format!("{:?}", e))?
+        .json().await
+        .map_err(|e| format!("{:?}", e))?
+    }
+    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
+        fetch(
+            Request::new(Self::table_route().as_path())
+                .method(Method::Post)
+                .json(&data)
+                .map_err(|e| format!("{:?}", e))?
+        ).await
+        .map_err(|e| format!("{:?}", e))?
+        .json().await
+        .map_err(|e| format!("{:?}", e))?
+    }
 }
 pub trait DatabaseTable<'db, D: crate::Database<'db, Self>>
     : Sized
