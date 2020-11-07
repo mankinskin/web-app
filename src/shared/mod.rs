@@ -43,7 +43,15 @@ pub enum Route {
     #[as_path = ""]
     Root,
 }
+impl Default for Route {
+    fn default() -> Self {
+        Self::Root
+    }
+}
 impl database_table::Route for Route {}
+
+#[cfg(target_arch = "wasm32")]
+impl components::Route for Route {}
 
 #[derive(Clone, Debug, AsPath)]
 pub enum ApiRoute {

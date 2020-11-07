@@ -47,7 +47,7 @@ impl Subscriptions {
         ]
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     GetList,
     OpenEditor,

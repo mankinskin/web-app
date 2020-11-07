@@ -30,7 +30,7 @@ pub enum Page {
     User,
     Root,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Msg {
     Auth(app_model::auth::Msg),
     Subscriptions(subscriptions::Msg),
@@ -47,8 +47,8 @@ impl Init<Route> for Page {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
         debug!("Init Page");
         match route {
-            Route::Auth(auth_route) => {
-                Self::Auth(Auth::init(auth_route, &mut orders.proxy(Msg::Auth)))
+            Route::Auth(route) => {
+                Self::Auth(Auth::init(route, &mut orders.proxy(Msg::Auth)))
             }
             Route::Subscriptions(route) => Self::Subscriptions(Subscriptions::init(route, &mut orders.proxy(Msg::Subscriptions))),
             Route::User(route) => Self::init(route, orders),

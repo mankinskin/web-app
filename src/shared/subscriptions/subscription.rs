@@ -11,9 +11,7 @@ use {
         subscriptions::Route,
     },
     database_table::{
-        RemoteTable,
         TableRoutable,
-        Entry,
     },
     components::{
         Component,
@@ -21,16 +19,8 @@ use {
     },
     seed::{
         *,
-        browser::fetch::{
-            fetch,
-            Request,
-            Method,
-        },
         prelude::*,
     },
-    async_trait::async_trait,
-    enum_paths::AsPath,
-    std::result::Result,
     rql::*,
 };
 
@@ -66,40 +56,6 @@ impl Edit for PriceSubscription {
                 input_ev(Ev::Input, Self::Msg::SetMarketPair)
             ],
         ]
-    }
-}
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl RemoteTable for PriceSubscription {
-    type Error = FetchError;
-    async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
-        fetch(
-            Request::new(Self::entry_route(id).as_path())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
-        fetch(
-            Request::new(Self::entry_route(id).as_path())
-                .method(Method::Delete)
-        ).await?
-        .json().await
-    }
-    async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
-        fetch(
-            Request::new(Self::table_route().as_path())
-                .method(Method::Get)
-        ).await?
-        .json().await
-    }
-    async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
-        fetch(
-            Request::new(Self::table_route().as_path())
-                .method(Method::Post)
-                .json(&data)?
-        ).await?
-        .json().await
     }
 }
 #[cfg(target_arch = "wasm32")]

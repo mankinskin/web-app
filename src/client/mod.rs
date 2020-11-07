@@ -1,6 +1,6 @@
 pub mod chart;
 pub mod page;
-pub mod router;
+pub mod navbar;
 pub mod websocket;
 pub mod subscriptions;
 
@@ -9,7 +9,7 @@ use components::{
     Init,
     Viewable,
 };
-use router::Router;
+use navbar::Navbar;
 use seed::{
     prelude::*,
     *,
@@ -23,22 +23,19 @@ fn init_tracing() {
     tracing_wasm::set_as_global_default();
     debug!("Tracing initialized.");
 }
-pub fn get_host() -> Result<String, JsValue> {
-    web_sys::window().unwrap().location().host()
-}
 struct Root {
-    router: Router,
+    navbar: Navbar,
     websocket: WebSocket,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum Msg {
-    Router(router::Msg),
+    Navbar(navbar::Msg),
     Websocket(websocket::Msg),
 }
 impl Init<Url> for Root {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
         Self {
-            router: Router::init(url, &mut orders.proxy(Msg::Router)),
+            navbar: Navbar::init(url, &mut orders.proxy(Msg::Navbar)),
             websocket: WebSocket::init((), &mut orders.proxy(Msg::Websocket)),
         }
     }
@@ -46,15 +43,19 @@ impl Init<Url> for Root {
 impl Component for Root {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
-        //debug!("Router Update");
+        //debug!("Root Update");
         match msg {
-            Msg::Router(msg) => self.router.update(msg, &mut orders.proxy(Msg::Router)),
+            Msg::Navbar(msg) => self.navbar.update(msg, &mut orders.proxy(Msg::Navbar)),
             Msg::Websocket(msg) => {
                 self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
             }
         }
     }
 }
+pub fn get_host() -> Result<String, JsValue> {
+    web_sys::window().unwrap().location().host()
+}
+
 #[wasm_bindgen(start)]
 pub fn render() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -69,7 +70,7 @@ pub fn render() {
 impl Viewable for Root {
     fn view(&self) -> Node<Msg> {
         div![
-            self.router.view().map_msg(Msg::Router)
+            self.navbar.view().map_msg(Msg::Navbar)
         ]
     }
 }
