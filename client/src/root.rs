@@ -1,11 +1,9 @@
 use crate::{
     navbar,
-    page,
 };
 use app_model::{
     auth::{
         self,
-        UserSession,
     },
     user,
     project,
@@ -36,47 +34,45 @@ pub fn render() {
         Viewable::view,
     );
 }
-#[derive(Clone, Default)]
+#[derive(Debug)]
 pub struct Model {
-    navbar: navbar::Model,
-    page: page::Model,
+    navbar: navbar::Navbar,
 }
 #[derive(Debug, Clone, AsPath)]
 pub enum Route {
+    #[as_path = ""]
     Auth(auth::Route),
     User(user::Route),
     Project(project::Route),
     Task(task::Route),
+    NotFound,
     #[as_path = ""]
     Root,
 }
+impl Default for Route {
+    fn default() -> Self {
+        Self::Root
+    }
+}
+impl components::Route for Route {}
+
 impl Init<Url> for Model {
     fn init(url: Url, orders: &mut impl Orders<Self::Msg>) -> Model {
-        let route = Route::parse_path(&url.to_string()).unwrap();
+        let route = Route::parse_path(&url.to_string()).unwrap_or(Route::NotFound);
         Model::init(route, orders)
     }
 }
 impl Init<Route> for Model {
     fn init(route: Route, orders: &mut impl Orders<Self::Msg>) -> Model {
-        orders
-            .subscribe(|msg: Msg| msg)
-            .subscribe(Msg::UrlRequested)
-            .subscribe(Msg::UrlChanged)
-            .subscribe(|route| Msg::Page(page::Msg::GoTo(route)));
+        orders.subscribe(|msg: Msg| msg);
         Model {
-            navbar: Default::default(),
-            page: Init::init(route, &mut orders.proxy(Msg::Page)),
+            navbar: Init::init(route, &mut orders.proxy(Msg::Navbar)),
         }
     }
 }
 #[derive(Debug, Clone)]
 pub enum Msg {
-    UrlRequested(subs::UrlRequested),
-    UrlChanged(subs::UrlChanged),
-    NavBar(navbar::Msg),
-    Page(page::Msg),
-    SetSession(UserSession),
-    EndSession,
+    Navbar(navbar::Msg),
 }
 fn refresh_session() {
     if let None = auth::session::get() {
@@ -94,24 +90,8 @@ impl Component for Model {
         refresh_session();
         seed::log!(msg);
         match msg {
-            Msg::UrlChanged(subs::UrlChanged(_url)) => {
-                //orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
-            }
-            Msg::UrlRequested(subs::UrlRequested(_url, _request)) => {
-                //orders.send_msg(Msg::Page(page::Msg::GoTo(Route::from(url))));
-            }
-            Msg::SetSession(session) => {
-                auth::session::set(session);
-            }
-            Msg::EndSession => {
-                auth::session::end();
-                self.page = page::Model::default();
-            }
-            Msg::Page(msg) => {
-                self.page.update(msg, &mut orders.proxy(Msg::Page));
-            }
-            Msg::NavBar(msg) => {
-                self.navbar.update(msg, &mut orders.proxy(Msg::NavBar));
+            Msg::Navbar(msg) => {
+                self.navbar.update(msg, &mut orders.proxy(Msg::Navbar));
             }
         }
     }
@@ -119,8 +99,7 @@ impl Component for Model {
 impl Viewable for Model {
     fn view(&self) -> Node<Self::Msg> {
         div![
-            self.navbar.view().map_msg(Msg::NavBar),
-            self.page.view().map_msg(Msg::Page),
+            self.navbar.view().map_msg(Msg::Navbar),
         ]
     }
 }

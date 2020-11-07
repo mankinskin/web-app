@@ -9,21 +9,25 @@ edition = "2018"
 [dependencies]
 serde = "^1"
 serde_json = "^1.0"
-rocket = "^0.4"
 lazy_static = "^1.4"
 async-trait = "^0.1"
 futures = "^0.3"
 
-[dependencies.seed]
-version = "^0.8"
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.rocket]
+version = "^0.4"
 
-[dependencies.rocket_contrib]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.rocket_contrib]
 version = "^0.4"
 default-features = false
 features = [
   "json",
   "uuid",
 ]
+[target.'cfg(target_arch = "wasm32")'.dependencies.seed]
+version = "^0.8"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.components]
+path = "../../components"
 
 [dependencies.define_api]
 path = "../define_api"
@@ -36,9 +40,6 @@ path = "../seqraph"
 
 [dependencies.rql]
 path = "../../rql"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.components]
-path = "../../components"
 
 [dependencies.enum_paths]
 path = "../../enum_paths"

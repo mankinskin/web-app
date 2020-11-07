@@ -23,8 +23,8 @@ use seed::{
     *,
 };
 
-#[derive(Clone)]
-pub enum Model {
+#[derive(Debug, Clone)]
+pub enum Page {
     NotFound,
     Home(home::Model),
     Login(login::Login),
@@ -35,69 +35,70 @@ pub enum Model {
     ProjectProfile(project::profile::Model),
     TaskProfile(task::profile::Model),
 }
-impl Default for Model {
+impl Default for Page {
     fn default() -> Self {
         Self::Home(home::Model::default())
     }
 }
-impl Init<Route> for Model {
-    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Model {
+impl Init<Route> for Page {
+    fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
         match route {
-            Route::Root => Model::Home(Default::default()),
+            Route::Root => Page::Home(Default::default()),
             Route::Auth(route) => {
                 match route {
-                    auth::Route::Login => Model::Login(Default::default()),
-                    auth::Route::Register => Model::Register(Default::default()),
+                    auth::Route::Login => Self::Login(Default::default()),
+                    auth::Route::Register => Self::Register(Default::default()),
                 }
             }
             Route::User(route) => {
                 match route {
                     user::Route::Users => {
-                        Model::UserList(Init::init(
+                        Self::UserList(Init::init(
                             list::Msg::GetAll,
                             &mut orders.proxy(Msg::UserList),
                         ))
                     }
                     user::Route::User(id) => {
-                        Model::UserProfile(Init::init(id, &mut orders.proxy(Msg::UserProfile)))
+                        Self::UserProfile(Init::init(id, &mut orders.proxy(Msg::UserProfile)))
                     }
                 }
             }
             Route::Project(route) => {
                 match route {
                     project::Route::Projects => {
-                        Model::ProjectList(Init::init(
+                        Self::ProjectList(Init::init(
                             list::Msg::GetAll,
                             &mut orders.proxy(Msg::ProjectList),
                         ))
                     }
                     project::Route::Project(id) => {
-                        Model::ProjectProfile(Init::init(id, &mut orders.proxy(Msg::ProjectProfile)))
+                        Self::ProjectProfile(Init::init(id, &mut orders.proxy(Msg::ProjectProfile)))
                     }
                 }
             }
             Route::Task(route) => {
                 match route {
                     task::Route::Task(id) => {
-                        Model::TaskProfile(Init::init(id, &mut orders.proxy(Msg::TaskProfile)))
+                        Self::TaskProfile(Init::init(id, &mut orders.proxy(Msg::TaskProfile)))
                     }
-                    _ => Model::Home(Default::default()),
+                    _ => Self::Home(Default::default()),
                 }
             }
+            Route::NotFound => Self::NotFound,
         }
     }
 }
-impl From<page::Model> for Route {
-    fn from(components: page::Model) -> Self {
-        match components {
-            Model::Home(_) | page::Model::NotFound => Route::Root,
-            Model::Login(_) => Route::Auth(auth::Route::Login),
-            Model::Register(_) => Route::Auth(auth::Route::Register),
-            Model::UserList(_) => Route::User(user::Route::Users),
-            Model::UserProfile(profile) => Route::User(profile.entry.route()),
-            Model::ProjectProfile(profile) => Route::Project(profile.entry.route()),
-            Model::ProjectList(_) => Route::Project(project::Route::Projects),
-            Model::TaskProfile(profile) => Route::Task(profile.entry.route()),
+impl From<Page> for Route {
+    fn from(page: Page) -> Self {
+        match page {
+            Page::Home(_) | Page::NotFound => Route::Root,
+            Page::Login(_) => Route::Auth(auth::Route::Login),
+            Page::Register(_) => Route::Auth(auth::Route::Register),
+            Page::UserList(_) => Route::User(user::Route::Users),
+            Page::UserProfile(profile) => Route::User(profile.entry.route()),
+            Page::ProjectProfile(profile) => Route::Project(profile.entry.route()),
+            Page::ProjectList(_) => Route::Project(project::Route::Projects),
+            Page::TaskProfile(profile) => Route::Task(profile.entry.route()),
         }
     }
 }
@@ -113,7 +114,7 @@ pub enum Msg {
     TaskProfile(task::profile::Msg),
     GoTo(Route),
 }
-impl Component for Model {
+impl Component for Page {
     type Msg = Msg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
@@ -122,7 +123,7 @@ impl Component for Model {
             }
             Msg::Home(msg) => {
                 match self {
-                    Model::Home(home) => {
+                    Self::Home(home) => {
                         home.update(msg, &mut orders.proxy(Msg::Home));
                     }
                     _ => {}
@@ -130,7 +131,7 @@ impl Component for Model {
             }
             Msg::Login(msg) => {
                 match self {
-                    Model::Login(login) => {
+                    Self::Login(login) => {
                         login.update(msg, &mut orders.proxy(Msg::Login));
                     }
                     _ => {}
@@ -138,7 +139,7 @@ impl Component for Model {
             }
             Msg::Register(msg) => {
                 match self {
-                    Model::Register(register) => {
+                    Self::Register(register) => {
                         register.update(msg, &mut orders.proxy(Msg::Register));
                     }
                     _ => {}
@@ -146,7 +147,7 @@ impl Component for Model {
             }
             Msg::UserList(msg) => {
                 match self {
-                    Model::UserList(list) => {
+                    Self::UserList(list) => {
                         list.update(msg, &mut orders.proxy(Msg::UserList));
                     }
                     _ => {}
@@ -154,7 +155,7 @@ impl Component for Model {
             }
             Msg::UserProfile(msg) => {
                 match self {
-                    Model::UserProfile(profile) => {
+                    Self::UserProfile(profile) => {
                         profile.update(msg, &mut orders.proxy(Msg::UserProfile));
                     }
                     _ => {}
@@ -162,7 +163,7 @@ impl Component for Model {
             }
             Msg::ProjectList(msg) => {
                 match self {
-                    Model::ProjectList(list) => {
+                    Self::ProjectList(list) => {
                         list.update(msg, &mut orders.proxy(Msg::ProjectList));
                     }
                     _ => {}
@@ -170,7 +171,7 @@ impl Component for Model {
             }
             Msg::ProjectProfile(msg) => {
                 match self {
-                    Model::ProjectProfile(profile) => {
+                    Self::ProjectProfile(profile) => {
                         profile.update(msg, &mut orders.proxy(Msg::ProjectProfile));
                     }
                     _ => {}
@@ -178,7 +179,7 @@ impl Component for Model {
             }
             Msg::TaskProfile(msg) => {
                 match self {
-                    Model::TaskProfile(profile) => {
+                    Self::TaskProfile(profile) => {
                         profile.update(msg, &mut orders.proxy(Msg::TaskProfile));
                     }
                     _ => {}
@@ -187,18 +188,18 @@ impl Component for Model {
         }
     }
 }
-impl Viewable for Model {
+impl Viewable for Page {
     fn view(&self) -> Node<Msg> {
         match self {
-            Model::NotFound => div!["Not Found"],
-            Model::Home(model) => model.view().map_msg(Msg::Home),
-            Model::Login(model) => model.view().map_msg(Msg::Login),
-            Model::Register(model) => model.view().map_msg(Msg::Register),
-            Model::UserList(model) => model.view().map_msg(Msg::UserList),
-            Model::UserProfile(model) => model.view().map_msg(Msg::UserProfile),
-            Model::ProjectList(model) => model.view().map_msg(Msg::ProjectList),
-            Model::ProjectProfile(model) => model.view().map_msg(Msg::ProjectProfile),
-            Model::TaskProfile(model) => model.view().map_msg(Msg::TaskProfile),
+            Self::NotFound => div!["Not Found"],
+            Self::Home(model) => model.view().map_msg(Msg::Home),
+            Self::Login(model) => model.view().map_msg(Msg::Login),
+            Self::Register(model) => model.view().map_msg(Msg::Register),
+            Self::UserList(model) => model.view().map_msg(Msg::UserList),
+            Self::UserProfile(model) => model.view().map_msg(Msg::UserProfile),
+            Self::ProjectList(model) => model.view().map_msg(Msg::ProjectList),
+            Self::ProjectProfile(model) => model.view().map_msg(Msg::ProjectProfile),
+            Self::TaskProfile(model) => model.view().map_msg(Msg::TaskProfile),
         }
     }
 }
