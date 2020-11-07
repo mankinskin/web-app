@@ -11,10 +11,12 @@ chrono = "0.4.13"
 serde = "1.0.114"
 serde_json = "1.0.56"
 anyhow = "1.0.31"
-rocket = "0.4.5"
+
+[dependencies.rocket]
+version = "^0.4"
 
 [dependencies.rocket_contrib]
-version = "0.4.5"
+version = "^0.4"
 default-features = false
 features = [
   "json",

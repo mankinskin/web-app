@@ -1,11 +1,12 @@
-use crate::Schema;
 use app_model::{
     auth::{
         credentials::*,
         jwt::*,
     },
-    user::*,
     UserSession,
+    project::Project,
+    task::Task,
+    user::User,
 };
 use database_table::*;
 use rocket::{
@@ -16,6 +17,46 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use std::convert::TryFrom;
+use rql::*;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+use seqraph::*;
+
+schema! {
+    pub Schema {
+        user: User,
+        task: Task,
+        project: Project,
+    }
+}
+lazy_static! {
+    pub static ref TG: Mutex<SequenceGraph<char>> = Mutex::new(SequenceGraph::new());
+    pub static ref DB: Schema = Schema::new("binance_bot_database", rql::BinaryStable).unwrap();
+}
+impl<'db> Database<'db, User> for Schema {
+    fn table() -> TableGuard<'db, User> {
+        DB.user()
+    }
+    fn table_mut() -> TableGuardMut<'db, User> {
+        DB.user_mut()
+    }
+}
+impl<'db> Database<'db, Project> for Schema {
+    fn table() -> TableGuard<'db, Project> {
+        DB.project()
+    }
+    fn table_mut() -> TableGuardMut<'db, Project> {
+        DB.project_mut()
+    }
+}
+impl<'db> Database<'db, Task> for Schema {
+    fn table() -> TableGuard<'db, Task> {
+        DB.task()
+    }
+    fn table_mut() -> TableGuardMut<'db, Task> {
+        DB.task_mut()
+    }
+}
 
 #[post("/api/auth/login", data = "<credentials>")]
 pub fn login(credentials: Json<Credentials>) -> std::result::Result<Json<UserSession>, Status> {
