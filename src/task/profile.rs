@@ -13,7 +13,7 @@ use components::{
 use database_table::Entry;
 use rql::Id;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Model {
     pub entry: remote::Remote<Task>,
     pub editor: Option<editor::Model>,

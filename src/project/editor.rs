@@ -7,7 +7,7 @@ use components::{
 };
 use rql::Id;
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Model {
     pub editor: Editor<Project>,
     pub user_id: Option<Id<User>>,

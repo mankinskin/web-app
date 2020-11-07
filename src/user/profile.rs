@@ -17,7 +17,7 @@ impl From<User> for UserProfile {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Model {
     pub entry: remote::Remote<User>,
     pub projects: project::list::Model,

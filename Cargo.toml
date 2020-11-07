@@ -20,8 +20,10 @@ tracing-subscriber = "^0.2"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 http = "^0.2"
 jsonwebtoken = "^7"
-rocket = "0.4.5"
 actix-web = "3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.rocket]
+version = "^0.4"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.seed]
 version = "^0.8"

@@ -6,7 +6,7 @@ use components::{
     Editor,
 };
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Model {
     pub editor: Editor<Task>,
     pub project_id: Option<Id<Project>>,

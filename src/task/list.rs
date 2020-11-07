@@ -13,7 +13,7 @@ use components::{
 use database_table::Entry;
 use std::result::Result;
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Model {
     project_id: Option<Id<Project>>,
     list: list::List<Task>,

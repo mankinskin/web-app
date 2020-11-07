@@ -144,6 +144,12 @@ impl From<Route> for Auth {
     }
 }
 #[cfg(target_arch = "wasm32")]
+impl Init<Route> for Auth {
+    fn init(route: Route, _orders: &mut impl Orders<Msg>) -> Self {
+        Self::from(route)
+    }
+}
+#[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
 pub enum Msg {
     Set(Auth),

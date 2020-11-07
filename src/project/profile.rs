@@ -14,7 +14,7 @@ use components::{
 use database_table::Entry;
 use rql::Id;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Model {
     pub entry: remote::Remote<Project>,
     pub tasks: task::list::Model,
