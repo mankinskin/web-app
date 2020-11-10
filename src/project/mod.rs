@@ -2,6 +2,17 @@ use crate::{
     task::*,
     user::*,
 };
+use database_table::{
+    Entry,
+    TableRoutable,
+};
+use derive_builder::Builder;
+use enum_paths::AsPath;
+use rql::*;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 #[cfg(target_arch = "wasm32")]
 use {
     components::{
@@ -15,19 +26,6 @@ use {
         prelude::*,
         *,
     },
-};
-use database_table::{
-    TableRoutable,
-    Entry,
-};
-use rql::*;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use derive_builder::Builder;
-use enum_paths::{
-    AsPath,
 };
 
 #[cfg(target_arch = "wasm32")]

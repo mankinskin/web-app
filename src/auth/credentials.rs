@@ -1,7 +1,7 @@
 use crate::user::*;
 use serde::{
-    Serialize,
     Deserialize,
+    Serialize,
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

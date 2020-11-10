@@ -1,11 +1,18 @@
-use crate::{
-    auth::credentials::*,
-};
+use crate::auth::credentials::*;
 use database_table::{
-    TableRoutable,
     Entry,
+    TableRoutable,
 };
+use enum_paths::AsPath;
 use rql::*;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use std::fmt::{
+    self,
+    Display,
+};
 #[cfg(target_arch = "wasm32")]
 use {
     components::{
@@ -18,17 +25,6 @@ use {
         prelude::*,
         *,
     },
-};
-use serde::{
-    Serialize,
-    Deserialize,
-};
-use std::fmt::{
-    self,
-    Display,
-};
-use enum_paths::{
-    AsPath,
 };
 
 #[cfg(target_arch = "wasm32")]

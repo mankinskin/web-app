@@ -1,4 +1,4 @@
-use super::{
+use crate::auth::{
     credentials::Credentials,
     session::Session,
     Auth,

@@ -1,18 +1,17 @@
-use crate::{
-    user::*,
-};
+use crate::user::*;
 use database_table::{
-    TableRoutable,
     Entry,
+    TableRoutable,
 };
+use enum_paths::AsPath;
 use rql::*;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 #[cfg(target_arch = "wasm32")]
 use {
     super::*,
-    seed::{
-        prelude::*,
-        *,
-    },
     components::{
         entry,
         preview,
@@ -20,13 +19,10 @@ use {
         Edit,
         Viewable,
     },
-};
-use serde::{
-    Serialize,
-    Deserialize,
-};
-use enum_paths::{
-    AsPath,
+    seed::{
+        prelude::*,
+        *,
+    },
 };
 
 use derive_builder::Builder;
