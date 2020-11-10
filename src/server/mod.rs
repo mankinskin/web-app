@@ -4,10 +4,19 @@ pub mod error;
 pub mod keys;
 pub mod subscriptions;
 pub mod telegram;
-pub mod websocket;
 pub mod database;
+
+#[cfg(feature = "actix_server")]
+pub mod websocket;
+#[cfg(feature = "actix_server")]
 pub mod actix_server;
+#[cfg(feature = "actix_server")]
+pub use actix_server::*;
+
+#[cfg(feature = "tide_server")]
 pub mod tide_server;
+#[cfg(feature = "tide_server")]
+pub use tide_server::*;
 
 pub const PKG_PATH: &str = "/home/linusb/git/binance-bot/pkg";
 

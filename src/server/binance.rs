@@ -34,12 +34,6 @@ use std::fmt::{
     Formatter,
     self,
 };
-use actix::{
-    Actor,
-    Context,
-    Addr,
-};
-use actix_web::ResponseError;
 #[derive(Clone, Debug)]
 pub struct Error(String);
 
@@ -54,7 +48,6 @@ impl From<String> for Error {
         Self(err)
     }
 }
-impl ResponseError for Error {}
 
 lazy_static! {
     pub static ref BINANCE: Arc<Mutex<Option<Arc<OpenLimits<Api>>>>> = Arc::new(Mutex::new(None));
@@ -80,10 +73,9 @@ impl BinanceCredential {
 }
 pub struct Binance;
 
-impl Actor for Binance {
-    type Context = Context<Self>;
-}
+
 impl Binance {
+    #[cfg(feature = "actix_server")]
     pub async fn init() -> Addr<Self> {
         let credential = BinanceCredential::new();
         let api = Api::with_credential(&credential.api_key, &credential.secret_key, false).await;
@@ -140,4 +132,20 @@ impl Binance {
                 candles,
             })
     }
+}
+
+#[cfg(feature = "actix_server")]
+use actix::{
+    Actor,
+    Context,
+    Addr,
+};
+#[cfg(feature = "actix_server")]
+use actix_web::ResponseError;
+
+#[cfg(feature = "actix_server")]
+impl ResponseError for Error {}
+#[cfg(feature = "actix_server")]
+impl Actor for Binance {
+    type Context = Context<Self>;
 }

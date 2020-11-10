@@ -1,9 +1,11 @@
 pub mod cache;
+#[cfg(feature = "actix_server")]
 pub mod actor;
 
+#[cfg(feature = "actix_server")]
 pub use {
-    cache::actor::SubscriptionCacheActor,
     actor::SubscriptionsActor,
+    cache::actor::SubscriptionCacheActor,
 };
 use crate::{
     database::Schema,

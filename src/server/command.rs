@@ -3,17 +3,18 @@ use crate::{
         Binance,
         PriceHistoryRequest,
     },
-    subscriptions::{
-        SubscriptionsActor,
-    },
     shared::{
         subscriptions::PriceSubscription,
     },
 };
+#[cfg(feature = "actix_server")]
+use crate::{
+    subscriptions::{
+        SubscriptionsActor,
+    },
+};
 use async_std::{
     io::{
-        prelude::BufReadExt,
-        BufReader,
         Stdin,
     },
     sync::{
@@ -21,15 +22,25 @@ use async_std::{
         RwLock,
     },
 };
+#[cfg(feature = "actix_server")]
+use async_std::{
+    io::{
+        prelude::BufReadExt,
+        BufReader,
+    },
+};
 use clap::{
     App,
     Arg,
 };
+#[cfg(feature = "actix_server")]
 use futures_core::stream::Stream;
+#[cfg(feature = "actix_server")]
 use std::{
     pin::Pin,
     task::Poll,
 };
+#[allow(unused)]
 use tracing::{
     debug,
     error,
@@ -39,8 +50,9 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref STDIN: Arc<RwLock<Stdin>> = Arc::new(RwLock::new(async_std::io::stdin()));
 }
-#[derive(Clone, Debug, Message)]
-#[rtype(result = "()")]
+#[cfg_attr(feature = "actix_server", derive(Message))]
+#[cfg_attr(feature = "actix_server", rtype(result = "()"))]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Line(String),
 }
@@ -101,12 +113,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
                 }
             } else if let Some(watch_app) = app.subcommand_matches("watch") {
                 if let Some(symbol) = watch_app.value_of("symbol") {
-                    let id = SubscriptionsActor::add_subscription(
-                            PriceSubscription::from(symbol.to_string())
-                        )
-                        .await
-                        .map_err(|e| e.to_string())?;
-                    format!("Ok {:#?}", id)
+                    start_subscription(PriceSubscription::from(symbol.to_string())).await?
                 } else {
                     watch_app.usage().to_string()
                 }
@@ -118,6 +125,19 @@ pub async fn run_command(text: String) -> Result<String, Error> {
     })
 }
 
+#[cfg(feature = "actix_server")]
+async fn start_subscription(subscription: PriceSubscription) -> Result<String, Error>{
+    let id = SubscriptionsActor::add_subscription(subscription)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(format!("Ok {:#?}", id))
+}
+#[cfg(not(feature = "actix_server"))]
+async fn start_subscription(_subscription: PriceSubscription) -> Result<String, Error>{
+    unimplemented!()
+}
+
+#[cfg(feature = "actix_server")]
 use actix::{
     Actor,
     Handler,
@@ -128,15 +148,18 @@ use actix::{
     AsyncContext,
     Message,
 };
+#[cfg(feature = "actix_server")]
 use actix_interop::{
     FutureInterop,
 };
 pub struct CommandLine;
 impl CommandLine {
+    #[cfg(feature = "actix_server")]
     pub async fn init() -> Addr<Self> {
         Self::create(|_| Self)
     }
 }
+#[cfg(feature = "actix_server")]
 impl Actor for CommandLine {
     type Context = Context<Self>;
    fn started(&mut self, ctx: &mut Context<Self>) {
@@ -144,6 +167,7 @@ impl Actor for CommandLine {
        Self::add_stream(Self, ctx);
    }
 }
+#[cfg(feature = "actix_server")]
 impl StreamHandler<Msg> for CommandLine {
     fn handle(
         &mut self,
@@ -153,6 +177,7 @@ impl StreamHandler<Msg> for CommandLine {
         ctx.notify(msg);
     }
 }
+#[cfg(feature = "actix_server")]
 impl Handler<Msg> for CommandLine {
     type Result = ResponseActFuture<Self, ()>;
     fn handle(
@@ -170,7 +195,7 @@ impl Handler<Msg> for CommandLine {
         }.interop_actor_boxed(self)
     }
 }
-
+#[cfg(feature = "actix_server")]
 impl Stream for CommandLine {
     type Item = Msg;
     fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Option<Self::Item>> {

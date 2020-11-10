@@ -9,6 +9,7 @@ pub enum Error {
     Telegram(telegram::Error),
     Command(command::Error),
     Subscriptions(subscriptions::Error),
+    #[cfg(feature = "actix_server")]
     WebSocket(crate::websocket::Error),
     Server(crate::server::Error),
     Mpsc(futures::channel::mpsc::SendError),
@@ -50,5 +51,11 @@ impl From<subscriptions::Error> for Error {
 impl From<command::Error> for Error {
     fn from(err: command::Error) -> Self {
         Self::Command(err)
+    }
+}
+#[cfg(feature = "actix_server")]
+impl From<crate::websocket::Error> for Error {
+    fn from(err: crate::websocket::Error) -> Self {
+        Self::WebSocket(err)
     }
 }

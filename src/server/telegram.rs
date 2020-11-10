@@ -2,7 +2,6 @@ use crate::server::{
     command::run_command,
     keys,
 };
-use futures::StreamExt;
 use lazy_static::lazy_static;
 pub use telegram_bot::{
     Api,
@@ -12,11 +11,15 @@ use telegram_bot::{
     MessageKind,
     UpdateKind,
 };
+#[allow(unused)]
 use tracing::{
     debug,
     error,
     info,
 };
+#[cfg(feature = "actix_server")]
+use futures::StreamExt;
+#[cfg(feature = "actix_server")]
 use actix::{
     Actor,
     Handler,
@@ -28,6 +31,7 @@ use actix::{
     Message,
     Supervisor,
 };
+#[cfg(feature = "actix_server")]
 use actix_interop::{
     FutureInterop,
 };
@@ -39,8 +43,9 @@ impl<T: ToString> From<T> for Error {
         Self(err.to_string())
     }
 }
-#[derive(Clone, Debug, Message)]
-#[rtype(result = "()")]
+#[cfg_attr(feature = "actix_server", derive(Message))]
+#[cfg_attr(feature = "actix_server", rtype(result = "()"))]
+#[derive(Clone, Debug)]
 pub struct Update(pub telegram_bot::Update);
 
 #[derive(Clone)]
@@ -106,10 +111,12 @@ impl std::ops::Deref for StaticTelegram {
 }
 pub struct Telegram;
 impl Telegram {
+    #[cfg(feature = "actix_server")]
     pub async fn init() -> Addr<Self> {
         Supervisor::start(|_| Self)
     }
 }
+#[cfg(feature = "actix_server")]
 impl Actor for Telegram {
     type Context = Context<Self>;
    fn started(&mut self, ctx: &mut Context<Self>) {
@@ -117,6 +124,7 @@ impl Actor for Telegram {
        Self::add_stream(telegram().api.stream().map(|res| res.map_err(Into::into)), ctx);
    }
 }
+#[cfg(feature = "actix_server")]
 impl StreamHandler<Result<telegram_bot::Update, Error>> for Telegram {
     fn handle(
         &mut self,
@@ -129,6 +137,7 @@ impl StreamHandler<Result<telegram_bot::Update, Error>> for Telegram {
         }
     }
 }
+#[cfg(feature = "actix_server")]
 impl Handler<Update> for Telegram {
     type Result = ResponseActFuture<Self, ()>;
     fn handle(
@@ -143,6 +152,7 @@ impl Handler<Update> for Telegram {
         }.interop_actor_boxed(self)
     }
 }
+#[cfg(feature = "actix_server")]
 impl actix::Supervised for Telegram {
     fn restarting(&mut self, _ctx: &mut Context<Self>) {
         info!["Restarting telegram actor"];

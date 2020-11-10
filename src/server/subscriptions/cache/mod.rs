@@ -1,3 +1,4 @@
+#[cfg(feature = "actix_server")]
 pub mod actor;
 use crate::{
     shared::{

@@ -9,7 +9,7 @@ dependencies = ["start"]
 [tasks.start]
 description = "Start server"
 command = "cargo"
-args = ["run"]
+args = ["run", "${@}"]
 dependencies = ["client", "server"]
 
 [tasks.check]
@@ -29,7 +29,7 @@ args = ["check", "--lib", "--target", "wasm32-unknown-unknown"]
 [tasks.server]
 description = "Build server"
 command = "cargo"
-args = ["build", "--bin", "server"]
+args = ["build", "--bin", "server", "${@}"]
 
 [tasks.client]
 description = "Build client"

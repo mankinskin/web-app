@@ -1,6 +1,6 @@
 use crate::{
+    *,
     binance::PriceHistoryRequest,
-    Error,
 };
 use app_model::{
     auth::{
@@ -37,11 +37,6 @@ use openssl::ssl::{
     SslMethod,
 };
 use actix_web_actors::ws;
-use std::fmt::{
-    Formatter,
-    Display,
-    self,
-};
 
 #[get("/ws")]
 async fn ws_route(request: HttpRequest, stream: web::Payload) -> impl Responder {
