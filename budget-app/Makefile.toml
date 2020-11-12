@@ -9,7 +9,7 @@ dependencies = ["start"]
 [tasks.start]
 description = "Start server"
 command = "cargo"
-args = ["make", "--cwd", "server", "start", "--", "--features", "actix_server"]
+args = ["make", "--cwd", "server"]
 dependencies = ["client"]
 
 [tasks.server]

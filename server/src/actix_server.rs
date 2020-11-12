@@ -70,7 +70,6 @@ async fn register(user: web::Json<User>) -> impl Responder {
         .map(|session| web::Json(session))
 }
 pub async fn run() -> std::io::Result<()> {
-    let _tracing = crate::init_tracing();
     let _telegram = telegram::Telegram::init().await;
     let _cli = command::CommandLine::init().await;
     let binance = binance::Binance::init().await;

@@ -19,7 +19,6 @@ async fn index(_: tide::Request<()>) -> tide::Result {
     Ok(tide::Response::from(body))
 }
 pub async fn run() -> std::io::Result<()> {
-    let _tracing = crate::init_tracing();
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
     server.at("/").get(index);
