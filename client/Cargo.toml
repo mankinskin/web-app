@@ -1,0 +1,84 @@
+[package]
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+name = "client"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+lazy_static = "^1.4"
+serde_json = "^1"
+tracing = "^0.1"
+tracing-subscriber = "^0.2"
+console_error_panic_hook = "^0.1"
+rand = "^0.7"
+rand_distr = "^0.2"
+rust_decimal = "^1"
+url = "^2"
+wasm-bindgen-futures = "^0.4"
+async-trait = "^0.1"
+
+[dependencies.shared]
+path = "../shared"
+
+[dependencies.chrono]
+features = ["serde"]
+version = "^0.4"
+
+[dependencies.futures]
+version = "0.3"
+
+[dependencies.futures-core]
+version = "^0.3"
+
+[dependencies.openlimits]
+path = "../../openlimits"
+
+[dependencies.app-model]
+path = "../../app-model"
+
+[dependencies.database-table]
+path = "../../database-table"
+
+[dependencies.rql]
+path = "../../rql"
+
+[dependencies.enum_paths]
+path = "../../enum_paths"
+
+[dependencies.serde]
+version = "^1"
+features = [
+  "derive",
+]
+
+[dependencies.tracing-wasm]
+path = "../../tracing-wasm"
+
+[dependencies.components]
+path = "../../components"
+
+[dependencies.js-sys]
+version = "^0.3"
+
+[dependencies.seed]
+version = "^0.8"
+
+[dependencies.wasm-bindgen]
+version = "^0.2"
+features = [
+  "serde-serialize"
+]
+
+[dependencies.web-sys]
+version = "^0.3"
+features = [
+  "MutationObserver",
+  "MutationRecord",
+  "Node",
+  "Document",
+  "Window",
+]

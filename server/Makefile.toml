@@ -1,0 +1,23 @@
+[env]
+PORT = "8000"
+
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+dependencies = ["start"]
+
+[tasks.start]
+description = "Start Server"
+command = "cargo"
+args = ["run", "${@}"]
+
+[tasks.check]
+description = "Check Server"
+command = "cargo"
+args = ["check", "--bin", "server"]
+
+[tasks.build]
+description = "Build server"
+command = "cargo"
+args = ["build", "${@}"]

@@ -1,0 +1,39 @@
+[package]
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+name = "shared"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies.chrono]
+features = ["serde"]
+version = "^0.4"
+
+[dependencies.openlimits]
+path = "../../openlimits"
+
+[dependencies.app-model]
+path = "../../app-model"
+
+[dependencies.database-table]
+path = "../../database-table"
+
+[dependencies.rql]
+path = "../../rql"
+
+[dependencies.enum_paths]
+path = "../../enum_paths"
+
+[dependencies.serde]
+version = "^1"
+features = [
+  "derive",
+]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+actix = "0.10"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.components]
+path = "../../components"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.seed]
+version = "^0.8"

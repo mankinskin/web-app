@@ -9,33 +9,13 @@ dependencies = ["start"]
 [tasks.start]
 description = "Start server"
 command = "cargo"
-args = ["run", "${@}"]
-dependencies = ["client", "server"]
-
-[tasks.check]
-description = "Check"
-dependencies = ["check_client", "check_server"]
-
-[tasks.check_server]
-description = "Check Server"
-command = "cargo"
-args = ["check", "--bin", "server"]
-
-[tasks.check_client]
-description = "Check client"
-command = "cargo"
-args = ["check", "--lib", "--target", "wasm32-unknown-unknown"]
+args = ["make", "--cwd", "server", "start", "--", "--features", "actix_server"]
+dependencies = ["client"]
 
 [tasks.server]
-description = "Build server"
+description = "Make Server"
 command = "cargo"
-args = ["build", "--bin", "server", "${@}"]
-
-[tasks.client]
-description = "Build client"
-install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V" }
-command = "wasm-pack"
-args = ["build", "--target", "web", "--out-name", "package", "--dev"]
+args = ["make", "--cwd", "server"]
 
 [tasks.client]
 description = "Make Client"
