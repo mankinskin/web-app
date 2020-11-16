@@ -1,8 +1,15 @@
 pub mod cache;
-#[cfg(feature = "actix_server")]
-pub mod actor;
 
 #[cfg(feature = "actix_server")]
+pub mod actix_actor;
+#[cfg(feature = "actix_server")]
+pub use actix_actor as actor;
+
+#[cfg(not(feature = "actix_server"))]
+pub mod riker_actor;
+#[cfg(not(feature = "actix_server"))]
+pub use riker_actor as actor;
+
 pub use {
     actor::SubscriptionsActor,
     cache::actor::SubscriptionCacheActor,
@@ -90,6 +97,47 @@ pub async fn caches() -> RwLockReadGuard<'static, StaticSubscriptions> {
 pub async fn caches_mut() -> RwLockWriteGuard<'static, StaticSubscriptions> {
     CACHES.write().await
 }
+pub async fn add_subscription(req: PriceSubscription) -> Result<Id<PriceSubscription>, Error> {
+    caches_mut()
+        .await
+        .add_subscription(req)
+        .await
+}
+pub async fn update_subscription(id: Id<PriceSubscription>, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
+    caches_mut()
+        .await
+        .update_subscription(id, req)
+        .await
+}
+pub async fn find_subscription(request: PriceSubscription) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
+    caches()
+        .await
+        .find_subscription(request)
+        .await
+}
+pub async fn get_subscription(id: Id<PriceSubscription>) -> Result<Arc<RwLock<SubscriptionCache>>, Error> {
+    caches()
+        .await
+        .get_subscription(id)
+        .await
+}
+pub async fn delete_subscription(id: Id<PriceSubscription>) -> Result<(), Error> {
+    caches_mut()
+        .await
+        .delete_subscription(id)
+        .await
+}
+pub async fn get_subscription_list() -> Vec<Entry<PriceSubscription>> {
+
+    caches()
+        .await
+        .get_subscription_list()
+        .await
+}
+pub async fn refresh() -> Result<(), Error> {
+    caches_mut().await.refresh().await
+}
+
 #[derive(Debug)]
 pub struct StaticSubscriptions {
     pub subscriptions: HashMap<Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>>,

@@ -10,7 +10,7 @@ name = "server"
 path = "src/main.rs"
 
 [features]
-default = ["actix_server"]
+default = ["warp_server"]
 
 tide_server = ["tide", "tide-tracing", "tide-rustls"]
 

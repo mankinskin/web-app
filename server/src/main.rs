@@ -33,7 +33,6 @@ macro_rules! assert_any_feature {
 assert_any_feature!("tide_server", "actix_server", "warp_server");
 assert_unique_feature!("tide_server", "actix_server", "warp_server");
 
-#[cfg(feature = "actix_server")]
 pub mod websocket;
 
 #[cfg(feature = "actix_server")]

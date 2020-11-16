@@ -37,6 +37,9 @@ use std::{
     result::Result,
     collections::HashMap,
 };
+use rql::*;
+
+
 use actix::{
     Actor,
     Handler,
@@ -51,8 +54,6 @@ use actix_interop::{
     FutureInterop,
     with_ctx,
 };
-use rql::*;
-
 #[derive(Debug)]
 pub struct SubscriptionsActor {
     session: Addr<Session>,
