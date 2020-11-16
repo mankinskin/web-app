@@ -74,6 +74,9 @@ pub async fn run() -> std::io::Result<()> {
         });
     let api = price_history.or(login).or(register);
     let pkg_dir = warp::fs::dir(format!("{}/pkg", CLIENT_PATH.to_string()));
+    let favicon = warp::path::path("favicon.ico").and(warp::fs::file(format!("{}/favicon.ico", CLIENT_PATH)));
+    let index = warp::path::end().and(warp::fs::file(format!("{}/index.html", CLIENT_PATH)));
+
     let logger = warp::log::custom(|info| {
         debug!(
             "request from {:?}: {} {} {}ms {}",
@@ -84,9 +87,11 @@ pub async fn run() -> std::io::Result<()> {
             info.status(),
         )
     });
+    let files = index
+        .or(favicon)
+        .or(pkg_dir);
     let routes = api
-        .or(pkg_dir)
-        .or(warp::fs::file(format!("{}/pkg/index.html", CLIENT_PATH)))
+        .or(files)
         .with(logger);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let server = warp::serve(routes)
