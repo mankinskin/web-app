@@ -10,14 +10,13 @@ use app_model::{
     user::Route as UserRoute,
     auth::Route as AuthRoute,
 };
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
 use {
     actix::Message,
 };
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
-#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "Option<ServerMessage>"))]
+#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
+#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "Option<ServerMessage>"))]
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
     Close,
@@ -25,10 +24,37 @@ pub enum ClientMessage {
     Pong,
     Binary(Vec<u8>),
 }
+#[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
+use {
+    std::convert::TryFrom,
+};
+#[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
+impl TryFrom<warp::ws::Message> for ClientMessage {
+    type Error = String;
+    fn try_from(msg: warp::ws::Message) -> Result<Self, Self::Error> {
+        if let Ok(text) = msg.to_str() {
+            serde_json::de::from_str(text).map_err(|e| e.to_string())
+        } else {
+            if msg.is_close() {
+                Ok(Self::Close)
+            } else if msg.is_ping() {
+                Ok(Self::Ping)
+            } else if msg.is_pong() {
+                Ok(Self::Pong)
+            } else if msg.is_binary() {
+                let bytes = msg.as_bytes().to_vec();
+                Ok(Self::Binary(bytes))
+            } else {
+                Err(format!("Unable to read message: {:#?}", msg))
+            }
+        }
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Message))]
-#[cfg_attr(not(target_arch = "wasm32"), rtype(result = "()"))]
+#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
+#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "()"))]
 pub enum ServerMessage {
     Subscriptions(subscriptions::Response),
 }

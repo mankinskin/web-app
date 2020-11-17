@@ -4,6 +4,18 @@ name = "shared"
 version = "0.1.0"
 edition = "2018"
 
+[features]
+default = ["warp_server"]
+
+actix_server = [
+  "actix",
+]
+
+warp_server = [
+  "warp",
+  "serde_json",
+]
+
 [dependencies.chrono]
 features = ["serde"]
 version = "^0.4"
@@ -29,8 +41,17 @@ features = [
   "derive",
 ]
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-actix = "0.10"
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.actix]
+version = "^0.10"
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.serde_json]
+version = "^1"
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.warp]
+version = "^0.2"
+optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.components]
 path = "../../components"

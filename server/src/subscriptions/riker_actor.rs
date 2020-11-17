@@ -1,31 +1,15 @@
 use shared::{
-    ServerMessage,
     subscriptions::{
         Request,
-        Response,
         PriceSubscription,
-        UpdatePriceSubscriptionRequest,
     },
 };
 use crate::{
     websocket::Session,
     subscriptions::{
-        caches,
-        caches_mut,
-        Error,
         cache::{
-            SubscriptionCache,
             actor::SubscriptionCacheActor,
         },
-    },
-};
-use database_table::{
-    Entry,
-};
-use async_std::{
-    sync::{
-        Arc,
-        RwLock,
     },
 };
 #[allow(unused)]
@@ -34,7 +18,6 @@ use tracing::{
     info,
 };
 use std::{
-    result::Result,
     collections::HashMap,
 };
 use rql::*;
@@ -49,7 +32,7 @@ pub struct SubscriptionsActor {
 }
 impl Actor for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    fn pre_start(&mut self, _ctx: &Context<Self::Msg>) {
         //ctx.run(async move {
         //    self.actors = Some(caches().await
         //        .subscriptions
@@ -81,8 +64,8 @@ impl ActorFactoryArgs<ActorRef<<Session as Actor>::Msg>> for SubscriptionsActor 
 }
 impl Receive<Request> for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Request, sender: Sender) {
-        let session = self.session.clone();
+    fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: Request, _sender: Sender) {
+        let _session = self.session.clone();
         ctx.run(async move {
             //match msg {
             //    Request::GetPriceSubscriptionList => {

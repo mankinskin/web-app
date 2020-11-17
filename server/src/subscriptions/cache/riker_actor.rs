@@ -45,8 +45,8 @@ pub enum Msg {
 }
 impl Receive<Msg> for SubscriptionCacheActor {
     type Msg = SubscriptionCacheActorMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender) {
-        let id = self.id.clone();
+    fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: Msg, _sender: Sender) {
+        let _id = self.id.clone();
         ctx.run(async move {
             //match msg {
             //    Msg::Request(req) =>
@@ -81,6 +81,6 @@ impl Receive<Msg> for SubscriptionCacheActor {
             //        None
             //    },
             //}
-        });
+        }).expect("Failed to run future").forget();
     }
 }

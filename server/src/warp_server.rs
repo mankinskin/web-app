@@ -3,6 +3,7 @@ use crate::{
     database,
     keys,
     binance::PriceHistoryRequest,
+    websocket,
 };
 #[allow(unused)]
 use tracing::{
@@ -20,17 +21,38 @@ use app_model::{
         Credentials,
     },
 };
-use async_std::net::SocketAddr;
 use warp::reply::Reply;
 use warp::Filter;
-
+use riker::actors::*;
+use async_std::{
+    net::SocketAddr,
+    sync::{
+        Arc,
+        RwLock,
+        RwLockReadGuard,
+        RwLockWriteGuard,
+    },
+};
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref ACTOR_SYS: Arc<RwLock<ActorSystem>> = Arc::new(RwLock::new(ActorSystem::new().unwrap()));
+}
+pub async fn actor_sys() -> RwLockReadGuard<'static, ActorSystem> {
+    ACTOR_SYS.read().await
+}
+pub async fn actor_sys_mut() -> RwLockWriteGuard<'static, ActorSystem> {
+    ACTOR_SYS.write().await
+}
 pub async fn run() -> std::io::Result<()> {
-    //let websocket = warp::path("wss")
-    //    .and(warp::ws())
-    //    .map(move |ws: warp::ws::Ws| {
-    //        debug!("Websocket connection request");
-    //        ws.on_upgrade(websocket::connection)
-    //    });
+    let websocket =
+        warp::path("wss")
+        .and(warp::ws())
+        .map(move |ws: warp::ws::Ws| {
+            debug!("Websocket connection request");
+            ws.on_upgrade(async move |ws: warp::ws::WebSocket| {
+                websocket::websocket_session(ws).await
+            })
+        });
     let price_history = warp::get()
         .and(warp::path!("api" / "price_history"))
         .and_then(|| {
@@ -91,6 +113,7 @@ pub async fn run() -> std::io::Result<()> {
         .or(favicon)
         .or(pkg_dir);
     let routes = api
+        .or(websocket)
         .or(files)
         .with(logger);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
