@@ -17,8 +17,8 @@ Frontend:
   cargo make
 ```
 
-`cargo make` will build the client to [wasm32-unknown-unknown](https://rustwasm.github.io/book/),
-build the server and run it. Other [cargo-make](https://github.com/sagiegurari/cargo-make) targets
+builds the client to [wasm32-unknown-unknown](https://rustwasm.github.io/book/),
+builds the server and runs it. Other [cargo-make](https://github.com/sagiegurari/cargo-make) targets
 are defined in the `Makefile.toml` files.
 
 ### Client/Server API
