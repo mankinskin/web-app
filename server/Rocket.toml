@@ -1,0 +1,3 @@
+[global.tls]
+certs = "../keys/tls.crt"
+key = "../keys/tls.key"
