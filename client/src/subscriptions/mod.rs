@@ -3,6 +3,7 @@ use components::{
     Init,
     Viewable,
     Editor,
+    editor,
 };
 pub mod chart;
 use seed::{
@@ -107,16 +108,17 @@ impl Component for Subscriptions {
                 self.update_list = true;
             },
             Msg::Editor(msg) => {
+                debug!("Editor Msg {:#?}", msg);
                 if let Some(ed) = &mut self.editor {
-                    //let new = match msg {
-                    //    editor::Msg::Cancel => Some(None),
-                    //    editor::Msg::Submit => Some(None),
-                    //    _ => None,
-                    //};
+                    let new = match msg {
+                        editor::Msg::Cancel => Some(None),
+                        editor::Msg::Submit => Some(None),
+                        _ => None,
+                    };
                     ed.update(msg, &mut orders.proxy(Msg::Editor));
-                    //if let Some(new) = new {
-                    //    self.editor = new;
-                    //}
+                    if let Some(new) = new {
+                        self.editor = new;
+                    }
                 }
             },
             Msg::Subscription(id, msg) => {

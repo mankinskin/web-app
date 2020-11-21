@@ -16,7 +16,13 @@ use seed::{
     prelude::*,
     *,
 };
-use tracing::debug;
+#[allow(unused)]
+use tracing::{
+    debug,
+    warn,
+    trace,
+    error,
+};
 use crate::subscriptions::{
     self,
     Subscriptions,
@@ -45,7 +51,7 @@ impl Init<UserRoute> for Page {
 }
 impl Init<Route> for Page {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
-        debug!("Init Page");
+        //debug!("Init Page");
         match route {
             Route::Auth(route) => {
                 Self::Auth(Auth::init(route, &mut orders.proxy(Msg::Auth)))

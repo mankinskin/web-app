@@ -87,15 +87,15 @@ impl Component for SubscriptionInfo {
             }
             Msg::Editor(msg) => {
                 if let Some(ed) = &mut self.editor {
-                    //let new = match msg {
-                    //    editor::Msg::Cancel => Some(None),
-                    //    editor::Msg::Submit => Some(None),
-                    //    _ => None,
-                    //};
+                    let new = match msg {
+                        editor::Msg::Cancel => Some(None),
+                        editor::Msg::Submit => Some(None),
+                        _ => None,
+                    };
                     ed.update(msg, &mut orders.proxy(Msg::Editor));
-                    //if let Some(new) = new {
-                    //    self.editor = new;
-                    //}
+                    if let Some(new) = new {
+                        self.editor = new;
+                    }
                 }
             },
         }
