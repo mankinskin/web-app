@@ -97,7 +97,7 @@ impl<R: Route, P: Page<R>> Clone for Msg<R, P> {
 impl<R: Route, P: Page<R>> Component for Router<R, P> {
     type Msg = Msg<R, P>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
-        debug!("Router Update");
+        //debug!("Router Update");
         match msg {
             Msg::Page(msg) => self.page.update(msg, &mut orders.proxy(Msg::Page)),
             Msg::UrlChanged(subs::UrlChanged(url)) => {

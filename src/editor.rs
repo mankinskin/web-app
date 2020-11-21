@@ -16,7 +16,13 @@ use seed::{
     *,
 };
 use std::fmt::Debug;
-
+#[allow(unused)]
+use tracing::{
+    debug,
+    error,
+    trace,
+    warn,
+};
 pub trait Edit: Component {
     fn edit(&self) -> Node<Self::Msg>;
 }
@@ -60,8 +66,9 @@ pub enum Msg<T: Component + RemoteTable + std::fmt::Debug> {
 impl<T: Component + RemoteTable + Debug + Clone> Component for Editor<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Msg<T>, orders: &mut impl Orders<Msg<T>>) {
+        debug!("Editor message: {:#?}", msg);
         match msg {
-            Msg::Cancel => {}
+            Msg::Cancel => {},
             Msg::Submit => {
                 match self {
                     Self::New(new) => new.update(newdata::Msg::Post, &mut orders.proxy(Msg::New)),
@@ -98,7 +105,13 @@ impl<T: Component + RemoteTable + Edit + Debug + Clone> Viewable for Editor<T> {
                 St::MaxWidth => "20%",
             },
             // Cancel Button
-            button![ev(Ev::Click, |_| Msg::<T>::Cancel), "Cancel"],
+            button![
+                attrs! {
+                    At::Type => "button",
+                },
+                ev(Ev::Click, |_| Msg::<T>::Cancel),
+                "Cancel"
+            ],
             match self {
                 Self::New(new) =>
                     div![
@@ -125,6 +138,7 @@ impl<T: Component + RemoteTable + Edit + Debug + Clone> Viewable for Editor<T> {
                     ],
             },
             ev(Ev::Submit, |ev| {
+                debug!("Editor form Ev::Submit");
                 ev.prevent_default();
                 Msg::<T>::Submit
             }),
