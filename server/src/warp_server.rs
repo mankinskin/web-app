@@ -33,6 +33,9 @@ use async_std::{
         RwLockWriteGuard,
     },
 };
+use shared::{
+    PriceSubscription,
+};
 use lazy_static::lazy_static;
 lazy_static! {
     static ref ACTOR_SYS: Arc<RwLock<ActorSystem>> = Arc::new(RwLock::new(ActorSystem::new().unwrap()));
@@ -54,7 +57,7 @@ pub async fn run() -> std::io::Result<()> {
             })
         });
     let price_history = warp::get()
-        .and(warp::path!("api" / "price_history"))
+        .and(warp::path!("price_history"))
         .and_then(|| {
             async {
                 crate::binance::Binance::
@@ -69,7 +72,7 @@ pub async fn run() -> std::io::Result<()> {
             }
         });
     let login = warp::post()
-        .and(warp::path!("api" / "login"))
+        .and(warp::path!("login"))
         .and(warp::body::json())
         .and_then(|credentials: Credentials| {
             async {
@@ -82,7 +85,7 @@ pub async fn run() -> std::io::Result<()> {
             }
         });
     let register = warp::post()
-        .and(warp::path!("api" / "register"))
+        .and(warp::path!("register"))
         .and(warp::body::json())
         .and_then(|user: User| {
             async {
@@ -94,10 +97,23 @@ pub async fn run() -> std::io::Result<()> {
                 }) as Result<warp::reply::Response, core::convert::Infallible>
             }
         });
-    let api = price_history.or(login).or(register);
+    let post_subscription = warp::post()
+        .and(warp::body::json())
+        .and_then(async move |sub: PriceSubscription| {
+            debug!("{:#?}", sub);
+            Ok(String::new()) as Result<String, std::convert::Infallible>
+        });
+    let subscriptions = warp::path!("subscriptions")
+        .and(post_subscription);
+    
+    let api = warp::path!("api" / ..)
+        .and(price_history
+            .or(login)
+            .or(register)
+            .or(subscriptions)
+        );
     let pkg_dir = warp::fs::dir(format!("{}/pkg", CLIENT_PATH.to_string()));
     let favicon = warp::path::path("favicon.ico").and(warp::fs::file(format!("{}/favicon.ico", CLIENT_PATH)));
-    let index = warp::path::end().and(warp::fs::file(format!("{}/index.html", CLIENT_PATH)));
 
     let logger = warp::log::custom(|info| {
         debug!(
@@ -109,7 +125,13 @@ pub async fn run() -> std::io::Result<()> {
             info.status(),
         )
     });
-    let files = index
+    let index_file = warp::fs::file(format!("{}/index.html", CLIENT_PATH));
+    let index_page = warp::path::end().and(index_file.clone());
+    let pages = index_page
+        .or(warp::path("subscriptions").and(index_file.clone()))
+        .or(warp::path("login").and(index_file.clone()))
+        .or(warp::path("register").and(index_file.clone()));
+    let files = pages
         .or(favicon)
         .or(pkg_dir);
     let routes = api
