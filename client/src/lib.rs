@@ -16,9 +16,6 @@ use seed::{
     *,
 };
 use tracing::debug;
-use crate::websocket::{
-    WebSocket,
-};
 
 fn init_tracing() {
     tracing_wasm::set_as_global_default();
@@ -26,18 +23,15 @@ fn init_tracing() {
 }
 struct Root {
     navbar: Navbar,
-    websocket: WebSocket,
 }
 #[derive(Clone, Debug)]
 enum Msg {
     Navbar(navbar::Msg),
-    Websocket(websocket::Msg),
 }
 impl Init<Url> for Root {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
         Self {
             navbar: Navbar::init(url, &mut orders.proxy(Msg::Navbar)),
-            websocket: WebSocket::init((), &mut orders.proxy(Msg::Websocket)),
         }
     }
 }
@@ -47,9 +41,6 @@ impl Component for Root {
         //debug!("Root Update");
         match msg {
             Msg::Navbar(msg) => self.navbar.update(msg, &mut orders.proxy(Msg::Navbar)),
-            Msg::Websocket(msg) => {
-                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
-            }
         }
     }
 }

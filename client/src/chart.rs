@@ -14,8 +14,13 @@ use tracing::{
 use openlimits::model::{
     Candle,
 };
+use crate::websocket::{
+    self,
+    WebSocket,
+};
 #[derive(Debug)]
 pub struct Chart {
+    websocket: WebSocket,
     pub svg_node: Option<web_sys::Node>,
     pub data: Vec<Candle>,
     pub data_min: f32,
@@ -31,11 +36,13 @@ pub struct Chart {
 }
 #[derive(Clone, Debug)]
 pub enum Msg {
+    Websocket(websocket::Msg),
 }
 impl Init<()> for Chart {
-    fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+    fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         debug!("Creating chart");
         Self {
+            websocket: WebSocket::init((), &mut orders.proxy(Msg::Websocket)),
             view_x: 0,
             view_y: 0,
             width: 800,
@@ -53,8 +60,13 @@ impl Init<()> for Chart {
 }
 impl Component for Chart {
     type Msg = Msg;
-    fn update(&mut self, _msg: Msg, _orders: &mut impl Orders<Msg>) {
+    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         //debug!("Chart update");
+        match msg {
+            Msg::Websocket(msg) => {
+                self.websocket.update(msg, &mut orders.proxy(Msg::Websocket));
+            }
+        }
     }
 }
 impl Chart {
