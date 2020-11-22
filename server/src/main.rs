@@ -8,6 +8,7 @@ pub mod keys;
 pub mod subscriptions;
 pub mod telegram;
 pub mod database;
+pub mod session;
 
 macro_rules! assert_unique_feature {
     () => {};

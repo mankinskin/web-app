@@ -39,6 +39,8 @@ openssl = "0.10"
 log = "0.4"
 riker = "0.4"
 static_assertions = "^1"
+sha2 = "^0.9"
+hex = "^0.4"
 
 tide = { version = "0.14", optional = true }
 tide-tracing = { version = "0.0.6", optional = true }
