@@ -23,9 +23,9 @@ macro_rules! assert_unique_feature {
 macro_rules! assert_any_feature {
     () => {};
     ($($fs:tt),*) => {
-        #[cfg(all($(
+        #[cfg(not(any($(
             feature = $fs
-        ),*))]
+        ),*)))]
         compile_error!(format!("Please choose one of these features: [{}]",
             vec![$($fs),*].iter().fold(String::new(), |acc, x| format!("{}{}" acc, x))
         ));
