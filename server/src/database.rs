@@ -16,6 +16,7 @@ schema! {
 lazy_static! {
     pub static ref DB: Schema = Schema::new("binance_bot_database", rql::BinaryStable).unwrap();
 }
+
 impl<'db> Database<'db, User> for Schema {
     fn table() -> TableGuard<'db, User> {
         DB.user()

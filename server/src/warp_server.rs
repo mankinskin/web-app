@@ -56,6 +56,19 @@ pub async fn run() -> std::io::Result<()> {
                 websocket::websocket_session(ws).await
             })
         });
+    let pkg_dir = warp::fs::dir(format!("{}/pkg", CLIENT_PATH.to_string()));
+    let favicon = warp::path::path("favicon.ico").and(warp::fs::file(format!("{}/favicon.ico", CLIENT_PATH)));
+
+    let logger = warp::log::custom(|info| {
+        debug!(
+            "request from {:?}: {} {} {}ms {}",
+            info.remote_addr(),
+            info.method(),
+            info.path(),
+            info.elapsed().as_millis(),
+            info.status(),
+        )
+    });
     let price_history = warp::get()
         .and(warp::path!("price_history"))
         .and_then(|| {
@@ -112,19 +125,6 @@ pub async fn run() -> std::io::Result<()> {
             .or(register)
             .or(subscriptions)
         );
-    let pkg_dir = warp::fs::dir(format!("{}/pkg", CLIENT_PATH.to_string()));
-    let favicon = warp::path::path("favicon.ico").and(warp::fs::file(format!("{}/favicon.ico", CLIENT_PATH)));
-
-    let logger = warp::log::custom(|info| {
-        debug!(
-            "request from {:?}: {} {} {}ms {}",
-            info.remote_addr(),
-            info.method(),
-            info.path(),
-            info.elapsed().as_millis(),
-            info.status(),
-        )
-    });
     let index_file = warp::fs::file(format!("{}/index.html", CLIENT_PATH));
     let index_page = warp::path::end().and(index_file.clone());
     let pages = index_page
@@ -134,10 +134,32 @@ pub async fn run() -> std::io::Result<()> {
     let files = pages
         .or(favicon)
         .or(pkg_dir);
-    let routes = api
-        .or(websocket)
-        .or(files)
+    let routes =
+    warp::cookie::optional("session")
+        .and(warp::filters::addr::remote())
+        .and(
+            api
+                .or(websocket)
+                .or(files)
+                .map(Reply::into_response)
+        )
+        .and_then(async move |session: Option<String>, addr: Option<SocketAddr>, reply: warp::reply::Response| {
+            Ok(if let Some(id) = session {
+                debug!("Request for session {}", id);
+                reply
+            } else {
+                debug!("Request with no session ID");
+                if let Some(addr) = addr {
+                    let new_id = crate::session::get_session(addr).await;
+                    debug!("Setting header Set-Cookie {}", new_id);
+                    warp::reply::with_header(reply, "Set-Cookie", format!("session={}", new_id)).into_response()
+                } else {
+                    reply
+                }
+            }) as Result<_, std::convert::Infallible>
+        })
         .with(logger);
+
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let server = warp::serve(routes)
         .tls()
