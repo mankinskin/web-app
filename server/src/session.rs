@@ -144,7 +144,7 @@ impl Session {
         Utc::now() < self.invalidation_time()
     }
     pub fn cookie_string(&self) -> String {
-        format!("session={}; Max-Age={}; Secure",
+        format!("session={};Max-Age={};Secure;HttpOnly",
                 self.id,
                 (self.invalidation_time() - Utc::now()).num_seconds(),
         )
