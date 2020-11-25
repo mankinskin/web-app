@@ -25,6 +25,13 @@ use std::ops::{
 };
 use rql::*;
 use lazy_static::lazy_static;
+use std::collections::VecDeque;
+#[allow(unused)]
+use tracing::{
+    debug,
+    warn,
+    error,
+};
 
 lazy_static! {
     static ref SESSIONS: Arc<RwLock<SessionMap>> = Arc::new(RwLock::new(SessionMap::default()));
@@ -47,6 +54,7 @@ type InternalSessionMap = HashMap<SessionID, Session>;
 #[derive(Debug, Default)]
 pub struct SessionMap {
     sessions: InternalSessionMap,
+    invalidations: VecDeque<(SessionID, DateTime<Utc>)>,
 }
 impl Deref for SessionMap {
     type Target = InternalSessionMap;
@@ -70,10 +78,15 @@ impl SessionMap {
     fn get_session(&self, id: &SessionID) -> Option<&Session> {
         self.sessions.get(id)
     }
+    fn remove_session(&mut self, id: &SessionID) {
+        debug!("Removing session {}", id);
+        self.sessions.remove(id);
+    }
     fn create_session(&mut self) -> Session {
         let id = Self::new_id();
         let session = Session::new(id.clone());
-        self.sessions.insert(id, session.clone());
+        self.sessions.insert(id.clone(), session.clone());
+        self.invalidations.push_back((id, session.invalidation_time().clone()));
         session
     }
 }
@@ -82,6 +95,17 @@ pub async fn create_session() -> Session {
 }
 pub async fn get_session(id: &SessionID) -> Option<Session> {
     sessions().await.get_session(id).map(Clone::clone)
+}
+pub async fn run_cleaner() {
+    loop {
+        let invalidation = sessions_mut().await.invalidations.pop_front().clone();
+        if let Some((next, time)) = invalidation {
+            let duration = time - Utc::now();
+            let duration = tokio::time::Duration::from_millis(duration.num_milliseconds() as u64);
+            tokio::time::delay_for(duration).await;
+            sessions_mut().await.remove_session(&next);
+        }
+    }
 }
 #[derive(Debug, Clone)]
 pub struct Session {

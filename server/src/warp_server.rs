@@ -170,7 +170,7 @@ pub async fn run() -> std::io::Result<()> {
             }) as Result<_, std::convert::Infallible>
         })
         .with(logger);
-
+    let session_cleaner = tokio::spawn(crate::session::run_cleaner());
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let server = warp::serve(routes)
         .tls()
@@ -178,5 +178,6 @@ pub async fn run() -> std::io::Result<()> {
         .key_path(keys::to_key_path("tls.key"));
     info!("Starting Server");
     server.run(addr).await;
+    session_cleaner.await.expect("Failed to join session cleaner.");
     Ok(())
 }
