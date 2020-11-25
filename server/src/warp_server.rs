@@ -136,26 +136,37 @@ pub async fn run() -> std::io::Result<()> {
         .or(pkg_dir);
     let routes =
     warp::cookie::optional("session")
-        .and(warp::filters::addr::remote())
         .and(
             api
                 .or(websocket)
                 .or(files)
                 .map(Reply::into_response)
         )
-        .and_then(async move |session: Option<String>, addr: Option<SocketAddr>, reply: warp::reply::Response| {
-            Ok(if let Some(id) = session {
+        .and_then(async move |session: Option<String>, reply: warp::reply::Response| {
+            let set_new_session = if let Some(id) = session {
                 debug!("Request for session {}", id);
-                reply
+                let session = crate::session::get_session(&id).await;
+                if let Some(session) = session {
+                    if session.is_stale() {
+                        debug!("Session stale, recreating.");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    debug!("Invalid session. Creating new one.");
+                    true
+                }
             } else {
                 debug!("Request with no session ID");
-                if let Some(addr) = addr {
-                    let new_id = crate::session::get_session(addr).await;
-                    debug!("Setting header Set-Cookie {}", new_id);
-                    warp::reply::with_header(reply, "Set-Cookie", format!("session={}", new_id)).into_response()
-                } else {
-                    reply
-                }
+                true
+            };
+            Ok(if set_new_session {
+                let session = crate::session::create_session().await;
+                debug!("Setting header Set-Cookie {}", session.id);
+                warp::reply::with_header(reply, "Set-Cookie", session.cookie_string()).into_response()
+            } else {
+                reply
             }) as Result<_, std::convert::Infallible>
         })
         .with(logger);
