@@ -28,26 +28,11 @@ pub enum ClientMessage {
 use {
     std::convert::TryFrom,
 };
-#[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
-impl TryFrom<warp::ws::Message> for ClientMessage {
+#[cfg(not(target_arch = "wasm32"))]
+impl TryFrom<String> for ClientMessage {
     type Error = String;
-    fn try_from(msg: warp::ws::Message) -> Result<Self, Self::Error> {
-        if let Ok(text) = msg.to_str() {
-            serde_json::de::from_str(text).map_err(|e| e.to_string())
-        } else {
-            if msg.is_close() {
-                Ok(Self::Close)
-            } else if msg.is_ping() {
-                Ok(Self::Ping)
-            } else if msg.is_pong() {
-                Ok(Self::Pong)
-            } else if msg.is_binary() {
-                let bytes = msg.as_bytes().to_vec();
-                Ok(Self::Binary(bytes))
-            } else {
-                Err(format!("Unable to read message: {:#?}", msg))
-            }
-        }
+    fn try_from(msg: String) -> Result<Self, Self::Error> {
+        serde_json::de::from_str(&msg).map_err(|e| e.to_string())
     }
 }
 

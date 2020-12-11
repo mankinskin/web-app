@@ -9,6 +9,7 @@ pub mod subscriptions;
 pub mod telegram;
 pub mod database;
 pub mod session;
+pub mod websocket;
 
 macro_rules! assert_unique_feature {
     () => {};
@@ -34,7 +35,6 @@ macro_rules! assert_any_feature {
 assert_any_feature!("tide_server", "actix_server", "warp_server");
 assert_unique_feature!("tide_server", "actix_server", "warp_server");
 
-pub mod websocket;
 
 #[cfg(feature = "actix_server")]
 pub mod actix_server;
@@ -63,34 +63,7 @@ async fn main() -> std::io::Result<()> {
 pub mod warp_server;
 #[cfg(feature = "warp_server")]
 pub use warp_server::*;
-#[cfg(feature = "warp_server")]
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    let _tracing = init_tracing();
-    warp_server::run().await
-}
 
-pub const CLIENT_PATH: &str = "/home/linusb/git/binance-bot/client";
-pub const KEY_PATH: &str = "../keys";
-
-use std::fmt::{
-    Formatter,
-    Display,
-    self,
-};
-#[derive(Debug, Clone)]
-pub struct Error(String);
-impl From<String> for Error {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Self(s) = self;
-        write!(f, "{}", s)
-    }
-}
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
     fmt::{
@@ -107,6 +80,54 @@ use tracing::{
     warn,
     trace,
 };
+use async_std::{
+    sync::{
+        Arc,
+        RwLock,
+        RwLockReadGuard,
+        RwLockWriteGuard,
+    },
+};
+use riker::actors::*;
+use lazy_static::lazy_static;
+use std::fmt::{
+    Formatter,
+    Display,
+    self,
+};
+
+#[cfg(feature = "warp_server")]
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let _tracing = init_tracing();
+    warp_server::run().await
+}
+
+pub const CLIENT_PATH: &str = "/home/linusb/git/binance-bot/client";
+pub const KEY_PATH: &str = "../keys";
+
+lazy_static! {
+    static ref ACTOR_SYS: Arc<RwLock<ActorSystem>> = Arc::new(RwLock::new(ActorSystem::new().unwrap()));
+}
+pub async fn actor_sys() -> RwLockReadGuard<'static, ActorSystem> {
+    ACTOR_SYS.read().await
+}
+pub async fn actor_sys_mut() -> RwLockWriteGuard<'static, ActorSystem> {
+    ACTOR_SYS.write().await
+}
+#[derive(Debug, Clone)]
+pub struct Error(String);
+impl From<String> for Error {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let Self(s) = self;
+        write!(f, "{}", s)
+    }
+}
 pub fn init_tracing() -> WorkerGuard {
     tracing_log::LogTracer::init().unwrap();
     let file_appender = tracing_appender::rolling::hourly("./logs", "log");

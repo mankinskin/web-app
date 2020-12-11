@@ -3,7 +3,6 @@ use crate::{
     database,
     keys,
     binance::PriceHistoryRequest,
-    websocket,
 };
 #[allow(unused)]
 use tracing::{
@@ -12,6 +11,12 @@ use tracing::{
     error,
     warn,
     trace,
+};
+use async_std::{
+    net::SocketAddr,
+};
+use shared::{
+    PriceSubscription,
 };
 use app_model::{
     user::User,
@@ -23,39 +28,17 @@ use app_model::{
 };
 use warp::reply::Reply;
 use warp::Filter;
-use riker::actors::*;
-use async_std::{
-    net::SocketAddr,
-    sync::{
-        Arc,
-        RwLock,
-        RwLockReadGuard,
-        RwLockWriteGuard,
-    },
-};
-use shared::{
-    PriceSubscription,
-};
-use lazy_static::lazy_static;
-lazy_static! {
-    static ref ACTOR_SYS: Arc<RwLock<ActorSystem>> = Arc::new(RwLock::new(ActorSystem::new().unwrap()));
-}
-pub async fn actor_sys() -> RwLockReadGuard<'static, ActorSystem> {
-    ACTOR_SYS.read().await
-}
-pub async fn actor_sys_mut() -> RwLockWriteGuard<'static, ActorSystem> {
-    ACTOR_SYS.write().await
-}
+
 pub async fn run() -> std::io::Result<()> {
-    let websocket =
-        warp::path("wss")
-        .and(warp::ws())
-        .map(move |ws: warp::ws::Ws| {
-            debug!("Websocket connection request");
-            ws.on_upgrade(async move |ws: warp::ws::WebSocket| {
-                websocket::websocket_session(ws).await
-            })
-        });
+    //let websocket =
+    //    warp::path("wss")
+    //    .and(warp::ws())
+    //    .map(move |ws: warp::ws::Ws| {
+    //        debug!("Websocket connection request");
+    //        ws.on_upgrade(async move |ws: warp::ws::WebSocket| {
+    //            websocket::websocket_session(ws).await
+    //        })
+    //    });
     let pkg_dir = warp::fs::dir(format!("{}/pkg", CLIENT_PATH.to_string()));
     let favicon = warp::path::path("favicon.ico").and(warp::fs::file(format!("{}/favicon.ico", CLIENT_PATH)));
 
@@ -138,7 +121,7 @@ pub async fn run() -> std::io::Result<()> {
     warp::cookie::optional("session")
         .and(
             api
-                .or(websocket)
+                //.or(websocket)
                 .or(files)
                 .map(Reply::into_response)
         )
