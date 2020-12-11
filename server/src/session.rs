@@ -42,11 +42,11 @@ async fn sessions() -> RwLockReadGuard<'static, SessionMap> {
 async fn sessions_mut() -> RwLockWriteGuard<'static, SessionMap> {
     SESSIONS.write().await
 }
-const SECRET: &'static str = "change this";
+const SECRET: &'static str = "AKJDASHDKJAHFAJDFKJHFLASHFLJAKJFHA";
 /// time until session expires
-const EXPIRATION_SECS: u32 = 60;
-/// time session remains valid after expiration
-const STALE_SECS: u32 = 60;
+pub const EXPIRATION_SECS: u32 = 2;
+/// time session remains in memory after expiration
+pub const STALE_SECS: u32 = 60;
 
 pub type SessionID = String;
 type InternalSessionMap = HashMap<SessionID, Session>;
@@ -67,13 +67,16 @@ impl DerefMut for SessionMap {
         &mut self.sessions
     }
 }
+pub fn generate_secret() -> String {
+    let mut h = Sha256::new();
+    let timestamp = Utc::now().timestamp_nanos();
+    h.update(format!("{}{}", timestamp, SECRET));
+    let out = h.finalize();
+    hex::encode(out)
+}
 impl SessionMap {
     fn new_id() -> SessionID {
-        let mut h = Sha256::new();
-        let timestamp = Utc::now().timestamp_nanos();
-        h.update(format!("{}{}", timestamp, SECRET));
-        let out = h.finalize();
-        hex::encode(out)
+        generate_secret()
     }
     fn get_session(&self, id: &SessionID) -> Option<&Session> {
         self.sessions.get(id)

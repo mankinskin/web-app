@@ -36,6 +36,7 @@ use app_model::{
         register,
     }
 };
+use chrono::Utc;
 
 macro_rules! client_file {
     ($path:expr) => {
@@ -102,9 +103,34 @@ fn api() -> std::io::Result<tide::Server<()>> {
     Ok(api)
 }
 
+fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::MemoryStore> {
+    tide::sessions::SessionMiddleware::new(
+        tide::sessions::MemoryStore::new(),
+        session::generate_secret().as_bytes()
+    )
+    .with_cookie_name("session")
+    .with_session_ttl(Some(std::time::Duration::from_secs(session::EXPIRATION_SECS as u64)))
+}
+
 pub async fn run() -> std::io::Result<()> {
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
+    server.with(session_middleware());
+    server.with(tide::utils::Before(async move |mut request: Request<()>| {
+        let session = request.session_mut();
+        if let Some(expiry) = session.expiry() {
+            // time since expiry or (negative) until
+            let dt = (Utc::now() - *expiry).num_seconds();
+            if dt >= session::STALE_SECS as i64 {
+                // expired and stale
+                session.destroy()
+            } else if dt >= 0 {
+                // expired and not stale
+                session.regenerate()
+            }
+        }
+        request
+    }));
     server.at("/").nest(root()?);
     server.at("/api").nest(api()?);
     server.at("/subscriptions").get(index!());
