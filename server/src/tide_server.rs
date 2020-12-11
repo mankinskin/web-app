@@ -72,12 +72,17 @@ async fn login_handler(mut req: Request<()>) -> tide::Result {
     let credentials: Credentials = req.body_json().await?;
     match login::<database::Schema>(credentials).await {
         Ok(session) => {
-            req.session_mut().insert("session", session)
+            req.session_mut()
+                .insert("session", session)
                 .map(|_| Response::new(200))
                 .map_err(|e| tide::Error::from_str(500, e.to_string()))
         },
-        Err(e) => Err(tide::Error::from_str(500, e.to_string()))
+        Err(e) => Err(e)
     }
+}
+async fn logout_handler(mut req: Request<()>) -> tide::Result {
+    req.session_mut().remove("session");
+    Ok(Response::new(200))
 }
 async fn registration_handler(mut req: Request<()>) -> tide::Result {
     let user: User = req.body_json().await?;
