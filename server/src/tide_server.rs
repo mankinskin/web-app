@@ -18,10 +18,23 @@ use tide_websockets::{
 };
 use tide::{
     Endpoint,
+    Request,
+    Body,
 };
 use futures_util::{
     StreamExt,
     SinkExt,
+};
+use shared::{
+    PriceSubscription,
+};
+use app_model::{
+    user::User,
+    auth::{
+        Credentials,
+        login,
+        register,
+    }
 };
 
 macro_rules! client_file {
@@ -35,7 +48,7 @@ macro_rules! client_file {
 macro_rules! index {
     () => { client_file!("index.html") }
 }
-async fn wss(request: tide::Request<()>) -> tide::Result {
+async fn wss(request: Request<()>) -> tide::Result {
     WebSocket::new(async move |_, ws| {
         let (sink, stream) = ws.split();
         let stream = stream.map(|msg| msg.map(|msg| msg.into_data()));
@@ -46,17 +59,54 @@ async fn wss(request: tide::Request<()>) -> tide::Result {
     .call(request)
     .await
 }
+fn root() -> std::io::Result<tide::Server<()>> {
+    let mut root = tide::new();
+    root.at("/").get(client_file!("index.html"));
+    root.at("/favicon.ico").get(client_file!("favicon.ico"));
+    root.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH))?;
+    Ok(root)
+}
+async fn login_handler(mut req: Request<()>) -> tide::Result<Body> {
+    let credentials: Credentials = req.body_json().await?;
+    match login::<database::Schema>(credentials).await {
+        Ok(session) => Ok(Body::from_json(&session)?),
+        Err(e) => Err(tide::Error::from_str(500, e.to_string()))
+    }
+}
+async fn registration_handler(mut req: Request<()>) -> tide::Result<Body> {
+    let user: User = req.body_json().await?;
+    match register::<database::Schema>(user).await {
+        Ok(session) => Ok(Body::from_json(&session)?),
+        Err(e) => Err(tide::Error::from_str(500, e.to_string()))
+    }
+}
+async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
+    let sub: PriceSubscription = req.body_json().await?;
+    Ok(Body::from_json(&String::from(""))?)
+}
+fn subscriptions_api() -> std::io::Result<tide::Server<()>> {
+    let mut api = tide::new();
+    api.at("/").post(post_subscription_handler);
+    Ok(api)
+}
+fn auth_api() -> std::io::Result<tide::Server<()>> {
+    let mut api = tide::new();
+    api.at("/login").post(login_handler);
+    api.at("/register").post(registration_handler);
+    Ok(api)
+}
+fn api() -> std::io::Result<tide::Server<()>> {
+    let mut api = tide::new();
+    api.at("/auth").nest(auth_api()?);
+    api.at("/subscriptions").nest(subscriptions_api()?);
+    Ok(api)
+}
 
 pub async fn run() -> std::io::Result<()> {
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
-    server.at("/").nest({
-        let mut root = tide::new();
-        root.at("/").get(client_file!("index.html"));
-        root.at("/favicon.ico").get(client_file!("favicon.ico"));
-        root.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH))?;
-        root
-    });
+    server.at("/").nest(root()?);
+    server.at("/api").nest(api()?);
     server.at("/subscriptions").get(index!());
     server.at("/login").get(index!());
     server.at("/register").get(index!());
