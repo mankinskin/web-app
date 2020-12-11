@@ -8,7 +8,6 @@ use async_std::sync::{
 use lazy_static::lazy_static;
 use openlimits::{
     binance::Binance as Api,
-    errors::OpenLimitError,
     exchange::OpenLimits,
     model::{
         GetHistoricRatesRequest,
@@ -86,7 +85,7 @@ impl Binance {
     async fn api<'a>() -> Result<Arc<OpenLimits<Api>>, Error> {
         BINANCE.lock().await
             .as_ref()
-            .ok_or(OpenLimitError::NoApiKeySet().to_string())
+            .ok_or(String::from("Binance API not initialized!"))
             .map_err(Into::into)
             .map(Clone::clone)
     }
