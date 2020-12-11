@@ -5,7 +5,7 @@ use shared::{
     },
 };
 use crate::{
-    websocket::Session,
+    websocket::Connection,
 };
 #[allow(unused)]
 use tracing::{
@@ -20,15 +20,15 @@ use riker::actors::*;
 #[derive(Debug)]
 pub struct SubscriptionCacheActor {
     id: Id<PriceSubscription>,
-    session: ActorRef<<Session as Actor>::Msg>,
+    connection: ActorRef<<Connection as Actor>::Msg>,
     //update_stream: Option<SpawnHandle>,
 }
-impl ActorFactoryArgs<(Id<PriceSubscription>, ActorRef<<Session as Actor>::Msg>)> for SubscriptionCacheActor {
-    fn create_args((id, session): (Id<PriceSubscription>, ActorRef<<Session as Actor>::Msg>)) -> Self {
+impl ActorFactoryArgs<(Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)> for SubscriptionCacheActor {
+    fn create_args((id, connection): (Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)) -> Self {
         info!("Creating SubscriptionCacheActor");
         Self {
             id,
-            session,
+            connection,
         }
     }
 }

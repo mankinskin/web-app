@@ -53,7 +53,7 @@ async fn wss(request: Request<()>) -> tide::Result {
         let (sink, stream) = ws.split();
         let stream = stream.map(|msg| msg.map(|msg| msg.into_data()));
         let sink = sink.with(async move |msg| Ok(Message::from(msg)) as Result<_, tide_websockets::Error>);
-        websocket::websocket_session(stream, sink).await;
+        websocket::connection(stream, sink).await;
         Ok(())
     })
     .call(request)
@@ -81,7 +81,7 @@ async fn registration_handler(mut req: Request<()>) -> tide::Result<Body> {
     }
 }
 async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
-    let sub: PriceSubscription = req.body_json().await?;
+    let _: PriceSubscription = req.body_json().await?;
     Ok(Body::from_json(&String::from(""))?)
 }
 fn subscriptions_api() -> std::io::Result<tide::Server<()>> {

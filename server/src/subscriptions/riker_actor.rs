@@ -5,7 +5,7 @@ use shared::{
     },
 };
 use crate::{
-    websocket::Session,
+    websocket::Connection,
     subscriptions::{
         cache::{
             actor::SubscriptionCacheActor,
@@ -27,7 +27,7 @@ use riker::actors::*;
 #[actor(Request)]
 #[derive(Debug)]
 pub struct SubscriptionsActor {
-    session: ActorRef<<Session as Actor>::Msg>,
+    connection: ActorRef<<Connection as Actor>::Msg>,
     actors: Option<HashMap<Id<PriceSubscription>, ActorRef<<SubscriptionCacheActor as Actor>::Msg>>>,
 }
 impl Actor for SubscriptionsActor {
@@ -41,8 +41,9 @@ impl Actor for SubscriptionsActor {
         //            (
         //                id.clone(), 
         //                ctx.actor_of_args::<SubscriptionCacheActor, _>(
-        //                    &format!("Session({}):Subscription({}):cache_actor", self.session, id),
-        //                    (id.clone(), self.session.clone())
+        //                    &format!("Connection({}):Subscription({}):cache_actor",
+        //                    self.connection, id),
+        //                    (id.clone(), self.connection.clone())
         //                ).unwrap()
         //            )
         //        )
@@ -53,11 +54,11 @@ impl Actor for SubscriptionsActor {
         self.receive(ctx, msg, sender);
     }
 }
-impl ActorFactoryArgs<ActorRef<<Session as Actor>::Msg>> for SubscriptionsActor {
-    fn create_args(session: ActorRef<<Session as Actor>::Msg>) -> Self {
+impl ActorFactoryArgs<ActorRef<<Connection as Actor>::Msg>> for SubscriptionsActor {
+    fn create_args(connection: ActorRef<<Connection as Actor>::Msg>) -> Self {
         info!("Creating SubscriptionsActor");
         Self {
-            session,
+            connection,
             actors: None,
         }
     }
@@ -65,7 +66,7 @@ impl ActorFactoryArgs<ActorRef<<Session as Actor>::Msg>> for SubscriptionsActor 
 impl Receive<Request> for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: Request, _sender: Sender) {
-        let _session = self.session.clone();
+        let _connection = self.connection.clone();
         ctx.run(async move {
             //match msg {
             //    Request::GetPriceSubscriptionList => {
@@ -77,7 +78,7 @@ impl Receive<Request> for SubscriptionsActor {
             //        info!("Subscribing to market pair {}", &request.market_pair);
             //        let id = Self::add_subscription(request.clone()).await.unwrap();
             //        with_ctx::<Self, _, _>(|act, _ctx| {
-            //            act.actors.insert(id.clone(), SubscriptionCacheActor::init(id.clone(), session));
+            //            act.actors.insert(id.clone(), SubscriptionCacheActor::init(id.clone(), connection));
             //        });
             //        Some(Response::SubscriptionAdded(id))
             //    },
@@ -105,9 +106,9 @@ impl Receive<Request> for SubscriptionsActor {
 //        msg: Response,
 //        _ctx: &mut Self::Context,
 //    ) -> Self::Result {
-//        let session = self.session.clone();
+//        let connection = self.connection.clone();
 //        async move {
-//            session.send(ServerMessage::Subscriptions(msg)).await.unwrap();
+//            connection.send(ServerMessage::Subscriptions(msg)).await.unwrap();
 //        }.interop_actor_boxed(self)
 //    }
 //}

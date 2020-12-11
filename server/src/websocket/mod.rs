@@ -8,9 +8,9 @@ pub mod actix_actor;
 #[cfg(feature = "actix_server")]
 pub use actix_actor as actor;
 
-pub use actor::Session;
+pub use actor::Connection;
 #[cfg(not(feature = "actix_server"))]
-pub use actor::websocket_session;
+pub use actor::connection;
 
 #[allow(unused)]
 use tracing::{
@@ -26,11 +26,11 @@ use std::{
 };
 use lazy_static::lazy_static;
 lazy_static! {
-    static ref SESSION_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static ref CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 }
 
-pub fn new_session_id() -> usize {
-    SESSION_COUNT.fetch_add(1, Ordering::Relaxed)
+pub fn new_connection_id() -> usize {
+    CONNECTION_COUNT.fetch_add(1, Ordering::Relaxed)
 }
 
 #[derive(Debug, Clone)]
