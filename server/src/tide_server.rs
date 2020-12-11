@@ -20,6 +20,7 @@ use tide::{
     Endpoint,
     Request,
     Body,
+    Response,
 };
 use futures_util::{
     StreamExt,
@@ -67,17 +68,21 @@ fn root() -> std::io::Result<tide::Server<()>> {
     root.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH))?;
     Ok(root)
 }
-async fn login_handler(mut req: Request<()>) -> tide::Result<Body> {
+async fn login_handler(mut req: Request<()>) -> tide::Result {
     let credentials: Credentials = req.body_json().await?;
     match login::<database::Schema>(credentials).await {
-        Ok(session) => Ok(Body::from_json(&session)?),
+        Ok(session) => {
+            req.session_mut().insert("session", session)
+                .map(|_| Response::new(200))
+                .map_err(|e| tide::Error::from_str(500, e.to_string()))
+        },
         Err(e) => Err(tide::Error::from_str(500, e.to_string()))
     }
 }
-async fn registration_handler(mut req: Request<()>) -> tide::Result<Body> {
+async fn registration_handler(mut req: Request<()>) -> tide::Result {
     let user: User = req.body_json().await?;
     match register::<database::Schema>(user).await {
-        Ok(session) => Ok(Body::from_json(&session)?),
+        Ok(_session) => Ok(Response::new(200)),
         Err(e) => Err(tide::Error::from_str(500, e.to_string()))
     }
 }
