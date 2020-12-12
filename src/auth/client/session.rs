@@ -40,7 +40,15 @@ pub fn end() {
 }
 #[derive(Debug, Clone, Default)]
 pub struct Session;
-
+impl Session {
+    async fn logout_request(self) -> Result<(), FetchError> {
+        let req = seed::fetch::Request::new(format!("{}/api/auth/logout", crate::get_base_url().unwrap())).method(Method::Post);
+        seed::fetch::fetch(req)
+            .await?
+            .check_status()?;
+        Ok(())
+    }
+}
 impl From<UserSession> for Session {
     fn from(session: UserSession) -> Self {
         set(session);
@@ -48,15 +56,30 @@ impl From<UserSession> for Session {
     }
 }
 #[derive(Clone, Debug)]
-pub enum Msg {}
+pub enum Msg {
+    Logout,
+}
 impl Component for Session {
     type Msg = Msg;
-    fn update(&mut self, _msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {}
+    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
+        match msg {
+            Msg::Logout => {
+                orders.perform_cmd(self.clone().logout_request());
+            },
+        }
+    }
 }
 impl Viewable for Session {
     fn view(&self) -> Node<Msg> {
         if let Some(session) = get() {
-            div![p!["logged in"], p![format!("{:#?}", session.user_id)],]
+            div![
+                p![format!("Logged in as {:#?}", session.user_id)],
+                button![
+                    ev(Ev::Click, |_event| Msg::Logout),
+                    ["Logout"],
+
+                ]
+            ]
         } else {
             empty![]
         }

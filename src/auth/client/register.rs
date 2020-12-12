@@ -28,7 +28,7 @@ pub enum Msg {
     RegistrationResponse(Result<UserSession, String>),
 }
 pub async fn registration_request(user: User) -> Result<UserSession, FetchError> {
-    let url = format!("https://0.0.0.0:8000/api/auth/register");
+    let url = format!("{}/api/auth/register", crate::get_base_url().unwrap());
     let req = seed::fetch::Request::new(&url).method(Method::Post);
     seed::fetch::fetch(req.json(&user)?)
         .await?

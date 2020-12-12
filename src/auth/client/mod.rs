@@ -16,6 +16,21 @@ use components::{
 use seed::prelude::*;
 use tracing::debug;
 
+pub fn get_location() -> web_sys::Location {
+    web_sys::window().unwrap().location()
+}
+pub fn get_host() -> Result<String, JsValue> {
+    get_location().host()
+}
+pub fn get_base_url() -> Result<String, JsValue> {
+    let loc = get_location();
+    Ok(format!("{}://{}:{}",
+        loc.protocol()?,
+        loc.host()?,
+        loc.port()?,
+    ))
+}
+
 #[derive(Debug, Clone)]
 pub enum Auth {
     Login(Login),

@@ -18,7 +18,6 @@ use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct Login {
-    pub url: String,
     pub credentials: Credentials,
 }
 #[derive(Debug, Clone)]
@@ -30,7 +29,7 @@ pub enum Msg {
 }
 impl Login {
     async fn login_request(self) -> Result<UserSession, FetchError> {
-        let req = seed::fetch::Request::new(&self.url).method(Method::Post);
+        let req = seed::fetch::Request::new(format!("{}/api/auth/login", crate::get_base_url().unwrap())).method(Method::Post);
         seed::fetch::fetch(req.json(&self.credentials)?)
             .await?
             .check_status()?
@@ -43,7 +42,6 @@ impl Default for Login {
     fn default() -> Self {
         Self {
             credentials: Default::default(),
-            url: "https://0.0.0.0:8000/api/auth/login".into(),
         }
     }
 }
