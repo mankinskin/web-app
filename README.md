@@ -1,25 +1,23 @@
-# Budget App
-### A social network for managing projects
+# Web App
+### A collection of libraries for building web applications in Rust.
+(Some descriptions in this README may be inconsistent)
 
-## Development
+there are two different deployable apps in this repository currently:
+- budget-app
+- binance-bot
 
-This project is built using Rust and WebAssembly.
+Each contain a server and a client crate.
 
-Backend:
-- [Rocket](https://rocket.rs/) [server](server/)
-- [rql](https://github.com/kaikalii/rql) database
+The clients are compiles to webassembly and use the [Seed](https://seed-rs.org/) web client framework
 
-Frontend:
-- [Seed](https://seed-rs.org/) Web Client Framework
-
-### Building the client and running the server
+### Building the an app and running the server
 ```
+  cd binance-bot
   cargo make
 ```
 
-builds the client to [wasm32-unknown-unknown](https://rustwasm.github.io/book/),
-builds the server and runs it. Other [cargo-make](https://github.com/sagiegurari/cargo-make) targets
-are defined in the `Makefile.toml` files.
+builds client and server and runs the server.
+Other [cargo-make](https://github.com/sagiegurari/cargo-make) targets are defined in the `Makefile.toml` files.
 
 ### Client/Server API
 The server and client both import the [api](api) crate, which uses
