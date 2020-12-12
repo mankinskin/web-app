@@ -1,0 +1,9 @@
+[workspace]
+members = [
+  "budget-app/server",
+  "budget-app/client",
+  "budget-app/api",
+  "binance-bot/client",
+  "binance-bot/server",
+  "binance-bot/api",
+]
