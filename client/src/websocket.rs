@@ -36,7 +36,7 @@ pub enum Msg {
 }
 impl Init<()> for WebSocket {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
-        let host = crate::get_host().unwrap();
+        let host = app_model::get_host().unwrap();
         //debug!("Host: {}", host);
         Self {
             host: host.clone(),

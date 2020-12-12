@@ -44,9 +44,6 @@ impl Component for Root {
         }
     }
 }
-pub fn get_host() -> Result<String, JsValue> {
-    web_sys::window().unwrap().location().host()
-}
 
 #[wasm_bindgen(start)]
 pub fn render() {
