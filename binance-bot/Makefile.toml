@@ -1,0 +1,24 @@
+[env]
+port = "8000"
+
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+dependencies = ["start"]
+
+[tasks.start]
+description = "Start server"
+command = "cargo"
+args = ["make", "--cwd", "server"]
+dependencies = ["client"]
+
+[tasks.server]
+description = "Make Server"
+command = "cargo"
+args = ["make", "--cwd", "server"]
+
+[tasks.client]
+description = "Make Client"
+command = "cargo"
+args = ["make", "--cwd", "client"]
