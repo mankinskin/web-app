@@ -6,4 +6,5 @@ members = [
   "binance-bot/client",
   "binance-bot/server",
   "binance-bot/api",
+  "app-model",
 ]
