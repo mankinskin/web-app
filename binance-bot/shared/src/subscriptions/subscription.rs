@@ -6,24 +6,21 @@ use serde::{
 #[cfg(target_arch = "wasm32")]
 use {
     crate::{
-        Route as CrateRoute,
-        ApiRoute,
         subscriptions::Route,
-    },
-    database_table::{
-        TableRoutable,
+        ApiRoute,
+        Route as CrateRoute,
     },
     components::{
         Component,
         Edit,
     },
-    seed::{
-        *,
-        prelude::*,
-    },
+    database_table::TableRoutable,
     rql::*,
+    seed::{
+        prelude::*,
+        *,
+    },
 };
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PriceSubscription {
@@ -69,11 +66,8 @@ impl TableRoutable for PriceSubscription {
     }
 }
 
-
 impl From<String> for PriceSubscription {
     fn from(market_pair: String) -> Self {
-        Self {
-            market_pair,
-        }
+        Self { market_pair }
     }
 }

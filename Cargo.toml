@@ -3,8 +3,10 @@ members = [
   "budget-app/server",
   "budget-app/client",
   "budget-app/api",
+  "binance-bot/shared",
   "binance-bot/client",
   "binance-bot/server",
-  "binance-bot/api",
   "app-model",
+  "components",
+  "database-table",
 ]

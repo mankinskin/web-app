@@ -3,24 +3,24 @@ use app_model::{
         credentials::*,
         jwt::*,
     },
-    UserSession,
     project::Project,
     task::Task,
     user::User,
+    UserSession,
 };
 use database_table::*;
+use lazy_static::lazy_static;
 use rocket::{
     http::*,
+    post,
     request::FromParam,
     response::*,
-    post,
 };
 use rocket_contrib::json::Json;
-use std::convert::TryFrom;
 use rql::*;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 use seqraph::*;
+use std::convert::TryFrom;
+use std::sync::Mutex;
 
 schema! {
     pub Schema {

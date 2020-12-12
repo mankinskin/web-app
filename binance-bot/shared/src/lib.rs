@@ -1,22 +1,26 @@
 pub mod subscriptions;
 pub use subscriptions::PriceSubscription;
 
+#[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
+use actix::Message;
+use app_model::{
+    auth::Route as AuthRoute,
+    user::Route as UserRoute,
+};
+use enum_paths::AsPath;
 use serde::{
     Deserialize,
     Serialize,
 };
-use enum_paths::AsPath;
-use app_model::{
-    user::Route as UserRoute,
-    auth::Route as AuthRoute,
-};
-#[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
-use {
-    actix::Message,
-};
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "Option<ServerMessage>"))]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    derive(Message)
+)]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    rtype(result = "Option<ServerMessage>")
+)]
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
     Close,
@@ -25,9 +29,7 @@ pub enum ClientMessage {
     Binary(Vec<u8>),
 }
 #[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
-use {
-    std::convert::TryFrom,
-};
+use std::convert::TryFrom;
 #[cfg(not(target_arch = "wasm32"))]
 impl TryFrom<String> for ClientMessage {
     type Error = String;
@@ -36,10 +38,15 @@ impl TryFrom<String> for ClientMessage {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "()"))]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    derive(Message)
+)]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    rtype(result = "()")
+)]
 pub enum ServerMessage {
     Subscriptions(subscriptions::Response),
 }

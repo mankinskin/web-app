@@ -1,19 +1,15 @@
-use openlimits::model::{
-    Interval,
-};
+use app_model::market::PriceHistory;
+use database_table::Entry;
+use openlimits::model::Interval;
 use serde::{
     Deserialize,
     Serialize,
 };
-use database_table::Entry;
-use app_model::market::PriceHistory;
 
 #[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
-use {
-    actix::Message,
-};
-use rql::*;
+use actix::Message;
 use enum_paths::AsPath;
+use rql::*;
 
 pub mod subscription;
 pub use subscription::PriceSubscription;
@@ -40,24 +36,42 @@ impl From<Interval> for UpdatePriceSubscriptionRequest {
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "Option<Response>"))]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    derive(Message)
+)]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    rtype(result = "Option<Response>")
+)]
 pub enum Request {
     GetPriceSubscriptionList,
     AddPriceSubscription(PriceSubscription),
     Subscription(Id<PriceSubscription>, SubscriptionRequest),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "Option<Response>"))]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    derive(Message)
+)]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    rtype(result = "Option<Response>")
+)]
 pub enum SubscriptionRequest {
     UpdatePriceSubscription(UpdatePriceSubscriptionRequest),
     StartHistoryUpdates,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), derive(Message))]
-#[cfg_attr(all(feature = "actix_server", not(target_arch = "wasm32")), rtype(result = "()"))]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    derive(Message)
+)]
+#[cfg_attr(
+    all(feature = "actix_server", not(target_arch = "wasm32")),
+    rtype(result = "()")
+)]
 pub enum Response {
     SubscriptionList(Vec<Entry<PriceSubscription>>),
     PriceHistory(Id<PriceSubscription>, PriceHistory),

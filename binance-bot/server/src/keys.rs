@@ -3,8 +3,10 @@ use std::{
     path::Path,
 };
 
+pub const KEY_PATH: &str = "../../keys";
+
 pub fn to_key_path<P: AsRef<Path>>(path: P) -> impl AsRef<Path> {
-    Path::new(crate::KEY_PATH).join(path)
+    Path::new(KEY_PATH).join(path)
 }
 pub fn read_key_file<P: AsRef<Path>>(path: P) -> String {
     let path = to_key_path(path);

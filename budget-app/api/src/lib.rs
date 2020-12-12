@@ -17,14 +17,12 @@ use app_model::{
     user::User,
 };
 use database_table::*;
+use define_api::api;
 use futures::future::FutureExt;
 use interpreter::*;
 use rql::*;
 use seqraph::*;
 use updatable::*;
-use define_api::api;
-
-
 
 api! {
     fn get_project_tasks(id: Id<Project>) -> Vec<Entry<Task>> {

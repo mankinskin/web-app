@@ -30,19 +30,19 @@ version = "^0.8"
 path = "../../components"
 
 [dependencies.define_api]
-path = "../define_api"
+path = "../../define_api"
 
 [dependencies.interpreter]
-path = "../interpreter"
+path = "../../interpreter"
 
 [dependencies.seqraph]
-path = "../seqraph"
+path = "../../seqraph"
 
 [dependencies.rql]
-path = "../../rql"
+path = "../../../rql"
 
 [dependencies.enum_paths]
-path = "../../enum_paths"
+path = "../../../enum_paths"
 
 [dependencies.app-model]
 path = "../../app-model"
@@ -51,4 +51,4 @@ path = "../../app-model"
 path = "../../database-table"
 
 [dependencies.updatable]
-path = "../../updatable"
+path = "../../../updatable"

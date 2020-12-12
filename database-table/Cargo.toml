@@ -15,7 +15,7 @@ async-trait = "^0.1"
 version = "^0.8"
 
 [dependencies.rql]
-path = "../rql"
+path = "../../rql"
 
 [dependencies.enum_paths]
-path = "../enum_paths"
+path = "../../enum_paths"

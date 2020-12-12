@@ -105,7 +105,6 @@ async fn main() -> std::io::Result<()> {
 }
 
 pub const CLIENT_PATH: &str = "/home/linusb/git/binance-bot/client";
-pub const KEY_PATH: &str = "../keys";
 pub const PKG_PATH: &str = formatcp!("{}/pkg", CLIENT_PATH);
 
 lazy_static! {

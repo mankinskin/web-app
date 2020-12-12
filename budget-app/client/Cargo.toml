@@ -1,5 +1,5 @@
 [package]
-name = "client"
+name = "budget-app-client"
 version = "0.1.0"
 authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 edition = "2018"
@@ -33,22 +33,22 @@ features = [
 ]
 
 [dependencies.interpreter]
-path = "../interpreter"
+path = "../../interpreter"
 
 [dependencies.seqraph]
-path = "../seqraph"
+path = "../../seqraph"
 
 [dependencies.api]
 path = "../api"
 
 [dependencies.enum_paths]
-path = "../../enum_paths"
+path = "../../../enum_paths"
 
 [dependencies.components]
 path = "../../components"
 
 [dependencies.rql]
-path = "../../rql"
+path = "../../../rql"
 
 [dependencies.app-model]
 path = "../../app-model"
@@ -57,4 +57,4 @@ path = "../../app-model"
 path = "../../database-table"
 
 [dependencies.updatable]
-path = "../../updatable"
+path = "../../../updatable"

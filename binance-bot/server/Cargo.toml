@@ -59,7 +59,7 @@ version = "^0.4"
 path = "../../database-table"
 
 [dependencies.enum_paths]
-path = "../../enum_paths"
+path = "../../../enum_paths"
 
 [dependencies.futures]
 version = "0.3"
@@ -71,10 +71,10 @@ version = "^0.3"
 version = "^0.3"
 
 [dependencies.openlimits]
-path = "../../openlimits"
+path = "../../../openlimits"
 
 [dependencies.rql]
-path = "../../rql"
+path = "../../../rql"
 
 [dependencies.serde]
 features = ["derive"]
@@ -97,7 +97,7 @@ version = "0.0.7"
 
 [dependencies.tide-websockets]
 optional = true
-path = "../../tide-websockets"
+path = "../../../tide-websockets"
 
 [dependencies.tokio]
 features = ["fs", "time", "rt-threaded", "tcp", "stream", "macros"]

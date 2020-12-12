@@ -36,19 +36,19 @@ features = [
 ]
 
 [dependencies.tracing-wasm]
-path = "../tracing-wasm"
+path = "../../tracing-wasm"
 
 [dependencies.components]
 path = "../components"
 
 [dependencies.openlimits]
-path = "../openlimits"
+path = "../../openlimits"
 
 [dependencies.rql]
-path = "../rql"
+path = "../../rql"
 
 [dependencies.database-table]
 path = "../database-table"
 
 [dependencies.enum_paths]
-path = "../enum_paths"
+path = "../../enum_paths"

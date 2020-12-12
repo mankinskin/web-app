@@ -21,10 +21,10 @@ version = "^0.8"
 path = "../database-table"
 
 [dependencies.tracing-wasm]
-path = "../tracing-wasm"
+path = "../../tracing-wasm"
 
 [dependencies.enum_paths]
-path = "../enum_paths"
+path = "../../enum_paths"
 
 [dependencies.rql]
-path = "../rql"
+path = "../../rql"
