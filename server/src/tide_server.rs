@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    *,
+    binance::{
+        PriceHistoryRequest,
+        Binance,
+    },
+};
 use tide_tracing::{
     TraceMiddleware,
 };
@@ -104,12 +110,31 @@ fn auth_api() -> std::io::Result<tide::Server<()>> {
     let mut api = tide::new();
     api.at("/login").post(login_handler);
     api.at("/register").post(registration_handler);
+    api.at("/logout").post(logout_handler);
     Ok(api)
 }
 fn api() -> std::io::Result<tide::Server<()>> {
     let mut api = tide::new();
     api.at("/auth").nest(auth_api()?);
     api.at("/subscriptions").nest(subscriptions_api()?);
+    api.at("/price_history").nest(price_api()?);
+    Ok(api)
+}
+async fn price_history_handler(_: Request<()>) -> tide::Result<Body> {
+    match Binance::get_symbol_price_history(PriceHistoryRequest {
+            market_pair: "SOLBTC".into(),
+            interval: Some(openlimits::model::Interval::OneHour),
+            paginator: None,
+        })
+        .await
+    {
+        Ok(data) => Ok(Body::from_json(&data)?),
+        Err(e) => Err(tide::Error::from_str(500, e.to_string()))
+    }
+}
+fn price_api() -> std::io::Result<tide::Server<()>> {
+    let mut api = tide::new();
+    api.at("/").get(price_history_handler);
     Ok(api)
 }
 
@@ -122,7 +147,11 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
     .with_session_ttl(Some(std::time::Duration::from_secs(session::EXPIRATION_SECS as u64)))
 }
 
+//use crate::subscriptions::actor::SubscriptionsActor;
 pub async fn run() -> std::io::Result<()> {
+
+    //let binance_actor = Binance::init();
+    //let mut subscription_actor = crate::actor_sys_mut().await.actor_of_args::<SubscriptionsActor>("subscriptions-actor").unwrap();
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
     server.with(session_middleware());
