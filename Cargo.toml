@@ -9,4 +9,5 @@ members = [
   "app-model",
   "components",
   "database-table",
+  "define_api",
 ]
