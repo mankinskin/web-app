@@ -18,6 +18,7 @@ use riker::actors::*;
 
 #[actor(Msg)]
 #[derive(Debug)]
+
 pub struct SubscriptionCacheActor {
     id: Id<PriceSubscription>,
     connection: ActorRef<<Connection as Actor>::Msg>,

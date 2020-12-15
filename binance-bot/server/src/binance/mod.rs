@@ -3,7 +3,9 @@ use crate::{
 };
 use async_std::sync::{
     Arc,
-    Mutex,
+    RwLock,
+    RwLockReadGuard,
+    RwLockWriteGuard,
 };
 use lazy_static::lazy_static;
 use openlimits::{
@@ -37,6 +39,11 @@ use std::fmt::{
 pub mod actix_actor;
 #[cfg(feature = "actix_server")]
 pub use actix_actor as actor;
+
+#[cfg(not(feature = "actix_server"))]
+pub mod riker_actor;
+#[cfg(not(feature = "actix_server"))]
+pub use riker_actor as actor;
 
 #[derive(Clone, Debug)]
 pub struct Error(String);
@@ -74,18 +81,26 @@ pub struct PriceHistoryRequest {
 
 
 pub type ApiHandle = Arc<OpenLimits<Api>>;
-pub type ApiHolder = Arc<Mutex<Option<ApiHandle>>>;
 lazy_static! {
-    pub static ref BINANCE: StaticBinance = StaticBinance::new();
+    pub static ref BINANCE: Arc<RwLock<StaticBinance>> = Arc::new(RwLock::new(StaticBinance::new()));
 }
-pub async fn binance() -> &'static StaticBinance {
-    &BINANCE
+pub async fn binance() -> RwLockReadGuard<'static, StaticBinance> {
+    BINANCE.read().await
+}
+pub async fn binance_mut() -> RwLockWriteGuard<'static, StaticBinance> {
+    BINANCE.write().await
+}
+pub async fn init_api() {
+    let credential = BinanceCredential::new();
+    let api = Api::with_credential(&credential.api_key, &credential.secret_key, false).await;
+    binance_mut().await.set_api(Some(Arc::new(OpenLimits::new(api)))).await;
+    //debug!("Initialized Binance API.");
 }
 pub struct StaticBinance {
-    api: ApiHolder,
+    api: Option<ApiHandle>,
 }
 impl std::ops::Deref for StaticBinance {
-    type Target = ApiHolder;
+    type Target = Option<ApiHandle>;
     fn deref(&self) -> &Self::Target {
         &self.api
     }
@@ -98,15 +113,17 @@ impl std::ops::DerefMut for StaticBinance {
 impl StaticBinance {
     pub fn new() -> Self {
         Self {
-            api: Arc::new(Mutex::new(None)),
+            api: None,
         }
     }
     pub async fn set_api(&mut self, api: Option<ApiHandle>) {
-        *self.api.lock().await = api;
+        self.api = api;
+    }
+    pub async fn is_initialized(&self) -> bool {
+        self.api.is_some()
     }
     pub async fn get_api(&self) -> Result<ApiHandle, Error>{
         self.api
-            .lock().await
             .as_ref()
             .ok_or(String::from("Binance API not initialized!"))
             .map_err(Into::into)

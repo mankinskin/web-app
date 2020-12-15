@@ -148,10 +148,13 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
     .with_session_ttl(Some(std::time::Duration::from_secs(session::EXPIRATION_SECS as u64)))
 }
 
-//use crate::subscriptions::actor::SubscriptionsActor;
+use crate::{
+    subscriptions::actor::SubscriptionsActor,
+    binance::actor::BinanceActor,
+};
 pub async fn run() -> std::io::Result<()> {
 
-    //let binance_actor = Binance::init();
+    let mut binance_actor = crate::actor_sys_mut().await.actor_of::<BinanceActor>("binance-actor").unwrap();
     //let mut subscription_actor = crate::actor_sys_mut().await.actor_of_args::<SubscriptionsActor>("subscriptions-actor").unwrap();
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
