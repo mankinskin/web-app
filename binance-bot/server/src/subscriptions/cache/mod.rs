@@ -16,7 +16,7 @@ use shared::{
 };
 use crate::{
     binance::{
-        Binance,
+        binance,
         PriceHistoryRequest,
     },
 };
@@ -114,7 +114,7 @@ impl SubscriptionCache {
     }
     pub async fn is_available(&self) -> bool {
         let symbol = self.market_pair.to_uppercase();
-        crate::binance::Binance::symbol_available(&symbol).await
+        binance().await.symbol_available(&symbol).await
     }
     async fn price_history_request(&self) -> PriceHistoryRequest {
         let paginator = self.paginator().await;
@@ -132,7 +132,7 @@ impl SubscriptionCache {
     }
     pub async fn get_latest_price_history(&self) -> Result<PriceHistory, Error> {
         let req = self.price_history_request().await;
-        Binance::get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
+        binance().await.get_symbol_price_history(req).await.map_err(|e| e.to_string().into())
     }
     pub async fn get_new_history(&mut self) -> Option<PriceHistory> {
         let candles = self.current_cache().await.candles.clone();

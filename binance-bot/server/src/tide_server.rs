@@ -1,9 +1,10 @@
 use crate::{
     *,
     binance::{
+        binance,
         PriceHistoryRequest,
-        Binance,
     },
+
 };
 use tide_tracing::{
     TraceMiddleware,
@@ -121,7 +122,7 @@ fn api() -> std::io::Result<tide::Server<()>> {
     Ok(api)
 }
 async fn price_history_handler(_: Request<()>) -> tide::Result<Body> {
-    match Binance::get_symbol_price_history(PriceHistoryRequest {
+    match binance().await.get_symbol_price_history(PriceHistoryRequest {
             market_pair: "SOLBTC".into(),
             interval: Some(openlimits::model::Interval::OneHour),
             paginator: None,

@@ -1,6 +1,6 @@
 use crate::{
     binance::{
-        Binance,
+        binance,
         PriceHistoryRequest,
     },
 };
@@ -90,7 +90,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
         Ok(app) => {
             if let Some(price_app) = app.subcommand_matches("price") {
                 if let Some(symbol) = price_app.value_of("symbol") {
-                    let price = Binance::get_symbol_price(symbol)
+                    let price = binance().await.get_symbol_price(symbol)
                         .await
                         .map_err(|e| e.to_string())?;
                     format!("{:#?}", price)
@@ -100,7 +100,7 @@ pub async fn run_command(text: String) -> Result<String, Error> {
             } else if let Some(history_app) = app.subcommand_matches("history") {
                 if let Some(symbol) = history_app.value_of("symbol") {
                     let price_history = 
-                        Binance::get_symbol_price_history(PriceHistoryRequest {
+                        binance().await.get_symbol_price_history(PriceHistoryRequest {
                             market_pair: symbol.to_string().clone(),
                             interval: None,
                             paginator: None,
