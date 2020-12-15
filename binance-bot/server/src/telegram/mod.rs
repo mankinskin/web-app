@@ -18,23 +18,12 @@ use tracing::{
     info,
 };
 #[cfg(feature = "actix_server")]
-use futures::StreamExt;
+pub mod actix_actor;
 #[cfg(feature = "actix_server")]
-use actix::{
-    Actor,
-    Handler,
-    Context,
-    Addr,
-    ResponseActFuture,
-    StreamHandler,
-    AsyncContext,
-    Message,
-    Supervisor,
-};
+pub use actix_actor as actor;
+
 #[cfg(feature = "actix_server")]
-use actix_interop::{
-    FutureInterop,
-};
+pub use actor::Telegram;
 
 #[derive(Clone, Debug)]
 pub struct Error(String);
@@ -107,54 +96,5 @@ impl std::ops::Deref for StaticTelegram {
     type Target = Api;
     fn deref(&self) -> &Self::Target {
         &self.api
-    }
-}
-pub struct Telegram;
-impl Telegram {
-    #[cfg(feature = "actix_server")]
-    pub async fn init() -> Addr<Self> {
-        Supervisor::start(|_| Self)
-    }
-}
-#[cfg(feature = "actix_server")]
-impl Actor for Telegram {
-    type Context = Context<Self>;
-   fn started(&mut self, ctx: &mut Context<Self>) {
-       // add stream
-       Self::add_stream(telegram().api.stream().map(|res| res.map_err(Into::into)), ctx);
-   }
-}
-#[cfg(feature = "actix_server")]
-impl StreamHandler<Result<telegram_bot::Update, Error>> for Telegram {
-    fn handle(
-        &mut self,
-        msg: Result<telegram_bot::Update, Error>,
-        ctx: &mut Self::Context,
-    ) {
-        match msg {
-            Ok(msg) => ctx.notify(Update(msg)),
-            Err(err) => error!("{:#?}", err),
-        }
-    }
-}
-#[cfg(feature = "actix_server")]
-impl Handler<Update> for Telegram {
-    type Result = ResponseActFuture<Self, ()>;
-    fn handle(
-        &mut self,
-        msg: Update,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        async move {
-            if let Err(e) = telegram().update(msg).await {
-                error!("{:#?}", e);
-            }
-        }.interop_actor_boxed(self)
-    }
-}
-#[cfg(feature = "actix_server")]
-impl actix::Supervised for Telegram {
-    fn restarting(&mut self, _ctx: &mut Context<Self>) {
-        info!["Restarting telegram actor"];
     }
 }
