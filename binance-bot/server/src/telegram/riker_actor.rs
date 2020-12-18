@@ -41,7 +41,10 @@ impl Actor for TelegramActor {
 }
 impl Receive<Update> for TelegramActor {
     type Msg = TelegramActorMsg;
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: Update, _sender: Sender) {
-        info!("{:#?}", msg);
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Update, _sender: Sender) {
+        ctx.run(async move {
+            let mut telegram = crate::telegram::telegram();
+            telegram.update(msg).await.unwrap();
+        }).expect("Failed to spawn telegram stream!");
     }
 }

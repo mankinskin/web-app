@@ -10,6 +10,7 @@ use telegram_bot::{
     CanReplySendMessage,
     MessageKind,
     UpdateKind,
+    Update,
 };
 #[allow(unused)]
 use tracing::{
@@ -36,11 +37,6 @@ impl<T: ToString> From<T> for Error {
         Self(err.to_string())
     }
 }
-#[cfg_attr(feature = "actix_server", derive(Message))]
-#[cfg_attr(feature = "actix_server", rtype(result = "()"))]
-#[derive(Clone, Debug)]
-pub struct Update(pub telegram_bot::Update);
-
 #[derive(Clone)]
 pub struct StaticTelegram {
     pub api: Api,
@@ -83,7 +79,6 @@ impl StaticTelegram {
     }
     pub async fn update(&mut self, update: Update) -> Result<(), Error> {
         debug!("Telegram Update");
-        let Update(update) = update;
         Ok(match update.kind {
             UpdateKind::Message(message) => self.handle_message(message).await?,
             UpdateKind::EditedMessage(_message) => {}
