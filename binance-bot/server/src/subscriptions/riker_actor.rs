@@ -16,6 +16,8 @@ use crate::{
 use tracing::{
     debug,
     info,
+    error,
+    trace,
 };
 use std::{
     collections::HashMap,
@@ -96,7 +98,7 @@ impl Receive<Request> for SubscriptionsActor {
             //        }
             //    }
             //}
-        }).unwrap().forget();
+        }).unwrap();
     }
 }
 //impl Handler<Response> for SubscriptionsActor {

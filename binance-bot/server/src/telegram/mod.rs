@@ -22,8 +22,12 @@ pub mod actix_actor;
 #[cfg(feature = "actix_server")]
 pub use actix_actor as actor;
 
-#[cfg(feature = "actix_server")]
-pub use actor::Telegram;
+#[cfg(not(feature = "actix_server"))]
+pub mod riker_actor;
+#[cfg(not(feature = "actix_server"))]
+pub use riker_actor as actor;
+
+pub use actor::TelegramActor;
 
 #[derive(Clone, Debug)]
 pub struct Error(String);
@@ -88,7 +92,7 @@ impl StaticTelegram {
             UpdateKind::InlineQuery(_query) => {}
             UpdateKind::CallbackQuery(_query) => {}
             UpdateKind::Error(_error) => {}
-            UpdateKind::Unknown => {}
+            _ => {}
         })
     }
 }

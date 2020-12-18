@@ -82,6 +82,6 @@ impl Receive<Msg> for SubscriptionCacheActor {
             //        None
             //    },
             //}
-        }).expect("Failed to run future").forget();
+        }).expect("Failed to run future");
     }
 }

@@ -45,6 +45,7 @@ pub mod riker_actor;
 #[cfg(not(feature = "actix_server"))]
 pub use riker_actor as actor;
 
+pub use actor::BinanceActor;
 #[derive(Clone, Debug)]
 pub struct Error(String);
 
