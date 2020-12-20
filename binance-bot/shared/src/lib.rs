@@ -33,6 +33,16 @@ pub enum WebsocketCommand {
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
 }
+#[cfg(target_arch = "wasm32")]
+impl database_table::Routable for ClientMessage {
+    type Route = Route;
+    fn route(&self) -> Self::Route {
+        match self {
+            ClientMessage::Subscriptions(req) => Route::Subscriptions(req.route()),
+        }
+    }
+}
+
 #[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
 use std::convert::TryFrom;
 #[cfg(not(target_arch = "wasm32"))]
