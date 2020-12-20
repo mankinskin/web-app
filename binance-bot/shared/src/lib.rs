@@ -12,6 +12,15 @@ use serde::{
     Deserialize,
     Serialize,
 };
+#[derive(Debug, Clone)]
+pub enum WebsocketCommand {
+    Close,
+    Ping,
+    Pong,
+    Binary(Vec<u8>),
+    ClientMessage(ClientMessage),
+    ServerMessage(ServerMessage),
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(
     all(feature = "actix_server", not(target_arch = "wasm32")),
@@ -23,10 +32,6 @@ use serde::{
 )]
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
-    Close,
-    Ping,
-    Pong,
-    Binary(Vec<u8>),
 }
 #[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
 use std::convert::TryFrom;

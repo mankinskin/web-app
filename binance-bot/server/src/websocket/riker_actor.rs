@@ -5,6 +5,7 @@ use crate::{
 use shared::{
     ClientMessage,
     ServerMessage,
+    WebsocketCommand,
 };
 #[allow(unused)]
 use tracing::{
@@ -34,7 +35,7 @@ use serde::{
     Deserialize,
 };
 
-#[actor(ClientMessage)]
+#[actor(WebsocketCommand)]
 #[derive(Debug)]
 pub struct Connection {
     sender: Sender<ServerMessage>,
@@ -52,12 +53,12 @@ impl Actor for Connection {
         self.receive(ctx, msg, sender);
     }
 }
-impl Receive<ClientMessage> for Connection {
+impl Receive<WebsocketCommand> for Connection {
     type Msg = ConnectionMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: ClientMessage, _sender: RkSender) {
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: WebsocketCommand, _sender: RkSender) {
         debug!("Received {:#?}", msg);
         match msg {
-            ClientMessage::Close => ctx.stop(ctx.myself()),
+            WebsocketCommand::Close => ctx.stop(ctx.myself()),
             _ => {}
         }
     }
@@ -97,13 +98,15 @@ pub async fn connection<E, M, Rx, Tx>(mut rx: Rx, tx: Tx)
         let connection = connection2;
         while let Some(msg) = rx.next().await {
             // convert M to ClientMessage
-            match msg
+            let res = msg
                 .map_err(|e| e.to_string())
                 .and_then(|msg| serde_json::to_string(&msg).map_err(|e| e.to_string()))
-                .and_then(|msg| ClientMessage::try_from(msg).map_err(|e| e.to_string())) {
+                .and_then(|msg| ClientMessage::try_from(msg).map_err(|e| e.to_string()))
+                .map(|msg| WebsocketCommand::ClientMessage(msg));
+            match res {
                 Ok(msg) => {
                     // forward messages to connection actor
-                    if let ClientMessage::Close = msg {
+                    if let WebsocketCommand::Close = msg {
                         // stop listener
                         crate::actor_sys().await.stop(connection);
                         break;
