@@ -21,11 +21,11 @@ use riker::actors::*;
 
 pub struct SubscriptionCacheActor {
     id: Id<PriceSubscription>,
-    connection: ActorRef<<Connection as Actor>::Msg>,
+    connection: Option<ActorRef<<Connection as Actor>::Msg>>,
     //update_stream: Option<SpawnHandle>,
 }
-impl ActorFactoryArgs<(Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)> for SubscriptionCacheActor {
-    fn create_args((id, connection): (Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)) -> Self {
+impl ActorFactoryArgs<(Id<PriceSubscription>, Option<ActorRef<<Connection as Actor>::Msg>>)> for SubscriptionCacheActor {
+    fn create_args((id, connection): (Id<PriceSubscription>, Option<ActorRef<<Connection as Actor>::Msg>>)) -> Self {
         info!("Creating SubscriptionCacheActor");
         Self {
             id,

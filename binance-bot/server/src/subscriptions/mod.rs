@@ -98,41 +98,52 @@ pub async fn caches_mut() -> RwLockWriteGuard<'static, StaticSubscriptions> {
     CACHES.write().await
 }
 pub async fn add_subscription(req: PriceSubscription) -> Result<Id<PriceSubscription>, Error> {
-    caches_mut()
+    let r = caches_mut()
         .await
         .add_subscription(req)
-        .await
+        .await;
+    debug!("add_subscription: {:#?}", r);
+    r
 }
 pub async fn update_subscription(id: Id<PriceSubscription>, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
-    caches_mut()
+    let r = caches_mut()
         .await
         .update_subscription(id, req)
-        .await
+        .await;
+    debug!("update_subscription: {:#?}", r);
+    r
 }
 pub async fn find_subscription(request: PriceSubscription) -> Option<(Id<PriceSubscription>, Arc<RwLock<SubscriptionCache>>)> {
-    caches()
+    let r = caches()
         .await
         .find_subscription(request)
-        .await
+        .await;
+    debug!("find_subscription: {:#?}", r);
+    r
 }
 pub async fn get_subscription(id: Id<PriceSubscription>) -> Result<Arc<RwLock<SubscriptionCache>>, Error> {
-    caches()
+    let r = caches()
         .await
         .get_subscription(id)
-        .await
+        .await;
+    debug!("get_subscription: {:#?}", r);
+    r
 }
 pub async fn delete_subscription(id: Id<PriceSubscription>) -> Result<(), Error> {
-    caches_mut()
+    let r =caches_mut()
         .await
         .delete_subscription(id)
-        .await
+        .await;
+    debug!("delete_subscription: {:#?}", r);
+    r
 }
 pub async fn get_subscription_list() -> Vec<Entry<PriceSubscription>> {
-
-    caches()
+    let list = caches()
         .await
         .get_subscription_list()
-        .await
+        .await;
+    debug!("get_subscription_list: {:#?}", list);
+    list
 }
 pub async fn refresh() -> Result<(), Error> {
     caches_mut().await.refresh().await

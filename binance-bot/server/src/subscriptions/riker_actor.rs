@@ -2,11 +2,15 @@ use shared::{
     subscriptions::{
         Request,
         PriceSubscription,
+        Response,
     },
 };
 use crate::{
     websocket::Connection,
     subscriptions::{
+        get_subscription_list,
+        add_subscription,
+        caches,
         cache::{
             actor::SubscriptionCacheActor,
         },
@@ -27,14 +31,14 @@ use rql::*;
 use riker::actors::*;
 
 #[actor(Request)]
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct SubscriptionsActor {
-    connection: ActorRef<<Connection as Actor>::Msg>,
+    connection: Option<ActorRef<<Connection as Actor>::Msg>>,
     actors: Option<HashMap<Id<PriceSubscription>, ActorRef<<SubscriptionCacheActor as Actor>::Msg>>>,
 }
 impl Actor for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
-    fn pre_start(&mut self, _ctx: &Context<Self::Msg>) {
+    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         //ctx.run(async move {
         //    self.actors = Some(caches().await
         //        .subscriptions
@@ -43,8 +47,8 @@ impl Actor for SubscriptionsActor {
         //            (
         //                id.clone(), 
         //                ctx.actor_of_args::<SubscriptionCacheActor, _>(
-        //                    &format!("Connection({}):Subscription({}):cache_actor",
-        //                    self.connection, id),
+        //                    &format!("Connection(..):Subscription({}):cache_actor",
+        //                    /*self.connection,*/ id),
         //                    (id.clone(), self.connection.clone())
         //                ).unwrap()
         //            )
@@ -60,44 +64,45 @@ impl ActorFactoryArgs<ActorRef<<Connection as Actor>::Msg>> for SubscriptionsAct
     fn create_args(connection: ActorRef<<Connection as Actor>::Msg>) -> Self {
         info!("Creating SubscriptionsActor");
         Self {
-            connection,
+            connection: Some(connection),
             actors: None,
         }
     }
 }
 impl Receive<Request> for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: Request, _sender: Sender) {
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Request, _sender: Sender) {
         let _connection = self.connection.clone();
         ctx.run(async move {
-            //match msg {
-            //    Request::GetPriceSubscriptionList => {
-            //        info!("Getting subscription list");
-            //        let list = Self::get_subscription_list().await;
-            //        Some(Response::SubscriptionList(list))
-            //    },
-            //    Request::AddPriceSubscription(request) => {
-            //        info!("Subscribing to market pair {}", &request.market_pair);
-            //        let id = Self::add_subscription(request.clone()).await.unwrap();
-            //        with_ctx::<Self, _, _>(|act, _ctx| {
-            //            act.actors.insert(id.clone(), SubscriptionCacheActor::init(id.clone(), connection));
-            //        });
-            //        Some(Response::SubscriptionAdded(id))
-            //    },
-            //    Request::Subscription(id, req) => {
-            //        let id = id.clone();
-            //        info!("Request for Subscription {:#?}", id);
-            //        let addr = with_ctx::<Self, _, _>(move |act, _ctx| {
-            //            act.actors.get(&id).map(Clone::clone)
-            //        });
-            //        if let Some(sub) = addr {
-            //            sub.send(req.clone()).await.unwrap()
-            //        } else {
-            //            info!("Subscription {:#?} not found", id);
-            //            Some(Response::SubscriptionNotFound(id))
-            //        }
-            //    }
-            //}
+            match msg {
+                Request::GetPriceSubscriptionList => {
+                    info!("Getting subscription list");
+                    let list = get_subscription_list().await;
+                    Some(Response::SubscriptionList(list))
+                },
+                Request::AddPriceSubscription(request) => {
+                    info!("Subscribing to market pair {}", &request.market_pair);
+                    let id = add_subscription(request.clone()).await.unwrap();
+                    //with_ctx::<Self, _, _>(|act, _ctx| {
+                    //    act.actors.insert(id.clone(), SubscriptionCacheActor::init(id.clone(), connection));
+                    //});
+                    Some(Response::SubscriptionAdded(id))
+                },
+                Request::Subscription(id, req) => {
+                    let id = id.clone();
+                    info!("Request for Subscription {:#?}", id);
+                    //let addr = with_ctx::<Self, _, _>(move |act, _ctx| {
+                    //    act.actors.get(&id).map(Clone::clone)
+                    //});
+                    //if let Some(sub) = addr {
+                    //    sub.send(req.clone()).await.unwrap()
+                    //} else {
+                    //    info!("Subscription {:#?} not found", id);
+                    //    Some(Response::SubscriptionNotFound(id))
+                    //}
+                    None
+                }
+            }
         }).unwrap();
     }
 }

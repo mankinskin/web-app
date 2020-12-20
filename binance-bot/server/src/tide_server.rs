@@ -3,8 +3,10 @@ use crate::{
     binance::{
         binance,
         PriceHistoryRequest,
+        BinanceActor,
     },
-
+    subscriptions::SubscriptionsActor,
+    telegram::TelegramActor,
 };
 use tide_tracing::{
     TraceMiddleware,
@@ -99,12 +101,18 @@ async fn registration_handler(mut req: Request<()>) -> tide::Result {
     }
 }
 async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
-    let _: PriceSubscription = req.body_json().await?;
-    Ok(Body::from_json(&String::from(""))?)
+    let s: PriceSubscription = req.body_json().await?;
+    let r = subscriptions::add_subscription(s).await.map_err(|e| e.to_string());
+    Ok(Body::from_json(&r)?)
+}
+async fn get_subscription_list_handler(mut req: Request<()>) -> tide::Result<Body> {
+    let list = subscriptions::get_subscription_list().await;
+    Ok(Body::from_json(&list)?)
 }
 fn subscriptions_api() -> std::io::Result<tide::Server<()>> {
     let mut api = tide::new();
     api.at("/").post(post_subscription_handler);
+    api.at("/").get(get_subscription_list_handler);
     Ok(api)
 }
 fn auth_api() -> std::io::Result<tide::Server<()>> {
@@ -149,9 +157,10 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
 }
 
 pub async fn run() -> std::io::Result<()> {
-    //let mut subscription_actor = crate::actor_sys_mut().await.actor_of_args::<SubscriptionsActor>("subscriptions-actor").unwrap();
-    let mut _telegram_actor = actor_sys_mut().await.actor_of::<telegram::TelegramActor>("telegram-actor").unwrap();
-    let mut _binance_actor = actor_sys_mut().await.actor_of::<binance::BinanceActor>("binance-actor").unwrap();
+    let mut subscription_actor = crate::actor_sys_mut().await.actor_of::<SubscriptionsActor>("subscriptions-actor").unwrap();
+    let mut _telegram_actor = actor_sys_mut().await.actor_of::<TelegramActor>("telegram-actor").unwrap();
+    let mut _binance_actor = actor_sys_mut().await.actor_of::<BinanceActor>("binance-actor").unwrap();
+
     let mut server = tide::new();
     server.with(TraceMiddleware::new());
     server.with(session_middleware());
