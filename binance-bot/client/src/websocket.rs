@@ -1,6 +1,7 @@
 use shared::{
     ClientMessage,
     ServerMessage,
+    WebsocketCommand,
 };
 use components::{
     Component,
@@ -21,7 +22,6 @@ pub struct WebSocket {
     pub host: String,
     websocket: Option<SeedWebSocket>,
     websocket_reconnector: Option<StreamHandle>,
-    send_sub: SubHandle,
     open: bool,
     msg_queue: Vec<ClientMessage>,
 }
@@ -31,8 +31,9 @@ pub enum Msg {
     Closed(CloseEvent),
     Error(String),
     Reconnect,
-    MessageReceived(ServerMessage),
+    Command(WebsocketCommand),
     SendMessage(ClientMessage),
+    MessageReceived(ServerMessage),
 }
 impl Init<()> for WebSocket {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
@@ -42,7 +43,6 @@ impl Init<()> for WebSocket {
             host: host.clone(),
             websocket: Some(Self::create_websocket(&host, orders)),
             websocket_reconnector: None,
-            send_sub: orders.subscribe_with_handle(Msg::SendMessage),
             open: false,
             msg_queue: Vec::new(),
         }
@@ -154,14 +154,11 @@ impl Component for WebSocket {
                 self.push_message(msg);
             }
             Msg::MessageReceived(msg) => {
-                debug!("ServerMessage received");
-                //debug!("{:#?}", msg);
-                match msg {
-                    ServerMessage::Subscriptions(response) => {
-                        debug!("Subscription response");
-                        orders.notify(response)
-                    },
-                };
+            }
+            Msg::Command(cmd) => {
+                match cmd {
+                    _ => {}
+                }
             }
         }
     }

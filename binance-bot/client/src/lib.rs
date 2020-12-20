@@ -4,6 +4,7 @@ pub mod page;
 pub mod navbar;
 pub mod websocket;
 pub mod subscriptions;
+pub mod webapi;
 
 use components::{
     Component,
@@ -11,27 +12,36 @@ use components::{
     Viewable,
 };
 use navbar::Navbar;
+use webapi::WebApi;
 use seed::{
     prelude::*,
     *,
 };
-use tracing::debug;
+#[allow(unused)]
+use tracing::{
+    debug,
+    error,
+    info,
+};
 
 fn init_tracing() {
     tracing_wasm::set_as_global_default();
     debug!("Tracing initialized.");
 }
 struct Root {
+    webapi: WebApi,
     navbar: Navbar,
 }
 #[derive(Clone, Debug)]
 enum Msg {
     Navbar(navbar::Msg),
+    WebApi(webapi::Msg),
 }
 impl Init<Url> for Root {
     fn init(url: Url, orders: &mut impl Orders<Msg>) -> Self {
         Self {
             navbar: Navbar::init(url, &mut orders.proxy(Msg::Navbar)),
+            webapi: WebApi::init((), &mut orders.proxy(Msg::WebApi)),
         }
     }
 }
@@ -41,6 +51,7 @@ impl Component for Root {
         //debug!("Root Update");
         match msg {
             Msg::Navbar(msg) => self.navbar.update(msg, &mut orders.proxy(Msg::Navbar)),
+            Msg::WebApi(msg) => self.webapi.update(msg, &mut orders.proxy(Msg::WebApi)),
         }
     }
 }
