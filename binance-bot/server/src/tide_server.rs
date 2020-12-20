@@ -105,14 +105,27 @@ async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
     let r = subscriptions::add_subscription(s).await.map_err(|e| e.to_string());
     Ok(Body::from_json(&r)?)
 }
-async fn get_subscription_list_handler(mut req: Request<()>) -> tide::Result<Body> {
+async fn get_subscription_list_handler(_req: Request<()>) -> tide::Result<Body> {
     let list = subscriptions::get_subscription_list().await;
     Ok(Body::from_json(&list)?)
 }
+async fn delete_subscription_handler(req: Request<()>) -> tide::Result<Body> {
+    let id: rql::Id<PriceSubscription> = req.param("id")?.parse()?;
+    let r = subscriptions::delete_subscription(id).await.map_err(|e| e.to_string());
+    Ok(Body::from_json(&r)?)
+}
+async fn get_subscription_handler(req: Request<()>) -> tide::Result<Body> {
+    let id: rql::Id<PriceSubscription> = req.param("id")?.parse()?;
+    let r = subscriptions::get_subscription(id).await.map_err(|e| e.to_string());
+    Ok(Body::from_json(&r)?)
+}
 fn subscriptions_api() -> std::io::Result<tide::Server<()>> {
     let mut api = tide::new();
-    api.at("/").post(post_subscription_handler);
-    api.at("/").get(get_subscription_list_handler);
+    api.at("/")
+        .post(post_subscription_handler)
+        .get(delete_subscription_handler)
+        .get(get_subscription_list_handler);
+    api.at("/:id").get(get_subscription_handler);
     Ok(api)
 }
 fn auth_api() -> std::io::Result<tide::Server<()>> {
@@ -157,9 +170,9 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
 }
 
 pub async fn run() -> std::io::Result<()> {
-    let mut subscription_actor = crate::actor_sys_mut().await.actor_of::<SubscriptionsActor>("subscriptions-actor").unwrap();
-    let mut _telegram_actor = actor_sys_mut().await.actor_of::<TelegramActor>("telegram-actor").unwrap();
-    let mut _binance_actor = actor_sys_mut().await.actor_of::<BinanceActor>("binance-actor").unwrap();
+    let _subscription_actor = crate::actor_sys_mut().await.actor_of::<SubscriptionsActor>("subscriptions-actor").unwrap();
+    let _telegram_actor = actor_sys_mut().await.actor_of::<TelegramActor>("telegram-actor").unwrap();
+    let _binance_actor = actor_sys_mut().await.actor_of::<BinanceActor>("binance-actor").unwrap();
 
     let mut server = tide::new();
     server.with(TraceMiddleware::new());

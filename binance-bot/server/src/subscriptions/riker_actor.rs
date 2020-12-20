@@ -10,7 +10,7 @@ use crate::{
     subscriptions::{
         get_subscription_list,
         add_subscription,
-        caches,
+        //caches,
         cache::{
             actor::SubscriptionCacheActor,
         },
@@ -38,7 +38,7 @@ pub struct SubscriptionsActor {
 }
 impl Actor for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    fn pre_start(&mut self, _ctx: &Context<Self::Msg>) {
         //ctx.run(async move {
         //    self.actors = Some(caches().await
         //        .subscriptions
@@ -88,7 +88,7 @@ impl Receive<Request> for SubscriptionsActor {
                     //});
                     Some(Response::SubscriptionAdded(id))
                 },
-                Request::Subscription(id, req) => {
+                Request::Subscription(id, _req) => {
                     let id = id.clone();
                     info!("Request for Subscription {:#?}", id);
                     //let addr = with_ctx::<Self, _, _>(move |act, _ctx| {

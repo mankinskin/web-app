@@ -100,6 +100,11 @@ impl SubscriptionCache {
         self.new_history_index = None;
         Ok(())
     }
+    pub fn get_subscription(&self) -> PriceSubscription {
+        PriceSubscription {
+            market_pair: self.market_pair.clone(),
+        }
+    }
     pub async fn update(&mut self, req: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
         if let Some(interval) = req.interval {
             self.set_interval(interval).await?;

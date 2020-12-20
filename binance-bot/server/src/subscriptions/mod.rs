@@ -121,10 +121,18 @@ pub async fn find_subscription(request: PriceSubscription) -> Option<(Id<PriceSu
     debug!("find_subscription: {:#?}", r);
     r
 }
-pub async fn get_subscription(id: Id<PriceSubscription>) -> Result<Arc<RwLock<SubscriptionCache>>, Error> {
+pub async fn get_subscription(id: Id<PriceSubscription>) -> Result<PriceSubscription, Error> {
     let r = caches()
         .await
         .get_subscription(id)
+        .await;
+    debug!("get_subscription: {:#?}", r);
+    r
+}
+pub async fn get_subscription_cache(id: Id<PriceSubscription>) -> Result<Arc<RwLock<SubscriptionCache>>, Error> {
+    let r = caches()
+        .await
+        .get_subscription_cache(id)
         .await;
     debug!("get_subscription: {:#?}", r);
     r
@@ -170,7 +178,7 @@ impl StaticSubscriptions {
     }
     pub async fn update_subscription(&mut self, id: Id<PriceSubscription>, request: UpdatePriceSubscriptionRequest) -> Result<(), Error> {
         debug!("Updating subscription...");
-        self.get_subscription(id).await?
+        self.get_subscription_cache(id).await?
             .write().await
             .update(request).await
     }
@@ -222,6 +230,20 @@ impl StaticSubscriptions {
             )))
     }
     pub async fn get_subscription<'a>(
+        &'a self,
+        id: Id<PriceSubscription>,
+    ) -> Result<PriceSubscription, Error> {
+        match self.subscriptions
+            .get(&id)
+            .ok_or(Error::from(format!(
+                "No Subscription with ID: {}",
+                id
+            ))) {
+                Ok(arc) => Ok(arc.read().await.get_subscription()),
+                Err(e) => Err(e),
+            }
+    }
+    pub async fn get_subscription_cache<'a>(
         &'a self,
         id: Id<PriceSubscription>,
     ) -> Result<Arc<RwLock<SubscriptionCache>>, Error> {

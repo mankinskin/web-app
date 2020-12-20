@@ -1,7 +1,6 @@
 
 use riker::actors::*;
 use telegram_bot::Update;
-use futures::future::RemoteHandle;
 use tokio::task::JoinHandle;
 #[allow(unused)]
 use tracing::{
