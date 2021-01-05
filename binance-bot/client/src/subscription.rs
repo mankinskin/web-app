@@ -57,6 +57,7 @@ impl RemoteTable<PriceSubscription> for SubscriptionInfo {
         PriceSubscription::delete(id).await
     }
     async fn get_all() -> Result<Vec<Entry<PriceSubscription>>, Self::Error> {
+        debug!("PriceSubscription::get_all");
         PriceSubscription::get_all().await
     }
     async fn post(data: PriceSubscription) -> Result<Id<PriceSubscription>, Self::Error> {

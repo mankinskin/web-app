@@ -8,6 +8,11 @@ use rql::Id;
 use seed::prelude::*;
 use std::fmt::Debug;
 use std::result::Result;
+#[allow(unused)]
+use tracing::{
+    debug,
+    info,
+};
 
 #[derive(Debug, Clone)]
 pub struct NewData<T> {

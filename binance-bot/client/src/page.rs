@@ -51,7 +51,7 @@ impl Init<UserRoute> for Page {
 }
 impl Init<Route> for Page {
     fn init(route: Route, orders: &mut impl Orders<Msg>) -> Self {
-        //debug!("Init Page");
+        debug!("Init Page");
         match route {
             Route::Auth(route) => {
                 Self::Auth(Auth::init(route, &mut orders.proxy(Msg::Auth)))
@@ -75,6 +75,7 @@ impl Component for Page {
             }
             Self::Subscriptions(list) => {
                 if let Msg::Subscriptions(msg) = msg {
+                    debug!("page::Msg::Subscriptions");
                     list.update(msg, &mut orders.proxy(Msg::Subscriptions));
                 }
             }

@@ -28,10 +28,11 @@ use tracing::{
 fn init_tracing() {
     console_error_panic_hook::set_once();
     tracing_wasm::set_as_global_default();
-    info!("Tracing initialized.");
     debug!("Tracing initialized.");
-    trace!("Tracing initialized.");
-    error!("Tracing initialized.");
+    debug!("Debug logs enabled.");
+    info!("Info logs enabled.");
+    trace!("Trace logs enabled.");
+    error!("Error logs enabled.");
 }
 struct Root {
     webapi: WebApi,
@@ -64,6 +65,7 @@ impl Component for Root {
 #[wasm_bindgen(start)]
 pub fn render() {
     init_tracing();
+    debug!("Starting App");
     App::start(
         "app",
         Root::init,
