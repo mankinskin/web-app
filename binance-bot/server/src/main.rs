@@ -104,7 +104,7 @@ async fn main() -> std::io::Result<()> {
     warp_server::run().await
 }
 
-pub const CLIENT_PATH: &str = "/home/linusb/git/binance-bot/client";
+pub const CLIENT_PATH: &str = "../client";
 pub const PKG_PATH: &str = formatcp!("{}/pkg", CLIENT_PATH);
 
 lazy_static! {
