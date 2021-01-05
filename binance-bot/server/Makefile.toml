@@ -21,3 +21,8 @@ args = ["check", "--bin", "server"]
 description = "Build server"
 command = "cargo"
 args = ["build", "${@}"]
+
+[tasks.clean]
+description = "Clean Server"
+command = "cargo"
+args = ["clean"]

@@ -9,7 +9,7 @@ dependencies = ["start"]
 [tasks.start]
 description = "Start server"
 command = "cargo"
-args = ["make", "--cwd", "server"]
+args = ["make", "--cwd", "server", "start"]
 dependencies = ["client"]
 
 [tasks.server]
