@@ -22,11 +22,16 @@ use tracing::{
     debug,
     error,
     info,
+    trace,
 };
 
 fn init_tracing() {
+    console_error_panic_hook::set_once();
     tracing_wasm::set_as_global_default();
+    info!("Tracing initialized.");
     debug!("Tracing initialized.");
+    trace!("Tracing initialized.");
+    error!("Tracing initialized.");
 }
 struct Root {
     webapi: WebApi,
@@ -58,7 +63,6 @@ impl Component for Root {
 
 #[wasm_bindgen(start)]
 pub fn render() {
-    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_tracing();
     App::start(
         "app",

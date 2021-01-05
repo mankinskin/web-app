@@ -12,6 +12,12 @@ use serde::{
     Serialize,
     Deserialize,
 };
+#[allow(unused)]
+use tracing::{
+    debug,
+    error,
+    info,
+};
 
 pub trait Routable {
     type Route: Route;
