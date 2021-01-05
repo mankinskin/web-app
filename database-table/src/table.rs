@@ -118,6 +118,23 @@ impl<T> RemoteTable for T
         .map_err(|e| format!("{:?}", e))?
     }
 }
+// todo when specialization is stable
+//#[async_trait(?Send)]
+//impl<T: RemoteTable<T>, U> RemoteTable<T> for U {
+//    type Error = <T as RemoteTable>::Error;
+//    async fn get(id: Id<T>) -> Result<Option<Entry<T>>, Self::Error> {
+//        T::get(id).await
+//    }
+//    async fn delete(id: Id<T>) -> Result<Option<T>, Self::Error> {
+//        T::delete(id).await
+//    }
+//    async fn get_all() -> Result<Vec<Entry<T>>, Self::Error> {
+//        T::get_all().await
+//    }
+//    async fn post(data: T) -> Result<Id<T>, Self::Error> {
+//        T::post(data).await
+//    }
+//}
 pub trait DatabaseTable<'db, D: crate::Database<'db, Self>>
     : Sized
     + Clone
