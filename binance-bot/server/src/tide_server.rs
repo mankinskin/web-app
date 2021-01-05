@@ -122,9 +122,9 @@ async fn get_subscription_handler(req: Request<()>) -> tide::Result<Body> {
 fn subscriptions_api() -> std::io::Result<tide::Server<()>> {
     let mut api = tide::new();
     api.at("/")
+        .get(get_subscription_list_handler)
         .post(post_subscription_handler)
-        .get(delete_subscription_handler)
-        .get(get_subscription_list_handler);
+        .delete(delete_subscription_handler);
     api.at("/:id").get(get_subscription_handler);
     Ok(api)
 }
