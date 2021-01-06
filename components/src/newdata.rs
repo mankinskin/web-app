@@ -7,7 +7,6 @@ use database_table::RemoteTable;
 use rql::Id;
 use seed::prelude::*;
 use std::fmt::Debug;
-use std::result::Result;
 #[allow(unused)]
 use tracing::{
     debug,
@@ -28,11 +27,10 @@ impl<T> From<T> for NewData<T> {
         Self { data }
     }
 }
-use futures::future::FutureExt;
 #[derive(Debug, Clone)]
 pub enum Msg<T: Component + RemoteTable> {
     Post,
-    Posted(Result<Id<T>, <T as RemoteTable>::Error>),
+    Posted(Id<T>),
     Data(<T as Component>::Msg),
 }
 impl<T: Component + RemoteTable + Debug + Clone> Component for NewData<T> {
@@ -40,19 +38,17 @@ impl<T: Component + RemoteTable + Debug + Clone> Component for NewData<T> {
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Msg::Post => {
-                orders.perform_cmd(
-                    T::post(self.data.clone()).map(Msg::Posted)
-                );
+                debug!("editor::Msg::Post");
+                let data = self.data.clone();
+                orders.perform_cmd(async move {
+                    debug!("posting...");
+                    T::post(data).await
+                        .map(Msg::Posted)
+                        .expect("Failed to post data")
+                });
             }
-            Msg::Posted(res) => {
-                match res {
-                    Ok(id) => {
-                        seed::log(id);
-                    }
-                    Err(e) => {
-                        seed::log(e);
-                    }
-                }
+            Msg::Posted(id) => {
+                debug!("{:?}", id);
             }
             Msg::Data(msg) => self.data.update(msg, &mut orders.proxy(Msg::Data)),
         }

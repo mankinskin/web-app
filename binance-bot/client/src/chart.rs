@@ -33,7 +33,7 @@ pub struct Chart {
 pub enum Msg {
 }
 impl Init<()> for Chart {
-    fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+    fn init(_: (), _: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         debug!("Creating chart");
         Self {
             view_x: 0,
@@ -53,7 +53,7 @@ impl Init<()> for Chart {
 }
 impl Component for Chart {
     type Msg = Msg;
-    fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
+    fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
         //debug!("Chart update");
         match msg {
         }

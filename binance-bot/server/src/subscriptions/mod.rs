@@ -138,7 +138,7 @@ pub async fn get_subscription_cache(id: Id<PriceSubscription>) -> Result<Arc<RwL
     r
 }
 pub async fn delete_subscription(id: Id<PriceSubscription>) -> Result<(), Error> {
-    let r =caches_mut()
+    let r = caches_mut()
         .await
         .delete_subscription(id)
         .await;

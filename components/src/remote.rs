@@ -19,8 +19,6 @@ use seed::{
     *,
 };
 use std::fmt::Debug;
-use std::result::Result;
-use futures::future::FutureExt;
 
 #[derive(Debug, Clone)]
 pub enum Remote<T: RemoteTable> {
@@ -41,7 +39,7 @@ impl<T: RemoteTable + Component> From<Entry<T>> for Remote<T> {
 #[derive(Debug, Clone)]
 pub enum Msg<T: Component + RemoteTable> {
     Get,
-    Got(Result<Option<Entry<T>>, <T as RemoteTable>::Error>),
+    Got(Option<Entry<T>>),
     Entry(entry::Msg<T>),
 }
 impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
@@ -51,20 +49,16 @@ impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
             Self::Loading(id) => {
                 match msg {
                     Msg::Get => {
-                        orders.perform_cmd(
-                            T::get(*id).map(Msg::Got)
-                        );
+                        let id = id.clone();
+                        orders.perform_cmd(async move {
+                            T::get(id).await
+                                .map(Msg::Got)
+                                .expect("Failed to get data.")
+                        });
                     }
-                    Msg::Got(res) => {
-                        match res {
-                            Ok(r) => {
-                                if let Some(entry) = r {
-                                    *self = Self::Ready(entry);
-                                }
-                            }
-                            Err(e) => {
-                                seed::log(e);
-                            }
+                    Msg::Got(opt) => {
+                        if let Some(entry) = opt {
+                            *self = Self::Ready(entry);
                         }
                     }
                     _ => {}

@@ -13,15 +13,21 @@ use seed::{
 use std::collections::HashMap;
 use shared::{
     subscriptions::{
-        Request,
         Response,
         PriceSubscription,
         Route,
     },
-    ClientMessage,
 };
-use database_table::Entry;
-use tracing::debug;
+use database_table::{
+    Entry,
+    RemoteTable,
+};
+#[allow(unused)]
+use tracing::{
+    instrument,
+    debug,
+    info,
+};
 use rql::*;
 
 #[derive(Debug)]
@@ -46,15 +52,6 @@ impl Subscriptions {
         ]
     }
 }
-#[derive(Clone, Debug)]
-pub enum Msg {
-    GetList,
-    OpenEditor,
-    Editor(<Editor<PriceSubscription> as Component>::Msg),
-    SetList(Vec<Entry<PriceSubscription>>),
-    Subscription(Id<PriceSubscription>, chart::Msg),
-    AddSubscription(PriceSubscription),
-}
 impl Init<Route> for Subscriptions {
     fn init(_: Route, orders: &mut impl Orders<Msg>) -> Self {
         // TODO add components for list and entry
@@ -69,28 +66,38 @@ impl Init<Route> for Subscriptions {
                 }
             }),
             subscriptions: HashMap::new(),
-            editor: None,
+            editor: Some(Editor::default()),
             update_list: true,
         }
     }
 }
+#[derive(Clone, Debug)]
+pub enum Msg {
+    GetList,
+    OpenEditor,
+    Editor(<Editor<PriceSubscription> as Component>::Msg),
+    SetList(Vec<Entry<PriceSubscription>>),
+    Subscription(Id<PriceSubscription>, chart::Msg),
+}
 impl Component for Subscriptions {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Self::Msg>) {
+        debug!("subscriptions::Msg");
         //self.update_list = false;
         match msg {
             Msg::OpenEditor => {
+                debug!("Msg::OpenEditor...");
                 self.editor = Some(Editor::default());
             }
-            Msg::AddSubscription(req) => {
-                debug!("AddSubscription");
-                orders.notify(ClientMessage::Subscriptions(
-                    Request::AddPriceSubscription(req)
-                ));
-            }
             Msg::GetList => {
-                debug!("Getting SubscriptionList");
-                orders.notify(ClientMessage::Subscriptions(Request::GetPriceSubscriptionList));
+                debug!("Msg::GetList...");
+                orders.perform_cmd(async move {
+                    debug!("Calling command..");
+                    PriceSubscription::get_all().await
+                        .map(|list: Vec<Entry<PriceSubscription>>| {
+                            Msg::SetList(list)
+                        }).expect("Failed to get SubscriptionList")
+                });
             },
             Msg::SetList(list) => {
                 debug!("Setting SubscriptionList");

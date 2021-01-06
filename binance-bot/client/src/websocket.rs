@@ -153,7 +153,7 @@ impl Component for WebSocket {
                 //debug!("{:#?}", msg);
                 self.push_message(msg);
             }
-            Msg::MessageReceived(msg) => {
+            Msg::MessageReceived(_) => {
             }
             Msg::Command(cmd) => {
                 match cmd {

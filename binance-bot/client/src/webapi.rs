@@ -7,9 +7,7 @@ use components::{
     Init,
 };
 use seed::{
-    prelude::WebSocket as SeedWebSocket,
     prelude::*,
-    *,
 };
 #[allow(unused)]
 use tracing::{

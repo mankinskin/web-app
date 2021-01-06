@@ -102,12 +102,17 @@ async fn registration_handler(mut req: Request<()>) -> tide::Result {
 }
 async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
     let s: PriceSubscription = req.body_json().await?;
-    let r = subscriptions::add_subscription(s).await.map_err(|e| e.to_string());
-    Ok(Body::from_json(&r)?)
+    let r: Result<_, String> = subscriptions::add_subscription(s).await
+        .map_err(|e| e.to_string());
+    let body = Body::from_json(&r)?;
+    debug!("{:#?}", body);
+    Ok(body)
 }
 async fn get_subscription_list_handler(_req: Request<()>) -> tide::Result<Body> {
-    let list = subscriptions::get_subscription_list().await;
-    Ok(Body::from_json(&list)?)
+    debug!("Get subscription list handler");
+    let r: Result<_, String> = Ok(subscriptions::get_subscription_list().await);
+    debug!("Result: {:?}", r);
+    Ok(Body::from_json(&r)?)
 }
 async fn delete_subscription_handler(req: Request<()>) -> tide::Result<Body> {
     let id: rql::Id<PriceSubscription> = req.param("id")?.parse()?;
