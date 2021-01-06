@@ -50,7 +50,7 @@ impl<T: TableRoutable> Routable for Id<T> {
 }
 use seed::{
     browser::fetch::{
-        fetch,
+        fetch as seed_fetch,
         Request,
         Method,
     },
@@ -70,6 +70,14 @@ pub trait RemoteTable<T=Self>
     //async fn update(id: Id<Self>, update: <Self as Updatable>::Update) -> Result<Option<Self>, String>;
     async fn post(data: T) -> Result<Id<T>, Self::Error>;
 }
+async fn fetch<V>(request: Request<'_>) -> Result<V, String>
+    where V: 'static + for<'de> Deserialize<'de>,
+{
+    seed_fetch(request).await
+        .map_err(|e| format!("Fetch error: {:?}", e))?
+        .json().await
+        .map_err(|e| format!("Value error: {:?}", e))?
+}
 #[async_trait(?Send)]
 impl<T> RemoteTable for T
     where T: Debug
@@ -80,42 +88,38 @@ impl<T> RemoteTable for T
 {
     type Error = String;
     async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
+        let path = Self::entry_route(id).as_path();
+        debug!("RemoteTable::get {}", path);
         fetch(
-            Request::new(Self::entry_route(id).as_path())
+            Request::new(path)
                 .method(Method::Get)
         ).await
-        .map_err(|e| format!("{:?}", e))?
-        .json().await
-        .map_err(|e| format!("{:?}", e))?
     }
     async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
+        let path = Self::entry_route(id).as_path();
+        debug!("RemoteTable::delete {}", path);
         fetch(
-            Request::new(Self::entry_route(id).as_path())
+            Request::new(path)
                 .method(Method::Delete)
         ).await
-        .map_err(|e| format!("{:?}", e))?
-        .json().await
-        .map_err(|e| format!("{:?}", e))?
     }
     async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
+        let path = Self::table_route().as_path();
+        debug!("RemoteTable::get_all {}", path);
         fetch(
-            Request::new(Self::table_route().as_path())
+            Request::new(path)
                 .method(Method::Get)
         ).await
-        .map_err(|e| format!("{:?}", e))?
-        .json().await
-        .map_err(|e| format!("{:?}", e))?
     }
     async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
+        let path = Self::table_route().as_path();
+        debug!("RemoteTable::post {}", path);
         fetch(
-            Request::new(Self::table_route().as_path())
+            Request::new(path)
                 .method(Method::Post)
                 .json(&data)
                 .map_err(|e| format!("{:?}", e))?
         ).await
-        .map_err(|e| format!("{:?}", e))?
-        .json().await
-        .map_err(|e| format!("{:?}", e))?
     }
 }
 // todo when specialization is stable
