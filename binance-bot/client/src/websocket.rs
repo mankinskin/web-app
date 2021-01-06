@@ -50,7 +50,7 @@ impl Init<()> for WebSocket {
 }
 impl WebSocket {
     fn create_websocket(host: &str, orders: &mut impl Orders<Msg>) -> SeedWebSocket {
-        debug!("Creating websocket");
+        debug!("Creating Websocket...");
         let msg_sender = orders.msg_sender();
         let url = format!("wss://{}/wss", host);
         let ws = SeedWebSocket::builder(url, orders)

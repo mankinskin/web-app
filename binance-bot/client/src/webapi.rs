@@ -46,12 +46,16 @@ impl Init<WebSocket> for WebApi {
 }
 impl Init<()> for WebApi {
     fn init(_: (), orders: &mut impl Orders<Msg>) -> Self {
-        Self::init(None, orders)
+        Self::init(Some(Self::get_websocket(orders)), orders)
     }
 }
 impl WebApi {
+    pub fn get_websocket(orders: &mut impl Orders<Msg>) -> WebSocket {
+        WebSocket::init((), &mut orders.proxy(Msg::WebSocket))
+    }
     pub fn start_websocket(&mut self, orders: &mut impl Orders<Msg>) {
-        self.websocket = Some(WebSocket::init((), &mut orders.proxy(Msg::WebSocket)));
+        debug!("Starting WebSocket...");
+        self.websocket = Some(Self::get_websocket(orders));
     }
 }
 impl Component for WebApi {

@@ -30,6 +30,7 @@ use tide::{
     Request,
     Body,
     Response,
+    Middleware,
 };
 use futures_util::{
     StreamExt,
@@ -59,7 +60,7 @@ macro_rules! client_file {
 macro_rules! index {
     () => { client_file!("index.html") }
 }
-async fn wss(request: Request<()>) -> tide::Result {
+fn wss_middleware() -> impl Middleware<()> + Endpoint<()> {
     WebSocket::new(async move |_, ws| {
         let (sink, stream) = ws.split();
         let stream = stream.map(|msg| msg.map(|msg| msg.into_data()));
@@ -67,7 +68,11 @@ async fn wss(request: Request<()>) -> tide::Result {
         websocket::connection(stream, sink).await;
         Ok(())
     })
-    .call(request)
+}
+async fn wss_handler(request: Request<()>) -> tide::Result {
+    debug!("WSS Request");
+    wss_middleware()
+        .call(request)
     .await
 }
 fn root() -> std::io::Result<tide::Server<()>> {
@@ -202,7 +207,7 @@ pub async fn run() -> std::io::Result<()> {
     server.at("/subscriptions").get(index!());
     server.at("/login").get(index!());
     server.at("/register").get(index!());
-    server.at("/wss").get(wss);
+    server.at("/wss").get(wss_handler);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     server.listen(TlsListener::build()

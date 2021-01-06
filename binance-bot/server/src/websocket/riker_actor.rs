@@ -85,7 +85,7 @@ pub async fn connection<E, M, Rx, Tx>(mut rx: Rx, tx: Tx)
           <Tx as Sink<M>>::Error: ToString,
 {
     // connection lasts for the duration of this async fn
-    debug!("Open websocket connection");
+    debug!("Starting websocket connection");
     const CHANNEL_BUFFER_SIZE: usize = 100;
     let (sender, receiver) = channel(CHANNEL_BUFFER_SIZE);
 
