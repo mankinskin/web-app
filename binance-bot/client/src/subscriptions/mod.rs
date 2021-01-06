@@ -66,7 +66,7 @@ impl Init<Route> for Subscriptions {
                 }
             }),
             subscriptions: HashMap::new(),
-            editor: Some(Editor::default()),
+            editor: None,
             update_list: true,
         }
     }
@@ -117,10 +117,11 @@ impl Component for Subscriptions {
             Msg::Editor(msg) => {
                 debug!("Editor Msg {:#?}", msg);
                 if let Some(ed) = &mut self.editor {
-                    let new = match msg {
-                        editor::Msg::Cancel => Some(None),
-                        editor::Msg::Submit => Some(None),
-                        _ => None,
+                    let new = if msg.is_response() {
+                        orders.send_msg(Msg::GetList);
+                        Some(None)
+                    } else {
+                        None
                     };
                     ed.update(msg, &mut orders.proxy(Msg::Editor));
                     if let Some(new) = new {
@@ -141,7 +142,7 @@ impl Component for Subscriptions {
 }
 impl Viewable for Subscriptions {
     fn view(&self) -> Node<Msg> {
-        let _list = if self.update_list {
+        let list = if self.update_list {
             let list = self.subscriptions.iter()
                     .map(move |(id, chart)| {
                         (id.clone(), chart.view())
@@ -156,7 +157,7 @@ impl Viewable for Subscriptions {
         };
         div![
             self.subscription_editor(),
-            //list,
+            list,
         ]
     }
 }

@@ -33,6 +33,14 @@ pub enum Msg<T: Component + RemoteTable> {
     Posted(Id<T>),
     Data(<T as Component>::Msg),
 }
+impl<T: Component + RemoteTable> Msg<T> {
+    pub fn is_response(&self) -> bool {
+        match self {
+            Self::Posted(_) => true,
+            _ => false
+        }
+    }
+}
 impl<T: Component + RemoteTable + Debug + Clone> Component for NewData<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {

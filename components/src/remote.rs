@@ -42,6 +42,14 @@ pub enum Msg<T: Component + RemoteTable> {
     Got(Option<Entry<T>>),
     Entry(entry::Msg<T>),
 }
+impl<T: Component + RemoteTable> Msg<T> {
+    pub fn is_response(&self) -> bool {
+        match self {
+            Self::Got(_) => true,
+            _ => false
+        }
+    }
+}
 impl<T: RemoteTable + Component + Debug> Component for Remote<T> {
     type Msg = Msg<T>;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {

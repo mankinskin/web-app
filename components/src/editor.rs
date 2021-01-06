@@ -31,6 +31,7 @@ impl<T: RemoteTable + Edit + Debug> Edit for Entry<T> {
         self.data.edit().map_msg(entry::Msg::Data)
     }
 }
+
 #[derive(Debug, Clone)]
 pub enum Editor<T: RemoteTable> {
     Remote(remote::Remote<T>),
@@ -62,6 +63,15 @@ pub enum Msg<T: Component + RemoteTable + std::fmt::Debug> {
     Submit,
     New(newdata::Msg<T>),
     Remote(remote::Msg<T>),
+}
+impl<T: Component + RemoteTable + std::fmt::Debug> Msg<T> {
+    pub fn is_response(&self) -> bool {
+        match self {
+            Self::New(msg) => msg.is_response(),
+            Self::Remote(msg) => msg.is_response(),
+            _ => false
+        }
+    }
 }
 impl<T: Component + RemoteTable + Debug + Clone> Component for Editor<T> {
     type Msg = Msg<T>;
