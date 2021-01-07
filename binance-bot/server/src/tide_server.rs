@@ -38,6 +38,8 @@ use futures_util::{
 };
 use shared::{
     PriceSubscription,
+    ClientMessage,
+    ServerMessage,
 };
 use app_model::{
     user::User,
@@ -48,6 +50,16 @@ use app_model::{
     }
 };
 use chrono::Utc;
+use std::{
+    fmt::{
+        Debug,
+        Display,
+    },
+    convert::{
+        TryFrom,
+        TryInto,
+    },
+};
 
 macro_rules! client_file {
     ($path:expr) => {
@@ -60,20 +72,30 @@ macro_rules! client_file {
 macro_rules! index {
     () => { client_file!("index.html") }
 }
+#[derive(Debug)]
+struct WebsocketPacket(Vec<u8>);
+impl From<ServerMessage> for WebsocketPacket {
+    fn from(msg: ServerMessage) -> Self {
+        Self(serde_json::to_vec(&msg).expect("Failed to serialize ServerMessage to Vec<u8>."))
+    }
+}
+impl TryInto<ClientMessage> for WebsocketPacket {
+    type Error = serde_json::Error;
+    fn try_into(self) -> Result<ClientMessage, Self::Error> {
+        serde_json::from_slice(&self.0)
+    }
+}
 fn wss_middleware() -> impl Middleware<()> + Endpoint<()> {
     WebSocket::new(async move |_, ws| {
         let (sink, stream) = ws.split();
-        let stream = stream.map(|msg| msg.map(|msg| msg.into_data()));
-        let sink = sink.with(async move |msg| Ok(Message::from(msg)) as Result<_, tide_websockets::Error>);
+        let stream = stream.map(|msg| msg.map(|msg| WebsocketPacket(msg.into_data())));
+        let sink = sink.with(async move |msg: WebsocketPacket| Ok(Message::from(msg.0)) as Result<_, tide_websockets::Error>);
         websocket::connection(stream, sink).await;
         Ok(())
     })
 }
 async fn wss_handler(request: Request<()>) -> tide::Result {
-    debug!("WSS Request");
-    wss_middleware()
-        .call(request)
-    .await
+    wss_middleware().call(request).await
 }
 fn root() -> std::io::Result<tide::Server<()>> {
     let mut root = tide::new();
