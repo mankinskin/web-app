@@ -134,7 +134,7 @@ pub async fn get_subscription_cache(id: Id<PriceSubscription>) -> Result<Arc<RwL
         .await
         .get_subscription_cache(id)
         .await;
-    debug!("get_subscription: {:#?}", r);
+    //debug!("get_subscription_cache: {:#?}", r);
     r
 }
 pub async fn delete_subscription(id: Id<PriceSubscription>) -> Result<(), Error> {

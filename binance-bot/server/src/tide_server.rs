@@ -202,7 +202,7 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
 }
 
 pub async fn run() -> std::io::Result<()> {
-    let _subscription_actor = crate::actor_sys_mut().await.actor_of::<SubscriptionsActor>("subscriptions-actor").unwrap();
+
     let _telegram_actor = actor_sys_mut().await.actor_of::<TelegramActor>("telegram-actor").unwrap();
     let _binance_actor = actor_sys_mut().await.actor_of::<BinanceActor>("binance-actor").unwrap();
 
