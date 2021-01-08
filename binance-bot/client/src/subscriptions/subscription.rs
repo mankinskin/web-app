@@ -4,18 +4,19 @@ use components::{
     Viewable,
     Editor,
     Previewable,
+    editor,
 };
 use seed::{
     prelude::*,
     *,
 };
-use crate::{
-    shared::{
-        subscriptions::{
-            PriceSubscription,
-        },
-        Route,
+use shared::{
+    subscriptions::{
+        PriceSubscription,
     },
+    Route,
+};
+use crate::{
     subscriptions::{
         chart::{
             self,
@@ -31,6 +32,12 @@ use database_table::{
 use async_trait::async_trait;
 use rql::*;
 use std::result::Result;
+#[allow(unused)]
+use tracing::{
+    instrument,
+    debug,
+    info,
+};
 
 #[derive(Debug)]
 pub struct SubscriptionInfo {
@@ -47,24 +54,24 @@ impl TableRoutable<PriceSubscription> for SubscriptionInfo {
         PriceSubscription::entry_route(id)
     }
 }
-#[async_trait(?Send)]
-impl RemoteTable<PriceSubscription> for SubscriptionInfo {
-    type Error = <PriceSubscription as RemoteTable>::Error;
-    async fn get(id: Id<PriceSubscription>) -> Result<Option<Entry<PriceSubscription>>, Self::Error> {
-        PriceSubscription::get(id).await
-    }
-    async fn delete(id: Id<PriceSubscription>) -> Result<Option<PriceSubscription>, Self::Error> {
-        PriceSubscription::delete(id).await
-    }
-    async fn get_all() -> Result<Vec<Entry<PriceSubscription>>, Self::Error> {
-        debug!("PriceSubscription::get_all");
-        PriceSubscription::get_all().await
-    }
-    async fn post(data: PriceSubscription) -> Result<Id<PriceSubscription>, Self::Error> {
-        PriceSubscription::post(data).await
-    }
-}
-#[derive(Debug)]
+//#[async_trait(?Send)]
+//impl RemoteTable<PriceSubscription> for SubscriptionInfo {
+//    type Error = <PriceSubscription as RemoteTable>::Error;
+//    async fn get(id: Id<PriceSubscription>) -> Result<Option<Entry<PriceSubscription>>, Self::Error> {
+//        PriceSubscription::get(id).await
+//    }
+//    async fn delete(id: Id<PriceSubscription>) -> Result<Option<PriceSubscription>, Self::Error> {
+//        PriceSubscription::delete(id).await
+//    }
+//    async fn get_all() -> Result<Vec<Entry<PriceSubscription>>, Self::Error> {
+//        debug!("PriceSubscription::get_all");
+//        PriceSubscription::get_all().await
+//    }
+//    async fn post(data: PriceSubscription) -> Result<Id<PriceSubscription>, Self::Error> {
+//        PriceSubscription::post(data).await
+//    }
+//}
+#[derive(Clone, Debug)]
 pub enum Msg {
     OpenEditor,
     Editor(<Editor<PriceSubscription> as Component>::Msg),
@@ -74,7 +81,7 @@ impl Init<Entry<PriceSubscription>> for SubscriptionInfo {
     fn init(entry: Entry<PriceSubscription>, orders: &mut impl Orders<Msg>) -> Self {
         Self {
             subscription: entry.data().clone(),
-            chart: SubscriptionChart::init(entry, &mut orders.proxy(Msg::Chart)),
+            chart: SubscriptionChart::init(entry.id().clone(), &mut orders.proxy(Msg::Chart)),
             editor: None,    
         }
     }
@@ -99,13 +106,17 @@ impl Component for SubscriptionInfo {
                     }
                 }
             },
+            Msg::Chart(msg) => {
+                self.chart.update(msg, &mut orders.proxy(Msg::Chart));
+            }
         }
     }
 }
 impl Viewable for SubscriptionInfo {
     fn view(&self) -> Node<Msg> {
         div![
-            format!("{:?}", self.subscription)
+            format!("{:?}", self.subscription),
+            self.chart.view().map_msg(move |msg| Msg::Chart(msg))
         ]
     }
 }

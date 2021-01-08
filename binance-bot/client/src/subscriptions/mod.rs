@@ -6,6 +6,10 @@ use components::{
     editor,
 };
 pub mod chart;
+pub mod subscription;
+use subscription::{
+    SubscriptionInfo,
+};
 use seed::{
     prelude::*,
     *,
@@ -32,7 +36,7 @@ use rql::*;
 
 #[derive(Debug)]
 pub struct Subscriptions {
-    subscriptions: HashMap<Id<PriceSubscription>, chart::SubscriptionChart>,
+    subscriptions: HashMap<Id<PriceSubscription>, SubscriptionInfo>,
     editor: Option<Editor<PriceSubscription>>,
     server_msg_sub: SubHandle,
     update_list: bool,
@@ -61,7 +65,11 @@ impl Init<Route> for Subscriptions {
                 debug!("Received Subscription Response");
                 match msg {
                     Response::SubscriptionList(list) => Some(Msg::SetList(list)),
-                    Response::PriceHistory(id, history) => Some(Msg::Subscription(id, chart::Msg::AppendCandles(history.candles))),
+                    Response::PriceHistory(id, history) => Some(
+                        Msg::Subscription(
+                            id,
+                            subscription::Msg::Chart(chart::Msg::AppendCandles(history.candles))
+                        )),
                     _ => None,
                 }
             }),
@@ -77,7 +85,7 @@ pub enum Msg {
     OpenEditor,
     Editor(<Editor<PriceSubscription> as Component>::Msg),
     SetList(Vec<Entry<PriceSubscription>>),
-    Subscription(Id<PriceSubscription>, chart::Msg),
+    Subscription(Id<PriceSubscription>, subscription::Msg),
 }
 impl Component for Subscriptions {
     type Msg = Msg;
@@ -105,10 +113,7 @@ impl Component for Subscriptions {
                     let id = entry.id.clone();
                     (
                         id.clone(),
-                        chart::SubscriptionChart::init(
-                            id.clone(),
-                            &mut orders.proxy(move |msg| Msg::Subscription(id.clone(), msg))
-                        )
+                        SubscriptionInfo::init(entry, &mut orders.proxy(move |msg| Msg::Subscription(id, msg)))
                     )
                 })
                 .collect();
@@ -148,8 +153,8 @@ impl Viewable for Subscriptions {
                         (id.clone(), chart.view())
                     });
             div![
-                list.map(move |(id, chart)| {
-                    chart.map_msg(move |msg| Msg::Subscription(id.clone(), msg))
+                list.map(move |(id, info)| {
+                    info.map_msg(move |msg| Msg::Subscription(id.clone(), msg))
                 })
             ]
         } else {
