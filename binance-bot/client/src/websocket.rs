@@ -15,6 +15,7 @@ use seed::{
 use tracing::{
     debug,
     error,
+    trace,
 };
 
 #[derive(Debug)]
@@ -64,12 +65,11 @@ impl WebSocket {
         ws
     }
     fn receive_message(message: WebSocketMessage, msg_sender: std::rc::Rc<dyn Fn(Option<Msg>)>) {
-        //debug!("Receiving message");
+        trace!("Receiving WebSocketMessage");
         if message.contains_text() {
             let msg = message
                 .json::<ServerMessage>()
                 .expect("Failed to decode WebSocket text message");
-
             msg_sender(Some(Msg::MessageReceived(msg)));
         } else {
             spawn_local(async move {
@@ -77,18 +77,19 @@ impl WebSocket {
                     .bytes()
                     .await
                     .expect("websocket::Error on binary data");
-
                 let msg: ServerMessage = serde_json::de::from_slice(&bytes).unwrap();
                 msg_sender(Some(Msg::MessageReceived(msg)));
             });
         }
     }
     fn send_message(&self, msg: ClientMessage) {
-        debug!("Sending message");
         if let Some(ws) = &self.websocket {
+            trace!("Sending ClientMessage");
             if let Err(err) = ws.send_json(&msg) {
                 error!("{:?}", err);
             }
+        } else {
+            error!("Failed to send ClientMessage, websocket not initialized.");
         }
     }
     fn push_message(&mut self, msg: ClientMessage) {
@@ -131,7 +132,7 @@ impl WebSocket {
 impl Component for WebSocket {
     type Msg = Msg;
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
-        //debug!("Websocket update");
+        trace!("Websocket update");
         match msg {
             Msg::Opened => {
                 debug!("WebSocket opened");
@@ -142,14 +143,14 @@ impl Component for WebSocket {
                 self.closed(event, orders);
             }
             Msg::Error(err) => {
-                debug!("WebSocket error: {:#?}", err);
+                error!("WebSocket error: {:#?}", err);
             }
             Msg::Reconnect => {
-                debug!("Reconnect websocket");
+                trace!("Reconnect websocket");
                 self.reconnect(orders);
             }
             Msg::SendMessage(msg) => {
-                debug!("Sending ClientMessage");
+                trace!("Msg::SendMessage");
                 //debug!("{:#?}", msg);
                 self.push_message(msg);
             }

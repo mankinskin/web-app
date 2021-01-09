@@ -12,6 +12,7 @@ use tracing::{
     debug,
     error,
     info,
+    trace,
 };
 use riker::actors::*;
 use futures::{
@@ -78,8 +79,8 @@ impl Actor for Connection {
 impl Receive<WebsocketCommand> for Connection {
     type Msg = ConnectionMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: WebsocketCommand, sender: RkSender) {
+        trace!("WebsocketCommand in Connection actor");
         //debug!("Received {:#?}", msg);
-        debug!("WebsocketCommand in Connection actor");
         match msg {
             WebsocketCommand::Close => ctx.stop(ctx.myself()),
             WebsocketCommand::ClientMessage(msg) => self.receive(ctx, msg, sender),
@@ -99,12 +100,12 @@ impl Receive<Msg> for Connection {
 impl Receive<ClientMessage> for Connection {
     type Msg = ConnectionMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: ClientMessage, sender: RkSender) {
-        debug!("ClientMessage in Connection actor");
+        trace!("ClientMessage in Connection actor");
         match msg {
             ClientMessage::Subscriptions(req) => if let Some(actor) = &self.subscriptions {
                 actor.tell(req, sender);
             } else {
-                debug!("SubscriptionsActor not initialized!");
+                error!("SubscriptionsActor not initialized!");
             },
             _ => {}
         }
@@ -113,13 +114,13 @@ impl Receive<ClientMessage> for Connection {
 impl Receive<ServerMessage> for Connection {
     type Msg = ConnectionMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: ServerMessage, sender: RkSender) {
-        debug!("ClientMessage in Connection actor");
+        trace!("ServerMessage in Connection actor");
         self.sender.try_send(msg).unwrap()
     }
 }
 impl ActorFactoryArgs<(usize, Sender<ServerMessage>)> for Connection {
     fn create_args((id, sender): (usize, Sender<ServerMessage>)) -> Self {
-        info!("Creating Connection");
+        debug!("Creating Connection");
         Self {
             id,
             sender,
@@ -189,6 +190,6 @@ pub async fn connection<E, M, Rx, Tx>(mut rx: Rx, tx: Tx)
     ws_listener.await;
     //async_std::task::sleep(std::time::Duration::from_secs(100)).await;
     crate::actor_sys().await.stop(connection.clone());
-    debug!("closing websocket connection");
+    debug!("Closing websocket connection");
 }
 

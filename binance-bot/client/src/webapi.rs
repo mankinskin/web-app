@@ -14,6 +14,7 @@ use tracing::{
     debug,
     error,
     info,
+    trace,
 };
 use crate::websocket::{
     self,
@@ -63,7 +64,6 @@ impl Component for WebApi {
     fn update(&mut self, msg: Msg, orders: &mut impl Orders<Msg>) {
         match msg {
             Msg::WebSocket(msg) => {
-                debug!("Sending ClientMessage");
                 //debug!("{:#?}", msg);
                 if let websocket::Msg::MessageReceived(m) = &msg {
                     self.update(Msg::MessageReceived(m.clone()), orders);
@@ -73,7 +73,7 @@ impl Component for WebApi {
                 }
             }
             Msg::SendMessage(msg) => {
-                debug!("Sending ClientMessage");
+                trace!("Sending ClientMessage");
                 //debug!("{:#?}", msg);
                 if let Some(ws) = &mut self.websocket {
                     ws.update(websocket::Msg::SendMessage(msg), &mut orders.proxy(Msg::WebSocket));
@@ -82,12 +82,11 @@ impl Component for WebApi {
                 }
             }
             Msg::MessageReceived(msg) => {
-                //debug!("ServerMessage received");
+                trace!("ServerMessage received");
                 //debug!("{:#?}", msg);
-
                 match msg {
                     ServerMessage::Subscriptions(response) => {
-                        debug!("Subscription response");
+                        trace!("ServerMessage::Subscription");
                         orders.notify(response)
                     },
                 };

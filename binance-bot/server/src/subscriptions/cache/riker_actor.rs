@@ -14,6 +14,7 @@ use tracing::{
     debug,
     error,
     info,
+    trace,
 };
 use rql::*;
 use riker::actors::*;
@@ -65,7 +66,7 @@ impl From<SubscriptionRequest> for Msg {
 impl Receive<Msg> for SubscriptionCacheActor {
     type Msg = SubscriptionCacheActorMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender) {
-        debug!("SubscriptionCacheActor Msg");
+        trace!("SubscriptionCacheActor Msg");
         let id = self.id.clone();
         let connection = self.connection.clone();
         let msg2 = msg.clone();
@@ -96,7 +97,7 @@ impl Receive<Msg> for SubscriptionCacheActor {
                         },
                     },
                 Msg::Refresh => {
-                    debug!("Updating price history for {:#?}", id);
+                    trace!("Updating price history for {:#?}", id);
                     let cache = crate::subscriptions::get_subscription_cache(id).await.unwrap();
                     let mut cache = cache.write().await;
                     cache.refresh().await.unwrap();

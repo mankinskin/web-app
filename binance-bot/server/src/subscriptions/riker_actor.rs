@@ -97,8 +97,8 @@ impl Receive<Msg> for SubscriptionsActor {
 impl Receive<Request> for SubscriptionsActor {
     type Msg = SubscriptionsActorMsg;
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Request, sender: Sender) {
+        trace!("Received subscriptions::Request");
         let connection = self.connection.clone();
-        debug!("Received subscriptions::Request");
         let actors = self.actors.clone();
         let myself = ctx.myself();
         ctx.run(async move {
@@ -115,7 +115,7 @@ impl Receive<Request> for SubscriptionsActor {
                 },
                 Request::Subscription(id, req) => {
                     let id = id.clone();
-                    debug!("Request for Subscription {:#?}", id);
+                    trace!("Request for Subscription {:#?}", id);
                     if let Some(actor) = actors.get(&id) {
                         actor.tell(crate::subscriptions::cache::actor::Msg::from(req), sender);
                     } else {
