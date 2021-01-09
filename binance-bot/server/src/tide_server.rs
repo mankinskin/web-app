@@ -17,18 +17,8 @@ use app_model::{
 };
 use async_std::net::SocketAddr;
 use chrono::Utc;
-use futures_util::{
-	SinkExt,
-	StreamExt,
-};
 use shared::{
-	ClientMessage,
 	PriceSubscription,
-	ServerMessage,
-};
-use std::{
-	convert::TryInto,
-	fmt::Debug,
 };
 use tide::{
 	Body,
@@ -40,7 +30,6 @@ use tide::{
 use tide_rustls::TlsListener;
 use tide_tracing::TraceMiddleware;
 use tide_websockets::{
-	Message,
 	WebSocket,
 };
 #[allow(unused)]
@@ -67,27 +56,9 @@ macro_rules! index {
 		client_file!("index.html")
 	};
 }
-#[derive(Debug)]
-struct WebsocketPacket(Vec<u8>);
-impl From<ServerMessage> for WebsocketPacket {
-	fn from(msg: ServerMessage) -> Self {
-		Self(serde_json::to_vec(&msg).expect("Failed to serialize ServerMessage to Vec<u8>."))
-	}
-}
-impl TryInto<ClientMessage> for WebsocketPacket {
-	type Error = serde_json::Error;
-	fn try_into(self) -> Result<ClientMessage, Self::Error> {
-		serde_json::from_slice(&self.0)
-	}
-}
 fn wss_middleware() -> impl Middleware<()> + Endpoint<()> {
 	WebSocket::new(async move |_, ws| {
-		let (sink, stream) = ws.split();
-		let stream = stream.map(|msg| msg.map(|msg| WebsocketPacket(msg.into_data())));
-		let sink = sink.with(async move |msg: WebsocketPacket| {
-			Ok(Message::from(msg.0)) as Result<_, tide_websockets::Error>
-		});
-		websocket::connection(stream, sink).await;
+		websocket::connection(ws).await;
 		Ok(())
 	})
 }

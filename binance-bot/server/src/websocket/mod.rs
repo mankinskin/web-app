@@ -9,8 +9,9 @@ pub mod actix_actor;
 pub use actix_actor as actor;
 
 pub use actor::Connection;
-#[cfg(not(feature = "actix_server"))]
-pub use actor::connection;
+
+pub mod connection;
+pub use connection::connection;
 
 #[allow(unused)]
 use tracing::{
