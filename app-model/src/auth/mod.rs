@@ -2,8 +2,8 @@ pub mod credentials;
 use enum_paths::AsPath;
 use rql::Id;
 use serde::{
-    Deserialize,
-    Serialize,
+	Deserialize,
+	Serialize,
 };
 use crate::user::*;
 
@@ -16,19 +16,19 @@ pub use server::*;
 pub mod client;
 #[cfg(target_arch = "wasm32")]
 pub use client::{
-    *,
-    Msg,
+	*,
+	Msg,
 };
 
 #[derive(Clone, Debug, AsPath)]
 pub enum Route {
-    Login,
-    Register,
+	Login,
+	Register,
 }
 impl database_table::Route for Route {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserSession {
-    pub user_id: Id<User>,
-    pub token: String,
+	pub user_id: Id<User>,
+	pub token: String,
 }

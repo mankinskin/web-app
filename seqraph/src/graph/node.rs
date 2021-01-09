@@ -1,6 +1,6 @@
 use std::fmt::{
-    Debug,
-    Display,
+	Debug,
+	Display,
 };
 
 pub trait NodeData: Debug + Display + PartialEq + Clone {}

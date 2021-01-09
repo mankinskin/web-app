@@ -15,9 +15,9 @@ use shell::*;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 fn main() {
-    let mut shell = Shell::new();
-    shell.set_prompt("shell> ");
-    shell.run().unwrap()
+	let mut shell = Shell::new();
+	shell.set_prompt("shell> ");
+	shell.run().unwrap()
 }
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 fn main() {}

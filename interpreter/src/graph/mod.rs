@@ -15,19 +15,19 @@ use crate::text::*;
 use crate::sentence::*;
 
 use petgraph::{
-    Direction,
-    graph::{
-        DiGraph,
-        EdgeIndex,
-        NodeIndex,
-        EdgeReference,
-    },
-    dot::{
-        Dot,
-    },
-    visit::{
-        EdgeRef
-    },
+	Direction,
+	graph::{
+		DiGraph,
+		EdgeIndex,
+		NodeIndex,
+		EdgeReference,
+	},
+	dot::{
+		Dot,
+	},
+	visit::{
+		EdgeRef
+	},
 };
 use std::collections::{HashSet, HashMap};
 use std::path::PathBuf;
@@ -37,255 +37,255 @@ use std::convert::TryFrom;
 type InternalTextGraph = DiGraph<TextGraphNodeWeight, TextGraphEdgeWeight>;
 #[derive(Debug)]
 pub struct TextGraph {
-    graph: InternalTextGraph,
+	graph: InternalTextGraph,
 }
 impl std::ops::Deref for TextGraph {
-    type Target = InternalTextGraph;
-    fn deref(&self) -> &Self::Target {
-        &self.graph
-    }
+	type Target = InternalTextGraph;
+	fn deref(&self) -> &Self::Target {
+		&self.graph
+	}
 }
 impl std::ops::DerefMut for TextGraph {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.graph
-    }
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.graph
+	}
 }
 impl Into<InternalTextGraph> for TextGraph {
-    fn into(self) -> InternalTextGraph {
-        self.graph
-    }
+	fn into(self) -> InternalTextGraph {
+		self.graph
+	}
 }
 impl<'a> TextGraph {
-    pub fn new() -> Self {
-        let mut n = Self {
-            graph: DiGraph::new(),
-        };
-        // TODO should use enum_iterator with is_stop()
-        // All stop symbols could be followed by empty
-        //n.add_edge(
-        //    &TextElement::Punctuation(Punctuation::Dot),
-        //    &TextElement::Empty,
-        //    1
-        //);
-        n
-    }
-    pub fn read_text(&'a mut self, text: Text) {
-        let mut text = text;
-        let len = text.len();
-        let sentences = text.to_sentences();
-        for sentence in sentences {
-            self.read_sentence(sentence);
-        }
-    }
-    pub fn read_sentence(&'a mut self, sentence: Text) {
-        let mut sentence = sentence;
-        sentence.push_front(TextElement::Start);
-        sentence.push_front(TextElement::Empty);
-        if let Some(e) = sentence.last() {
-            if !e.is_stop() {
-                sentence.push(TextElement::Stop);
-            }
-        }
-        sentence.push(TextElement::Empty);
-        let len = sentence.len();
-        //println!("reading: {}", sentence);
-        for word_index in 1..(len-1) {
-            // i starts at 1 because it should always be between two other
-            // elements
-            //println!("word = {}, len = {}", word_index, len);
-            self.read_word_context(&sentence, word_index);
-        }
-    }
-    pub fn read_word_context(&'a mut self, text: &Text, word_index: usize) {
-        let word = &text[word_index];
-        let limit = text.len()-1;
-        for pre in 0..word_index {
-            // for all predecessors of word
-            let left = &text[pre];
-            //println!("pre = {}, word_index = {}", pre, word_index);
-            let left_distance = word_index-pre;
-            // for all successors of word
-            for succ in (word_index+1)..=limit {
-                //println!("pre = {}, succ = {}", pre, succ);
-                let right = &text[succ];
-                let right_distance = succ-word_index;
-                self.insert_sequence(left, left_distance, word, right_distance, right);
-            }
-        }
-    }
-    pub fn insert_sequence(&'a mut self,
-        left: &TextElement,
-        left_distance: usize,
-        word: &TextElement,
-        right_distance: usize,
-        right: &TextElement) {
-        //println!("Inserting \"{}\" \"{}\" \"{}\"", left, word, right);
-        let li = self.add_node(left);
-        let wordi = self.add_node(word);
-        let ri = self.add_node(right);
-        let left_edge = self.add_edge(li, wordi, left_distance);
-        let right_edge = self.add_edge(wordi, ri, right_distance);
-        self.node_weight_mut(wordi)
-            .unwrap()
-            .add_transition(left_edge, right_edge);
-    }
-    pub fn add_edge_for_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) -> EdgeIndex {
-        //println!("inserting \"{}\" and \"{}\"", left, right);
-        let li = self.add_node(left);
-        let ri = self.add_node(right);
-        self.add_edge(li, ri, distance)
-    }
-    pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) -> EdgeIndex {
-        let l = self.get_node(left);
-        let r = self.get_node(right);
-        let edge = self.find_edge_index(&l, &r, distance);
-        let edge_index = if let Some(i) = edge {
-            i
-        } else {
-            self.graph.add_edge(left, right, TextGraphEdgeWeight::new(distance))
-        };
-        edge_index
-    }
-    fn find_node_index(&'a self, element: &TextElement) -> Option<NodeIndex> {
-        self.graph.node_indices()
-            .find(|i| self.graph[*i].element() == element)
-            .map(|i| i.clone())
-    }
-    fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<EdgeIndex> {
-        self.graph
-            .edges_connecting(a.index(), b.index())
-            .find(|e| *e.weight() == distance)
-            .map(|e| e.id())
-    }
-    pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
-        self.find_node_index(element).map(|n| self.get_node(n))
-    }
-    pub fn find_nodes(&'a self, elems: &Vec<TextElement>) -> Option<Vec<GraphNode<'a>>> {
-        elems.iter().map(|e| self.find_node(e)).collect()
-    }
-    pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
-        self.find_edge_index(a, b, distance)
-            .map(|i| GraphEdge::new(self, i))
-    }
-    pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
-        if let Some(i) = self.find_node_index(element) {
-            i
-        } else {
-            self.graph.add_node(
-                TextGraphNodeWeight::new(element.clone())
-            )
-        }
-    }
-    pub fn contains(&self, element: &TextElement) -> bool {
-        self.find_node(element).is_some()
-    }
-    pub fn contains_text(&self, text: &Text) -> bool {
-        TextPath::from_text(&self, text.clone()).is_some()
-    }
-    pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
-        GraphEdges::new(
-            self.graph
-                .edges_directed(index, d)
-                .map(|e| self.get_edge(e.id()))
-                .collect::<HashSet<_>>().iter().cloned()
-        )
-    }
-    pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        self.get_edges_directed(index, Direction::Incoming)
-    }
-    pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        self.get_edges_directed(index, Direction::Outgoing)
-    }
-    pub fn get_edge(&'a self, index: EdgeIndex) -> GraphEdge<'a> {
-        GraphEdge::new(
-            self,
-            index
-        )
-    }
-    pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
-        let edges = self.get_edges_incoming(index).into_iter()
-            .chain(self.get_edges_outgoing(index));
-        GraphEdges::new(edges)
-    }
-    pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
-        GraphNode::new(
-            self,
-            index
-        )
-    }
-    pub fn get_text_path(&'a self, nodes: Vec<GraphNode<'a>>) -> Option<TextPath<'a>> {
-        TextPath::from_nodes(nodes)
-    }
-    pub fn find_text_path(&'a self, elems: Vec<TextElement>) -> Option<TextPath<'a>> {
-        TextPath::from_elements(self, elems)
-    }
+	pub fn new() -> Self {
+		let mut n = Self {
+			graph: DiGraph::new(),
+		};
+		// TODO should use enum_iterator with is_stop()
+		// All stop symbols could be followed by empty
+		//n.add_edge(
+		//	&TextElement::Punctuation(Punctuation::Dot),
+		//	&TextElement::Empty,
+		//	1
+		//);
+		n
+	}
+	pub fn read_text(&'a mut self, text: Text) {
+		let mut text = text;
+		let len = text.len();
+		let sentences = text.to_sentences();
+		for sentence in sentences {
+			self.read_sentence(sentence);
+		}
+	}
+	pub fn read_sentence(&'a mut self, sentence: Text) {
+		let mut sentence = sentence;
+		sentence.push_front(TextElement::Start);
+		sentence.push_front(TextElement::Empty);
+		if let Some(e) = sentence.last() {
+			if !e.is_stop() {
+				sentence.push(TextElement::Stop);
+			}
+		}
+		sentence.push(TextElement::Empty);
+		let len = sentence.len();
+		//println!("reading: {}", sentence);
+		for word_index in 1..(len-1) {
+			// i starts at 1 because it should always be between two other
+			// elements
+			//println!("word = {}, len = {}", word_index, len);
+			self.read_word_context(&sentence, word_index);
+		}
+	}
+	pub fn read_word_context(&'a mut self, text: &Text, word_index: usize) {
+		let word = &text[word_index];
+		let limit = text.len()-1;
+		for pre in 0..word_index {
+			// for all predecessors of word
+			let left = &text[pre];
+			//println!("pre = {}, word_index = {}", pre, word_index);
+			let left_distance = word_index-pre;
+			// for all successors of word
+			for succ in (word_index+1)..=limit {
+				//println!("pre = {}, succ = {}", pre, succ);
+				let right = &text[succ];
+				let right_distance = succ-word_index;
+				self.insert_sequence(left, left_distance, word, right_distance, right);
+			}
+		}
+	}
+	pub fn insert_sequence(&'a mut self,
+		left: &TextElement,
+		left_distance: usize,
+		word: &TextElement,
+		right_distance: usize,
+		right: &TextElement) {
+		//println!("Inserting \"{}\" \"{}\" \"{}\"", left, word, right);
+		let li = self.add_node(left);
+		let wordi = self.add_node(word);
+		let ri = self.add_node(right);
+		let left_edge = self.add_edge(li, wordi, left_distance);
+		let right_edge = self.add_edge(wordi, ri, right_distance);
+		self.node_weight_mut(wordi)
+			.unwrap()
+			.add_transition(left_edge, right_edge);
+	}
+	pub fn add_edge_for_elements(&'a mut self, left: &TextElement, right: &TextElement, distance: usize) -> EdgeIndex {
+		//println!("inserting \"{}\" and \"{}\"", left, right);
+		let li = self.add_node(left);
+		let ri = self.add_node(right);
+		self.add_edge(li, ri, distance)
+	}
+	pub fn add_edge(&'a mut self, left: NodeIndex, right: NodeIndex, distance: usize) -> EdgeIndex {
+		let l = self.get_node(left);
+		let r = self.get_node(right);
+		let edge = self.find_edge_index(&l, &r, distance);
+		let edge_index = if let Some(i) = edge {
+			i
+		} else {
+			self.graph.add_edge(left, right, TextGraphEdgeWeight::new(distance))
+		};
+		edge_index
+	}
+	fn find_node_index(&'a self, element: &TextElement) -> Option<NodeIndex> {
+		self.graph.node_indices()
+			.find(|i| self.graph[*i].element() == element)
+			.map(|i| i.clone())
+	}
+	fn find_edge_index(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<EdgeIndex> {
+		self.graph
+			.edges_connecting(a.index(), b.index())
+			.find(|e| *e.weight() == distance)
+			.map(|e| e.id())
+	}
+	pub fn find_node(&'a self, element: &TextElement) -> Option<GraphNode<'a>> {
+		self.find_node_index(element).map(|n| self.get_node(n))
+	}
+	pub fn find_nodes(&'a self, elems: &Vec<TextElement>) -> Option<Vec<GraphNode<'a>>> {
+		elems.iter().map(|e| self.find_node(e)).collect()
+	}
+	pub fn find_edge(&'a self, a: &GraphNode<'a>, b: &GraphNode<'a>, distance: usize) -> Option<GraphEdge<'a>> {
+		self.find_edge_index(a, b, distance)
+			.map(|i| GraphEdge::new(self, i))
+	}
+	pub fn add_node(&'a mut self, element: &TextElement) -> NodeIndex {
+		if let Some(i) = self.find_node_index(element) {
+			i
+		} else {
+			self.graph.add_node(
+				TextGraphNodeWeight::new(element.clone())
+			)
+		}
+	}
+	pub fn contains(&self, element: &TextElement) -> bool {
+		self.find_node(element).is_some()
+	}
+	pub fn contains_text(&self, text: &Text) -> bool {
+		TextPath::from_text(&self, text.clone()).is_some()
+	}
+	pub fn get_edges_directed(&'a self, index: NodeIndex, d: Direction) -> GraphEdges<'a> {
+		GraphEdges::new(
+			self.graph
+				.edges_directed(index, d)
+				.map(|e| self.get_edge(e.id()))
+				.collect::<HashSet<_>>().iter().cloned()
+		)
+	}
+	pub fn get_edges_incoming(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+		self.get_edges_directed(index, Direction::Incoming)
+	}
+	pub fn get_edges_outgoing(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+		self.get_edges_directed(index, Direction::Outgoing)
+	}
+	pub fn get_edge(&'a self, index: EdgeIndex) -> GraphEdge<'a> {
+		GraphEdge::new(
+			self,
+			index
+		)
+	}
+	pub fn get_edges(&'a self, index: NodeIndex) -> GraphEdges<'a> {
+		let edges = self.get_edges_incoming(index).into_iter()
+			.chain(self.get_edges_outgoing(index));
+		GraphEdges::new(edges)
+	}
+	pub fn get_node(&'a self, index: NodeIndex) -> GraphNode<'a> {
+		GraphNode::new(
+			self,
+			index
+		)
+	}
+	pub fn get_text_path(&'a self, nodes: Vec<GraphNode<'a>>) -> Option<TextPath<'a>> {
+		TextPath::from_nodes(nodes)
+	}
+	pub fn find_text_path(&'a self, elems: Vec<TextElement>) -> Option<TextPath<'a>> {
+		TextPath::from_elements(self, elems)
+	}
 
-    pub fn element_info(&self, element: &TextElement) {
-        match self.find_node(element) {
-            Some(n) => println!("{}", n),
-            None => {}
-        }
-    }
-    pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
-        let mut path: PathBuf = name.into();
-        path.set_extension("dot");
-        path.canonicalize();
-        path.parent().map(|p|
-            std::fs::create_dir_all(p.clone())
-        );
-        std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
-    }
+	pub fn element_info(&self, element: &TextElement) {
+		match self.find_node(element) {
+			Some(n) => println!("{}", n),
+			None => {}
+		}
+	}
+	pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
+		let mut path: PathBuf = name.into();
+		path.set_extension("dot");
+		path.canonicalize();
+		path.parent().map(|p|
+			std::fs::create_dir_all(p.clone())
+		);
+		std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
+	}
 }
 
 pub(crate) mod tests {
-    #![allow(non_upper_case_globals)]
-    use super::*;
-    use crate::text::*;
-    use crate::parse::*;
-    lazy_static! {
-        pub static ref TG: TextGraph = {
-            let mut graph = TextGraph::new();
-            graph.read_text(
-                Text::try_from("\
-                    A B C D.\
-                    B B C C.
-                    E A C F.\
-                    E B D F.
-                    A A F A")
-                    .unwrap()
-            );
-            graph
-        };
-        pub static ref gehen_text: Text = Text::try_from(
-        "Ich gehe.
-        Du gehst.
-        Er geht.
-        Sie geht.
-        Es geht.
-        Wir gehen.
-        Ihr geht.
-        Sie gehen.
-        Ich ging.
+	#![allow(non_upper_case_globals)]
+	use super::*;
+	use crate::text::*;
+	use crate::parse::*;
+	lazy_static! {
+		pub static ref TG: TextGraph = {
+			let mut graph = TextGraph::new();
+			graph.read_text(
+				Text::try_from("\
+					A B C D.\
+					B B C C.
+					E A C F.\
+					E B D F.
+					A A F A")
+					.unwrap()
+			);
+			graph
+		};
+		pub static ref gehen_text: Text = Text::try_from(
+		"Ich gehe.
+		Du gehst.
+		Er geht.
+		Sie geht.
+		Es geht.
+		Wir gehen.
+		Ihr geht.
+		Sie gehen.
+		Ich ging.
 
-        Du gingst.
-        Er ging.
-        Sie ging.
-        Es ging.
-        Wir gingen.
-        Ihr gingt.
-        Sie gingen.
+		Du gingst.
+		Er ging.
+		Sie ging.
+		Es ging.
+		Wir gingen.
+		Ihr gingt.
+		Sie gingen.
 
-        Ich bin gegangen.
-        Du bist gegangen.
-        Er ist gegangen.
-        Sie ist gegangen.
-        Es ist gegangen.
-        Wir sind gegangen.
-        Ihr seid gegangen.
-        Sie sind gegangen.
-        ").unwrap();
+		Ich bin gegangen.
+		Du bist gegangen.
+		Er ist gegangen.
+		Sie ist gegangen.
+		Es ist gegangen.
+		Wir sind gegangen.
+		Ihr seid gegangen.
+		Sie sind gegangen.
+		").unwrap();
 
-        pub static ref dornroeschen_text: Text = Text::try_from("
+		pub static ref dornroeschen_text: Text = Text::try_from("
 Vor Zeiten war ein König und eine Königin, die sprachen jeden Tag 'ach, wenn wir doch ein Kind hätten!'
 und kriegten immer keins. Da trug sich zu, als die Königin einmal im Bade saß, daß ein Frosch aus dem
 Wasser ans Land kroch und zu ihr sprach, 'dein Wunsch wird erfüllt werden, ehe ein Jahr vergeht, wirst
@@ -357,39 +357,39 @@ sich, flackerte: und kochte das Essen: der Braten fieng wieder an zu brutzeln: u
 eine Ohrfeige daß er schrie: und die Magd rupfte das Huhn fertig. Und da wurde die Hochzeit des
 Königssohns mit dem Dornröschen in aller Pracht gefeiert, und sie lebten vergnügt bis an ihr Ende.
 ").unwrap();
-        pub static ref abc_text: Text = Text::try_from("
-            A B C.
-        ").unwrap();
-        pub static ref efg_text: Text = Text::try_from("
-            E F G.
-        ").unwrap();
-        pub static ref aegc_text: Text = Text::try_from("
-             A E G C.
-        ").unwrap();
-    }
-    #[test]
-    fn contains_text() {
-        assert!(
-            TG.contains_text(
-                &Text::try_from("A B C D.")
-                    .unwrap()
-            )
-        );
-    }
-    #[test]
-    fn read_text() {
-        let mut tg = TextGraph::new();
-        tg.read_text(abc_text.clone());
-        assert!(tg.contains_text(&abc_text));
-    }
-    #[test]
-    fn read_texts() {
-        let mut tg = TextGraph::new();
-        tg.read_text(abc_text.clone());
-        tg.read_text(efg_text.clone());
-        tg.read_text(aegc_text.clone());
-        assert!(tg.contains_text(&abc_text));
-        assert!(tg.contains_text(&efg_text));
-        assert!(tg.contains_text(&aegc_text));
-    }
+		pub static ref abc_text: Text = Text::try_from("
+			A B C.
+		").unwrap();
+		pub static ref efg_text: Text = Text::try_from("
+			E F G.
+		").unwrap();
+		pub static ref aegc_text: Text = Text::try_from("
+			 A E G C.
+		").unwrap();
+	}
+	#[test]
+	fn contains_text() {
+		assert!(
+			TG.contains_text(
+				&Text::try_from("A B C D.")
+					.unwrap()
+			)
+		);
+	}
+	#[test]
+	fn read_text() {
+		let mut tg = TextGraph::new();
+		tg.read_text(abc_text.clone());
+		assert!(tg.contains_text(&abc_text));
+	}
+	#[test]
+	fn read_texts() {
+		let mut tg = TextGraph::new();
+		tg.read_text(abc_text.clone());
+		tg.read_text(efg_text.clone());
+		tg.read_text(aegc_text.clone());
+		assert!(tg.contains_text(&abc_text));
+		assert!(tg.contains_text(&efg_text));
+		assert!(tg.contains_text(&aegc_text));
+	}
 }
