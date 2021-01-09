@@ -2,8 +2,10 @@ use quote::{
 	format_ident,
 	quote,
 };
+use proc_macro2::{
+    TokenStream as TokenStream2,
+};
 use syn::{
-	export::TokenStream2,
 	punctuated::Punctuated,
 	token::*,
 	*,

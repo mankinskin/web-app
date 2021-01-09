@@ -1,12 +1,14 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
+use proc_macro2::{
+    Span,
+    TokenStream as TokenStream2,
+};
 use quote::{
 	format_ident,
 	quote,
 	ToTokens,
 };
 use syn::{
-	export::TokenStream2,
 	Type,
 	*,
 };

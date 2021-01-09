@@ -20,13 +20,15 @@ use futures::{
 	SinkExt,
 	channel::mpsc::{
 		Sender,
+		Receiver,
 		channel,
 	},
 	Stream,
 	Sink,
 };
 use riker::actors::{
-	Sender as RkSender
+	Sender as RkSender,
+	CreateError
 };
 use std::{
 	fmt::{
@@ -36,6 +38,7 @@ use std::{
 	convert::{
 		TryInto,
 	},
+	result::Result,
 };
 
 #[derive(Clone, Debug)]
@@ -49,6 +52,15 @@ pub struct Connection {
 	sender: Sender<ServerMessage>,
 	subscriptions: Option<ActorRef<<SubscriptionsActor as Actor>::Msg>>,
 }
+impl Connection {
+	pub fn actor_name(id: usize) -> String {
+		format!("Connection_{}", id)
+	}
+	pub async fn create(sender: Sender<ServerMessage>) -> Result<ActorRef<<Connection as Actor>::Msg>, CreateError> {
+		let id = websocket::new_connection_id();
+		crate::actor_sys().await.actor_of_args::<Connection, _>(&Self::actor_name(id), (id, sender))
+	}
+}
 impl Actor for Connection {
 	type Msg = ConnectionMsg;
 	fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
@@ -56,11 +68,9 @@ impl Actor for Connection {
 		let myself = ctx.myself();
 		let id = self.id.clone();
 		ctx.run(async move {
-			let actor = crate::actor_sys().await
-				.actor_of_args::<SubscriptionsActor, _> (
-					&format!("Connection_{}_subscriptions_actor", id),
-					myself.clone()
-				).unwrap();
+			let actor = SubscriptionsActor::create(id, myself.clone())
+				.await
+				.expect("Failed to create SubscriptionsActor!");
 			myself.tell(Msg::SetSubscriptions(actor), None);
 		}).expect("Failed to run future!");
 	}
@@ -121,12 +131,51 @@ impl ActorFactoryArgs<(usize, Sender<ServerMessage>)> for Connection {
 		}
 	}
 }
-
-pub async fn create_connection_actor(sender: Sender<ServerMessage>) -> Result<ActorRef<<Connection as Actor>::Msg>, CreateError> {
-	let id = websocket::new_connection_id();
-	crate::actor_sys().await.actor_of_args::<Connection, _>(&format!("connection_{}", id), (id, sender))
+pub async fn poll_messages<E, M, Rx>(connection: ActorRef<<Connection as Actor>::Msg>, mut rx: Rx)
+	where E: ToString + Send + Debug,
+		  M: From<ServerMessage> + TryInto<ClientMessage> + Send + Debug,
+		  <M as TryInto<ClientMessage>>::Error: Display,
+		  Rx: Stream<Item=Result<M, E>> + Send + 'static + Unpin,
+{
+	while let Some(msg) = rx.next().await {
+		//debug!("ClientMessage received: {:#?}", msg);
+		// convert M to ClientMessage
+		let res = msg
+			.map_err(|e| e.to_string())
+			.and_then(|m| m.try_into()
+					  .map_err(|e| format!("Failed to parse ClientMessage: {}", e))
+					  as Result<ClientMessage, String>)
+			.map(|msg| WebsocketCommand::ClientMessage(msg));
+		match res {
+			Ok(msg) => {
+				// forward messages to connection actor
+				if let WebsocketCommand::Close = msg {
+					// stop listener
+					crate::actor_sys().await.stop(connection);
+					break;
+				} else {
+					// handle message
+					connection.tell(msg, None);
+				}
+			},
+			Err(e) => error!("{}", e),
+		}
+	}
 }
-pub async fn connection<E, M, Rx, Tx>(mut rx: Rx, tx: Tx)
+pub async fn send_messages<M, Tx>(receiver: Receiver<ServerMessage>, tx: Tx) -> Result<(), String>
+	where M: From<ServerMessage> + Send + Debug,
+		  Tx: Sink<M> + Send + 'static,
+		  <Tx as Sink<M>>::Error: ToString,
+{
+	receiver
+		.map(|msg: ServerMessage|
+			Ok(M::from(msg))
+		)
+		// send messages through websocket sink
+		.forward(tx.sink_map_err(|e| e.to_string()))
+		.await
+}
+pub async fn connection<E, M, Rx, Tx>(rx: Rx, tx: Tx)
 	where E: ToString + Send + Debug,
 		  M: From<ServerMessage> + TryInto<ClientMessage> + Send + Debug,
 		  <M as TryInto<ClientMessage>>::Error: Display,
@@ -140,49 +189,18 @@ pub async fn connection<E, M, Rx, Tx>(mut rx: Rx, tx: Tx)
 	let (sender, receiver) = channel(CHANNEL_BUFFER_SIZE);
 
 	// create a connection actor with a ServerMessage sender
-	let connection = create_connection_actor(sender).await.unwrap();
-
-	// spawn listener for websocket stream
+	let connection = Connection::create(sender).await.unwrap();
 	let connection2 = connection.clone();
+	// spawn listener for websocket stream
 	let ws_listener = async_std::task::spawn(async move {
-		let connection = connection2;
-		while let Some(msg) = rx.next().await {
-			//debug!("ClientMessage received: {:#?}", msg);
-			// convert M to ClientMessage
-			let res = msg
-				.map_err(|e| e.to_string())
-				.and_then(|m| m.try_into()
-						  .map_err(|e| format!("Failed to parse ClientMessage: {}", e))
-						  as Result<ClientMessage, String>)
-				.map(|msg| WebsocketCommand::ClientMessage(msg));
-			match res {
-				Ok(msg) => {
-					// forward messages to connection actor
-					if let WebsocketCommand::Close = msg {
-						// stop listener
-						crate::actor_sys().await.stop(connection);
-						break;
-					} else {
-						connection.tell(msg, None);
-					}
-				},
-				Err(e) => error!("{}", e),
-			}
-			
-		}
+		poll_messages(connection2, rx).await
 	});
-	//// wait for ServerMessages from connection actor
-	receiver
-		.map(|msg: ServerMessage|
-			Ok(M::from(msg))
-		)
-		// send messages through websocket sink
-		.forward(tx.sink_map_err(|e| e.to_string()))
-		.await
+	send_messages(receiver, tx).await
 		.expect("Failed to forward connection messages to websocket!");
+	//// wait for ServerMessages from connection actor
 	ws_listener.await;
 	//async_std::task::sleep(std::time::Duration::from_secs(100)).await;
-	crate::actor_sys().await.stop(connection.clone());
 	debug!("Closing websocket connection");
+	crate::actor_sys().await.stop(connection.clone());
 }
 

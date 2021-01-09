@@ -26,6 +26,7 @@ use tracing::{
 };
 use std::{
 	collections::HashMap,
+	result::Result,
 };
 use rql::*;
 
@@ -37,6 +38,18 @@ type CacheActorMap = HashMap<Id<PriceSubscription>, ActorRef<<SubscriptionCacheA
 pub struct SubscriptionsActor {
 	connection: ActorRef<<Connection as Actor>::Msg>,
 	actors: CacheActorMap,
+}
+impl SubscriptionsActor {
+	pub fn actor_name(id: usize) -> String {
+		format!("{}_subscriptions_actor", Connection::actor_name(id))
+	}
+	pub async fn create(id: usize, connection: ActorRef<<Connection as Actor>::Msg>) -> Result<ActorRef<<Self as Actor>::Msg>, CreateError> {
+		crate::actor_sys().await
+			.actor_of_args::<SubscriptionsActor, _> (
+				&Self::actor_name(id),
+				connection,
+			)
+	}
 }
 impl ActorFactoryArgs<ActorRef<<Connection as Actor>::Msg>> for SubscriptionsActor {
 	fn create_args(connection: ActorRef<<Connection as Actor>::Msg>) -> Self {
