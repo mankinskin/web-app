@@ -113,16 +113,22 @@ version = "^1"
 path = "../shared"
 
 [dependencies.tide]
+path = "../../../tide"
 optional = true
-version = "0.15"
+features = [
+  "h1-server",
+]
+#version = "0.15"
 
 [dependencies.tide-rustls]
 optional = true
-version = "^0.1"
+path = "../../../tide-rustls"
+#version = "^0.1"
 
 [dependencies.tide-tracing]
 optional = true
-version = "0.0.7"
+#version = "0.0.7"
+path = "../../../tide-tracing"
 
 [dependencies.tide-websockets]
 optional = true
