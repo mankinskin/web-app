@@ -7,7 +7,7 @@ use shared::{
 	ServerMessage,
 };
 use crate::{
-	websocket::Connection,
+	websocket::ConnectionActor,
 };
 #[allow(unused)]
 use tracing::{
@@ -33,11 +33,11 @@ use std::{
 #[derive(Debug)]
 pub struct SubscriptionCacheActor {
 	id: Id<PriceSubscription>,
-	connection: ActorRef<<Connection as Actor>::Msg>,
+	connection: ActorRef<<ConnectionActor as Actor>::Msg>,
 	update_stream: Option<Arc<JoinHandle<()>>>,
 }
-impl ActorFactoryArgs<(Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)> for SubscriptionCacheActor {
-	fn create_args((id, connection): (Id<PriceSubscription>, ActorRef<<Connection as Actor>::Msg>)) -> Self {
+impl ActorFactoryArgs<(Id<PriceSubscription>, ActorRef<<ConnectionActor as Actor>::Msg>)> for SubscriptionCacheActor {
+	fn create_args((id, connection): (Id<PriceSubscription>, ActorRef<<ConnectionActor as Actor>::Msg>)) -> Self {
 		info!("Creating SubscriptionCacheActor");
 		Self {
 			id,

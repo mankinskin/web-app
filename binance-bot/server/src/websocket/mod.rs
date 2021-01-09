@@ -8,7 +8,7 @@ pub mod actix_actor;
 #[cfg(feature = "actix_server")]
 pub use actix_actor as actor;
 
-pub use actor::Connection;
+pub use actor::ConnectionActor;
 
 pub mod connection;
 pub use connection::connection;

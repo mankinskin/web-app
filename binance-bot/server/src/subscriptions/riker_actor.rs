@@ -7,7 +7,7 @@ use shared::{
 	ServerMessage,
 };
 use crate::{
-	websocket::Connection,
+	websocket::ConnectionActor,
 	subscriptions::{
 		get_subscription_list,
 		add_subscription,
@@ -36,14 +36,14 @@ type CacheActorMap = HashMap<Id<PriceSubscription>, ActorRef<<SubscriptionCacheA
 #[actor(Request, Msg)]
 #[derive(Debug)]
 pub struct SubscriptionsActor {
-	connection: ActorRef<<Connection as Actor>::Msg>,
+	connection: ActorRef<<ConnectionActor as Actor>::Msg>,
 	actors: CacheActorMap,
 }
 impl SubscriptionsActor {
 	pub fn actor_name(id: usize) -> String {
-		format!("{}_subscriptions_actor", Connection::actor_name(id))
+		format!("{}_subscriptions_actor", ConnectionActor::actor_name(id))
 	}
-	pub async fn create(id: usize, connection: ActorRef<<Connection as Actor>::Msg>) -> Result<ActorRef<<Self as Actor>::Msg>, CreateError> {
+	pub async fn create(id: usize, connection: ActorRef<<ConnectionActor as Actor>::Msg>) -> Result<ActorRef<<Self as Actor>::Msg>, CreateError> {
 		crate::actor_sys().await
 			.actor_of_args::<SubscriptionsActor, _> (
 				&Self::actor_name(id),
@@ -51,8 +51,8 @@ impl SubscriptionsActor {
 			)
 	}
 }
-impl ActorFactoryArgs<ActorRef<<Connection as Actor>::Msg>> for SubscriptionsActor {
-	fn create_args(connection: ActorRef<<Connection as Actor>::Msg>) -> Self {
+impl ActorFactoryArgs<ActorRef<<ConnectionActor as Actor>::Msg>> for SubscriptionsActor {
+	fn create_args(connection: ActorRef<<ConnectionActor as Actor>::Msg>) -> Self {
 		info!("Creating SubscriptionsActor");
 		Self {
 			connection,
@@ -97,7 +97,7 @@ impl Receive<Msg> for SubscriptionsActor {
 		match msg {
 			Msg::AddActor(id) => {
 				self.actors.insert(id.clone(), ctx.actor_of_args::<SubscriptionCacheActor, _>(
-						&format!("Connection_Subscription_{}_cache_actor", id),
+						&format!("ConnectionActor_Subscription_{}_cache_actor", id),
 						(id.clone(), self.connection.clone())).unwrap());
 				self.connection.tell(ServerMessage::Subscriptions(Response::SubscriptionAdded(id)), sender);
 			},

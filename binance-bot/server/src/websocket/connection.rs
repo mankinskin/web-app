@@ -28,7 +28,7 @@ use tide_websockets::{
 };
 use riker::actors::*;
 use crate::websocket::{
-    Connection,
+    ConnectionActor,
 };
 #[allow(unused)]
 use tracing::{
@@ -51,7 +51,7 @@ impl TryInto<ClientMessage> for WebsocketPacket {
 		serde_json::from_slice(&self.0)
 	}
 }
-pub async fn poll_messages<E, Rx>(connection: ActorRef<<Connection as Actor>::Msg>, mut rx: Rx)
+pub async fn poll_messages<E, Rx>(connection: ActorRef<<ConnectionActor as Actor>::Msg>, mut rx: Rx)
 	where E: ToString + Send + Debug,
 		  Rx: Stream<Item=Result<WebsocketPacket, E>> + Send + 'static + Unpin,
 {
@@ -104,7 +104,7 @@ pub async fn connection(ws: WebSocketConnection) {
 	let (sender, receiver) = channel(CHANNEL_BUFFER_SIZE);
 
 	// create a connection actor with a ServerMessage sender
-	let connection = Connection::create(sender).await.unwrap();
+	let connection = ConnectionActor::create(sender).await.unwrap();
 	let connection2 = connection.clone();
 	// spawn listener for websocket stream
 	let ws_listener = async_std::task::spawn(async move {

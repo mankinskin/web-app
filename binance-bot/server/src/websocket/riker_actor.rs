@@ -31,22 +31,22 @@ pub enum Msg {
 }
 #[actor(WebsocketCommand, ServerMessage, ClientMessage, Msg)]
 #[derive(Debug)]
-pub struct Connection {
+pub struct ConnectionActor {
 	id: usize,
 	sender: Sender<ServerMessage>,
 	subscriptions: Option<ActorRef<<SubscriptionsActor as Actor>::Msg>>,
 }
-impl Connection {
+impl ConnectionActor {
 	pub fn actor_name(id: usize) -> String {
 		format!("Connection_{}", id)
 	}
-	pub async fn create(sender: Sender<ServerMessage>) -> Result<ActorRef<<Connection as Actor>::Msg>, CreateError> {
+	pub async fn create(sender: Sender<ServerMessage>) -> Result<ActorRef<<ConnectionActor as Actor>::Msg>, CreateError> {
 		let id = websocket::new_connection_id();
-		crate::actor_sys().await.actor_of_args::<Connection, _>(&Self::actor_name(id), (id, sender))
+		crate::actor_sys().await.actor_of_args::<ConnectionActor, _>(&Self::actor_name(id), (id, sender))
 	}
 }
-impl Actor for Connection {
-	type Msg = ConnectionMsg;
+impl Actor for ConnectionActor {
+	type Msg = ConnectionActorMsg;
 	fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
 		debug!("Starting connection actor");
 		let myself = ctx.myself();
@@ -65,10 +65,10 @@ impl Actor for Connection {
 		self.receive(ctx, msg, sender);
 	}
 }
-impl Receive<WebsocketCommand> for Connection {
-	type Msg = ConnectionMsg;
+impl Receive<WebsocketCommand> for ConnectionActor {
+	type Msg = ConnectionActorMsg;
 	fn receive(&mut self, ctx: &Context<Self::Msg>, msg: WebsocketCommand, sender: RkSender) {
-		trace!("WebsocketCommand in Connection actor");
+		trace!("WebsocketCommand in ConnectionActor");
 		//debug!("Received {:#?}", msg);
 		match msg {
 			WebsocketCommand::Close => ctx.stop(ctx.myself()),
@@ -77,18 +77,18 @@ impl Receive<WebsocketCommand> for Connection {
 		}
 	}
 }
-impl Receive<Msg> for Connection {
-	type Msg = ConnectionMsg;
+impl Receive<Msg> for ConnectionActor {
+	type Msg = ConnectionActorMsg;
 	fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: Msg, _sender: RkSender) {
 		match msg {
 			Msg::SetSubscriptions(actor) => self.subscriptions = Some(actor),
 		}
 	}
 }
-impl Receive<ClientMessage> for Connection {
-	type Msg = ConnectionMsg;
+impl Receive<ClientMessage> for ConnectionActor {
+	type Msg = ConnectionActorMsg;
 	fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: ClientMessage, sender: RkSender) {
-		trace!("ClientMessage in Connection actor");
+		trace!("ClientMessage in ConnectionActor");
 		match msg {
 			ClientMessage::Subscriptions(req) => if let Some(actor) = &self.subscriptions {
 				actor.tell(req, sender);
@@ -98,16 +98,16 @@ impl Receive<ClientMessage> for Connection {
 		}
 	}
 }
-impl Receive<ServerMessage> for Connection {
-	type Msg = ConnectionMsg;
+impl Receive<ServerMessage> for ConnectionActor {
+	type Msg = ConnectionActorMsg;
 	fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: ServerMessage, _sender: RkSender) {
-		trace!("ServerMessage in Connection actor");
+		trace!("ServerMessage in ConnectionActor");
 		self.sender.try_send(msg).unwrap()
 	}
 }
-impl ActorFactoryArgs<(usize, Sender<ServerMessage>)> for Connection {
+impl ActorFactoryArgs<(usize, Sender<ServerMessage>)> for ConnectionActor {
 	fn create_args((id, sender): (usize, Sender<ServerMessage>)) -> Self {
-		debug!("Creating Connection");
+		debug!("Creating ConnectionActor");
 		Self {
 			id,
 			sender,
