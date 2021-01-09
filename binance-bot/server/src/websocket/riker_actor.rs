@@ -34,13 +34,8 @@ use std::{
         Display,
     },
     convert::{
-        TryFrom,
         TryInto,
     },
-};
-use serde::{
-    Serialize,
-    Deserialize,
 };
 
 #[derive(Clone, Debug)]
@@ -90,16 +85,15 @@ impl Receive<WebsocketCommand> for Connection {
 }
 impl Receive<Msg> for Connection {
     type Msg = ConnectionMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: RkSender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: Msg, _sender: RkSender) {
         match msg {
             Msg::SetSubscriptions(actor) => self.subscriptions = Some(actor),
-            _ => {}
         }
     }
 }
 impl Receive<ClientMessage> for Connection {
     type Msg = ConnectionMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: ClientMessage, sender: RkSender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: ClientMessage, sender: RkSender) {
         trace!("ClientMessage in Connection actor");
         match msg {
             ClientMessage::Subscriptions(req) => if let Some(actor) = &self.subscriptions {
@@ -107,13 +101,12 @@ impl Receive<ClientMessage> for Connection {
             } else {
                 error!("SubscriptionsActor not initialized!");
             },
-            _ => {}
         }
     }
 }
 impl Receive<ServerMessage> for Connection {
     type Msg = ConnectionMsg;
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: ServerMessage, sender: RkSender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: ServerMessage, _sender: RkSender) {
         trace!("ServerMessage in Connection actor");
         self.sender.try_send(msg).unwrap()
     }

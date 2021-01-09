@@ -5,7 +5,6 @@ use crate::{
         PriceHistoryRequest,
         BinanceActor,
     },
-    subscriptions::SubscriptionsActor,
     telegram::TelegramActor,
 };
 use tide_tracing::{
@@ -53,10 +52,8 @@ use chrono::Utc;
 use std::{
     fmt::{
         Debug,
-        Display,
     },
     convert::{
-        TryFrom,
         TryInto,
     },
 };
