@@ -4,27 +4,10 @@ default-run = "server"
 edition = "2018"
 name = "binance-bot"
 version = "0.1.0"
+
 [[bin]]
 name = "server"
 path = "src/main.rs"
-
-[features]
-default = ["tide_server"]
-actix_server = [
-  "actix-files",
-  "actix-web",
-  "actix-web-actors",
-  "tracing-actix-web",
-  "actix-interop",
-]
-tide_server = [
-  "tide",
-  "tide-tracing",
-  "tide-rustls",
-  "tide-websockets",
-  "riker",
-]
-warp_server = ["warp", "riker"]
 
 [dependencies]
 async-h1 = "^2"
@@ -48,30 +31,7 @@ version = "^0.8"
 [dependencies.riker]
 #version = "^0.4"
 path = "../../../riker"
-optional = true
 features = ["tokio_executor"]
-
-[dependencies.actix]
-optional = true
-version = "0.10"
-
-[dependencies.actix-files]
-optional = true
-version = "0.4"
-
-[dependencies.actix-interop]
-optional = true
-branch = "master"
-git = "https://github.com/Diggsey/actix-interop"
-
-[dependencies.actix-web]
-features = ["openssl", "secure-cookies"]
-optional = true
-version = "3"
-
-[dependencies.actix-web-actors]
-optional = true
-version = "3"
 
 [dependencies.app-model]
 path = "../../app-model"
@@ -114,24 +74,20 @@ path = "../shared"
 
 [dependencies.tide]
 path = "../../../tide"
-optional = true
 features = [
   "h1-server",
 ]
 #version = "0.15"
 
 [dependencies.tide-rustls]
-optional = true
 path = "../../../tide-rustls"
 #version = "^0.1"
 
 [dependencies.tide-tracing]
-optional = true
 #version = "0.0.7"
 path = "../../../tide-tracing"
 
 [dependencies.tide-websockets]
-optional = true
 path = "../../../tide-websockets"
 
 [dependencies.tokio]
@@ -148,15 +104,5 @@ features = [
 features = ["compat"]
 version = "^0.3"
 
-[dependencies.tracing-actix-web]
-optional = true
-version = "0.2"
-
 [dependencies.tracing-log]
 version = "^0.1"
-
-[dependencies.warp]
-features = ["tls"]
-optional = true
-version = "^0.2"
-

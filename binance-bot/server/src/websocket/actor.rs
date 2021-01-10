@@ -60,6 +60,11 @@ impl Actor for ConnectionActor {
 	}
 	fn post_stop(&mut self) {
 		debug!("Stopped connection actor");
+        //if let Some(actor) = self.subscriptions.clone() {
+		//    ctx.run(async move {
+		//	    crate::actor_sys().await.stop(actor);
+		//    }).expect("Failed to run future!");
+        //}
 	}
 	fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: RkSender) {
 		self.receive(ctx, msg, sender);

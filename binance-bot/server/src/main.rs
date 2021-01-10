@@ -10,59 +10,7 @@ pub mod telegram;
 pub mod database;
 pub mod session;
 pub mod websocket;
-
-macro_rules! assert_unique_feature {
-	() => {};
-	($first:tt $(,$rest:tt)*) => {
-		$(
-			#[cfg(all(feature = $first, feature = $rest))]
-			compile_error!(concat!("features \"", $first, "\" and \"", $rest, "\" cannot be used together"));
-		)*
-		assert_unique_feature!($($rest),*);
-	}
-}
-macro_rules! assert_any_feature {
-	() => {};
-	($($fs:tt),*) => {
-		#[cfg(not(any($(
-			feature = $fs
-		),*)))]
-		compile_error!(format!("Please choose one of these features: [{}]",
-			vec![$($fs),*].iter().fold(String::new(), |acc, x| format!("{}{}" acc, x))
-		));
-	}
-}
-assert_any_feature!("tide_server", "actix_server", "warp_server");
-assert_unique_feature!("tide_server", "actix_server", "warp_server");
-
-
-#[cfg(feature = "actix_server")]
-pub mod actix_server;
-#[cfg(feature = "actix_server")]
-pub use actix_server::*;
-#[cfg(feature = "actix_server")]
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-	let _tracing = init_tracing();
-	actix_server::run().await
-}
-
-#[cfg(feature = "tide_server")]
-pub mod tide_server;
-#[cfg(feature = "tide_server")]
-pub use tide_server::*;
-
-#[cfg(feature = "tide_server")]
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-	let _tracing = init_tracing();
-	tide_server::run().await
-}
-
-#[cfg(feature = "warp_server")]
-pub mod warp_server;
-#[cfg(feature = "warp_server")]
-pub use warp_server::*;
+pub mod server;
 
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
@@ -96,12 +44,12 @@ use std::fmt::{
 	self,
 };
 use const_format::formatcp;
+pub use server::*;
 
-#[cfg(feature = "warp_server")]
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
 	let _tracing = init_tracing();
-	warp_server::run().await
+	server::run().await
 }
 
 pub const CLIENT_PATH: &str = "../client";

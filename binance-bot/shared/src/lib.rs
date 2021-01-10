@@ -1,8 +1,6 @@
 pub mod subscriptions;
 pub use subscriptions::PriceSubscription;
 
-#[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
-use actix::Message;
 use app_model::{
     auth::Route as AuthRoute,
     user::Route as UserRoute,
@@ -22,14 +20,6 @@ pub enum WebsocketCommand {
     ServerMessage(ServerMessage),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    derive(Message)
-)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    rtype(result = "Option<ServerMessage>")
-)]
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
 }
@@ -43,8 +33,9 @@ impl database_table::Routable for ClientMessage {
     }
 }
 
-#[cfg(all(feature = "warp_server", not(target_arch = "wasm32")))]
+#[cfg(not(target_arch = "wasm32"))]
 use std::convert::TryFrom;
+
 #[cfg(not(target_arch = "wasm32"))]
 impl TryFrom<String> for ClientMessage {
     type Error = String;
@@ -54,14 +45,6 @@ impl TryFrom<String> for ClientMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    derive(Message)
-)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    rtype(result = "()")
-)]
 pub enum ServerMessage {
     Subscriptions(subscriptions::Response),
 }

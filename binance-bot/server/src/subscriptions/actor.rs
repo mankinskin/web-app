@@ -29,7 +29,6 @@ use std::{
 	result::Result,
 };
 use rql::*;
-
 use riker::actors::*;
 
 type CacheActorMap = HashMap<Id<PriceSubscription>, ActorRef<<SubscriptionCacheActor as Actor>::Msg>>;
@@ -81,6 +80,17 @@ impl Actor for SubscriptionsActor {
 				)
 				.collect()), None);
 		}).expect("Failed to run future!");
+	}
+	fn post_stop(&mut self) {
+		debug!("Stopped connection actor");
+		    //ctx.run(async move {
+            //    stream::unfold(self.actors.into_iter(), async move |mut vals| {
+            //        let (id, actor) = vals.next().await;
+            //        debug!("Stopping SubscriptionCacheActor {}", id);
+		    //        crate::actor_sys().await.stop(actor);
+            //        Some(((), vals))
+            //    }).await
+		    //}).expect("Failed to run future!");
 	}
 	fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
 		self.receive(ctx, msg, sender);

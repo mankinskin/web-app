@@ -6,8 +6,6 @@ use serde::{
     Serialize,
 };
 
-#[cfg(all(feature = "actix_server", not(target_arch = "wasm32")))]
-use actix::Message;
 use enum_paths::AsPath;
 use rql::*;
 
@@ -36,14 +34,6 @@ impl From<Interval> for UpdatePriceSubscriptionRequest {
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    derive(Message)
-)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    rtype(result = "Option<Response>")
-)]
 pub enum Request {
     GetPriceSubscriptionList,
     AddPriceSubscription(PriceSubscription),
@@ -61,28 +51,12 @@ impl database_table::Routable for Request {
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    derive(Message)
-)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    rtype(result = "Option<Response>")
-)]
 pub enum SubscriptionRequest {
     UpdatePriceSubscription(UpdatePriceSubscriptionRequest),
     StartHistoryUpdates,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    derive(Message)
-)]
-#[cfg_attr(
-    all(feature = "actix_server", not(target_arch = "wasm32")),
-    rtype(result = "()")
-)]
 pub enum Response {
     SubscriptionList(Vec<Entry<PriceSubscription>>),
     PriceHistory(Id<PriceSubscription>, PriceHistory),

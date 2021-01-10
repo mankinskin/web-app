@@ -1,12 +1,4 @@
-#[cfg(feature = "actix_server")]
-pub mod actix_actor;
-#[cfg(feature = "actix_server")]
-pub use actix_actor as actor;
-
-#[cfg(not(feature = "actix_server"))]
-pub mod riker_actor;
-#[cfg(not(feature = "actix_server"))]
-pub use riker_actor as actor;
+pub mod actor;
 
 use shared::{
 	subscriptions::{
