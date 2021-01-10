@@ -10,8 +10,15 @@ use async_std::sync::{
 };
 use lazy_static::lazy_static;
 use openlimits::{
-	binance::Binance as Api,
-	exchange::OpenLimits,
+	binance::{
+        Binance as Api,
+        BinanceParameters,
+        BinanceCredentials,
+    },
+	exchange::{
+        OpenLimits,
+        ExchangeMarketData,
+    },
 	model::{
 		GetHistoricRatesRequest,
 		GetPriceTickerRequest,
@@ -19,6 +26,7 @@ use openlimits::{
 		Ticker,
 		Paginator,
 	},
+    errors::OpenLimitError,
 };
 use app_model::market::PriceHistory;
 use serde::{
@@ -54,26 +62,37 @@ impl From<String> for Error {
 }
 #[derive(Serialize, Deserialize)]
 pub struct BinanceCredential {
-	secret_key: String,
+	secret: String,
 	api_key: String,
 }
 impl BinanceCredential {
 	pub fn new() -> Self {
 		Self {
 			api_key: keys::read_key_file("binance_api"),
-			secret_key: keys::read_key_file("binance_secret"),
+			secret: keys::read_key_file("binance_secret"),
 		}
 	}
+}
+impl Into<BinanceParameters> for BinanceCredential {
+    fn into(self) -> BinanceParameters {
+        BinanceParameters {
+            credentials: Some(BinanceCredentials {
+                api_key: self.api_key,
+                api_secret: self.secret,
+            }),
+            sandbox: false,
+        }
+    }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceHistoryRequest {
 	pub market_pair: String,
 	pub interval: Option<Interval>,
-	pub paginator: Option<Paginator<u32>>,
+	pub paginator: Option<Paginator>,
 }
 
 
-pub type ApiHandle = Arc<OpenLimits<Api>>;
+pub type ApiHandle = Arc<Api>;
 lazy_static! {
 	pub static ref BINANCE: Arc<RwLock<StaticBinance>> = Arc::new(RwLock::new(StaticBinance::new()));
 }
@@ -83,11 +102,13 @@ pub async fn binance() -> RwLockReadGuard<'static, StaticBinance> {
 pub async fn binance_mut() -> RwLockWriteGuard<'static, StaticBinance> {
 	BINANCE.write().await
 }
-pub async fn init_api() {
+pub async fn init_api() -> Result<(), OpenLimitError> {
 	let credential = BinanceCredential::new();
-	let api = Api::with_credential(&credential.api_key, &credential.secret_key, false).await;
-	binance_mut().await.set_api(Some(Arc::new(OpenLimits::new(api)))).await;
+    let params: BinanceParameters = credential.into();
+    let api = OpenLimits::instantiate(params).await?;
+	binance_mut().await.set_api(Some(Arc::new(api))).await;
 	//debug!("Initialized Binance API.");
+    Ok(())
 }
 pub struct StaticBinance {
 	api: Option<ApiHandle>,
@@ -146,10 +167,10 @@ impl StaticBinance {
 			.get_historic_rates(&GetHistoricRatesRequest {
 				market_pair: market_pair.clone(),
 				interval: time_interval.clone(),
-				paginator: req.paginator.map(|p: Paginator<u32>|
+				paginator: req.paginator.map(|p: Paginator|
 					Paginator {
-						after: p.after.map(|x| x as u64),
-						before: p.before.map(|x| x as u64),
+						after: p.after.map(|x| x),
+						before: p.before.map(|x| x),
 						start_time: p.start_time,
 						end_time: p.end_time,
 						limit: p.limit,

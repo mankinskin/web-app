@@ -60,7 +60,7 @@ impl From<Interval> for IntervalCache {
 	}
 }
 impl IntervalCache {
-	pub async fn paginator(&self) -> Option<Paginator<u32>> {
+	pub async fn paginator(&self) -> Option<Paginator> {
 		self.last_update.map(|datetime| {
 			Paginator {
 				start_time: Some(datetime.timestamp_millis() as u64),
@@ -106,7 +106,7 @@ impl SubscriptionCache {
 	pub async fn refresh(&mut self) -> Result<(), Error> {
 		self.update_price_history().await
 	}
-	pub async fn paginator(&self) -> Option<Paginator<u32>> {
+	pub async fn paginator(&self) -> Option<Paginator> {
 		self.current_cache().await.paginator().await
 	}
 	pub async fn is_available(&self) -> bool {

@@ -18,7 +18,8 @@ impl Actor for BinanceActor {
 	fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
 		ctx.run(async move {
 			if !binance().await.is_initialized().await {
-				binance::init_api().await;
+				binance::init_api().await
+                    .expect("Failed to instantiate Binance API");
 			}
 		}).expect("Failed to run binance initialization!");
 	}
