@@ -26,7 +26,8 @@ tracing-appender = "^0.1"
 tracing-subscriber = "^0.2"
 
 [dependencies.telegram-bot]
-version = "^0.8"
+#version = "^0.8"
+git = "https://github.com/Mephistophiles/telegram-bot"
 
 [dependencies.riker]
 #version = "^0.4"
@@ -73,15 +74,15 @@ version = "^1"
 path = "../shared"
 
 [dependencies.tide]
+#version = "0.15"
 path = "../../../tide"
 features = [
   "h1-server",
 ]
-#version = "0.15"
 
 [dependencies.tide-rustls]
-path = "../../../tide-rustls"
 #version = "^0.1"
+path = "../../../tide-rustls"
 
 [dependencies.tide-tracing]
 #version = "0.0.7"
@@ -91,12 +92,11 @@ path = "../../../tide-tracing"
 path = "../../../tide-websockets"
 
 [dependencies.tokio]
-version = "^0.2"
+version = "^1"
 features = [
   "fs",
   "time",
-  "rt-threaded",
-  "stream",
+  "rt-multi-thread",
   "macros",
 ]
 

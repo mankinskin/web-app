@@ -105,7 +105,7 @@ pub async fn run_cleaner() {
 		if let Some((next, time)) = invalidation {
 			let duration = time - Utc::now();
 			let duration = tokio::time::Duration::from_millis(duration.num_milliseconds() as u64);
-			tokio::time::delay_for(duration).await;
+			tokio::time::sleep(duration).await;
 			sessions_mut().await.remove_session(&next);
 		}
 	}
