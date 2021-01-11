@@ -32,7 +32,7 @@ git = "https://github.com/Mephistophiles/telegram-bot"
 [dependencies.riker]
 #version = "^0.4"
 path = "../../../riker"
-features = ["tokio_executor"]
+#features = ["tokio_executor"]
 
 [dependencies.app-model]
 path = "../../app-model"
