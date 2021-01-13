@@ -72,38 +72,60 @@ fn root() -> std::io::Result<tide::Server<()>> {
 	root.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH))?;
 	Ok(root)
 }
-async fn login_handler(mut req: Request<()>) -> tide::Result {
-	let credentials: Credentials = req.body_json().await?;
-	match login::<database::Schema>(credentials).await {
-		Ok(session) => {
-			req.session_mut()
-				.insert("session", session)
-				.map(|_| Response::new(200))
-				.map_err(|e| tide::Error::from_str(500, e.to_string()))
-		}
-		Err(e) => Err(e),
-	}
-}
-async fn logout_handler(mut req: Request<()>) -> tide::Result {
-	req.session_mut().remove("session");
-	Ok(Response::new(200))
-}
-async fn registration_handler(mut req: Request<()>) -> tide::Result {
-	let user: User = req.body_json().await?;
-	match register::<database::Schema>(user).await {
-		Ok(_session) => Ok(Response::new(200)),
-		Err(e) => Err(tide::Error::from_str(500, e.to_string())),
-	}
-}
-fn auth_api() -> std::io::Result<tide::Server<()>> {
-	let mut api = tide::new();
-	api.at("/login").post(login_handler);
-	api.at("/register").post(registration_handler);
-	api.at("/logout").post(logout_handler);
-	Ok(api)
+#[async_trait::async_trait]
+trait ServeSession<'db, DB>
+    where DB: Database<'db, User> + 'db,
+{
+    type Api;
+    type Response;
+    type Request;
+    fn serve(api: &mut Self::Api) -> std::io::Result<()>;
+    async fn login_handler(mut req: Self::Request) -> Self::Response;
+    async fn logout_handler(mut req: Self::Request) -> Self::Response;
+    async fn registration_handler(mut req: Self::Request) -> Self::Response;
 }
 #[async_trait::async_trait]
-trait ServeTable<'db, T: TableRoutable + DatabaseTable<'db, DB> + 'db, DB: Database<'db, T>> {
+impl<DB> ServeSession<'static, DB> for TideServer
+    where DB: Database<'static, User> + 'static,
+{
+    type Api = tide::Server<()>;
+    type Response = tide::Result;
+    type Request = Request<()>;
+    fn serve(api: &mut Self::Api) -> std::io::Result<()> {
+	    api.at("/login").post(<Self as ServeSession<'static, DB>>::login_handler);
+	    api.at("/register").post(<Self as ServeSession<'static, DB>>::registration_handler);
+	    api.at("/logout").post(<Self as ServeSession<'static, DB>>::logout_handler);
+        Ok(())
+    }
+    async fn login_handler(mut req: Self::Request) -> Self::Response {
+    	let credentials: Credentials = req.body_json().await?;
+    	match login::<DB>(credentials).await {
+    		Ok(session) => {
+    			req.session_mut()
+    				.insert("session", session)
+    				.map(|_| Response::new(200))
+    				.map_err(|e| tide::Error::from_str(500, e.to_string()))
+    		}
+    		Err(e) => Err(e),
+    	}
+    }
+    async fn logout_handler(mut req: Self::Request) -> Self::Response {
+    	req.session_mut().remove("session");
+    	Ok(Response::new(200))
+    }
+    async fn registration_handler(mut req: Self::Request) -> Self::Response {
+    	let user: User = req.body_json().await?;
+    	match register::<database::Schema>(user).await {
+    		Ok(_session) => Ok(Response::new(200)),
+    		Err(e) => Err(tide::Error::from_str(500, e.to_string())),
+    	}
+    }
+}
+#[async_trait::async_trait]
+trait ServeTable<'db, T, DB>
+    where T: TableRoutable + DatabaseTable<'db, DB> + 'db,
+          DB: Database<'db, T> + 'db,
+{
     type Api;
     type Response;
     type Request;
@@ -127,6 +149,9 @@ struct TideServer;
 impl TideServer {
     pub fn serve<T>(api: &mut tide::Server<()>) -> std::io::Result<()> {
 	    Ok(<TideServer as ServeTable<'_, PriceSubscription, Schema>>::serve(api)?)
+    }
+    pub fn auth(api: &mut tide::Server<()>) -> std::io::Result<()> {
+	    Ok(<TideServer as ServeSession<'_, Schema>>::serve(api)?)
     }
 }
 
@@ -176,7 +201,7 @@ impl<T, DB> ServeTable<'static, T, DB> for TideServer
 
 fn api() -> std::io::Result<tide::Server<()>> {
 	let mut api = tide::new();
-	api.at("/auth").nest(auth_api()?);
+    TideServer::auth(&mut api)?;
     TideServer::serve::<PriceSubscription>(&mut api)?;
 	api.at("/price_history").nest(price_api()?);
 	Ok(api)
