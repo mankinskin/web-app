@@ -3,19 +3,21 @@ use serde::{
     Serialize,
 };
 
-#[cfg(target_arch = "wasm32")]
 use {
     crate::{
         subscriptions::Route,
         ApiRoute,
         Route as CrateRoute,
     },
+    database_table::TableRoutable,
+    rql::*,
+};
+#[cfg(target_arch = "wasm32")]
+use {
     components::{
         Component,
         Edit,
     },
-    database_table::TableRoutable,
-    rql::*,
     seed::{
         prelude::*,
         *,
@@ -55,7 +57,6 @@ impl Edit for PriceSubscription {
         ]
     }
 }
-#[cfg(target_arch = "wasm32")]
 impl TableRoutable for PriceSubscription {
     type Route = CrateRoute;
     fn table_route() -> Self::Route {

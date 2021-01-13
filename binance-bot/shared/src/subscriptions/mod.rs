@@ -1,5 +1,11 @@
 use app_model::market::PriceHistory;
-use database_table::Entry;
+use database_table::{
+    Entry,
+    Route as DbRoute,
+};
+use database_table::{
+    Routable,
+};
 use openlimits::model::Interval;
 use serde::{
     Deserialize,
@@ -19,8 +25,7 @@ pub enum Route {
     #[as_path = ""]
     List,
 }
-#[cfg(target_arch = "wasm32")]
-impl database_table::Route for Route {}
+impl DbRoute for Route {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdatePriceSubscriptionRequest {
@@ -39,8 +44,8 @@ pub enum Request {
     AddPriceSubscription(PriceSubscription),
     Subscription(Id<PriceSubscription>, SubscriptionRequest),
 }
-#[cfg(target_arch = "wasm32")]
-impl database_table::Routable for Request {
+
+impl Routable for Request {
     type Route = Route;
     fn route(&self) -> Self::Route {
         match self {

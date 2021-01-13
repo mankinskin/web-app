@@ -95,44 +95,6 @@ async fn registration_handler(mut req: Request<()>) -> tide::Result {
 		Err(e) => Err(tide::Error::from_str(500, e.to_string())),
 	}
 }
-async fn post_subscription_handler(mut req: Request<()>) -> tide::Result<Body> {
-	let s: PriceSubscription = req.body_json().await?;
-	let r: Result<_, String> = subscriptions::add_subscription(s)
-		.await
-		.map_err(|e| e.to_string());
-	let body = Body::from_json(&r)?;
-	debug!("{:#?}", body);
-	Ok(body)
-}
-async fn get_subscription_list_handler(_req: Request<()>) -> tide::Result<Body> {
-	debug!("Get subscription list handler");
-	let r: Result<_, String> = Ok(subscriptions::get_subscription_list().await);
-	debug!("Result: {:?}", r);
-	Ok(Body::from_json(&r)?)
-}
-async fn delete_subscription_handler(req: Request<()>) -> tide::Result<Body> {
-	let id: rql::Id<PriceSubscription> = req.param("id")?.parse()?;
-	let r = subscriptions::delete_subscription(id)
-		.await
-		.map_err(|e| e.to_string());
-	Ok(Body::from_json(&r)?)
-}
-async fn get_subscription_handler(req: Request<()>) -> tide::Result<Body> {
-	let id: rql::Id<PriceSubscription> = req.param("id")?.parse()?;
-	let r = subscriptions::get_subscription(id)
-		.await
-		.map_err(|e| e.to_string());
-	Ok(Body::from_json(&r)?)
-}
-fn subscriptions_api() -> std::io::Result<tide::Server<()>> {
-	let mut api = tide::new();
-	api.at("/")
-		.get(get_subscription_list_handler)
-		.post(post_subscription_handler)
-		.delete(delete_subscription_handler);
-	api.at("/:id").get(get_subscription_handler);
-	Ok(api)
-}
 fn auth_api() -> std::io::Result<tide::Server<()>> {
 	let mut api = tide::new();
 	api.at("/login").post(login_handler);
@@ -140,10 +102,82 @@ fn auth_api() -> std::io::Result<tide::Server<()>> {
 	api.at("/logout").post(logout_handler);
 	Ok(api)
 }
+#[async_trait::async_trait]
+trait ServeTable<'db, T: TableRoutable + DatabaseTable<'db, DB> + 'db, DB: Database<'db, T>> {
+    type Api;
+    type Response;
+    type Request;
+    fn serve(api: &mut Self::Api) -> std::io::Result<()>;
+    async fn post_handler(req: Self::Request) -> Self::Response;
+    async fn get_handler(req: Self::Request) -> Self::Response;
+    async fn get_list_handler(req: Self::Request) -> Self::Response;
+    async fn delete_handler(req: Self::Request) -> Self::Response;
+}
+use database::Schema;
+use database_table::{
+    Database,
+    DatabaseTable,
+    TableRoutable,
+};
+use enum_paths::AsPath;
+use std::fmt::Debug;
+
+struct TideServer;
+
+impl TideServer {
+    pub fn serve<T>(api: &mut tide::Server<()>) -> std::io::Result<()> {
+	    Ok(<TideServer as ServeTable<'_, PriceSubscription, Schema>>::serve(api)?)
+    }
+}
+
+#[async_trait::async_trait]
+impl<T, DB> ServeTable<'static, T, DB> for TideServer
+    where T: TableRoutable + DatabaseTable<'static, DB> + Debug + 'static,
+          DB: Database<'static, T> + 'static,
+{
+    type Api = tide::Server<()>;
+    type Response = tide::Result<Body>;
+    type Request = Request<()>;
+
+    fn serve(api: &mut Self::Api) -> std::io::Result<()> {
+        let route = T::table_route().as_path();
+    	api.at(&format!("/{}", route))
+    		.get(<Self as ServeTable<'static, T, DB>>::get_list_handler)
+    		.post(<Self as ServeTable<'static, T, DB>>::post_handler)
+    		.delete(<Self as ServeTable<'static, T, DB>>::delete_handler);
+    	api.at(&format!("/{}/:id", route))
+            .get(<Self as ServeTable<'static, T, DB>>::get_handler);
+    	Ok(())
+    }
+    async fn post_handler(mut req: Self::Request) -> Self::Response {
+    	let s: T = req.body_json().await?;
+    	let id = T::insert(s);
+    	let body = Body::from_json(&id)?;
+    	debug!("{:#?}", body);
+    	Ok(body)
+    }
+    async fn get_handler(req: Self::Request) -> Self::Response {
+    	let id: rql::Id<T> = req.param("id")?.parse()?;
+    	let r = T::get(id);
+    	Ok(Body::from_json(&r)?)
+    }
+    async fn get_list_handler(_req: Self::Request) -> Self::Response {
+    	debug!("Get subscription list handler");
+    	let list = T::get_all();
+    	debug!("Result: {:?}", list);
+    	Ok(Body::from_json(&list)?)
+    }
+    async fn delete_handler(req: Self::Request) -> Self::Response {
+    	let id: rql::Id<T> = req.param("id")?.parse()?;
+    	let r = T::delete(id);
+    	Ok(Body::from_json(&r)?)
+    }
+}
+
 fn api() -> std::io::Result<tide::Server<()>> {
 	let mut api = tide::new();
 	api.at("/auth").nest(auth_api()?);
-	api.at("/subscriptions").nest(subscriptions_api()?);
+    TideServer::serve::<PriceSubscription>(&mut api)?;
 	api.at("/price_history").nest(price_api()?);
 	Ok(api)
 }

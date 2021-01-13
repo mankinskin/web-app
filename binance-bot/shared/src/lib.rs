@@ -10,6 +10,11 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use database_table::{
+    Route as DbRoute,
+    Routable,
+};
+use std::convert::TryFrom;
 #[derive(Debug, Clone)]
 pub enum WebsocketCommand {
     Close,
@@ -19,12 +24,12 @@ pub enum WebsocketCommand {
     ClientMessage(ClientMessage),
     ServerMessage(ServerMessage),
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
     Subscriptions(subscriptions::Request),
 }
-#[cfg(target_arch = "wasm32")]
-impl database_table::Routable for ClientMessage {
+impl Routable for ClientMessage {
     type Route = Route;
     fn route(&self) -> Self::Route {
         match self {
@@ -33,10 +38,6 @@ impl database_table::Routable for ClientMessage {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::convert::TryFrom;
-
-#[cfg(not(target_arch = "wasm32"))]
 impl TryFrom<String> for ClientMessage {
     type Error = String;
     fn try_from(msg: String) -> Result<Self, Self::Error> {
@@ -65,7 +66,7 @@ impl Default for Route {
         Self::Root
     }
 }
-impl database_table::Route for Route {}
+impl DbRoute for Route {}
 
 #[cfg(target_arch = "wasm32")]
 impl components::Route for Route {}
@@ -74,9 +75,9 @@ impl components::Route for Route {}
 pub enum ApiRoute {
     Subscriptions(subscriptions::Route),
 }
-impl database_table::Route for ApiRoute {}
+impl DbRoute for ApiRoute {}
 
-impl database_table::Routable for ApiRoute {
+impl Routable for ApiRoute {
     type Route = Self;
     fn route(&self) -> Self::Route {
         self.clone()
