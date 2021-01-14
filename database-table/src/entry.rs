@@ -1,59 +1,59 @@
 use rql::*;
 
 #[derive(
-	Clone,
-	Debug,
-	serde::Serialize,
-	serde::Deserialize,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub struct Entry<T> {
-	pub id: Id<T>,
-	pub data: T,
+    pub id: Id<T>,
+    pub data: T,
 }
 impl<T> Entry<T> {
-	pub fn new(id: Id<T>, data: T) -> Self {
-		Self {
-			id,
-			data,
-		}
-	}
-	pub fn id(&self) -> &Id<T> {
-		&self.id
-	}
-	pub fn data(&self) -> &T {
-		&self.data
-	}
-	pub fn data_mut(&mut self) -> &mut T {
-		&mut self.data
-	}
-	pub fn into_inner(self) -> T {
-		self.data
-	}
+    pub fn new(id: Id<T>, data: T) -> Self {
+        Self {
+            id,
+            data,
+        }
+    }
+    pub fn id(&self) -> &Id<T> {
+        &self.id
+    }
+    pub fn data(&self) -> &T {
+        &self.data
+    }
+    pub fn data_mut(&mut self) -> &mut T {
+        &mut self.data
+    }
+    pub fn into_inner(self) -> T {
+        self.data
+    }
 }
 impl<T> From<Row<'_, T>> for Entry<T>
-	where T: Clone
+    where T: Clone
 {
-	fn from(row: Row<'_, T>) -> Self {
-		Self::new(row.id, (*row.data).clone())
-	}
+    fn from(row: Row<'_, T>) -> Self {
+        Self::new(row.id, (*row.data).clone())
+    }
 }
 impl<T> From<Id<T>> for Entry<T>
-	where T: Clone + Default
+    where T: Clone + Default
 {
-	fn from(id: Id<T>) -> Self {
-		Self::from((id, T::default()))
-	}
+    fn from(id: Id<T>) -> Self {
+        Self::from((id, T::default()))
+    }
 }
 impl<T> From<(Id<T>, T)> for Entry<T>
-	where T: Clone
+    where T: Clone
 {
-	fn from((id, data): (Id<T>, T)) -> Self {
-		Self::new(id, data)
-	}
+    fn from((id, data): (Id<T>, T)) -> Self {
+        Self::new(id, data)
+    }
 }
 impl<T> std::ops::Deref for Entry<T> {
-	type Target = T;
-	fn deref(&self) -> &Self::Target {
-		self.data()
-	}
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.data()
+    }
 }
