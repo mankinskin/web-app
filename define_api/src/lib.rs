@@ -46,17 +46,22 @@ impl syn::parse::Parse for ItemFns {
 	}
 }
 
+/// Define server side REST handlers for a type
 #[proc_macro]
 pub fn rest_api(input: TokenStream) -> TokenStream {
 	rest::define_rest_api(input)
 }
+/// Define server REST endpoints for a type
 #[proc_macro]
 pub fn rest_handlers(input: TokenStream) -> TokenStream {
+    // input is a Type
 	let ty = parse_macro_input!(input as Type);
+    // to lowercase Ident
 	let ident = Ident::new(
 		&format!("{}", ty.clone().into_token_stream()).to_lowercase(),
 		Span::call_site(),
 	);
+    // rest method idents
 	let get_name = format_ident!("get_{}", ident);
 	let post_name = format_ident!("post_{}", ident);
 	let get_all_name = format_ident!("get_{}s", ident);
@@ -74,7 +79,9 @@ pub fn rest_handlers(input: TokenStream) -> TokenStream {
 }
 #[proc_macro]
 pub fn api(input: TokenStream) -> TokenStream {
+    // parse Items
 	let items = parse_macro_input!(input as Items);
+    // filter functions
 	let mut fns: Vec<ItemFn> = items
 		.iter()
 		.filter_map(|item| {
@@ -85,6 +92,7 @@ pub fn api(input: TokenStream) -> TokenStream {
 			}
 		})
 		.collect();
+    // filter imports
 	let imports: Vec<ItemUse> = items
 		.iter()
 		.filter_map(|item| {
@@ -95,6 +103,7 @@ pub fn api(input: TokenStream) -> TokenStream {
 			}
 		})
 		.collect();
+    // filter macros
 	let macros: Vec<ItemMacro> = items
 		.iter()
 		.filter_map(|item| {
@@ -105,6 +114,7 @@ pub fn api(input: TokenStream) -> TokenStream {
 			}
 		})
 		.collect();
+    // execute rest_api macros
 	let rest_apis: Vec<TokenStream> = macros
 		.iter()
 		.filter_map(|m| {
@@ -116,14 +126,15 @@ pub fn api(input: TokenStream) -> TokenStream {
 			}
 		})
 		.collect();
+    // parse rest function items
 	let rest_fns: Vec<Vec<ItemFn>> = rest_apis
 		.iter()
-		.map(|ts| {
+		.flat_map(|ts| {
 			let fns = syn::parse::<ItemFns>(ts.clone()).unwrap();
 			fns.items
 		})
 		.collect();
-	let rest_fns: Vec<ItemFn> = rest_fns[..].concat();
+    // append rest functions to other functions
 	fns.extend(rest_fns.iter().cloned());
 
 	let protocol = rpc::define_protocol(&fns);

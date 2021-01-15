@@ -9,7 +9,10 @@ use {
         ApiRoute,
         Route as CrateRoute,
     },
-    database_table::TableRoutable,
+    database_table::{
+        TableRoutable,
+        Routed,
+    },
     rql::*,
 };
 #[cfg(target_arch = "wasm32")]
@@ -58,12 +61,18 @@ impl Edit for PriceSubscription {
     }
 }
 impl TableRoutable for PriceSubscription {
-    type Route = CrateRoute;
+    type Route = Route;
     fn table_route() -> Self::Route {
-        CrateRoute::Api(ApiRoute::Subscriptions(Route::List))
+        Route::List
     }
     fn entry_route(id: Id<Self>) -> Self::Route {
-        CrateRoute::Api(ApiRoute::Subscriptions(Route::Entry(id)))
+        Route::Entry(id)
+    }
+}
+impl Routed for PriceSubscription {
+    type AbsoluteRoute = CrateRoute;
+    fn to_absolute_route(route: <Self as TableRoutable>::Route) -> Self::AbsoluteRoute {
+        CrateRoute::Api(ApiRoute::Subscriptions(route))
     }
 }
 

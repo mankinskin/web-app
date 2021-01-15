@@ -27,8 +27,8 @@ use {
 	},
 };
 
-#[cfg(target_arch = "wasm32")]
-pub mod profile;
+//#[cfg(target_arch = "wasm32")]
+//pub mod profile;
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
@@ -105,14 +105,12 @@ impl From<Entry<User>> for User {
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
 pub enum Msg {
-	Entry(Box<entry::Msg<User>>),
 }
 #[cfg(target_arch = "wasm32")]
 impl Component for User {
 	type Msg = Msg;
 	fn update(&mut self, msg: Msg, _orders: &mut impl Orders<Msg>) {
 		match msg {
-			Msg::Entry(_) => {}
 		}
 	}
 }

@@ -43,7 +43,7 @@ pub struct SubscriptionInfo {
 	editor: Option<Editor<PriceSubscription>>,
 }
 impl TableRoutable<PriceSubscription> for SubscriptionInfo {
-	type Route = Route;
+	type Route = shared::subscriptions::Route;
 	fn table_route() -> Self::Route {
 		PriceSubscription::table_route()
 	}

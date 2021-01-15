@@ -51,6 +51,20 @@ pub enum ServerMessage {
 }
 
 #[derive(Clone, Debug, AsPath)]
+pub enum PageRoute {
+    Subscriptions,
+    Login,
+    Register,
+    #[as_path = ""]
+    Root,
+}
+pub trait Router<Sub>
+    where Sub: Routable
+{
+    fn route_sub(sub: Sub::Route) -> Self;
+}
+
+#[derive(Clone, Debug, AsPath)]
 pub enum Route {
     Api(ApiRoute),
     Subscriptions(subscriptions::Route),
@@ -59,7 +73,19 @@ pub enum Route {
     #[as_path = ""]
     User(UserRoute),
     #[as_path = ""]
+    Page(PageRoute),
+    #[as_path = ""]
     Root,
+}
+impl Router<PriceSubscription> for Route {
+    fn route_sub(sub: <PriceSubscription as Routable>::Route) -> Self {
+        Self::Subscriptions(sub)
+    }
+}
+impl Router<ApiRoute> for Route {
+    fn route_sub(sub: ApiRoute) -> Self {
+        Self::Api(sub)
+    }
 }
 impl Default for Route {
     fn default() -> Self {
@@ -74,9 +100,15 @@ impl components::Route for Route {}
 #[derive(Clone, Debug, AsPath)]
 pub enum ApiRoute {
     Subscriptions(subscriptions::Route),
+    #[as_path = ""]
+    Root,
 }
 impl DbRoute for ApiRoute {}
-
+impl Default for ApiRoute {
+    fn default() -> Self {
+        Self::Root
+    }
+}
 impl Routable for ApiRoute {
     type Route = Self;
     fn route(&self) -> Self::Route {

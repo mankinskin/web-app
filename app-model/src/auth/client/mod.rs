@@ -24,10 +24,9 @@ pub fn get_host() -> Result<String, JsValue> {
 }
 pub fn get_base_url() -> Result<String, JsValue> {
 	let loc = get_location();
-	Ok(format!("{}://{}:{}",
+	Ok(format!("{}://{}",
 		loc.protocol()?,
 		loc.host()?,
-		loc.port()?,
 	))
 }
 

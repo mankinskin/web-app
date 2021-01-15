@@ -60,6 +60,7 @@ impl Init<Route> for Page {
 			Route::User(route) => Self::init(route, orders),
 			Route::Api(_) => Self::Root,
 			Route::Root => Self::Root,
+			Route::Page(_) => Self::Root,
 		}
 	}
 }

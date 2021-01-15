@@ -77,9 +77,10 @@ trait ServeSession<'db, DB>
     async fn registration_handler(mut req: Self::Request) -> Self::Response;
 }
 #[async_trait::async_trait]
-trait ServeTable<'db, T, DB>
+trait ServeTable<'db, R, T, DB>
     where T: TableRoutable + DatabaseTable<'db, DB> + 'db,
           DB: Database<'db, T> + 'db,
+          R: Router<T> + 'static
 {
     type Api;
     type Response;
@@ -90,8 +91,102 @@ trait ServeTable<'db, T, DB>
     async fn get_list_handler(req: Self::Request) -> Self::Response;
     async fn delete_handler(req: Self::Request) -> Self::Response;
 }
-struct TideServer(tide::Server<()>);
 
+use shared::{
+    Route,
+    Router,
+    ApiRoute,
+};
+struct TideServer {
+    server: tide::Server<()>,
+}
+
+
+impl TideServer {
+    pub fn new() -> Self {
+        let mut new = Self {
+            server: tide::new(),
+        };
+        new.server.with(TraceMiddleware::new());
+        new.api();
+        new.wss();
+        new.root();
+        new
+    }
+    fn auth(server: &mut tide::Server<()>) {
+        <Self as ServeSession<'_, Schema>>::serve(server)
+    }
+    fn wss(&mut self) {
+        let server = &mut self.server;
+        server.at("/wss").get(Self::wss_handler);
+    }
+    fn root(&mut self) {
+        self.server.at("/subscriptions").get(index!());
+        self.server.at("/login").get(index!());
+        self.server.at("/register").get(index!());
+        self.server.at("/").get(client_file!("index.html"));
+        self.server.at("/favicon.ico").get(client_file!("favicon.ico"));
+        self.server.at("/package.js").get(client_file!("pkg/package.js"));
+        self.server.at("/package_bg.wasm").get(client_file!("pkg/package_bg.wasm"));
+        //self.server.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH)).expect("Cannot serve directory");
+    }
+    fn api(&mut self) {
+        let server = &mut self.server;
+        server.with(Self::session_middleware());
+        server.with(Self::session_validator_middleware());
+        let route = <Route as Router<ApiRoute>>::route_sub(ApiRoute::default()).prefix();
+        debug!("Routing {}", route);
+        let mut api = tide::new();
+        Self::auth(&mut api);
+        <Self as ServeTable<'_, Route, PriceSubscription, Schema>>
+            ::serve(&mut api);
+        api.at("/price_history").nest(price_api());
+        server.at(&route).nest(api);
+    }
+    async fn wss_handler(request: Request<()>) -> tide::Result {
+        WebSocket::new(async move |_, ws| {
+            websocket::connection(ws).await;
+            Ok(())
+        })
+        .call(request).await
+    }
+    fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::MemoryStore> {
+        tide::sessions::SessionMiddleware::new(
+            tide::sessions::MemoryStore::new(),
+            session::generate_secret().as_bytes(),
+        )
+        .with_cookie_name("session")
+        .with_session_ttl(Some(std::time::Duration::from_secs(
+            session::EXPIRATION_SECS as u64,
+        )))
+    }
+    fn session_validator_middleware() -> impl Middleware<()> {
+        tide::utils::Before(async move |mut request: Request<()>| {
+            let session = request.session_mut();
+            if let Some(expiry) = session.expiry() {
+                // time since expiry or (negative) until
+                let dt = (Utc::now() - *expiry).num_seconds();
+                if dt >= session::STALE_SECS as i64 {
+                    // expired and stale
+                    session.destroy()
+                } else if dt >= 0 {
+                    // expired and not stale
+                    session.regenerate()
+                }
+            }
+            request
+        })
+    }
+    pub async fn listen(self, addr: SocketAddr) -> std::io::Result<()> {
+        self.server.listen(
+            TlsListener::build()
+                .addrs(addr)
+                .cert(keys::to_key_path("tls.crt"))
+                .key(keys::to_key_path("tls.key")),
+        )
+        .await
+    }
+}
 #[async_trait::async_trait]
 impl<DB> ServeSession<'static, DB> for TideServer
     where DB: Database<'static, User> + 'static,
@@ -132,25 +227,27 @@ impl<DB> ServeSession<'static, DB> for TideServer
 }
 
 #[async_trait::async_trait]
-impl<T, DB> ServeTable<'static, T, DB> for TideServer
+impl<R, T, DB> ServeTable<'static, R, T, DB> for TideServer
     where T: TableRoutable + DatabaseTable<'static, DB> + Debug + 'static,
           DB: Database<'static, T> + 'static,
+          R: Router<T> + AsPath + 'static
 {
     type Api = tide::Server<()>;
     type Response = tide::Result<Body>;
     type Request = Request<()>;
 
+    /// Serve DatabaseTable at TableRoutable::table_route()
     fn serve(api: &mut Self::Api) {
         let mut t = tide::new();
         t.at("/")
-            .get(<Self as ServeTable<'static, T, DB>>::get_list_handler)
-            .post(<Self as ServeTable<'static, T, DB>>::post_handler)
-            .delete(<Self as ServeTable<'static, T, DB>>::delete_handler);
+            .get(<Self as ServeTable<'_, R, T, DB>>::get_list_handler)
+            .post(<Self as ServeTable<'_, R, T, DB>>::post_handler);
         t.at("/:id")
-            .get(<Self as ServeTable<'static, T, DB>>::get_handler);
-        let route = T::route().as_path();
-        debug!("Serving {}", route);
-        api.at(&format!("/{}", route)).nest(t);
+            .get(<Self as ServeTable<'_, R, T, DB>>::get_handler)
+            .delete(<Self as ServeTable<'_, R, T, DB>>::delete_handler);
+        let route = R::route_sub(T::table_route()).prefix();
+        debug!("Routing {}", route);
+        api.at(&route).nest(t);
     }
     async fn post_handler(mut req: Self::Request) -> Self::Response {
         let s: T = req.body_json().await?;
@@ -174,86 +271,6 @@ impl<T, DB> ServeTable<'static, T, DB> for TideServer
         let id: rql::Id<T> = req.param("id")?.parse()?;
         let r = T::delete(id);
         Ok(Body::from_json(&r)?)
-    }
-}
-
-impl TideServer {
-    pub fn new() -> Self {
-        let mut server = tide::new();
-        server.with(TraceMiddleware::new());
-        server.with(Self::session_middleware());
-        server.with(Self::session_validator_middleware());
-        server.at("/wss").get(Self::wss_handler);
-        server.at("/api").nest(Self::api());
-        Self::root(&mut server);
-        Self(server)
-    }
-    fn serve_table<T, DB>(server: &mut tide::Server<()>)
-        where T: TableRoutable + Debug + DatabaseTable<'static, DB> + 'static,
-              DB: Database<'static, T> + 'static,
-    {
-        <TideServer as ServeTable<'_, T, DB>>::serve(server)
-    }
-    fn auth(server: &mut tide::Server<()>) {
-        <TideServer as ServeSession<'_, Schema>>::serve(server)
-    }
-    fn root(server: &mut tide::Server<()>) {
-        server.at("/subscriptions").get(index!());
-        server.at("/login").get(index!());
-        server.at("/register").get(index!());
-        server.at("/").get(client_file!("index.html"));
-        server.at("/favicon.ico").get(client_file!("favicon.ico"));
-        server.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH)).expect("Cannot serve directory");
-    }
-    fn api() -> tide::Server<()> {
-        let mut api = tide::new();
-        Self::auth(&mut api);
-        Self::serve_table::<PriceSubscription, Schema>(&mut api);
-        api.at("/price_history").nest(price_api());
-        api
-    }
-    async fn wss_handler(request: Request<()>) -> tide::Result {
-        WebSocket::new(async move |_, ws| {
-            websocket::connection(ws).await;
-            Ok(())
-        })
-        .call(request).await
-    }
-    fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::MemoryStore> {
-        tide::sessions::SessionMiddleware::new(
-            tide::sessions::MemoryStore::new(),
-            session::generate_secret().as_bytes(),
-        )
-        .with_cookie_name("session")
-        .with_session_ttl(Some(std::time::Duration::from_secs(
-            session::EXPIRATION_SECS as u64,
-        )))
-    }
-    fn session_validator_middleware() -> impl Middleware<()> {
-        tide::utils::Before(async move |mut request: Request<()>| {
-            let session = request.session_mut();
-            if let Some(expiry) = session.expiry() {
-                // time since expiry or (negative) until
-                let dt = (Utc::now() - *expiry).num_seconds();
-                if dt >= session::STALE_SECS as i64 {
-                    // expired and stale
-                    session.destroy()
-                } else if dt >= 0 {
-                    // expired and not stale
-                    session.regenerate()
-                }
-            }
-            request
-        })
-    }
-    pub async fn listen(self, addr: SocketAddr) -> std::io::Result<()> {
-        self.0.listen(
-            TlsListener::build()
-                .addrs(addr)
-                .cert(keys::to_key_path("tls.crt"))
-                .key(keys::to_key_path("tls.key")),
-        )
-        .await
     }
 }
 

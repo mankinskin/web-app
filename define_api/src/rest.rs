@@ -12,6 +12,7 @@ use syn::{
 	Type,
 	*,
 };
+/// Define REST handler code
 pub fn define_rest_api(input: TokenStream) -> TokenStream {
 	let ty = parse_macro_input!(input as Type);
 	let ident = Ident::new(

@@ -100,10 +100,10 @@ impl Component for Subscriptions {
 				debug!("Msg::GetList...");
 				orders.perform_cmd(async move {
 					debug!("Calling command..");
-					PriceSubscription::get_all().await
-						.map(|list: Vec<Entry<PriceSubscription>>| {
-							Msg::SetList(list)
-						}).expect("Failed to get SubscriptionList")
+					PriceSubscription::get_all()
+                        .await
+						.map(Msg::SetList)
+                        .expect("Failed to get SubscriptionList")
 				});
 			},
 			Msg::SetList(list) => {

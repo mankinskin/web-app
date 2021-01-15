@@ -27,6 +27,10 @@ use seed::{
     },
 };
 use std::result::Result;
+pub trait Routed : TableRoutable + Sized {
+    type AbsoluteRoute: Route;
+    fn to_absolute_route(route: <Self as TableRoutable>::Route) -> Self::AbsoluteRoute;
+}
 #[async_trait(?Send)]
 pub trait RemoteTable<T=Self>
     : TableRoutable<T>
@@ -47,7 +51,7 @@ async fn fetch<V>(request: Request<'_>) -> Result<V, String>
     seed_fetch(request).await
         .map_err(|e| format!("Fetch error: {:?}", e))?
         .json().await
-        .map_err(|e| format!("Value error: {:?}", e))?
+        .map_err(|e| format!("Value error: {:?}", e))
 }
 #[async_trait(?Send)]
 impl<T> RemoteTable for T
@@ -56,10 +60,11 @@ impl<T> RemoteTable for T
           + TableRoutable
           + for<'de> Deserialize<'de>
           + Serialize
+          + Routed
 {
     type Error = String;
     async fn get(id: Id<Self>) -> Result<Option<Entry<Self>>, Self::Error> {
-        let path = Self::entry_route(id).as_path();
+        let path = Self::to_absolute_route(Self::entry_route(id)).as_path();
         debug!("RemoteTable::get {}", path);
         fetch(
             Request::new(path)
@@ -67,7 +72,7 @@ impl<T> RemoteTable for T
         ).await
     }
     async fn delete(id: Id<Self>) -> Result<Option<Self>, Self::Error> {
-        let path = Self::entry_route(id).as_path();
+        let path = Self::to_absolute_route(Self::entry_route(id)).as_path();
         debug!("RemoteTable::delete {}", path);
         fetch(
             Request::new(path)
@@ -75,7 +80,7 @@ impl<T> RemoteTable for T
         ).await
     }
     async fn get_all() -> Result<Vec<Entry<Self>>, Self::Error> {
-        let path = Self::table_route().as_path();
+        let path = Self::to_absolute_route(Self::table_route()).as_path();
         debug!("RemoteTable::get_all {}", path);
         fetch(
             Request::new(path)
@@ -83,7 +88,7 @@ impl<T> RemoteTable for T
         ).await
     }
     async fn post(data: Self) -> Result<Id<Self>, Self::Error> {
-        let path = Self::table_route().as_path();
+        let path = Self::to_absolute_route(Self::table_route()).as_path();
         debug!("RemoteTable::post {}", path);
         fetch(
             Request::new(path)
@@ -110,12 +115,13 @@ impl<T> RemoteTable for T
 //      T::post(data).await
 //  }
 //}
-pub trait DatabaseTable<'db, D: crate::Database<'db, Self>>
+pub trait DatabaseTable<'db, D>
     : Sized
     + Clone
     + Serialize
     + for<'de> Deserialize<'de>
     + 'db
+    where D: crate::Database<'db, Self>,
 {
     fn table() -> TableGuard<'db, Self> {
         D::table()
@@ -149,10 +155,11 @@ pub trait DatabaseTable<'db, D: crate::Database<'db, Self>>
         D::find(f)
     }
 }
-impl<'db, T, D: crate::Database<'db, T>> DatabaseTable<'db, D> for T
-    where T: Sized
-    + Clone
-    + Serialize
-    + for<'de> Deserialize<'de>
-    + 'db
+impl<'db, T, D> DatabaseTable<'db, D> for T
+    where D: crate::Database<'db, T>,
+          T: Sized
+          + Clone
+          + Serialize
+          + for<'de> Deserialize<'de>
+          + 'db
 {}

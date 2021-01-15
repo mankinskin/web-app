@@ -12,16 +12,23 @@ serde = "1.0.114"
 serde_json = "1.0.56"
 anyhow = "1.0.31"
 
-[dependencies.rocket]
-version = "^0.4"
-
-[dependencies.rocket_contrib]
-version = "^0.4"
-default-features = false
+[dependencies.tide]
+#version = "0.15"
+path = "../../../tide"
 features = [
-  "json",
-  "uuid",
+  "h1-server",
 ]
+
+[dependencies.tide-rustls]
+#version = "^0.1"
+path = "../../../tide-rustls"
+
+[dependencies.tide-tracing]
+#version = "0.0.7"
+path = "../../../tide-tracing"
+
+[dependencies.tide-websockets]
+path = "../../../tide-websockets"
 
 [dependencies.define_api]
 path = "../../define_api"
