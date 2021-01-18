@@ -35,6 +35,17 @@ fn init_tracing() {
 	trace!("Trace logs enabled.");
 	error!("Error logs enabled.");
 }
+#[wasm_bindgen(start)]
+pub fn render() {
+	init_tracing();
+	debug!("Starting App");
+	App::start(
+		"app",
+		Root::init,
+		|msg, model, orders| model.update(msg, orders),
+		Viewable::view,
+	);
+}
 struct Root {
 	webapi: WebApi,
 	navbar: Navbar,
@@ -61,18 +72,6 @@ impl Component for Root {
 			Msg::WebApi(msg) => self.webapi.update(msg, &mut orders.proxy(Msg::WebApi)),
 		}
 	}
-}
-
-#[wasm_bindgen(start)]
-pub fn render() {
-	init_tracing();
-	debug!("Starting App");
-	App::start(
-		"app",
-		Root::init,
-		|msg, model, orders| model.update(msg, orders),
-		Viewable::view,
-	);
 }
 impl Viewable for Root {
 	fn view(&self) -> Node<Msg> {
