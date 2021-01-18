@@ -1,0 +1,51 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = []
+
+[dependencies]
+lazy_static = "^1.4"
+serde_json = "^1"
+tracing = "^0.1"
+tracing-appender = "^0.1"
+tracing-subscriber = "^0.2"
+
+[dependencies.tide-websockets]
+path = "../../../tide-websockets"
+
+[dependencies.tide-rustls]
+path = "../../../tide-rustls"
+
+[dependencies.tide-tracing]
+path = "../../../tide-tracing"
+
+[dependencies.async-std]
+features = ["attributes"]
+version = "^1"
+
+[dependencies.chrono]
+features = ["serde"]
+version = "^0.4"
+
+[dependencies.tide]
+features = ["h1-server"]
+path = "../../../tide"
+
+[dependencies.tokio]
+features = ["fs", "time", "rt-multi-thread", "macros"]
+version = "^1"
+
+[dependencies.tokio-util]
+features = ["compat"]
+version = "^0.3"
+
+[dependencies.tracing-log]
+version = "^0.1"
+
+[dependencies.session-service]
+path = "../../session-service"
