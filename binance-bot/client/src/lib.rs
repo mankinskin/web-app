@@ -6,6 +6,7 @@ pub mod websocket;
 pub mod subscriptions;
 pub mod webapi;
 
+use wasm_bindgen_test::wasm_bindgen_test;
 use components::{
 	Component,
 	Init,
@@ -94,4 +95,10 @@ fn mutation_observer() {
 		let observer = web_sys::MutationObserver::new(&function).unwrap();
 		observer.observe(&node).unwrap();
 	}
+}
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+#[wasm_bindgen_test]
+async fn basic_test() {
+    let response = fetch("/basic").await;
+    debug!("{:#?}", response);
 }

@@ -20,6 +20,7 @@ rust_decimal = "^1"
 url = "^2"
 wasm-bindgen-futures = "^0.4"
 async-trait = "^0.1"
+wasm-bindgen-test = "^0.3"
 
 [dependencies.shared]
 path = "../shared"
