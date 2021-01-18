@@ -8,7 +8,6 @@ pub mod keys;
 pub mod subscriptions;
 pub mod telegram;
 pub mod database;
-pub mod session;
 pub mod websocket;
 pub mod server;
 

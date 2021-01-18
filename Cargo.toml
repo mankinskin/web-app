@@ -10,4 +10,5 @@ members = [
   "components",
   "database-table",
   "define_api",
+  "session-service",
 ]

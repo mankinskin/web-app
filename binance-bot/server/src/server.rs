@@ -153,11 +153,11 @@ impl TideServer {
     fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::MemoryStore> {
         tide::sessions::SessionMiddleware::new(
             tide::sessions::MemoryStore::new(),
-            session::generate_secret().as_bytes(),
+            session_service::generate_secret().as_bytes(),
         )
         .with_cookie_name("session")
         .with_session_ttl(Some(std::time::Duration::from_secs(
-            session::EXPIRATION_SECS as u64,
+            session_service::EXPIRATION_SECS as u64,
         )))
     }
     fn session_validator_middleware() -> impl Middleware<()> {
@@ -166,7 +166,7 @@ impl TideServer {
             if let Some(expiry) = session.expiry() {
                 // time since expiry or (negative) until
                 let dt = (Utc::now() - *expiry).num_seconds();
-                if dt >= session::STALE_SECS as i64 {
+                if dt >= session_service::STALE_SECS as i64 {
                     // expired and stale
                     session.destroy()
                 } else if dt >= 0 {
