@@ -100,14 +100,14 @@ use shared::{
 struct TideServer {
     server: tide::Server<()>,
 }
-
-
 impl TideServer {
     pub fn new() -> Self {
         let mut new = Self {
             server: tide::new(),
         };
         new.server.with(TraceMiddleware::new());
+        server.with(Self::session_middleware());
+        server.with(Self::session_validator_middleware());
         new.api();
         new.wss();
         new.root();
@@ -132,8 +132,6 @@ impl TideServer {
     }
     fn api(&mut self) {
         let server = &mut self.server;
-        server.with(Self::session_middleware());
-        server.with(Self::session_validator_middleware());
         let route = <Route as Router<ApiRoute>>::route_sub(ApiRoute::default()).prefix();
         debug!("Routing {}", route);
         let mut api = tide::new();
