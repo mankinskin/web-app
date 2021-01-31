@@ -1,18 +1,19 @@
+#![feature(async_closure)]
 use components::{
-	Component,
-	Init,
-	Viewable,
+    Component,
+    Init,
+    Viewable,
 };
 use seed::{
-	prelude::*,
-	*,
+    prelude::*,
+    *,
 };
 #[allow(unused)]
 use tracing::{
-	debug,
-	error,
-	info,
-	trace,
+    debug,
+    error,
+    info,
+    trace,
 };
 use web_sys::{
     AudioContext,
@@ -21,24 +22,24 @@ use web_sys::{
     GainNode,
 };
 fn init_tracing() {
-	console_error_panic_hook::set_once();
-	tracing_wasm::set_as_global_default();
-	debug!("Tracing initialized.");
-	debug!("Debug logs enabled.");
-	info!("Info logs enabled.");
-	trace!("Trace logs enabled.");
-	error!("Error logs enabled.");
+    console_error_panic_hook::set_once();
+    tracing_wasm::set_as_global_default();
+    debug!("Tracing initialized.");
+    debug!("Debug logs enabled.");
+    info!("Info logs enabled.");
+    trace!("Trace logs enabled.");
+    error!("Error logs enabled.");
 }
 #[wasm_bindgen(start)]
 pub fn render() {
     init_tracing();
     debug!("Starting App");
     App::start(
-        "app",
-        Root::init,
-        |msg, model, orders| model.update(msg, orders),
-        Viewable::view,
-    );
+            "app",
+            Root::init,
+            |msg, model, orders| model.update(msg, orders),
+            Viewable::view,
+        );
 }
 #[derive(Debug, Clone)]
 enum Msg {
@@ -103,57 +104,96 @@ enum AudioMsg {
     Stop,
     Slider(SliderMsg),
 }
-struct Audio {
+#[derive(Clone)]
+struct AudioRack {
     ctx: AudioContext,
     osc: OscillatorNode,
     gain: GainNode,
-    transition_time: Slider,
+    transition_time: f64,
 }
-impl Init<()> for Audio {
-    fn init(_: (), orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+impl AudioRack {
+    fn create() -> Self {
+        info!("Initializing AudioRack");
         let ctx = web_sys::AudioContext::new().expect("Failed to create AudioContext.");
-        let mut gain = ctx.create_gain().expect("Failed to create Gain.");
         let osc = ctx.create_oscillator().expect("Failed to create Oscillator.");
-        gain.gain().set_value(0.0);
         osc.set_type(OscillatorType::Sine);
+        let gain = ctx.create_gain().expect("Failed to create Gain.");
+        gain.gain().set_value(0.0);
 
-        gain.connect_with_audio_node(&ctx.destination()).expect("Can't connect Oscillator with Context destination.");
         osc.connect_with_audio_node(&gain).expect("Can't connect Oscillator with Gain.");
+        gain.connect_with_audio_node(&ctx.destination()).expect("Can't connect Oscillator with Context destination.");
         osc.start().expect("Failed to start Oscillator.");
         Self {
             ctx,
             osc,
             gain,
-            transition_time: Slider::new(0.0, 0.0, 10.0, "transition_time"),
+            transition_time: 0.0004,
         }
     }
-}
-impl Drop for Audio {
-    fn drop(&mut self) {
-        self.osc.stop().expect("Failed to stop Oscillator.");
+    #[allow(unused)]
+    pub fn set_gain(&mut self, gain: f32) {
+        self.gain.gain().set_value(gain.clamp(0.0, 1.0));
     }
-}
-impl Audio {
     pub fn start(&mut self) {
         self.gain_transition(1.0, 0.01);
     }
     pub fn stop(&mut self) {
         self.gain_transition(0.0, 0.02);
     }
-    pub fn set_transition_time(&mut self, t: f64) {
-        self.transition_time.set_value(t);
-    }
-    pub fn set_gain(&mut self, gain: f32) {
-        self.gain.gain().set_value(gain.clamp(0.0, 1.0));
+    pub fn set_transition_time(&mut self, time: f64) {
+        self.transition_time = time;
     }
     pub fn gain_transition(&mut self, target: f32, curve: f64) {
+        info!("Transition time {}", self.transition_time);
         self.gain.gain()
             .set_target_at_time(
                 target.clamp(0.0, 1.0),
-                self.transition_time.get_value(),
                 curve,
-            )
+                self.transition_time,
+                )
             .expect("Failed to start gain transition.");
+    }
+}
+impl Drop for AudioRack {
+    fn drop(&mut self) {
+        self.osc.stop().expect("Failed to stop Oscillator.");
+    }
+}
+#[derive(Clone)]
+struct Audio {
+    rack: Option<AudioRack>,
+    transition_time: Slider,
+}
+impl Init<()> for Audio {
+    fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
+        Self {
+            rack: None,
+            transition_time: Slider::new(0.0004, 0.0, 0.1, "transition_time"),
+        }
+    }
+}
+impl Audio {
+    fn initialize(&mut self) {
+        self.rack.get_or_insert_with(AudioRack::create);
+    }
+    pub fn start(&mut self) {
+        self.initialize();
+        let time = self.transition_time.get_value();
+        self.rack.as_mut().map(|rack| {
+            rack.set_transition_time(time);
+            rack.start();
+            rack
+        });
+    }
+    pub fn stop(&mut self) {
+        self.rack.as_mut().map(|rack| {
+            rack.stop();
+            rack
+        });
+    }
+    #[allow(unused)]
+    pub fn set_gain(&mut self, gain: f32) {
+        self.rack.as_mut().map(|rack| rack.set_gain(gain));
     }
 }
 impl Component for Audio {
@@ -163,7 +203,7 @@ impl Component for Audio {
             Self::Msg::Start => self.start(),
             Self::Msg::Stop => self.stop(),
             Self::Msg::Slider(msg) => self.transition_time
-                    .update(msg, &mut orders.proxy(Self::Msg::Slider)),
+                .update(msg, &mut orders.proxy(Self::Msg::Slider)),
         }
     }
 }
@@ -184,6 +224,7 @@ impl UpdateEl<Msg> for &Audio {
 enum SliderMsg {
     Change(f64),
 }
+#[derive(Clone)]
 struct Slider {
     label: String,
     min: f64,
@@ -198,7 +239,7 @@ impl Slider {
             min,
             max,
             label: label.to_string(),
-            step: 0.001,
+            step: 0.00001,
         }
     }
     pub fn get_value(&self) -> f64 {
@@ -212,7 +253,7 @@ impl Component for Slider {
     type Msg = SliderMsg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match &msg {
-            Self::Msg::Change(v) => self.value = *v,
+            Self::Msg::Change(v) => self.set_value(*v),
         }
         orders.notify(msg);
     }

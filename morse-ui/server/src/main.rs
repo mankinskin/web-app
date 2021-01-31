@@ -1,11 +1,8 @@
 #![feature(async_closure)]
-use std::fmt::Debug;
 use tide::{
-    Body,
     Endpoint,
     Middleware,
     Request,
-    Response,
 };
 use tide_rustls::TlsListener;
 use tide_tracing::TraceMiddleware;
@@ -22,37 +19,37 @@ use chrono::{
 };
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
-	fmt::{
-		Layer,
-		Subscriber,
-	},
-	layer::SubscriberExt,
+    fmt::{
+        Layer,
+        Subscriber,
+    },
+    layer::SubscriberExt,
 };
 #[allow(unused)]
 use tracing::{
-	debug,
-	info,
-	error,
-	warn,
-	trace,
+    debug,
+    info,
+    error,
+    warn,
+    trace,
 };
 pub fn init_tracing() -> WorkerGuard {
-	tracing_log::LogTracer::init().unwrap();
-	let file_appender = tracing_appender::rolling::hourly("./logs", "log");
-	let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
-	let subscriber = Subscriber::builder()
-			.with_env_filter("hyper=error,reqwest=error,h2=error,[]=debug")
-			.finish()
-			.with(Layer::default().with_writer(file_writer));
-	tracing::subscriber::set_global_default(subscriber)
-		.expect("Unable to set global tracing subscriber");
-	info!("Tracing initialized.");
-	info!["Info logs enabled"];
-	trace!["Trace logs enabled"];
-	debug!["Debug logs enabled"];
-	warn!["Warning logs enabled"];
-	error!["Error logs enabled"];
-	guard
+    tracing_log::LogTracer::init().unwrap();
+    let file_appender = tracing_appender::rolling::hourly("./logs", "log");
+    let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+    let subscriber = Subscriber::builder()
+        .with_env_filter("hyper=error,reqwest=error,h2=error,[]=debug")
+        .finish()
+        .with(Layer::default().with_writer(file_writer));
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Unable to set global tracing subscriber");
+    info!("Tracing initialized.");
+    info!["Info logs enabled"];
+    trace!["Trace logs enabled"];
+    debug!["Debug logs enabled"];
+    warn!["Warning logs enabled"];
+    error!["Error logs enabled"];
+    guard
 }
 pub const KEY_PATH: &str = "../../keys";
 
@@ -69,11 +66,11 @@ fn session_middleware() -> tide::sessions::SessionMiddleware<tide::sessions::Mem
     tide::sessions::SessionMiddleware::new(
         tide::sessions::MemoryStore::new(),
         session_service::generate_secret().as_bytes(),
-    )
-    .with_cookie_name("session")
-    .with_session_ttl(Some(std::time::Duration::from_secs(
-        session_service::EXPIRATION_SECS as u64,
-    )))
+        )
+        .with_cookie_name("session")
+        .with_session_ttl(Some(std::time::Duration::from_secs(
+                    session_service::EXPIRATION_SECS as u64,
+                    )))
 }
 fn session_validator_middleware() -> impl Middleware<()> {
     tide::utils::Before(async move |mut request: Request<()>| {
@@ -92,8 +89,10 @@ fn session_validator_middleware() -> impl Middleware<()> {
         request
     })
 }
+#[allow(unused)]
 async fn websocket_connection(ws: tide_websockets::WebSocketConnection) {
 }
+#[allow(unused)]
 async fn wss_handler(request: Request<()>) -> tide::Result {
     WebSocket::new(async move |_, ws| {
         websocket_connection(ws).await;
@@ -122,15 +121,16 @@ async fn main() -> std::io::Result<()> {
     let mut server = tide::new();
     server.with(session_middleware());
     server.with(session_validator_middleware());
+    server.with(TraceMiddleware::new());
     server.at("/").get(index!());
     server.at("/favicon.ico").get(client_file!("favicon.ico"));
     server.at("/package.js").get(client_file!("pkg/package.js"));
     server.at("/package_bg.wasm").get(client_file!("pkg/package_bg.wasm"));
     server.listen(
-    TlsListener::build()
+        TlsListener::build()
         .addrs(SocketAddr::from(([0, 0, 0, 0], 8000)))
         .cert(to_key_path("tls.crt"))
         .key(to_key_path("tls.key")),
-    )
-    .await
+        )
+        .await
 }
