@@ -46,8 +46,8 @@ pub fn render() {
 enum Msg {
     Button(ButtonMsg),
     Audio(AudioMsg),
-    Click,
-    Release
+    Start,
+    Stop,
 }
 struct Root {
     button: Button,
@@ -57,8 +57,8 @@ impl Init<Url> for Root {
     fn init(_url: Url, orders: &mut impl Orders<Msg>) -> Self {
         orders.subscribe(|msg: ButtonMsg| {
             match msg {
-                ButtonMsg::Click => Some(Msg::Click),
-                ButtonMsg::Release => Some(Msg::Release),
+                ButtonMsg::Click => Some(Msg::Start),
+                ButtonMsg::Leave | ButtonMsg::Release => Some(Msg::Stop),
             }
         });
         Self {
@@ -77,12 +77,12 @@ impl Component for Root {
             Msg::Audio(msg) => {
                 self.audio.update(msg, &mut orders.proxy(Msg::Audio));
             },
-            Self::Msg::Click => {
-                debug!("Click!");
+            Self::Msg::Start => {
+                debug!("Start!");
                 self.audio.start();
             },
-            Self::Msg::Release => {
-                debug!("Release!");
+            Self::Msg::Stop => {
+                debug!("Stop!");
                 self.audio.stop();
             },
         }

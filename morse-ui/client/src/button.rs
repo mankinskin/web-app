@@ -17,6 +17,7 @@ use tracing::{
 pub enum ButtonMsg {
     Click,
     Release,
+    Leave,
 }
 pub struct Button;
 
@@ -26,6 +27,7 @@ impl Component for Button {
         match &msg {
             Self::Msg::Click => {},
             Self::Msg::Release => {},
+            Self::Msg::Leave => {},
         }
         orders.notify(msg);
     }
@@ -38,7 +40,7 @@ impl Viewable for Button {
                 Self::Msg::Click       
             }),
             ev(Ev::MouseLeave, |_| {
-                Self::Msg::Release       
+                Self::Msg::Leave
             }),
             ev(Ev::MouseUp, |_| {
                 Self::Msg::Release       
