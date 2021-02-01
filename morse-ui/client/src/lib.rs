@@ -68,7 +68,6 @@ pub async fn render() {
 
 #[derive(Debug, Clone)]
 enum Msg {
-    Button(ButtonMsg),
     Audio(AudioMsg),
     Slider(SliderMsg),
     Start,
@@ -76,7 +75,6 @@ enum Msg {
     Rendered(RenderInfo),
 }
 struct Root {
-    button: Button,
     audio: Audio,   
     speed_slider: Slider,
     unit_time: Duration,
@@ -99,7 +97,6 @@ impl Init<Url> for Root {
         let unit_time = Duration::from_millis(50);
         let speed_slider = Slider::new(unit_time.as_millis() as f64, 1.0, 500.0, "ms per Unit");
         Self {
-            button: Button,
             audio: Audio::init((), &mut orders.proxy(Msg::Audio)),
             speed_slider,
             unit_time,
@@ -141,9 +138,6 @@ impl Component for Root {
     type Msg = Msg;
     fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
         match msg {
-            Msg::Button(msg) => {
-                self.button.update(msg, &mut orders.proxy(Msg::Button));
-            },
             Msg::Audio(msg) => {
                 self.audio.update(msg, &mut orders.proxy(Msg::Audio));
             },
@@ -224,9 +218,9 @@ impl Viewable for Root {
                 }).collect();
         div![
             "Morse",
-            self.button
-                .view()
-                .map_msg(Msg::Button),
+            style!{
+                St::UserSelect => "none"; 
+            },
             p![format!("Boxes: {}", self.times.len())],
             svg![
                 attrs!{
@@ -242,6 +236,15 @@ impl Viewable for Root {
                 ],
                 boxes,
                 new_box,
+                ev(Ev::MouseDown, |_| {
+                    Self::Msg::Start       
+                }),
+                ev(Ev::MouseLeave, |_| {
+                    Self::Msg::Stop
+                }),
+                ev(Ev::MouseUp, |_| {
+                    Self::Msg::Stop       
+                }),
             ],
             self.audio
                 .view()
