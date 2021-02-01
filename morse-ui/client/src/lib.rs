@@ -15,7 +15,31 @@ use tracing::{
     info,
     trace,
 };
+use std::{
+    thread_local,
+    time::{
+        Duration,
+    },
+    rc::{
+        Rc,
+    },
+};
+use wasm_timer::{
+    Instant,
+    Delay,
+};
+
+use async_std::{
+    stream::{
+        Interval,
+        StreamExt,
+    },
+    sync::{
+        RwLock,
+    },
+};
 mod slider;
+use slider::*;
 mod button;
 use button::*;
 mod audio;
@@ -31,7 +55,7 @@ fn init_tracing() {
     error!("Error logs enabled.");
 }
 #[wasm_bindgen(start)]
-pub fn render() {
+pub async fn render() {
     init_tracing();
     debug!("Starting App");
     App::start(
@@ -46,12 +70,15 @@ pub fn render() {
 enum Msg {
     Button(ButtonMsg),
     Audio(AudioMsg),
+    Slider(SliderMsg),
     Start,
     Stop,
 }
 struct Root {
     button: Button,
     audio: Audio,   
+    speed_slider: Slider,
+    unit_time: Rc<RwLock<Duration>>,
 }
 impl Init<Url> for Root {
     fn init(_url: Url, orders: &mut impl Orders<Msg>) -> Self {
@@ -61,9 +88,24 @@ impl Init<Url> for Root {
                 ButtonMsg::Leave | ButtonMsg::Release => Some(Msg::Stop),
             }
         });
+        let unit_time = Duration::from_millis(50);
+        let speed_slider = Slider::new(unit_time.as_millis() as f64, 1.0, 500.0, "Speed");
+        let unit_time = Rc::new(RwLock::new(unit_time));
+        let unit_time2 = unit_time.clone();
+        spawn_local(async move {
+            let start = Instant::now();
+            let unit_time = unit_time2;
+            loop {
+                let dur = unit_time.read().await.clone();
+                async_std::task::sleep(dur).await;
+                debug!("Tick {}", Instant::now().duration_since(start).as_millis());
+            }
+        });
         Self {
             button: Button,
             audio: Audio::init((), &mut orders.proxy(Msg::Audio)),
+            speed_slider,
+            unit_time,
         }
     }
 }
@@ -76,6 +118,17 @@ impl Component for Root {
             },
             Msg::Audio(msg) => {
                 self.audio.update(msg, &mut orders.proxy(Msg::Audio));
+            },
+            Msg::Slider(msg) => {
+                match msg {
+                    SliderMsg::Change(v) => {
+                        let unit_time = self.unit_time.clone();
+                        spawn_local(async move {
+                            *unit_time.write().await = Duration::from_millis(v as u64);
+                        });
+                    }
+                }
+                self.speed_slider.update(msg, &mut orders.proxy(Msg::Slider));
             },
             Self::Msg::Start => {
                 debug!("Start!");
@@ -98,6 +151,9 @@ impl Viewable for Root {
             self.audio
                 .view()
                 .map_msg(Msg::Audio),
+            self.speed_slider
+                .view()
+                .map_msg(Msg::Slider),
         ]
     }
 }
