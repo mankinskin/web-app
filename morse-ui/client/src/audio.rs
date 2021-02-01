@@ -26,12 +26,11 @@ use crate::slider::*;
 pub enum AudioMsg {
     Start,
     Stop,
-    Slider(SliderMsg),
 }
 #[derive(Clone)]
 struct AudioRack {
     ctx: AudioContext,
-    osc: OscillatorNode,
+    osc: Option<OscillatorNode>,
     gain: GainNode,
     transition_time: f64,
 }
@@ -39,19 +38,15 @@ impl AudioRack {
     fn create() -> Self {
         info!("Initializing AudioRack");
         let ctx = web_sys::AudioContext::new().expect("Failed to create AudioContext.");
-        let osc = ctx.create_oscillator().expect("Failed to create Oscillator.");
-        osc.set_type(OscillatorType::Sine);
         let gain = ctx.create_gain().expect("Failed to create Gain.");
         gain.gain().set_value(0.0);
 
-        osc.connect_with_audio_node(&gain).expect("Can't connect Oscillator with Gain.");
         gain.connect_with_audio_node(&ctx.destination()).expect("Can't connect Oscillator with Context destination.");
-        osc.start().expect("Failed to start Oscillator.");
         Self {
             ctx,
-            osc,
             gain,
-            transition_time: 0.0004,
+            osc: None,
+            transition_time: 0.001,
         }
     }
     #[allow(unused)]
@@ -59,40 +54,56 @@ impl AudioRack {
         self.gain.gain().set_value(gain.clamp(0.0, 1.0));
     }
     pub fn start(&mut self) {
-        self.gain_transition(1.0, 0.01);
+        let osc = self.ctx.create_oscillator().expect("Failed to create Oscillator.");
+        osc.set_type(OscillatorType::Sine);
+        osc.connect_with_audio_node(&self.gain).expect("Can't connect Oscillator with Gain.");
+        let now = self.ctx.current_time();
+        osc.start_with_when(now).expect("Failed to start Oscillator.");
+        self.osc = Some(osc);
+        self.linear_ramp(1.0, now + self.transition_time);
     }
     pub fn stop(&mut self) {
-        self.gain_transition(0.0, 0.02);
+        if let Some(osc) = self.osc.take() {
+            let now = self.ctx.current_time();
+            self.set_gain_at(1.0, now);
+            let length = self.transition_time;
+            osc.stop_with_when(now + length).expect("Failed to stop Oscillator.");
+            self.linear_ramp(0.0, now + length);
+        }
     }
     pub fn set_transition_time(&mut self, time: f64) {
         self.transition_time = time;
     }
-    pub fn gain_transition(&mut self, target: f32, curve: f64) {
-        info!("Transition time {}", self.transition_time);
+    pub fn linear_ramp(&mut self, target: f32, time: f64) {
         self.gain.gain()
-            .set_target_at_time(
+            .linear_ramp_to_value_at_time(
                 target.clamp(0.0, 1.0),
-                curve,
-                self.transition_time,
+                time,
+                )
+            .expect("Failed to start gain transition.");
+    }
+    pub fn set_gain_at(&mut self, target: f32, time: f64) {
+        self.gain.gain()
+            .set_value_at_time(
+                target.clamp(0.0, 1.0),
+                time,
                 )
             .expect("Failed to start gain transition.");
     }
 }
 impl Drop for AudioRack {
     fn drop(&mut self) {
-        self.osc.stop().expect("Failed to stop Oscillator.");
+        self.stop();
     }
 }
 #[derive(Clone)]
 pub struct Audio {
     rack: Option<AudioRack>,
-    transition_time: Slider,
 }
 impl Init<()> for Audio {
     fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         Self {
             rack: None,
-            transition_time: Slider::new(0.0004, 0.0, 0.1, "transition_time"),
         }
     }
 }
@@ -102,9 +113,7 @@ impl Audio {
     }
     pub fn start(&mut self) {
         self.initialize();
-        let time = self.transition_time.get_value();
         self.rack.as_mut().map(|rack| {
-            rack.set_transition_time(time);
             rack.start();
             rack
         });
@@ -126,17 +135,12 @@ impl Component for Audio {
         match msg {
             Self::Msg::Start => self.start(),
             Self::Msg::Stop => self.stop(),
-            Self::Msg::Slider(msg) => self.transition_time
-                .update(msg, &mut orders.proxy(Self::Msg::Slider)),
         }
     }
 }
 impl Viewable for Audio {
     fn view(&self) -> Node<AudioMsg> {
         div![
-            self.transition_time
-                .view()
-                .map_msg(AudioMsg::Slider),
         ]
     }
 }
