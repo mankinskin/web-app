@@ -44,13 +44,14 @@ features = [
   "Node",
   "Document",
   "Window",
-  'AudioContext',
-  'AudioDestinationNode',
-  'AudioNode',
-  'AudioParam',
-  'GainNode',
-  'OscillatorNode',
-  'OscillatorType',
+  "AudioContext",
+  "AudioDestinationNode",
+  "AudioNode",
+  "AudioParam",
+  "GainNode",
+  "OscillatorNode",
+  "OscillatorType",
+  "Performance",
 ]
 
 [dependencies.tracing-wasm]
