@@ -20,8 +20,8 @@ use web_sys::{
     OscillatorType,
     GainNode,
 };
-use crate::slider::*;
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum AudioMsg {
     Start,
@@ -71,6 +71,7 @@ impl AudioRack {
             self.linear_ramp(0.0, now + length);
         }
     }
+    #[allow(unused)]
     pub fn set_transition_time(&mut self, time: f64) {
         self.transition_time = time;
     }
@@ -131,7 +132,7 @@ impl Audio {
 }
 impl Component for Audio {
     type Msg = AudioMsg;
-    fn update(&mut self, msg: Self::Msg, orders: &mut impl Orders<Self::Msg>) {
+    fn update(&mut self, msg: Self::Msg, _orders: &mut impl Orders<Self::Msg>) {
         match msg {
             Self::Msg::Start => self.start(),
             Self::Msg::Stop => self.stop(),

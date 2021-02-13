@@ -35,6 +35,7 @@ impl Slider {
             step: 0.00001,
         }
     }
+    #[allow(unused)]
     pub fn get_value(&self) -> f64 {
         self.value
     }
