@@ -100,11 +100,13 @@ impl Drop for AudioRack {
 #[derive(Clone)]
 pub struct Audio {
     rack: Option<AudioRack>,
+    started: bool,
 }
 impl Init<()> for Audio {
     fn init(_: (), _orders: &mut impl Orders<<Self as Component>::Msg>) -> Self {
         Self {
             rack: None,
+            started: false,
         }
     }
 }
@@ -113,17 +115,23 @@ impl Audio {
         self.rack.get_or_insert_with(AudioRack::create);
     }
     pub fn start(&mut self) {
-        self.initialize();
-        self.rack.as_mut().map(|rack| {
-            rack.start();
-            rack
-        });
+        if !self.started {
+            self.started = true;
+            self.initialize();
+            self.rack.as_mut().map(|rack| {
+                rack.start();
+                rack
+            });
+        }
     }
     pub fn stop(&mut self) {
-        self.rack.as_mut().map(|rack| {
-            rack.stop();
-            rack
-        });
+        if self.started {
+            self.rack.as_mut().map(|rack| {
+                rack.stop();
+                rack
+            });
+            self.started = false;
+        }
     }
     #[allow(unused)]
     pub fn set_gain(&mut self, gain: f32) {

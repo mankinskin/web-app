@@ -14,11 +14,8 @@ use tracing::{
     info,
     trace,
 };
-use std::{
-    time::{
-        Duration,
-    },
-};
+use std::time::Duration;
+use web_sys::KeyboardEvent;
 #[derive(Debug, Clone)]
 pub enum Msg {
     Start,
@@ -68,8 +65,10 @@ impl Timeline {
         self.update_time();
     }
     fn start(&mut self) {
-        let now = self.take_timestamp();
-        self.started = Some(now);
+        if self.started.is_none() {
+            let now = self.take_timestamp();
+            self.started = Some(now);
+        }
     }
     fn stop(&mut self) {
         if let Some(start) = self.started.take() {
@@ -139,7 +138,24 @@ impl Timeline {
 }
 impl Init<Duration> for Timeline {
     fn init(unit_time: Duration, orders: &mut impl Orders<Msg>) -> Self {
-        orders.after_next_render(Msg::Rendered);
+        orders
+            .stream(streams::window_event(Ev::KeyDown, |event| {
+                let event: KeyboardEvent = event.unchecked_into();
+                debug!("{}", event.key_code());
+                match event.key_code() {
+                    32 => Some(Msg::Start),
+                    _ => None
+                }
+            }))
+            .stream(streams::window_event(Ev::KeyUp, |event| {
+                let event: KeyboardEvent = event.unchecked_into();
+                debug!("{}", event.key_code());
+                match event.key_code() {
+                    32 => Some(Msg::Stop),
+                    _ => None
+                }
+            }))
+            .after_next_render(Msg::Rendered);
         Self {
             boxes: Vec::new(),
             started: None,

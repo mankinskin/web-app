@@ -40,13 +40,13 @@ fn init_tracing() {
 #[wasm_bindgen(start)]
 pub async fn render() {
     init_tracing();
-    debug!("Starting App");
+    //debug!("Starting App");
     App::start(
-            "app",
-            Root::init,
-            |msg, model, orders| model.update(msg, orders),
-            Viewable::view,
-        );
+        "app",
+        Root::init,
+        |msg, model, orders| model.update(msg, orders),
+        Viewable::view,
+    );
 }
 
 #[derive(Debug, Clone)]
