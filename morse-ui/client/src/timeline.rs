@@ -118,6 +118,7 @@ impl Timeline {
             attrs!{
                 At::D => format!("M{} 0 V{}", self.width, self.height),
                 At::Stroke => "black",
+                At::StrokeWidth => "3px",
             },
         ]
     }
@@ -202,27 +203,52 @@ impl Component for Timeline {
 impl Viewable for Timeline {
     fn view(&self) -> Node<Msg> {
         div![
-            p![format!("Boxes: {}", self.boxes.len())],
-            p![format!("Guides: {}", self.guides.len())],
-            svg![
-                attrs!{
-                    At::Width => format!("{}px", self.width),
-                    At::Height => format!("{}px", self.height),
+            style!{
+                St::Display => "flex";
+            },
+            div![
+                style!{
+                    St::Margin => "auto";
                 },
-                self.guides(),
-                self.start_line(),
-                self.boxes(),
-                self.new_box(),
-                ev(Ev::MouseDown, |_| {
-                    Self::Msg::Start       
-                }),
-                ev(Ev::MouseLeave, |_| {
-                    Self::Msg::Stop
-                }),
-                ev(Ev::MouseUp, |_| {
-                    Self::Msg::Stop       
-                }),
-            ],
+                svg![
+                    style!{
+                        St::BackgroundColor => "#ffffff";
+                        St::BorderStyle => "solid";
+                        St::Display => "block";
+                        St::BorderColor => "#87898c";
+                        St::BorderWidth => "4px";
+                        St::BorderRadius => "4px";
+                        St::Width => "100%";
+                    },
+                    attrs!{
+                        At::ViewBox => format!("0 0 {} {}", self.width, self.height),
+                        At::Height => format!("{}px", self.height),
+                        At::PreserveAspectRatio => "none",
+                    },
+                    self.guides(),
+                    self.start_line(),
+                    self.boxes(),
+                    self.new_box(),
+                    ev(Ev::MouseDown, |_| {
+                        Self::Msg::Start
+                    }),
+                    ev(Ev::MouseLeave, |_| {
+                        Self::Msg::Stop
+                    }),
+                    ev(Ev::MouseUp, |_| {
+                        Self::Msg::Stop
+                    }),
+                ],
+                span![
+                    style!{
+                        St::FontSize => "6pt";
+                    },
+                    format!("Boxes: {}\tGuides: {}",
+                        self.boxes.len(),
+                        self.guides.len()
+                    )
+                ],
+            ]
         ]
     }
 }

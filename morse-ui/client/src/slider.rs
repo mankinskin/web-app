@@ -55,7 +55,13 @@ impl Component for Slider {
 impl Viewable for Slider {
     fn view(&self) -> Node<SliderMsg> {
         div![
-            &self.label,
+            span![
+                style!{
+                    St::FontSize => "9pt";
+                    St::VerticalAlign => "middle";
+                },
+                &self.label,
+            ],
             input![
                 attrs!{
                     At::Type => "range";
@@ -64,11 +70,21 @@ impl Viewable for Slider {
                     At::Value => format!("{}", self.value);
                     At::Step => format!("{}", self.step);
                 },
+                style!{
+                    St::VerticalAlign => "middle";
+                    St::MaxWidth => "100%";
+                },
                 input_ev(Ev::Input, |s| {
                     SliderMsg::Change(s.parse::<f64>().expect("Failed to parse slider value to f64"))
                 })
             ],
-            format!("{}", self.value),
+            span![
+                style!{
+                    St::FontSize => "9pt";
+                    St::VerticalAlign => "middle";
+                },
+                format!("{}", self.value),
+            ],
         ]
     }
 }
