@@ -118,6 +118,7 @@ impl Component for Root {
 
 impl Viewable for Root {
     fn view(&self) -> Node<Msg> {
+        let text = self.timeline.parse_morse();
         div![
             style!{
                 St::Height => "60%";
@@ -158,7 +159,7 @@ impl Viewable for Root {
                         St::BorderRadius => "5px";
                         St::Padding => "3px";
                     },
-                    "text...",
+                    text,
                 ],
                 self.audio
                     .view()

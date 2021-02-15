@@ -136,6 +136,51 @@ impl Timeline {
             Vec::new()
         }
     }
+    fn boxes_to_morse_text(&self) -> String {
+        if self.boxes.len() < 1 {
+            return String::new();
+        }
+        let mut text = String::new();
+        let mut last = 0;
+        let mut count = 0;
+        let mut space = 0;
+        for t in &self.guides {
+            if let Some((start, end)) = self.boxes.get(last) {
+                if t < start {
+                    space += 1;
+                    if space > 1 {
+                        text.push(' ');
+                        space = 0;
+                    }
+                } else {
+                    space = 0;
+                    count += 1;
+                    if count > 2 {
+                        text.push('-');
+                    } else {
+                        if end <= t {
+                            text.push('.');
+                        }
+                    }
+                    if end <= t {
+                        count = 0;
+                        last += 1;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        text
+    }
+    pub fn parse_morse(&self) -> String {
+        let text = self.boxes_to_morse_text().trim().to_string();
+        if !text.is_empty() {
+            morse::decode::decode(text).unwrap_or_else(|e| format!("{:?}", e))
+        } else {
+            text
+        }
+    }
 }
 impl Init<Duration> for Timeline {
     fn init(unit_time: Duration, orders: &mut impl Orders<Msg>) -> Self {
