@@ -129,8 +129,9 @@ impl Viewable for Root {
                 style!{
                     St::UserSelect => "none"; 
                     St::Margin => "auto";
-                    St::MinWidth => "60%";
-                    St::MaxWidth => "90%";
+                    St::MinWidth => "30%";
+                    St::Width => "500px";
+                    St::MaxWidth => "100%";
                     St::BackgroundColor => "#f2efdc";
                     St::Padding => "5px 20px 20px 20px";
                     St::BorderRadius => "20px";
@@ -145,7 +146,7 @@ impl Viewable for Root {
                 self.timeline
                     .view()
                     .map_msg(Msg::Timeline),
-                p![
+                span![
                     style!{
                         St::FontSize => "9pt";
                     },
@@ -158,6 +159,7 @@ impl Viewable for Root {
                         St::BackgroundColor => "#ffffff";
                         St::BorderRadius => "5px";
                         St::Padding => "3px";
+                        St::Width => "100%";
                     },
                     text,
                 ],
