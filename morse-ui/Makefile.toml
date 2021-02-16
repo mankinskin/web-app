@@ -24,7 +24,7 @@ command = "cargo"
 args = ["make", "--cwd", "client"]
 
 [tasks.clean]
-description = "Clean binance bot"
+description = "Clean"
 dependencies = ["clean_client", "clean_server"]
 
 [tasks.clean_client]
