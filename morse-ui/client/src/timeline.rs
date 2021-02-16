@@ -289,7 +289,7 @@ impl Viewable for Timeline {
                         St::FontSize => "6pt";
                     },
                     format!("Boxes: {}\tGuides: {}",
-                        self.boxes.len(),
+                        self.boxes.len() + self.started.is_some() as usize,
                         self.guides.len()
                     )
                 ],
