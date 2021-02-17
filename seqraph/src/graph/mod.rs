@@ -292,7 +292,7 @@ mod tests {
         Mutex,
         MutexGuard,
     };
-    lazy_static! {
+    lazy_static::lazy_static! {
         static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
         static ref EDGES: Vec<(char, char, usize)> =
             Vec::from([('a', 'b', 1), ('b', 'c', 2), ('c', 'a', 3)]);

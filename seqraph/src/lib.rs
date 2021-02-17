@@ -1,13 +1,3 @@
-extern crate itertools;
-extern crate petgraph;
-extern crate pretty_assertions;
-#[allow(unused_imports)] // only used in tests
-#[macro_use]
-extern crate lazy_static;
-extern crate nalgebra;
-extern crate serde;
-extern crate serde_json;
-
 pub mod graph;
 pub mod mapping;
 //pub mod grammar;
@@ -205,7 +195,7 @@ impl<N: NodeData + Mappable> DerefMut for SequenceGraph<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    lazy_static! {
+    lazy_static::lazy_static! {
         static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
         static ref SEQS: Vec<&'static str> = Vec::from(["abc", "abb", "bcb"]);
         static ref EDGES: Vec<(Sequenced<char>, Sequenced<char>, usize)> = {
@@ -244,7 +234,7 @@ mod tests {
     fn has_read_seq() {
         G.write_to_file("seq_graph").unwrap();
         for (l, r, w) in EDGES.iter() {
-            assert!(G.has_node_edge(l, r, w), format!("({}, {}, {})", l, r, w));
+            assert!(G.has_node_edge(l, r, w), "({}, {}, {})", l, r, w);
         }
     }
 }
