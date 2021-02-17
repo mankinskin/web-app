@@ -9,8 +9,8 @@ use graph::{
 use mapping::{
     Mappable,
     Mapped,
-    Sequenced,
-    Symbol,
+    Node,
+    Token,
 };
 use serde::{
     Deserialize,
@@ -24,12 +24,14 @@ use std::{
     },
 };
 
+/// Graph of N: NodeData + Mappable mapping possible distances
+/// between nodes to prefix and postfix nodes
 #[derive(Debug)]
 pub struct SequenceGraph<N>
 where
     N: NodeData + Mappable,
 {
-    graph: Graph<Symbol<N>, usize>,
+    graph: Graph<Node<N>, usize>,
 }
 impl<N> SequenceGraph<N>
 where
@@ -45,20 +47,20 @@ where
     ) -> Option<NodeInfo<N>> {
         let sym = seq.clone().next().unwrap();
         let sym = match <T as Into<char>>::into(sym.clone()) {
-            '*' => Sequenced::Start,
-            '#' => Sequenced::End,
-            _ => Sequenced::Element(<T as Into<N>>::into(sym)),
+            '*' => Token::Start,
+            '#' => Token::End,
+            _ => Token::Element(<T as Into<N>>::into(sym)),
         };
         self.get_node_info(&sym)
     }
     pub fn read_sequence<T: Into<N>, I: Iterator<Item = T>>(&mut self, seq: I) {
         let seq = N::sequenced(seq);
         for index in 0..seq.len() {
-            self.read_sequence_element(&seq[..], index);
+            self.read_to_node(&seq[..], index);
         }
     }
-    //pub fn knows_sequence(&self, seq: &[Sequenced<N>]) -> bool {
-    //	let mappings: Option<Vec<Symbol<N>>> =
+    //pub fn knows_sequence(&self, seq: &[Token<N>]) -> bool {
+    //	let mappings: Option<Vec<Node<N>>> =
     //		seq.iter().map(|sym| self.find_node_weight(sym))
     //		.collect();
     //	if let Some(mappings) = mappings {
@@ -67,7 +69,7 @@ where
     //			.fold(
     //	} else { return false; }
     //}
-    fn read_sequence_element(&mut self, seq: &[Sequenced<N>], index: usize) {
+    fn read_to_node(&mut self, seq: &[Token<N>], index: usize) {
         let element = &seq[index];
         let end = seq.len() - 1;
         for pre in 0..index {
@@ -76,17 +78,17 @@ where
             for succ in (index + 1)..=end {
                 let r = &seq[succ];
                 let rd = succ - index;
-                self.insert_element_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
+                self.insert_node_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
             }
         }
     }
-    fn insert_element_neighborhood(
+    fn insert_node_neighborhood(
         &mut self,
-        l: Sequenced<N>,
-        ld: usize,
-        x: Sequenced<N>,
-        rd: usize,
-        r: Sequenced<N>,
+        l: Token<N>, // left-hand element
+        ld: usize,   // distance to left-hand element
+        x: Token<N>, // center element
+        rd: usize,   // distance to right-hand element
+        r: Token<N>, // right-hand element
     ) {
         let li = self.add_node(l);
         let xi = self.add_node(x);
@@ -100,7 +102,7 @@ where
             .add_transition(le, re);
     }
     #[allow(unused)]
-    fn groups_to_string(groups: Vec<Vec<Symbol<N>>>) -> String {
+    fn groups_to_string(groups: Vec<Vec<Node<N>>>) -> String {
         let mut lines = Vec::new();
         let max = groups.iter().map(Vec::len).max().unwrap_or(0);
         for i in 0..max {
@@ -120,29 +122,28 @@ where
             )
         })
     }
-    fn map_to_data(groups: Vec<Vec<Symbol<N>>>) -> Vec<Vec<Sequenced<N>>> {
+    fn map_to_tokens(groups: Vec<Vec<Node<N>>>) -> Vec<Vec<Token<N>>> {
         groups
             .iter()
-            .map(|g| g.iter().map(|m| m.data.clone()).collect())
+            .map(|g| g.iter().map(|m| m.token.clone()).collect())
             .collect()
     }
-    pub fn get_node_info<T: PartialEq<Symbol<N>>>(&self, element: &T) -> Option<NodeInfo<N>> {
+    pub fn get_node_info<T: PartialEq<Node<N>>>(&self, element: &T) -> Option<NodeInfo<N>> {
         let node = self.find_node_weight(element)?;
-        let mut incoming_groups: Vec<Vec<Symbol<N>>> =
-            node.mapping().incoming_distance_groups(&self);
+        let mut incoming_groups: Vec<Vec<Node<N>>> = node.mapping().incoming_distance_groups(&self);
         incoming_groups.reverse();
-        let outgoing_groups: Vec<Vec<Symbol<N>>> = node.mapping().outgoing_distance_groups(&self);
+        let outgoing_groups: Vec<Vec<Node<N>>> = node.mapping().outgoing_distance_groups(&self);
         Some(NodeInfo {
-            element: node.data,
-            incoming_groups: Self::map_to_data(incoming_groups),
-            outgoing_groups: Self::map_to_data(outgoing_groups),
+            element: node.token,
+            incoming_groups: Self::map_to_tokens(incoming_groups),
+            outgoing_groups: Self::map_to_tokens(outgoing_groups),
         })
     }
     ///// Join two EdgeMappings to a new EdgeMapping
-    //pub fn join_mappings(&self, lhs: &Symbol<N>, rhs: &Symbol<N>) -> Option<Symbol<N>> {
+    //pub fn join_mappings(&self, lhs: &Node<N>, rhs: &Node<N>) -> Option<Node<N>> {
     //	// TODO: make lhs and rhs contain indices
-    //	//let left_index = self.find_node_index(&lhs.data)?;
-    //	//let right_index = self.find_node_index(&rhs.data)?;
+    //	//let left_index = self.find_node_index(&lhs.token)?;
+    //	//let right_index = self.find_node_index(&rhs.token)?;
     //	let left_outgoing = &lhs.mapping().outgoing;
     //	let right_incoming = &rhs.mapping().incoming;
 
@@ -162,12 +163,12 @@ where
     //	//let outgoing_context = right_matrix.column(right_matrix_index);
 
     //	// intersect left incoming groups i with right incoming groups i + left.width
-    //	let left_width = lhs.data.width();
+    //	let left_width = lhs.token.width();
     //	let left_incoming_groups = lhs.mapping().incoming_distance_groups(&self);
     //	let right_incoming_groups = rhs.mapping().incoming_distance_groups(&self);
 
     //	// intersect left outgoing groups i + right.width with right outgoing groups i
-    //	let right_width = rhs.data.width();
+    //	let right_width = rhs.token.width();
     //	let left_outgoing_groups = lhs.mapping().outgoing_distance_groups(&self);
     //	let right_outgoing_groups = rhs.mapping().outgoing_distance_groups(&self);
     //	//
@@ -176,12 +177,12 @@ where
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeInfo<N: NodeData> {
-    pub element: Sequenced<N>,
-    pub incoming_groups: Vec<Vec<Sequenced<N>>>,
-    pub outgoing_groups: Vec<Vec<Sequenced<N>>>,
+    pub element: Token<N>,
+    pub incoming_groups: Vec<Vec<Token<N>>>,
+    pub outgoing_groups: Vec<Vec<Token<N>>>,
 }
 impl<N: NodeData + Mappable> Deref for SequenceGraph<N> {
-    type Target = Graph<Symbol<N>, usize>;
+    type Target = Graph<Node<N>, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
@@ -198,20 +199,20 @@ mod tests {
     lazy_static::lazy_static! {
         static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
         static ref SEQS: Vec<&'static str> = Vec::from(["abc", "abb", "bcb"]);
-        static ref EDGES: Vec<(Sequenced<char>, Sequenced<char>, usize)> = {
+        static ref EDGES: Vec<(Token<char>, Token<char>, usize)> = {
             Vec::from([
-                (Sequenced::Start, 'a'.into(), 1),
-                (Sequenced::Start, 'b'.into(), 1),
-                (Sequenced::Start, 'b'.into(), 2),
-                (Sequenced::Start, 'b'.into(), 3),
-                (Sequenced::Start, 'c'.into(), 2),
-                (Sequenced::Start, 'c'.into(), 3),
-                ('a'.into(), Sequenced::End, 3),
-                ('b'.into(), Sequenced::End, 3),
-                ('b'.into(), Sequenced::End, 2),
-                ('b'.into(), Sequenced::End, 1),
-                ('c'.into(), Sequenced::End, 2),
-                ('c'.into(), Sequenced::End, 1),
+                (Token::Start, 'a'.into(), 1),
+                (Token::Start, 'b'.into(), 1),
+                (Token::Start, 'b'.into(), 2),
+                (Token::Start, 'b'.into(), 3),
+                (Token::Start, 'c'.into(), 2),
+                (Token::Start, 'c'.into(), 3),
+                ('a'.into(), Token::End, 3),
+                ('b'.into(), Token::End, 3),
+                ('b'.into(), Token::End, 2),
+                ('b'.into(), Token::End, 1),
+                ('c'.into(), Token::End, 2),
+                ('c'.into(), Token::End, 1),
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'b'.into(), 1),

@@ -96,14 +96,14 @@ impl<'a> EdgeMapping {
     pub fn incoming_distance_groups<N: NodeData + Wide>(
         &self,
         graph: &SequenceGraph<N>,
-    ) -> Vec<Vec<Symbol<N>>> {
+    ) -> Vec<Vec<Node<N>>> {
         graph.distance_group_source_weights(self.incoming.iter())
     }
     /// Get distance groups for outgoing edges
     pub fn outgoing_distance_groups<N: NodeData + Wide>(
         &self,
         graph: &SequenceGraph<N>,
-    ) -> Vec<Vec<Symbol<N>>> {
+    ) -> Vec<Vec<Node<N>>> {
         graph.distance_group_target_weights(self.outgoing.iter())
     }
 }
@@ -123,128 +123,128 @@ impl Wide for char {
 
 /// Type for storing elements of a sequence
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum Sequenced<T: NodeData> {
+pub enum Token<T: NodeData> {
     Element(T),
     Start,
     End,
 }
-impl<T: NodeData + Display> Display for Sequenced<T> {
+impl<T: NodeData + Display> Display for Token<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Sequenced::Element(t) => t.to_string(),
-                Sequenced::Start => "START".to_string(),
-                Sequenced::End => "END".to_string(),
+                Token::Element(t) => t.to_string(),
+                Token::Start => "START".to_string(),
+                Token::End => "END".to_string(),
             }
         )
     }
 }
-impl<T: NodeData + Wide> Wide for Sequenced<T> {
+impl<T: NodeData + Wide> Wide for Token<T> {
     fn width(&self) -> usize {
         match self {
-            Sequenced::Element(t) => t.width(),
-            Sequenced::Start => 0,
-            Sequenced::End => 0,
+            Token::Element(t) => t.width(),
+            Token::Start => 0,
+            Token::End => 0,
         }
     }
 }
-impl<N: NodeData> From<N> for Sequenced<N> {
+impl<N: NodeData> From<N> for Token<N> {
     fn from(e: N) -> Self {
-        Sequenced::Element(e)
+        Token::Element(e)
     }
 }
-impl<N: NodeData> PartialEq<Symbol<N>> for Sequenced<N> {
-    fn eq(&self, rhs: &Symbol<N>) -> bool {
-        *self == rhs.data
+impl<N: NodeData> PartialEq<Node<N>> for Token<N> {
+    fn eq(&self, rhs: &Node<N>) -> bool {
+        *self == rhs.token
     }
 }
 
-/// Stores sequenced data with an edge map
+/// Stores sequenced tokens with an edge map
 #[derive(PartialEq, Clone)]
-pub struct Symbol<N: NodeData> {
-    pub data: Sequenced<N>,
+pub struct Node<N: NodeData> {
+    pub token: Token<N>,
     mapping: EdgeMapping,
 }
-impl PartialEq<Symbol<char>> for char {
-    fn eq(&self, rhs: &Symbol<char>) -> bool {
-        *self == rhs.data
+impl PartialEq<Node<char>> for char {
+    fn eq(&self, rhs: &Node<char>) -> bool {
+        *self == rhs.token
     }
 }
-impl PartialEq<Sequenced<char>> for char {
-    fn eq(&self, rhs: &Sequenced<char>) -> bool {
+impl PartialEq<Token<char>> for char {
+    fn eq(&self, rhs: &Token<char>) -> bool {
         match rhs {
-            Sequenced::Element(e) => e == self,
+            Token::Element(e) => e == self,
             _ => false,
         }
     }
 }
-impl<N: NodeData> PartialEq<N> for Symbol<N> {
+impl<N: NodeData> PartialEq<N> for Node<N> {
     fn eq(&self, rhs: &N) -> bool {
-        self.data == *rhs
+        self.token == *rhs
     }
 }
-impl<N: NodeData> PartialEq<N> for Sequenced<N> {
+impl<N: NodeData> PartialEq<N> for Token<N> {
     fn eq(&self, rhs: &N) -> bool {
         match self {
-            Sequenced::Element(e) => e == rhs,
+            Token::Element(e) => e == rhs,
             _ => false,
         }
     }
 }
-impl<N: NodeData> Debug for Symbol<N> {
+impl<N: NodeData> Debug for Node<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.data)
+        write!(f, "{:?}", self.token)
     }
 }
-impl<N: NodeData> Symbol<N> {
-    pub fn new(data: N) -> Self {
-        Self::from(Sequenced::from(data))
+impl<N: NodeData> Node<N> {
+    pub fn new(token: N) -> Self {
+        Self::from(Token::from(token))
     }
 }
-impl<N: NodeData> From<Sequenced<N>> for Symbol<N> {
-    fn from(data: Sequenced<N>) -> Self {
+impl<N: NodeData> From<Token<N>> for Node<N> {
+    fn from(token: Token<N>) -> Self {
         Self {
-            data,
+            token,
             mapping: Default::default(),
         }
     }
 }
-impl<N: NodeData> From<N> for Symbol<N> {
+impl<N: NodeData> From<N> for Node<N> {
     fn from(e: N) -> Self {
-        Symbol::new(e)
+        Node::new(e)
     }
 }
-impl<T: NodeData + Display> Display for Symbol<T> {
+impl<T: NodeData + Display> Display for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.data)
+        write!(f, "{}", self.token)
     }
 }
-impl<T: NodeData + Wide> Wide for Symbol<T> {
+impl<T: NodeData + Wide> Wide for Node<T> {
     fn width(&self) -> usize {
-        self.data.width()
+        self.token.width()
     }
 }
-/// Trait for data that can be wrapped in a sequence
+/// Trait for token that can be wrapped in a sequence
 pub trait Sequencable: NodeData {
-    fn sequenced<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Sequenced<Self>> {
-        let mut v = vec![Sequenced::Start];
-        v.extend(seq.map(|t| Sequenced::Element(t.into())));
-        v.push(Sequenced::End);
+    fn sequenced<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
+        let mut v = vec![Token::Start];
+        v.extend(seq.map(|t| Token::Element(t.into())));
+        v.push(Token::End);
         v
     }
 }
-impl<T: NodeData + Into<Sequenced<T>>> Sequencable for T {}
-/// Trait for data that can be mapped in a sequence
+impl<T: NodeData + Into<Token<T>>> Sequencable for T {}
+/// Trait for token that can be mapped in a sequence
 pub trait Mappable: Sequencable + Wide {}
-impl<T: NodeData + Wide + Into<Symbol<T>>> Mappable for T {}
+impl<T: NodeData + Wide + Into<Node<T>>> Mappable for T {}
 
 pub trait Mapped: Wide {
     fn mapping(&self) -> &EdgeMapping;
     fn mapping_mut(&mut self) -> &mut EdgeMapping;
 }
-impl<N: NodeData + Wide> Mapped for Symbol<N> {
+impl<N: NodeData + Wide> Mapped for Node<N> {
     fn mapping(&self) -> &EdgeMapping {
         &self.mapping
     }
