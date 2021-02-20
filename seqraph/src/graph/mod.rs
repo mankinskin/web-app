@@ -42,16 +42,20 @@ where
     /// Nodes
 
     /// Return a NodeIndex for a node with NodeData
-    pub fn add_node<T: PartialEq<N> + Into<N>>(&mut self, element: T) -> NodeIndex {
+    pub fn add_node(&mut self, element: N) -> NodeIndex {
         if let Some(i) = self.find_node_index(&element) {
             i
         } else {
-            self.graph.add_node(element.into())
+            self.graph.add_node(element)
         }
     }
     /// Get NodeWeight for NodeIndex
     pub fn get_node_weight(&self, i: NodeIndex) -> Option<N> {
         self.graph.node_weight(i).map(Clone::clone)
+    }
+    /// Get mutable NodeWeight for NodeIndex
+    pub fn get_node_weight_mut(&mut self, i: NodeIndex) -> Option<&mut N> {
+        self.graph.node_weight_mut(i)
     }
     /// Find NodeIndex for NodeData, if any
     pub fn find_node_index<T: PartialEq<N>>(&self, element: &T) -> Option<NodeIndex> {
@@ -82,6 +86,10 @@ where
     /// True if NodeData has node in graph
     pub fn has_node<T: PartialEq<N>>(&self, element: &T) -> bool {
         self.find_node_index(element).is_some()
+    }
+    /// True if NodeData has all nodes in graph
+    pub fn has_nodes<T: PartialEq<N>>(&self, mut elements: impl Iterator<Item = T>) -> bool {
+        elements.all(|e| self.find_node_index(&e).is_some())
     }
     /// Map NodeIndices to weights
     pub fn node_weights(
