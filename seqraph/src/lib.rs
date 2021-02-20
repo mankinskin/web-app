@@ -12,19 +12,22 @@ use mapping::{
     Token,
     Edge,
     TokenData,
-};
-use serde::{
-    Deserialize,
-    Serialize,
+    LoadedNode,
 };
 use std::{
     fmt::Debug,
+};
+use std::{
     ops::{
         Deref,
         DerefMut,
     },
 };
 use petgraph::graph::NodeIndex;
+#[allow(unused)]
+use tracing::{
+    debug,
+};
 
 /// Graph of T: TokenData + Mappable mapping possible distances
 /// between nodes to prefix and postfix nodes
@@ -67,15 +70,20 @@ where
         for pre in 0..index {
             let l = &seq[pre];
             let ld = index - pre;
-            for succ in (index + 1)..=end {
-                let r = &seq[succ];
-                let rd = succ - index;
+            for post in (index + 1)..=end {
+                let r = &seq[post];
+                let rd = post - index;
                 self.insert_node_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
             }
         }
     }
     pub fn add_node(&mut self, token: Token<T>) -> NodeIndex {
-        self.graph.add_node(Node::new(token))
+        self.graph.add_node(&Node::new(token))
+    }
+    pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
+        let index = self.graph.find_node_index(p)?;
+        let node = self.graph.node_weight(index)?;
+        Some(LoadedNode::of(index, node.clone()))
     }
     fn insert_node_neighborhood(
         &mut self,
@@ -85,13 +93,14 @@ where
         rd: usize,   // distance to right-hand element
         r: Token<T>, // right-hand element
     ) {
-        let li = self.add_node(l);
-        let xi = self.add_node(x);
-        let ri = self.add_node(r);
+        let li = self.add_node(l.clone());
+        let xi = self.add_node(x.clone());
+        let ri = self.add_node(r.clone());
         let le = self.add_edge(li, xi, ld);
         let re = self.add_edge(xi, ri, rd);
-        self.graph
-            .node_weight_mut(xi)
+        //debug!("Inserting node neighborhood {:?}({}) -{}> {:?}({}) -{}> {:?}({})",
+        //l, li.index(), ld, x, xi.index(), rd, r, ri.index());
+        self.node_weight_mut(xi)
             .unwrap()
             .mapping_mut()
             .add_transition(Edge::new(le, li, ld), Edge::new(re, ri, rd));
@@ -104,50 +113,6 @@ where
     //        false
     //    }
     //}
-    //#[allow(unused)]
-    //fn groups_to_string(groups: Vec<Vec<Node<T>>>) -> String {
-    //    let mut lines = Vec::new();
-    //    let max = groups.iter().map(Vec::len).max().unwrap_or(0);
-    //    for i in 0..max {
-    //        let mut line = Vec::new();
-    //        for group in &groups {
-    //            line.push(group.get(i).map(ToString::to_string));
-    //        }
-    //        lines.push(line);
-    //    }
-    //    lines.iter().fold(String::new(), |a, line| {
-    //        format!(
-    //            "{}{}\n",
-    //            a,
-    //            line.iter().fold(String::new(), |a, elem| {
-    //                format!("{}{} ", a, elem.clone().unwrap_or(String::new()))
-    //            })
-    //        )
-    //    })
-    //}
-    //fn map_to_tokens(groups: Vec<Vec<Node<T>>>) -> Vec<Vec<Token<T>>> {
-    //    groups
-    //        .iter()
-    //        .map(|g| g.iter().map(|m| m.token.clone()).collect())
-    //        .collect()
-    //}
-    //pub fn get_node_info<T: PartialEq<Node<T>>>(&self, element: &T) -> Option<NodeInfo<T>> {
-    //    let node = self.find_node_weight(element)?;
-    //    let mut incoming_groups: Vec<Vec<Node<T>>> = node.mapping().incoming_distance_groups(&self);
-    //    incoming_groups.reverse();
-    //    let outgoing_groups: Vec<Vec<Node<T>>> = node.mapping().outgoing_distance_groups(&self);
-    //    Some(NodeInfo {
-    //        element: node.token,
-    //        incoming_groups: Self::map_to_tokens(incoming_groups),
-    //        outgoing_groups: Self::map_to_tokens(outgoing_groups),
-    //    })
-    //}
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeInfo<T: TokenData> {
-    pub element: Token<T>,
-    pub incoming_groups: Vec<Vec<Token<T>>>,
-    pub outgoing_groups: Vec<Vec<Token<T>>>,
 }
 impl<T: TokenData + Mappable> Deref for SequenceGraph<T> {
     type Target = Graph<Node<T>, usize>;
@@ -164,6 +129,7 @@ impl<T: TokenData + Mappable> DerefMut for SequenceGraph<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    //use tracing_test::traced_test;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
@@ -172,25 +138,19 @@ mod tests {
         pub static ref EDGES: Vec<(Token<char>, Token<char>, usize)> = {
             Vec::from([
                 (Token::Start, 'a'.into(), 1),
-                (Token::Start, 'b'.into(), 1),
                 (Token::Start, 'b'.into(), 2),
-                (Token::Start, 'b'.into(), 3),
-                (Token::Start, 'c'.into(), 2),
                 (Token::Start, 'c'.into(), 3),
-                ('a'.into(), Token::End, 3),
+                (Token::Start, 'd'.into(), 4),
+                ('a'.into(), Token::End, 4),
                 ('b'.into(), Token::End, 3),
-                ('b'.into(), Token::End, 2),
-                ('b'.into(), Token::End, 1),
                 ('c'.into(), Token::End, 2),
-                ('c'.into(), Token::End, 1),
-                ('a'.into(), 'b'.into(), 1),
-                ('a'.into(), 'b'.into(), 1),
+                ('d'.into(), Token::End, 1),
                 ('a'.into(), 'b'.into(), 1),
                 ('a'.into(), 'c'.into(), 2),
+                ('a'.into(), 'd'.into(), 3),
                 ('b'.into(), 'c'.into(), 1),
-                ('c'.into(), 'b'.into(), 1),
-                ('b'.into(), 'b'.into(), 1),
-                ('b'.into(), 'b'.into(), 2),
+                ('b'.into(), 'd'.into(), 2),
+                ('c'.into(), 'd'.into(), 1),
             ])
         };
         pub static ref G: SequenceGraph<char> = {
@@ -201,10 +161,12 @@ mod tests {
             g
         };
     }
+    //#[traced_test]
     //#[test]
-    //fn knows_sequence() {
+    //fn read_sequence() {
+    //    //debug!("{:#?}", *G);
     //    for (l, r, w) in EDGES.iter() {
-    //        assert!(G.has_node_edge(l, r, w), "({}, {}, {})", l, r, w);
+    //        assert!(G.has_node_edge(l.clone(), r.clone(), w), "({}, {}, {})", l, r, w);
     //    }
     //}
 }
