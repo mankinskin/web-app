@@ -1,6 +1,7 @@
 use crate::{
     graph::node::NodeData,
     node::Node,
+    mapping::Edge,
 };
 use petgraph::graph::EdgeIndex;
 use serde::{
@@ -224,7 +225,7 @@ impl<T: TokenData> PartialEq<T> for Token<T> {
 }
 impl<T: TokenData> PartialEq<Node<T>> for Token<T> {
     fn eq(&self, rhs: &Node<T>) -> bool {
-        *self == *<Node<T> as TokenContext<T, EdgeIndex>>::token(rhs)
+        *self == *<Node<T> as TokenContext<T, Edge>>::token(rhs)
     }
 }
 impl PartialEq<Token<char>> for char {

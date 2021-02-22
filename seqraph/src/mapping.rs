@@ -13,6 +13,20 @@ use std::default::Default;
 #[allow(unused)]
 use tracing::debug;
 #[derive(PartialEq, Clone, Debug, Eq)]
+pub struct Edge {
+    pub index: EdgeIndex,
+}
+impl Edge {
+    pub fn new(index: EdgeIndex) -> Self {
+        Self { index }
+    }
+}
+impl ContextLink for Edge {
+    fn index(&self) -> &EdgeIndex {
+        &self.index
+    }
+}
+#[derive(PartialEq, Clone, Debug, Eq)]
 pub struct LoadedEdge {
     pub index: EdgeIndex,
     pub node: NodeIndex,
@@ -31,7 +45,7 @@ impl ContextLink for LoadedEdge {
 
 pub type MappingMatrix<T> = nalgebra::DMatrix<T>;
 
-pub type EdgeMapping = MatrixMapping<EdgeIndex>;
+pub type EdgeMapping = MatrixMapping<Edge>;
 pub type LoadedEdgeMapping = MatrixMapping<LoadedEdge>;
 pub type EdgeMappingMatrix = MappingMatrix<ArithmeticBool>;
 

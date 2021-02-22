@@ -4,6 +4,7 @@ use crate::{
         EdgeMappingMatrix,
         LoadedEdge,
         LoadedEdgeMapping,
+        Edge,
     },
     token::{
         Token,
@@ -15,7 +16,6 @@ use crate::{
 };
 use itertools::Itertools;
 use petgraph::graph::{
-    EdgeIndex,
     NodeIndex,
 };
 use std::{
@@ -43,7 +43,7 @@ impl<T: Tokenize> Node<T> {
         }
     }
 }
-impl<T: Tokenize> TokenContext<T, EdgeIndex> for Node<T> {
+impl<T: Tokenize> TokenContext<T, Edge> for Node<T> {
     type Mapping = EdgeMapping;
     fn token(&self) -> &Token<T> {
         &self.token

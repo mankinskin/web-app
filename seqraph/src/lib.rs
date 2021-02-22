@@ -10,6 +10,7 @@ use mapping::{
     EdgeMapping,
     LoadedEdge,
     LoadedEdgeMapping,
+    Edge,
 };
 use node::{
     LoadedNode,
@@ -17,7 +18,6 @@ use node::{
 };
 use petgraph::{
     graph::{
-        EdgeIndex,
         NodeIndex,
     },
     Direction,
@@ -31,6 +31,7 @@ use token::{
     Token,
     TokenContext,
     Tokenize,
+    ContextLink,
 };
 #[allow(unused)]
 use tracing::debug;
@@ -86,6 +87,9 @@ where
     pub fn add_node(&mut self, token: Token<T>) -> NodeIndex {
         self.graph.add_node(&Node::new(token))
     }
+    pub fn add_edge(&mut self, li: NodeIndex, ri: NodeIndex, w: usize) -> Edge {
+        Edge::new(self.graph.add_edge(li, ri, w))
+    }
     pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
         let index = self.graph.find_node_index(p)?;
         let node = self
@@ -96,7 +100,8 @@ where
         let mapping = self.load_mapping(node.mapping)?;
         Some(LoadedNode::new(index, node.token, mapping))
     }
-    pub fn load_edge(&self, index: EdgeIndex, direction: Direction) -> Option<LoadedEdge> {
+    pub fn load_edge(&self, edge: Edge, direction: Direction) -> Option<LoadedEdge> {
+        let index = *edge.index();
         let target = self.graph.edge_endpoint_directed(index, direction)?;
         let weight = self.graph.edge_weight(index)?.clone();
         Some(LoadedEdge {
