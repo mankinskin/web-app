@@ -1,23 +1,21 @@
 use crate::{
-    SequenceGraph,
     token::{
         Token,
         TokenData,
         Wide,
+        TokenContext,
+        Tokenize,
     },
     mapping::{
         EdgeMappingMatrix,
+        LoadedEdgeMapping,
+        LoadedEdge,
         EdgeMapping,
-        Mapped,
     },
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
 use petgraph::graph::{
-    EdgeIndex,
     NodeIndex,
+    EdgeIndex,
 };
 use itertools::Itertools;
 use std::{
@@ -33,81 +31,33 @@ use tracing::{
     debug,
 };
 
-#[derive(PartialEq, Clone, Debug, Eq)]
-pub struct Edge {
-    pub index: EdgeIndex,
-    pub node: NodeIndex,
-    pub dist: usize,
-}
-impl Edge {
-    pub fn new(index: EdgeIndex, node: NodeIndex, dist: usize) -> Self {
-        Self {
-            index,
-            node,
-            dist,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeInfo<T: TokenData> {
-    pub element: Token<T>,
-    pub incoming_groups: Vec<Vec<Token<T>>>,
-    pub outgoing_groups: Vec<Vec<Token<T>>>,
-}
-
 /// Stores sequenced tokens with an edge map
 #[derive(Clone, Eq)]
 pub struct Node<T: TokenData> {
-    token: Token<T>,
-    mapping: EdgeMapping,
+    pub(crate) token: Token<T>,
+    pub(crate) mapping: EdgeMapping,
 }
-impl<T: TokenData> Node<T> {
+impl<T: Tokenize> Node<T> {
     pub fn new(token: Token<T>) -> Self {
         Self {
             token,
             mapping: EdgeMapping::new(),
         }
     }
-    pub fn token(&self) -> &Token<T> {
+}
+impl<T: Tokenize> TokenContext<T, EdgeIndex> for Node<T> {
+    type Mapping = EdgeMapping;
+    fn token(&self) -> &Token<T> {
         &self.token
     }
-    #[allow(unused)]
-    fn groups_to_string(groups: Vec<Vec<Self>>) -> String {
-        let mut lines = Vec::new();
-        let max = groups.iter().map(Vec::len).max().unwrap_or(0);
-        for i in 0..max {
-            let mut line = Vec::new();
-            for group in &groups {
-                line.push(group.get(i).map(ToString::to_string));
-            }
-            lines.push(line);
-        }
-        lines.iter().fold(String::new(), |a, line| {
-            format!(
-                "{}{}\n",
-                a,
-                line.iter().fold(String::new(), |a, elem| {
-                    format!("{}{} ", a, elem.clone().unwrap_or(String::new()))
-                })
-            )
-        })
+    fn into_token(self) -> Token<T> {
+        self.token
     }
-    fn map_to_tokens(groups: Vec<Vec<Node<T>>>) -> Vec<Vec<Token<T>>> {
-        groups
-            .iter()
-            .map(|g| g.iter().map(|m| m.token.clone()).collect())
-            .collect()
+    fn mapping(&self) -> &Self::Mapping {
+        &self.mapping
     }
-    pub fn get_info(&self, graph: &SequenceGraph<T>) -> NodeInfo<T> {
-        let mut incoming_groups: Vec<Vec<Node<T>>> = self.mapping.incoming_distance_groups(graph);
-        incoming_groups.reverse();
-        let outgoing_groups: Vec<Vec<Node<T>>> = self.mapping.outgoing_distance_groups(graph);
-        NodeInfo {
-            element: self.token.clone(),
-            incoming_groups: Self::map_to_tokens(incoming_groups),
-            outgoing_groups: Self::map_to_tokens(outgoing_groups),
-        }
+    fn mapping_mut(&mut self) -> &mut Self::Mapping {
+        &mut self.mapping
     }
 }
 impl<T: TokenData> Wide for Node<T> {
@@ -150,45 +100,56 @@ impl<T: TokenData + Display> Display for Node<T> {
         write!(f, "{}", self.token)
     }
 }
-impl<T: TokenData> Mapped for Node<T> {
-    fn mapping(&self) -> &EdgeMapping {
-        &self.mapping
-    }
-    fn mapping_mut(&mut self) -> &mut EdgeMapping {
-        &mut self.mapping
-    }
-}
 /// Stores sequenced tokens with an edge map
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LoadedNode<T: TokenData> {
-    node: Node<T>,
+    token: Token<T>,
     index: NodeIndex,
+    mapping: LoadedEdgeMapping,
 }
-impl<T: TokenData> LoadedNode<T> {
-    pub fn of(index: NodeIndex, node: Node<T>) -> Self {
+impl<T: Tokenize> TokenContext<T, LoadedEdge> for LoadedNode<T> {
+    type Mapping = LoadedEdgeMapping;
+    fn token(&self) -> &Token<T> {
+        &self.token
+    }
+    fn into_token(self) -> Token<T> {
+        self.token
+    }
+    fn mapping(&self) -> &Self::Mapping {
+        &self.mapping
+    }
+    fn mapping_mut(&mut self) -> &mut Self::Mapping {
+        &mut self.mapping
+    }
+}
+impl<T: TokenData> Wide for LoadedNode<T> {
+    fn width(&self) -> usize {
+        self.token.width()
+    }
+}
+impl<T: Tokenize> LoadedNode<T> {
+    pub fn new(index: NodeIndex, token: Token<T>, mapping: LoadedEdgeMapping) -> Self {
         Self {
             index,
-            node,
+            token,
+            mapping,
         }
-    }
-    pub fn token(&self) -> &Token<T> {
-        &self.node.token()
     }
     fn intersections<
         L: Clone,
         R: Clone,
-        W: Fn(&Node<T>, &Node<T>) -> usize,
-        LE: Fn(Vec<Edge>, Vec<Edge>) -> (Vec<Edge>, Vec<Edge>),
-        RE: Fn(Vec<Edge>, Vec<Edge>) -> (Vec<Edge>, Vec<Edge>),
+        W: Fn(&Token<T>, &Token<T>) -> usize,
+        LE: Fn(Vec<LoadedEdge>, Vec<LoadedEdge>) -> (Vec<LoadedEdge>, Vec<LoadedEdge>),
+        RE: Fn(Vec<LoadedEdge>, Vec<LoadedEdge>) -> (Vec<LoadedEdge>, Vec<LoadedEdge>),
         LMI: Fn(EdgeMappingMatrix) -> Vec<L>,
         RMI: Fn(EdgeMappingMatrix) -> Vec<R>,
         P: Fn(NodeIndex, NodeIndex, NodeIndex, NodeIndex, usize, usize, usize, usize) -> bool,
         LC: Fn(Vec<L>) -> EdgeMappingMatrix,
         RC: Fn(Vec<R>) -> EdgeMappingMatrix,
-        LMC: Fn(Vec<Edge>, EdgeMappingMatrix, Vec<Edge>) -> EdgeMapping,
-        RMC: Fn(Vec<Edge>, EdgeMappingMatrix, Vec<Edge>) -> EdgeMapping,
-        LZ: Fn(&mut EdgeMapping),
-        RZ: Fn(&mut EdgeMapping),
+        LMC: Fn(Vec<LoadedEdge>, EdgeMappingMatrix, Vec<LoadedEdge>) -> LoadedEdgeMapping,
+        RMC: Fn(Vec<LoadedEdge>, EdgeMappingMatrix, Vec<LoadedEdge>) -> LoadedEdgeMapping,
+        LZ: Fn(&mut LoadedEdgeMapping),
+        RZ: Fn(&mut LoadedEdgeMapping),
     >(
         #[allow(unused)]
         name: &str,
@@ -210,23 +171,21 @@ impl<T: TokenData> LoadedNode<T> {
         rhs: Self,
         dist: usize,
     ) -> Option<(Self, Self)> {
-        let ln = lhs.node;
-        let rn = rhs.node;
         let li = lhs.index;
         let ri = rhs.index;
-        debug!("intersecting {}...", name);
-        debug!("lhs.token: {:?}", ln.token);
-        debug!("rhs.token: {:?}", rn.token);
-        let w = w_sel(&ln, &rn);
-        let lmap = ln.mapping;
-        let rmap = rn.mapping;
+        //debug!("intersecting {}...", name);
+        //debug!("lhs.token: {:?}", lhs.token);
+        //debug!("rhs.token: {:?}", rhs.token);
+        let w = w_sel(&lhs.token, &rhs.token);
+        let lmap = lhs.mapping;
+        let rmap = rhs.mapping;
         let (lprim, lsec) = ledge_sel(lmap.incoming, lmap.outgoing);
         let (rprim, rsec) = redge_sel(rmap.incoming, rmap.outgoing);
-        debug!("lprim: {:#?}", lprim);
-        debug!("rprim: {:#?}", rprim);
+        //debug!("lprim: {:#?}", lprim);
+        //debug!("rprim: {:#?}", rprim);
         let lprim_mat_iter = lmat_iter(lmap.matrix);
         let rprim_mat_iter = rmat_iter(rmap.matrix);
-        debug!("Finding shared {}...", name);
+        //debug!("Finding shared {}...", name);
         let mut l = repeat(false)
             .take(lprim.len())
             .zip(lprim.into_iter().zip(lprim_mat_iter))
@@ -238,43 +197,45 @@ impl<T: TokenData> LoadedNode<T> {
         for (lb, (le, _)) in &mut l {
             for (rb, (re, _)) in &mut r {
                 if pred(li, ri, le.node, re.node, le.dist, re.dist, dist, w) {
-                    debug!("{}: {:?} {} {}", name, le.node, le.dist, re.dist);
+                    //debug!("{}: {:?} {} {}", name, le.node, le.dist, re.dist);
                     *rb = true;
                     *lb = true;
                 }
             }
         }
-        debug!("Filtering shared {}...", name);
-        let (lprim, lms): (Vec<Edge>, Vec<_>) = l.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
-        let (rprim, rms): (Vec<Edge>, Vec<_>) = r.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
-        debug!("Checking if {} empty...", name);
-        debug!("lprim: {:#?}", lprim);
-        debug!("rprim: {:#?}", rprim);
+        //debug!("Filtering shared {}...", name);
+        let (lprim, lms): (Vec<LoadedEdge>, Vec<_>) = l.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
+        let (rprim, rms): (Vec<LoadedEdge>, Vec<_>) = r.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
+        //debug!("Checking if {} empty...", name);
+        //debug!("lprim: {:#?}", lprim);
+        //debug!("rprim: {:#?}", rprim);
         (!lprim.is_empty()).then(|| ())?;
         (!rprim.is_empty()).then(|| ())?;
-        debug!("Building new matrices");
+        //debug!("Building new matrices");
         let lmat = lconstr(lms);
         let rmat = rconstr(rms);
         let mut lmap = lmap_ctr(lprim, lmat, lsec);
         let mut rmap = rmap_ctr(rprim, rmat, rsec);
-        debug!("Removing zero {}", sec_name);
+        //debug!("Removing zero {}", sec_name);
         ldezero(&mut lmap);
         rdezero(&mut rmap);
-        debug!("Done.");
+        //debug!("Done.");
         Some((
-            Self::of(li, Node {
+            Self {
+                index: li,
                 mapping: lmap,
-                ..ln
-            }),
-            Self::of(ri, Node {
+                ..lhs
+            },
+            Self {
+                index: ri,
                 mapping: rmap,
-                ..rn
-            })
+                ..rhs
+            }
         ))
     }
     fn input_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
         Self::intersections("inputs", "rows",
-            |ln, _| ln.width(),
+            |lt, _| lt.width(),
             |inc, out| (inc, out),
             |inc, out| (inc, out),
             |mat| mat.column_iter().map(|m| m.into_owned()).collect(),
@@ -282,12 +243,12 @@ impl<T: TokenData> LoadedNode<T> {
             |li, _, ln, rn, ld, rd, d, w| li == rn && rd == d || ln == rn && ld + d + w == rd + 1,
             |it| EdgeMappingMatrix::from_columns(&it),
             |it| EdgeMappingMatrix::from_columns(&it),
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 incoming: prim,
                 matrix,
                 outgoing: sec
             },
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 incoming: prim,
                 matrix,
                 outgoing: sec
@@ -298,7 +259,7 @@ impl<T: TokenData> LoadedNode<T> {
     }
     fn output_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
         Self::intersections("outputs", "columns",
-            |_, rn| rn.width(),
+            |_, rt| rt.width(),
             |inc, out| (out, inc),
             |inc, out| (out, inc),
             |mat| mat.row_iter().map(|m| m.into_owned()).collect(),
@@ -306,12 +267,12 @@ impl<T: TokenData> LoadedNode<T> {
             |_, ri, ln, rn, ld, rd, d, w| ln == ri && ld == d || ln == rn && ld + 1 == rd + d + w,
             |it| EdgeMappingMatrix::from_rows(&it),
             |it| EdgeMappingMatrix::from_rows(&it),
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 outgoing: prim,
                 matrix,
                 incoming: sec,
             },
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 outgoing: prim,
                 matrix,
                 incoming: sec,
@@ -322,7 +283,7 @@ impl<T: TokenData> LoadedNode<T> {
     }
     fn connecting_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
         Self::intersections("connections", "rows & columns",
-            |ln, _| ln.width(),
+            |_, _| 0,
             |inc, out| (out, inc),
             |inc, out| (inc, out),
             |mat| mat.row_iter().map(|m| m.into_owned()).collect(),
@@ -330,12 +291,12 @@ impl<T: TokenData> LoadedNode<T> {
             |li, ri, ln, rn, ld, rd, d, _| ln == ri && rn == li && ld == d && rd == d,
             |it| EdgeMappingMatrix::from_rows(&it),
             |it| EdgeMappingMatrix::from_columns(&it),
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 incoming: sec,
                 matrix,
                 outgoing: prim
             },
-            |prim, matrix, sec| EdgeMapping {
+            |prim, matrix, sec| LoadedEdgeMapping {
                 incoming: prim,
                 matrix,
                 outgoing: sec
@@ -345,16 +306,14 @@ impl<T: TokenData> LoadedNode<T> {
             lhs, rhs, dist)
     }
     ///// Join node from right with distance 1
-    fn try_join_right(&self, rhs: &Self) -> Option<Node<T>> {
+    fn try_join_right(&self, rhs: &Self) -> Option<JoinedNode<T>> {
         let lhs = self.clone();
         let rhs = rhs.clone();
         let (lhs, rhs) = Self::input_intersections(lhs, rhs, 1)?;
         let (lhs, rhs) = Self::output_intersections(lhs, rhs, 1)?;
         let (lhs, rhs) = Self::connecting_intersections(lhs, rhs, 1)?;
-        let ln = lhs.node;
-        let rn = rhs.node;
-        let lmap = ln.mapping;
-        let rmap = rn.mapping;
+        let lmap = lhs.mapping;
+        let rmap = rhs.mapping;
         let lmat = EdgeMappingMatrix::from_rows(&lmap.outgoing
             .into_iter()
             .map(|e| e.index)
@@ -369,32 +328,48 @@ impl<T: TokenData> LoadedNode<T> {
             .sorted_by(|(e1, _), (e2, _)| e1.cmp(e2))
             .map(|(_, v)| v)
             .collect::<Vec<_>>());
-        Some(Node {
-            mapping: EdgeMapping {
+        Some(JoinedNode {
+            mapping: LoadedEdgeMapping {
                 incoming: lmap.incoming,
                 outgoing: rmap.outgoing,
                 matrix: rmat * lmat,
             },
-            token: ln.token + rn.token,
+            token: lhs.token + rhs.token,
         })
     }
     ///// Join node from right with distance 1
-    pub fn join_right(&self, rhs: &Self) -> Node<T> {
+    pub fn join_right(&self, rhs: &Self) -> JoinedNode<T> {
         self.try_join_right(rhs)
-            .unwrap_or_else(|| Node::new(self.token() + rhs.token()))
+            .unwrap_or_else(|| JoinedNode::new(<Self as TokenContext<T, LoadedEdge>>::token(self) + rhs.token()))
     }
 }
-impl<T: TokenData> Wide for LoadedNode<T> {
-    fn width(&self) -> usize {
-        self.node.width()
+/// Stores sequenced tokens with an edge map
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct JoinedNode<T: Tokenize> {
+    token: Token<T>,
+    mapping: LoadedEdgeMapping,
+}
+impl<T: Tokenize> JoinedNode<T> {
+    pub fn new(token: Token<T>) -> Self {
+        Self {
+            token,
+            mapping: LoadedEdgeMapping::new(),
+        }
     }
 }
-impl<T: TokenData> Mapped for LoadedNode<T> {
-    fn mapping(&self) -> &EdgeMapping {
-        self.node.mapping()
+impl<T: Tokenize> TokenContext<T, LoadedEdge> for JoinedNode<T> {
+    type Mapping = LoadedEdgeMapping;
+    fn token(&self) -> &Token<T> {
+        &self.token
     }
-    fn mapping_mut(&mut self) -> &mut EdgeMapping {
-        self.node.mapping_mut()
+    fn into_token(self) -> Token<T> {
+        self.token
+    }
+    fn mapping(&self) -> &Self::Mapping {
+        &self.mapping
+    }
+    fn mapping_mut(&mut self) -> &mut Self::Mapping {
+        &mut self.mapping
     }
 }
 
@@ -403,7 +378,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use crate::{
         SequenceGraph,   
-        mapping::Mapped,
+        token::TokenContext,
     };
     use petgraph::graph::NodeIndex;
     #[allow(unused)]

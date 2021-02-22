@@ -18,10 +18,16 @@ use std::{
         Display,
     },
 };
+use petgraph::graph::{
+    EdgeIndex,
+};
 #[allow(unused)]
 use tracing::{
     debug,
 };
+pub trait TokenData: NodeData + Wide {}
+impl<T: NodeData + Wide> TokenData for T {}
+
 pub trait Wide {
     fn width(&self) -> usize;
 }
@@ -31,8 +37,98 @@ impl Wide for char {
     }
 }
 
-pub trait TokenData: NodeData + Wide {}
-impl<T: NodeData + Wide> TokenData for T {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextInfo<T: TokenData> {
+    pub token: Token<T>,
+    pub incoming_groups: Vec<Vec<Token<T>>>,
+    pub outgoing_groups: Vec<Vec<Token<T>>>,
+}
+/// Trait for token that can be mapped in a sequence
+pub trait Tokenize: TokenData + Wide {
+    fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
+        let mut v = vec![Token::Start];
+        v.extend(seq.map(|t| Token::Element(t.into())));
+        v.push(Token::End);
+        v
+    }
+}
+impl<T: TokenData + Wide> Tokenize for T {}
+
+pub trait ContextLink: Sized + Clone {
+    fn index(&self) -> &EdgeIndex;
+    fn into_index(self) -> EdgeIndex {
+        *self.index()
+    }
+}
+impl ContextLink for EdgeIndex {
+    fn index(&self) -> &EdgeIndex {
+        &self
+    }
+}
+pub trait ContextMapping<E: ContextLink> {
+    /// Get distance groups for incoming edges
+    fn incoming(&self) -> &Vec<E>;
+    fn outgoing(&self) -> &Vec<E>;
+
+    ///// Get distance groups for incoming edges
+    //fn incoming_distance_groups(
+    //    &self,
+    //    graph: &SequenceGraph<T>,
+    //) -> Vec<Vec<Self::Context>> {
+    //    graph.distance_group_source_weights(self.incoming().iter().map(|e| e.into_index()))
+    //}
+    ///// Get distance groups for outgoing edges
+    //fn outgoing_distance_groups(
+    //    &self,
+    //    graph: &SequenceGraph<T>,
+    //) -> Vec<Vec<Self::Context>> {
+    //    graph.distance_group_target_weights(self.outgoing().iter().map(|e| e.into_index()))
+    //}
+}
+
+pub trait TokenContext<T: Tokenize, E: ContextLink>: Sized {
+    type Mapping: ContextMapping<E>;
+    fn token(&self) -> &Token<T>;
+    fn into_token(self) -> Token<T>;
+    fn map_to_tokens(groups: Vec<Vec<Self>>) -> Vec<Vec<Token<T>>> {
+        groups
+            .into_iter()
+            .map(|g| g.into_iter().map(|m| m.into_token()).collect())
+            .collect()
+    }
+    fn mapping(&self) -> &Self::Mapping;
+    fn mapping_mut(&mut self) -> &mut Self::Mapping;
+    //fn get_info(&self, graph: &SequenceGraph<T>) -> ContextInfo<T> {
+    //    let mut incoming_groups = self.mapping().incoming_distance_groups(graph);
+    //    incoming_groups.reverse();
+    //    let outgoing_groups = self.mapping().outgoing_distance_groups(graph);
+    //    ContextInfo {
+    //        token: self.token().clone(),
+    //        incoming_groups: Self::map_to_tokens(incoming_groups),
+    //        outgoing_groups: Self::map_to_tokens(outgoing_groups),
+    //    }
+    //}
+}
+pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Display>(groups: Vec<Vec<C>>) -> String {
+    let mut lines = Vec::new();
+    let max = groups.iter().map(Vec::len).max().unwrap_or(0);
+    for i in 0..max {
+        let mut line = Vec::new();
+        for group in &groups {
+            line.push(group.get(i).map(ToString::to_string));
+        }
+        lines.push(line);
+    }
+    lines.iter().fold(String::new(), |a, line| {
+        format!(
+            "{}{}\n",
+            a,
+            line.iter().fold(String::new(), |a, elem| {
+                format!("{}{} ", a, elem.clone().unwrap_or(String::new()))
+            })
+        )
+    })
+}
 
 /// Type for storing elements of a sequence
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Eq)]
@@ -134,7 +230,7 @@ impl<T: TokenData> PartialEq<T> for Token<T> {
 }
 impl<T: TokenData> PartialEq<Node<T>> for Token<T> {
     fn eq(&self, rhs: &Node<T>) -> bool {
-        *self == *rhs.token()
+        *self == *<Node<T> as TokenContext<T, EdgeIndex>>::token(rhs)
     }
 }
 impl PartialEq<Token<char>> for char {

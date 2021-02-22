@@ -3,5 +3,5 @@ use std::fmt::{
     Display,
 };
 
-pub trait NodeData: Debug + Display + PartialEq + Clone {}
-impl<T: Debug + Display + PartialEq + Clone> NodeData for T {}
+pub trait NodeData: Debug + PartialEq + Clone {}
+impl<T: Debug + PartialEq + Clone> NodeData for T {}

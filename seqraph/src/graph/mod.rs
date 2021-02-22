@@ -8,6 +8,7 @@ use petgraph::{
         NodeIndex,
     },
     visit::EdgeRef,
+    Direction,
 };
 use std::ops::{
     Deref,
@@ -126,10 +127,6 @@ where
         let ri = self.add_node(r);
         self.graph.add_edge(li, ri, w)
     }
-    /// Return weight of edge with index, if any
-    pub fn get_edge_weight(&self, i: EdgeIndex) -> Option<E> {
-        self.graph.edge_weight(i).map(Clone::clone)
-    }
     /// Get all edge weights between NodeIndices
     pub fn get_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<E> {
         self.edge_weights_for(self.find_edge_indices(li, ri)).collect()
@@ -180,9 +177,20 @@ where
     pub fn has_edge(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> bool {
         self.find_edge_index(li, ri, w).is_some()
     }
+    /// Get endpoint of edge
+    pub fn edge_endpoint_directed(&self, i: EdgeIndex, direction: Direction) -> Option<NodeIndex> {
+        self.edge_endpoints(i).map(|(source, target)| match direction {
+            Direction::Outgoing => source,
+            Direction::Incoming => target,
+        })
+    }
     /// Get source of edge
     pub fn edge_source(&self, i: EdgeIndex) -> Option<NodeIndex> {
-        self.edge_endpoints(i).map(|t| t.0)
+        self.edge_endpoint_directed(i, Direction::Outgoing)
+    }
+    /// Get target of edge
+    pub fn edge_target(&self, i: EdgeIndex) -> Option<NodeIndex> {
+        self.edge_endpoint_directed(i, Direction::Incoming)
     }
     /// Get sources of edges
     pub fn edge_sources_for(
@@ -190,10 +198,6 @@ where
         is: impl IntoIterator<Item = EdgeIndex> + 'a,
     ) -> impl Iterator<Item = NodeIndex> + 'a {
         is.into_iter().filter_map(move |i| self.edge_source(i))
-    }
-    /// Get target of edge
-    pub fn edge_target(&self, i: EdgeIndex) -> Option<NodeIndex> {
-        self.edge_endpoints(i).map(|t| t.1)
     }
     /// Get targets of edges
     pub fn edge_targets_for(
@@ -207,7 +211,7 @@ where
         &'a self,
         is: impl IntoIterator<Item = EdgeIndex> + 'a,
     ) -> impl Iterator<Item = E> + 'a {
-        is.into_iter().filter_map(move |i| self.get_edge_weight(i))
+        is.into_iter().filter_map(move |i| self.edge_weight(i).cloned())
     }
     /// Write graph to dot file
     pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
@@ -225,7 +229,7 @@ impl<'a, N: NodeData> Graph<N, usize> {
         es: impl Iterator<Item = EdgeIndex>,
     ) -> Vec<Vec<EdgeIndex>> {
         let es = es
-            .filter_map(|i| Some((i.clone(), self.get_edge_weight(i)?.clone())))
+            .filter_map(|i| Some((i.clone(), self.edge_weight(i).cloned()?)))
             .collect::<Vec<_>>();
         let mut r = Vec::new();
         if let Some(&max) = es.iter().map(|(_, d)| d).max() {

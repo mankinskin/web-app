@@ -2,23 +2,25 @@ pub mod graph;
 pub mod mapping;
 pub mod node;
 pub mod token;
+pub mod arithmetic_bool;
 //pub mod grammar;
 
 use graph::{
     Graph,
 };
 use mapping::{
-    Mappable,
-    Mapped,
+    LoadedEdge,
+    EdgeMapping,
+    LoadedEdgeMapping,
 };
 use node::{
-    Edge,
     Node,
     LoadedNode,
 };
 use token::{
     Token,
-    TokenData,
+    Tokenize,
+    TokenContext,
 };
 use std::{
     fmt::Debug,
@@ -29,7 +31,13 @@ use std::{
         DerefMut,
     },
 };
-use petgraph::graph::NodeIndex;
+use petgraph::{
+    Direction,
+    graph::{
+        EdgeIndex,
+        NodeIndex,
+    },
+};
 #[allow(unused)]
 use tracing::{
     debug,
@@ -40,13 +48,13 @@ use tracing::{
 #[derive(Debug)]
 pub struct SequenceGraph<T>
 where
-    T: TokenData + Mappable,
+    T: Tokenize,
 {
     graph: Graph<Node<T>, usize>,
 }
 impl<T> SequenceGraph<T>
 where
-    T: TokenData + Mappable,
+    T: Tokenize,
 {
     pub fn new() -> Self {
         let graph = Graph::new();
@@ -65,7 +73,7 @@ where
     //    self.get_node_info(&sym)
     //}
     pub fn read_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) {
-        let seq = T::sequenced(seq.into_iter());
+        let seq = T::tokenize(seq.into_iter());
         for index in 1..seq.len() {
             self.read_to_node(&seq[..], index);
         }
@@ -88,8 +96,33 @@ where
     }
     pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
         let index = self.graph.find_node_index(p)?;
-        let node = self.graph.node_weight(index)?;
-        Some(LoadedNode::of(index, node.clone()))
+        let node = self.graph.node_weight(index).expect("Find node by index.").clone();
+        let mapping = self.load_mapping(node.mapping)?;
+        Some(LoadedNode::new(index, node.token, mapping))
+    }
+    pub fn load_edge(&self, index: EdgeIndex, direction: Direction) -> Option<LoadedEdge> {
+        let target = self.graph.edge_endpoint_directed(index, direction)?;
+        let weight = self.graph.edge_weight(index)?.clone();
+        Some(LoadedEdge {
+            index,
+            node: target,
+            dist: weight,
+        })
+    }
+    pub fn load_mapping(&self, mapping: EdgeMapping) -> Option<LoadedEdgeMapping> {
+        let incoming: Vec<_> = mapping.incoming
+            .into_iter()
+            .map(|i| self.load_edge(i, Direction::Outgoing).unwrap())
+            .collect();
+        let outgoing: Vec<_> = mapping.outgoing
+            .into_iter()
+            .map(|i| self.load_edge(i, Direction::Incoming).unwrap())
+            .collect();
+        Some(LoadedEdgeMapping {
+            matrix: mapping.matrix,
+            incoming,
+            outgoing,
+        })
     }
     fn insert_node_neighborhood(
         &mut self,
@@ -109,7 +142,7 @@ where
         self.node_weight_mut(xi)
             .unwrap()
             .mapping_mut()
-            .add_transition(Edge::new(le, li, ld), Edge::new(re, ri, rd));
+            .add_transition(le, re);
     }
     //pub fn knows_sequence(&self, seq: &[Token<T>]) -> bool {
     //    if let Some(nodes) = self.graph.find_node_weights(seq.into_iter()) {
@@ -120,13 +153,13 @@ where
     //    }
     //}
 }
-impl<T: TokenData + Mappable> Deref for SequenceGraph<T> {
+impl<T: Tokenize> Deref for SequenceGraph<T> {
     type Target = Graph<Node<T>, usize>;
     fn deref(&self) -> &Self::Target {
         &self.graph
     }
 }
-impl<T: TokenData + Mappable> DerefMut for SequenceGraph<T> {
+impl<T: Tokenize> DerefMut for SequenceGraph<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.graph
     }
@@ -136,6 +169,8 @@ impl<T: TokenData + Mappable> DerefMut for SequenceGraph<T> {
 mod tests {
     use super::*;
     use tracing_test::traced_test;
+    use pretty_assertions::assert_eq;
+    use maplit::hashset;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
@@ -176,10 +211,10 @@ mod tests {
         let bm = b_node.mapping(); 
         assert_eq!(
             (bm.incoming_sources().collect(), bm.outgoing_targets().collect()),
-            (vec![
+            (hashset![
                 (1, NodeIndex::new(0)),
             ],
-            vec![
+            hashset![
                 (1, NodeIndex::new(2)),
                 (2, NodeIndex::new(3)),
             ])
@@ -187,11 +222,11 @@ mod tests {
         let cm = c_node.mapping(); 
         assert_eq!(
             (cm.incoming_sources().collect(), cm.outgoing_targets().collect()),
-            (vec![
+            (hashset![
                 (2, NodeIndex::new(0)),
                 (1, NodeIndex::new(1)),
             ],
-            vec![
+            hashset![
                 (1, NodeIndex::new(3)),
             ])
         );

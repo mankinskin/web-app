@@ -1,111 +1,63 @@
 use crate::{
-    graph::{
-        node::NodeData,
-        edge::EdgeData,
-        Graph,
-    },
-    node::{
-        Node,
-        Edge,
-    },
     token::{
-        TokenData,
-        Token,
-        Wide,
+        ContextLink,
+        ContextMapping,
     },
-    SequenceGraph,
+    arithmetic_bool::ArithmeticBool,
 };
 use petgraph::graph::{
+    EdgeIndex,
     NodeIndex,
 };
 use std::{
-    ops::{
-        Mul,
-        MulAssign,
-        Add,
-        AddAssign,
-    },
     default::Default,
-    fmt::{
-        self,
-        Formatter,
-        Debug,
-        Display,
-    },
 };
 #[allow(unused)]
 use tracing::{
     debug,
 };
-pub type EdgeMappingMatrix = nalgebra::DMatrix<ArithmeticBool>;
-
-#[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash, Default, Debug)]
-pub struct ArithmeticBool(bool);
-
-impl Display for ArithmeticBool {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", match self.0 {
-            true => "1",
-            false => "0",
-        })
-    }
-}
-impl num_traits::Zero for ArithmeticBool {
-    fn zero() -> Self {
-        Self(false)
-    }
-    fn is_zero(&self) -> bool {
-        !self.0
-    }
-}
-impl num_traits::One for ArithmeticBool {
-    fn one() -> Self {
-        Self(true)
-    }
-    fn is_one(&self) -> bool {
-        self.0
-    }
-}
-impl From<bool> for ArithmeticBool {
-    fn from(b: bool) -> Self {
-        Self(b)
-    }
-}
-impl Into<bool> for ArithmeticBool {
-    fn into(self) -> bool {
-        self.0
-    }
-}
-impl Mul for ArithmeticBool {
-    type Output = Self;
-    fn mul(self, other: Self) -> Self::Output {
-        Self::from(self.0 && other.0)
-    }
-}
-impl Add for ArithmeticBool {
-    type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
-        Self::from(self.0 || other.0)
-    }
-}
-impl AddAssign for ArithmeticBool {
-    fn add_assign(&mut self, other: Self) {
-        *self = *self + other;
-    }
-}
-impl MulAssign for ArithmeticBool {
-    fn mul_assign(&mut self, other: Self) {
-        *self = *self * other;
-    }
-}
 #[derive(PartialEq, Clone, Debug, Eq)]
-pub struct EdgeMapping {
-    pub matrix: EdgeMappingMatrix,
-    pub incoming: Vec<Edge>,
-    pub outgoing: Vec<Edge>,
+pub struct LoadedEdge {
+    pub index: EdgeIndex,
+    pub node: NodeIndex,
+    pub dist: usize,
 }
-impl<'a> EdgeMapping {
-    /// New EdgeMapping
+impl LoadedEdge {
+    pub fn new(index: EdgeIndex, node: NodeIndex, dist: usize) -> Self {
+        Self {
+            index,
+            node,
+            dist,
+        }
+    }
+}
+impl ContextLink for LoadedEdge {
+    fn index(&self) -> &EdgeIndex {
+        &self.index
+    }
+}
+
+pub type MappingMatrix<T> = nalgebra::DMatrix<T>;
+
+pub type EdgeMapping = MatrixMapping<EdgeIndex>;
+pub type LoadedEdgeMapping = MatrixMapping<LoadedEdge>;
+pub type EdgeMappingMatrix = MappingMatrix<ArithmeticBool>;
+
+#[derive(PartialEq, Clone, Debug, Eq)]
+pub struct MatrixMapping<E: ContextLink> {
+    pub matrix: EdgeMappingMatrix,
+    pub incoming: Vec<E>,
+    pub outgoing: Vec<E>,
+}
+impl<E: ContextLink> ContextMapping<E> for MatrixMapping<E> {
+    fn incoming(&self) -> &Vec<E> {
+        &self.incoming
+    }
+    fn outgoing(&self) -> &Vec<E> {
+        &self.outgoing
+    }
+}
+impl<E: ContextLink> MatrixMapping<E> {
     pub fn new() -> Self {
         Self {
             matrix: EdgeMappingMatrix::from_element(0, 0, false.into()),
@@ -113,9 +65,29 @@ impl<'a> EdgeMapping {
             outgoing: Vec::new(),
         }
     }
+    pub fn remove_zero_columns(&mut self) {
+        let (incoming, columns): (_, Vec<_>) = self.incoming
+            .clone()
+            .into_iter()
+            .zip(self.matrix.column_iter())
+            .filter(|(_, col)| col.iter().any(|b| b.0))
+            .unzip();
+        self.incoming = incoming;
+        self.matrix = EdgeMappingMatrix::from_columns(&columns);
+    }
+    pub fn remove_zero_rows(&mut self) {
+        let (outgoing, rows): (_, Vec<_>) = self.outgoing
+            .clone()
+            .into_iter()
+            .zip(self.matrix.row_iter())
+            .filter(|(_, row)| row.iter().any(|b| b.0))
+            .unzip();
+        self.outgoing = outgoing;
+        self.matrix = EdgeMappingMatrix::from_rows(&rows);
+    }
     /// Add an incoming edge
-    fn add_incoming_edge(&mut self, edge: Edge) -> usize {
-        if let Some(i) = self.incoming.iter().position(|e| e.index == edge.index) {
+    fn add_incoming_edge(&mut self, edge: E) -> usize {
+        if let Some(i) = self.incoming.iter().position(|e| edge.index() == e.index()) {
             //debug!("Incoming edge already exists {:#?}", edge);
             i
         } else {
@@ -131,8 +103,8 @@ impl<'a> EdgeMapping {
         }
     }
     /// Add an outgoing edge
-    fn add_outgoing_edge(&mut self, edge: Edge) -> usize {
-        if let Some(i) = self.outgoing.iter().position(|e| e.index == edge.index) {
+    fn add_outgoing_edge(&mut self, edge: E) -> usize {
+        if let Some(i) = self.outgoing.iter().position(|e| edge.index() == e.index()) {
             //debug!("Outgoing edge already exists {:#?}", edge);
             i
         } else {
@@ -148,31 +120,13 @@ impl<'a> EdgeMapping {
         }
     }
     /// Add a transition between two edges
-    pub fn add_transition(&mut self, l: Edge, r: Edge) {
+    pub fn add_transition(&mut self, l: E, r: E) {
         let li = self.add_incoming_edge(l);
         let ri = self.add_outgoing_edge(r);
         self.matrix[(ri, li)] = true.into();
     }
-    pub fn remove_zero_columns(&mut self) {
-        let (incoming, columns): (_, Vec<_>) = self.incoming
-            .iter()
-            .cloned()
-            .zip(self.matrix.column_iter())
-            .filter(|(_, col)| col.iter().any(|b| b.0))
-            .unzip();
-        self.incoming = incoming;
-        self.matrix = EdgeMappingMatrix::from_columns(&columns);
-    }
-    pub fn remove_zero_rows(&mut self) {
-        let (outgoing, rows): (_, Vec<_>) = self.outgoing
-            .iter()
-            .cloned()
-            .zip(self.matrix.row_iter())
-            .filter(|(_, row)| row.iter().any(|b| b.0))
-            .unzip();
-        self.outgoing = outgoing;
-        self.matrix = EdgeMappingMatrix::from_rows(&rows);
-    }
+}
+impl<'a> MatrixMapping<LoadedEdge> {
     /// Get weights and sources of incoming edges
     pub fn incoming_sources(&'a self) -> impl Iterator<Item = (usize, NodeIndex)> + 'a {
         self.incoming.iter().map(|e| (e.dist, e.node))
@@ -181,43 +135,9 @@ impl<'a> EdgeMapping {
     pub fn outgoing_targets(&'a self) -> impl Iterator<Item = (usize, NodeIndex)> + 'a {
         self.outgoing.iter().map(|e| (e.dist, e.node))
     }
-
-    /// Get distance groups for incoming edges
-    pub fn incoming_distance_groups<T: NodeData + Wide>(
-        &self,
-        graph: &SequenceGraph<T>,
-    ) -> Vec<Vec<Node<T>>> {
-        graph.distance_group_source_weights(self.incoming.iter().map(|e| e.index))
-    }
-    /// Get distance groups for outgoing edges
-    pub fn outgoing_distance_groups<T: NodeData + Wide>(
-        &self,
-        graph: &SequenceGraph<T>,
-    ) -> Vec<Vec<Node<T>>> {
-        graph.distance_group_target_weights(self.outgoing.iter().map(|e| e.index))
-    }
 }
-impl Default for EdgeMapping {
+impl<T: ContextLink> Default for MatrixMapping<T> {
     fn default() -> Self {
         Self::new()
     }
 }
-/// Trait for token that can be wrapped in a sequence
-pub trait Sequencable: TokenData {
-    fn sequenced<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
-        let mut v = vec![Token::Start];
-        v.extend(seq.map(|t| Token::Element(t.into())));
-        v.push(Token::End);
-        v
-    }
-}
-impl<T: TokenData + Into<Token<T>>> Sequencable for T {}
-/// Trait for token that can be mapped in a sequence
-pub trait Mappable: Sequencable + Wide {}
-impl<T: TokenData + Wide> Mappable for T {}
-
-pub trait Mapped: Wide {
-    fn mapping(&self) -> &EdgeMapping;
-    fn mapping_mut(&mut self) -> &mut EdgeMapping;
-}
-
