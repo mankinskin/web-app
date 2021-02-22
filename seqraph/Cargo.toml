@@ -9,18 +9,24 @@ edition = "2018"
 [dependencies]
 pretty_assertions = "^0.6"
 lazy_static = "^1.4"
-nalgebra = "^0.24"
 itertools = "0.10"
-petgraph = "^0.5"
 serde_json = "^1"
 num-traits = "^0.2"
 tracing = "^0.1"
 tracing-appender = "^0.1"
 tracing-subscriber = "^0.2"
 tracing-test = "^0.1"
+maplit = "^1"
 
 [dependencies.serde]
 version = "^1"
 features = [
   "derive",
 ]
+[dependencies.petgraph]
+#version = "^0.5"
+path = "../../petgraph"
+
+[dependencies.nalgebra]
+version = "^0.24"
+#path = "../../nalgebra"

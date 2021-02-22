@@ -1,5 +1,7 @@
 pub mod graph;
 pub mod mapping;
+pub mod node;
+pub mod token;
 //pub mod grammar;
 
 use graph::{
@@ -8,11 +10,15 @@ use graph::{
 use mapping::{
     Mappable,
     Mapped,
-    Node,
-    Token,
+};
+use node::{
     Edge,
-    TokenData,
+    Node,
     LoadedNode,
+};
+use token::{
+    Token,
+    TokenData,
 };
 use std::{
     fmt::Debug,
@@ -58,19 +64,19 @@ where
     //    };
     //    self.get_node_info(&sym)
     //}
-    pub fn read_sequence<N: Into<T>, I: Iterator<Item = N>>(&mut self, seq: I) {
-        let seq = T::sequenced(seq);
-        for index in 0..seq.len() {
+    pub fn read_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) {
+        let seq = T::sequenced(seq.into_iter());
+        for index in 1..seq.len() {
             self.read_to_node(&seq[..], index);
         }
     }
     fn read_to_node(&mut self, seq: &[Token<T>], index: usize) {
         let element = &seq[index];
-        let end = seq.len() - 1;
+        let len = seq.len();
         for pre in 0..index {
             let l = &seq[pre];
             let ld = index - pre;
-            for post in (index + 1)..=end {
+            for post in (index + 1)..len {
                 let r = &seq[post];
                 let rd = post - index;
                 self.insert_node_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
@@ -129,11 +135,11 @@ impl<T: TokenData + Mappable> DerefMut for SequenceGraph<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use tracing_test::traced_test;
+    use tracing_test::traced_test;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
-            "abcd",
+            "bc",
         ]);
         pub static ref EDGES: Vec<(Token<char>, Token<char>, usize)> = {
             Vec::from([
@@ -161,12 +167,33 @@ mod tests {
             g
         };
     }
-    //#[traced_test]
-    //#[test]
-    //fn read_sequence() {
-    //    //debug!("{:#?}", *G);
-    //    for (l, r, w) in EDGES.iter() {
-    //        assert!(G.has_node_edge(l.clone(), r.clone(), w), "({}, {}, {})", l, r, w);
-    //    }
-    //}
+    #[traced_test]
+    #[test]
+    fn read_sequence() {
+        debug!("{:#?}", G.node_indices().zip(G.all_node_weights()).collect::<Vec<_>>());
+        let b_node = G.load_node('b').unwrap();
+        let c_node = G.load_node('c').unwrap();
+        let bm = b_node.mapping(); 
+        assert_eq!(
+            (bm.incoming_sources().collect(), bm.outgoing_targets().collect()),
+            (vec![
+                (1, NodeIndex::new(0)),
+            ],
+            vec![
+                (1, NodeIndex::new(2)),
+                (2, NodeIndex::new(3)),
+            ])
+        );
+        let cm = c_node.mapping(); 
+        assert_eq!(
+            (cm.incoming_sources().collect(), cm.outgoing_targets().collect()),
+            (vec![
+                (2, NodeIndex::new(0)),
+                (1, NodeIndex::new(1)),
+            ],
+            vec![
+                (1, NodeIndex::new(3)),
+            ])
+        );
+    }
 }
