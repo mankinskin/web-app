@@ -18,9 +18,7 @@ use std::{
     fmt::Debug,
     path::PathBuf,
 };
-use tracing::{
-    debug,
-};
+use tracing::debug;
 
 pub mod edge;
 pub mod node;
@@ -59,8 +57,7 @@ where
     /// Find NodeIndex for NodeData, if any
     pub fn find_node_index<T: PartialEq<N> + Debug>(&self, element: T) -> Option<NodeIndex> {
         //debug!("Finding node index for element {:?}", element);
-        let i = self.node_indices()
-            .find(|i| element == self.graph[*i]);
+        let i = self.node_indices().find(|i| element == self.graph[*i]);
         //debug!("Found {:?}", i.map(|i| i.index()));
         i
     }
@@ -90,7 +87,10 @@ where
         self.find_node_index(element).is_some()
     }
     /// True if NodeData has all nodes in graph
-    pub fn has_nodes<T: PartialEq<N> + Debug>(&self, mut elements: impl Iterator<Item = T>) -> bool {
+    pub fn has_nodes<T: PartialEq<N> + Debug>(
+        &self,
+        mut elements: impl Iterator<Item = T>,
+    ) -> bool {
         elements.all(|e| self.find_node_index(e).is_some())
     }
     /// Map NodeIndices to weights
@@ -98,7 +98,8 @@ where
         &'a self,
         is: impl IntoIterator<Item = NodeIndex> + 'a,
     ) -> impl Iterator<Item = N> + 'a {
-        is.into_iter().filter_map(move |i| self.node_weight(i).cloned())
+        is.into_iter()
+            .filter_map(move |i| self.node_weight(i).cloned())
     }
     /// Get all NodeIndices in the graph
     pub fn all_node_indices(&self) -> Vec<NodeIndex> {
@@ -129,11 +130,13 @@ where
     }
     /// Get all edge weights between NodeIndices
     pub fn get_edges(&self, li: NodeIndex, ri: NodeIndex) -> Vec<E> {
-        self.edge_weights_for(self.find_edge_indices(li, ri)).collect()
+        self.edge_weights_for(self.find_edge_indices(li, ri))
+            .collect()
     }
     /// Get all edge weights between NodeDatas
     pub fn get_node_edges<T: PartialEq<N> + Debug>(&self, l: T, r: T) -> Vec<E> {
-        self.edge_weights_for(self.find_node_edge_indices(l, r)).collect()
+        self.edge_weights_for(self.find_node_edge_indices(l, r))
+            .collect()
     }
     /// Find edge index of edge with weight between NodeIndices
     pub fn find_edge_index(&self, li: NodeIndex, ri: NodeIndex, w: &E) -> Option<EdgeIndex> {
@@ -143,7 +146,12 @@ where
             .map(|e| e.id())
     }
     /// Find edge index of edge with weight between NodeDatas
-    pub fn find_node_edge_index<T: PartialEq<N> + Debug>(&self, l: T, r: T, w: &E) -> Option<EdgeIndex> {
+    pub fn find_node_edge_index<T: PartialEq<N> + Debug>(
+        &self,
+        l: T,
+        r: T,
+        w: &E,
+    ) -> Option<EdgeIndex> {
         let li = self.find_node_index(l)?;
         let ri = self.find_node_index(r)?;
         self.find_edge_index(li, ri, w)
@@ -179,9 +187,11 @@ where
     }
     /// Get endpoint of edge
     pub fn edge_endpoint_directed(&self, i: EdgeIndex, direction: Direction) -> Option<NodeIndex> {
-        self.edge_endpoints(i).map(|(source, target)| match direction {
-            Direction::Outgoing => source,
-            Direction::Incoming => target,
+        self.edge_endpoints(i).map(|(source, target)| {
+            match direction {
+                Direction::Outgoing => source,
+                Direction::Incoming => target,
+            }
         })
     }
     /// Get source of edge
@@ -211,7 +221,8 @@ where
         &'a self,
         is: impl IntoIterator<Item = EdgeIndex> + 'a,
     ) -> impl Iterator<Item = E> + 'a {
-        is.into_iter().filter_map(move |i| self.edge_weight(i).cloned())
+        is.into_iter()
+            .filter_map(move |i| self.edge_weight(i).cloned())
     }
     /// Write graph to dot file
     pub fn write_to_file<S: Into<PathBuf>>(&self, name: S) -> std::io::Result<()> {
@@ -245,11 +256,13 @@ impl<'a, N: NodeData> Graph<N, usize> {
         r
     }
     /// Map function to groups
-    pub fn map_groups<A, T, R: IntoIterator<Item = T> + 'a, B: IntoIterator<Item=A>>(
+    pub fn map_groups<A, T, R: IntoIterator<Item = T> + 'a, B: IntoIterator<Item = A>>(
         gs: impl IntoIterator<Item = B>,
         f: impl Fn(B) -> R,
     ) -> Vec<Vec<T>> {
-        gs.into_iter().map(move |group| f(group).into_iter().collect()).collect()
+        gs.into_iter()
+            .map(move |group| f(group).into_iter().collect())
+            .collect()
     }
     pub fn distance_group_sources(
         &self,

@@ -1,21 +1,17 @@
 use crate::{
+    arithmetic_bool::ArithmeticBool,
     token::{
         ContextLink,
         ContextMapping,
     },
-    arithmetic_bool::ArithmeticBool,
 };
 use petgraph::graph::{
     EdgeIndex,
     NodeIndex,
 };
-use std::{
-    default::Default,
-};
+use std::default::Default;
 #[allow(unused)]
-use tracing::{
-    debug,
-};
+use tracing::debug;
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub struct LoadedEdge {
     pub index: EdgeIndex,
@@ -24,11 +20,7 @@ pub struct LoadedEdge {
 }
 impl LoadedEdge {
     pub fn new(index: EdgeIndex, node: NodeIndex, dist: usize) -> Self {
-        Self {
-            index,
-            node,
-            dist,
-        }
+        Self { index, node, dist }
     }
 }
 impl ContextLink for LoadedEdge {
@@ -66,7 +58,8 @@ impl<E: ContextLink> MatrixMapping<E> {
         }
     }
     pub fn remove_zero_columns(&mut self) {
-        let (incoming, columns): (_, Vec<_>) = self.incoming
+        let (incoming, columns): (_, Vec<_>) = self
+            .incoming
             .clone()
             .into_iter()
             .zip(self.matrix.column_iter())
@@ -76,7 +69,8 @@ impl<E: ContextLink> MatrixMapping<E> {
         self.matrix = EdgeMappingMatrix::from_columns(&columns);
     }
     pub fn remove_zero_rows(&mut self) {
-        let (outgoing, rows): (_, Vec<_>) = self.outgoing
+        let (outgoing, rows): (_, Vec<_>) = self
+            .outgoing
             .clone()
             .into_iter()
             .zip(self.matrix.row_iter())

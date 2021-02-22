@@ -1,35 +1,33 @@
 use crate::{
+    mapping::{
+        EdgeMapping,
+        EdgeMappingMatrix,
+        LoadedEdge,
+        LoadedEdgeMapping,
+    },
     token::{
         Token,
-        TokenData,
-        Wide,
         TokenContext,
+        TokenData,
         Tokenize,
+        Wide,
     },
-    mapping::{
-        EdgeMappingMatrix,
-        LoadedEdgeMapping,
-        LoadedEdge,
-        EdgeMapping,
-    },
-};
-use petgraph::graph::{
-    NodeIndex,
-    EdgeIndex,
 };
 use itertools::Itertools;
+use petgraph::graph::{
+    EdgeIndex,
+    NodeIndex,
+};
 use std::{
-    iter::repeat,
     fmt::{
         self,
         Debug,
         Display,
     },
+    iter::repeat,
 };
 #[allow(unused)]
-use tracing::{
-    debug,
-};
+use tracing::debug;
 
 /// Stores sequenced tokens with an edge map
 #[derive(Clone, Eq)]
@@ -151,10 +149,8 @@ impl<T: Tokenize> LoadedNode<T> {
         LZ: Fn(&mut LoadedEdgeMapping),
         RZ: Fn(&mut LoadedEdgeMapping),
     >(
-        #[allow(unused)]
-        name: &str,
-        #[allow(unused)]
-        sec_name: &str,
+        #[allow(unused)] name: &str,
+        #[allow(unused)] sec_name: &str,
         w_sel: W,
         ledge_sel: LE,
         redge_sel: RE,
@@ -204,8 +200,14 @@ impl<T: Tokenize> LoadedNode<T> {
             }
         }
         //debug!("Filtering shared {}...", name);
-        let (lprim, lms): (Vec<LoadedEdge>, Vec<_>) = l.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
-        let (rprim, rms): (Vec<LoadedEdge>, Vec<_>) = r.into_iter().filter_map(|(b, (e, m))| b.then(|| (e, m))).unzip();
+        let (lprim, lms): (Vec<LoadedEdge>, Vec<_>) = l
+            .into_iter()
+            .filter_map(|(b, (e, m))| b.then(|| (e, m)))
+            .unzip();
+        let (rprim, rms): (Vec<LoadedEdge>, Vec<_>) = r
+            .into_iter()
+            .filter_map(|(b, (e, m))| b.then(|| (e, m)))
+            .unzip();
         //debug!("Checking if {} empty...", name);
         //debug!("lprim: {:#?}", lprim);
         //debug!("rprim: {:#?}", rprim);
@@ -230,11 +232,13 @@ impl<T: Tokenize> LoadedNode<T> {
                 index: ri,
                 mapping: rmap,
                 ..rhs
-            }
+            },
         ))
     }
     fn input_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
-        Self::intersections("inputs", "rows",
+        Self::intersections(
+            "inputs",
+            "rows",
             |lt, _| lt.width(),
             |inc, out| (inc, out),
             |inc, out| (inc, out),
@@ -243,22 +247,31 @@ impl<T: Tokenize> LoadedNode<T> {
             |li, _, ln, rn, ld, rd, d, w| li == rn && rd == d || ln == rn && ld + d + w == rd + 1,
             |it| EdgeMappingMatrix::from_columns(&it),
             |it| EdgeMappingMatrix::from_columns(&it),
-            |prim, matrix, sec| LoadedEdgeMapping {
-                incoming: prim,
-                matrix,
-                outgoing: sec
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    incoming: prim,
+                    matrix,
+                    outgoing: sec,
+                }
             },
-            |prim, matrix, sec| LoadedEdgeMapping {
-                incoming: prim,
-                matrix,
-                outgoing: sec
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    incoming: prim,
+                    matrix,
+                    outgoing: sec,
+                }
             },
             |map| map.remove_zero_rows(),
             |map| map.remove_zero_rows(),
-            lhs, rhs, dist)
+            lhs,
+            rhs,
+            dist,
+        )
     }
     fn output_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
-        Self::intersections("outputs", "columns",
+        Self::intersections(
+            "outputs",
+            "columns",
             |_, rt| rt.width(),
             |inc, out| (out, inc),
             |inc, out| (out, inc),
@@ -267,22 +280,31 @@ impl<T: Tokenize> LoadedNode<T> {
             |_, ri, ln, rn, ld, rd, d, w| ln == ri && ld == d || ln == rn && ld + 1 == rd + d + w,
             |it| EdgeMappingMatrix::from_rows(&it),
             |it| EdgeMappingMatrix::from_rows(&it),
-            |prim, matrix, sec| LoadedEdgeMapping {
-                outgoing: prim,
-                matrix,
-                incoming: sec,
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    outgoing: prim,
+                    matrix,
+                    incoming: sec,
+                }
             },
-            |prim, matrix, sec| LoadedEdgeMapping {
-                outgoing: prim,
-                matrix,
-                incoming: sec,
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    outgoing: prim,
+                    matrix,
+                    incoming: sec,
+                }
             },
             |map| map.remove_zero_columns(),
             |map| map.remove_zero_columns(),
-            lhs, rhs, dist)
+            lhs,
+            rhs,
+            dist,
+        )
     }
     fn connecting_intersections(lhs: Self, rhs: Self, dist: usize) -> Option<(Self, Self)> {
-        Self::intersections("connections", "rows & columns",
+        Self::intersections(
+            "connections",
+            "rows & columns",
             |_, _| 0,
             |inc, out| (out, inc),
             |inc, out| (inc, out),
@@ -291,19 +313,26 @@ impl<T: Tokenize> LoadedNode<T> {
             |li, ri, ln, rn, ld, rd, d, _| ln == ri && rn == li && ld == d && rd == d,
             |it| EdgeMappingMatrix::from_rows(&it),
             |it| EdgeMappingMatrix::from_columns(&it),
-            |prim, matrix, sec| LoadedEdgeMapping {
-                incoming: sec,
-                matrix,
-                outgoing: prim
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    incoming: sec,
+                    matrix,
+                    outgoing: prim,
+                }
             },
-            |prim, matrix, sec| LoadedEdgeMapping {
-                incoming: prim,
-                matrix,
-                outgoing: sec
+            |prim, matrix, sec| {
+                LoadedEdgeMapping {
+                    incoming: prim,
+                    matrix,
+                    outgoing: sec,
+                }
             },
             |map| map.remove_zero_columns(),
             |map| map.remove_zero_rows(),
-            lhs, rhs, dist)
+            lhs,
+            rhs,
+            dist,
+        )
     }
     ///// Join node from right with distance 1
     fn try_join_right(&self, rhs: &Self) -> Option<JoinedNode<T>> {
@@ -314,20 +343,26 @@ impl<T: Tokenize> LoadedNode<T> {
         let (lhs, rhs) = Self::connecting_intersections(lhs, rhs, 1)?;
         let lmap = lhs.mapping;
         let rmap = rhs.mapping;
-        let lmat = EdgeMappingMatrix::from_rows(&lmap.outgoing
-            .into_iter()
-            .map(|e| e.index)
-            .zip(lmap.matrix.row_iter())
-            .sorted_by(|(e1, _), (e2, _)| e1.cmp(e2))
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>());
-        let rmat = EdgeMappingMatrix::from_columns(&rmap.incoming
-            .into_iter()
-            .map(|e| e.index)
-            .zip(rmap.matrix.column_iter())
-            .sorted_by(|(e1, _), (e2, _)| e1.cmp(e2))
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>());
+        let lmat = EdgeMappingMatrix::from_rows(
+            &lmap
+                .outgoing
+                .into_iter()
+                .map(|e| e.index)
+                .zip(lmap.matrix.row_iter())
+                .sorted_by(|(e1, _), (e2, _)| e1.cmp(e2))
+                .map(|(_, v)| v)
+                .collect::<Vec<_>>(),
+        );
+        let rmat = EdgeMappingMatrix::from_columns(
+            &rmap
+                .incoming
+                .into_iter()
+                .map(|e| e.index)
+                .zip(rmap.matrix.column_iter())
+                .sorted_by(|(e1, _), (e2, _)| e1.cmp(e2))
+                .map(|(_, v)| v)
+                .collect::<Vec<_>>(),
+        );
         Some(JoinedNode {
             mapping: LoadedEdgeMapping {
                 incoming: lmap.incoming,
@@ -339,8 +374,9 @@ impl<T: Tokenize> LoadedNode<T> {
     }
     ///// Join node from right with distance 1
     pub fn join_right(&self, rhs: &Self) -> JoinedNode<T> {
-        self.try_join_right(rhs)
-            .unwrap_or_else(|| JoinedNode::new(<Self as TokenContext<T, LoadedEdge>>::token(self) + rhs.token()))
+        self.try_join_right(rhs).unwrap_or_else(|| {
+            JoinedNode::new(<Self as TokenContext<T, LoadedEdge>>::token(self) + rhs.token())
+        })
     }
 }
 /// Stores sequenced tokens with an edge map
@@ -375,18 +411,16 @@ impl<T: Tokenize> TokenContext<T, LoadedEdge> for JoinedNode<T> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use crate::{
-        SequenceGraph,   
         token::TokenContext,
+        SequenceGraph,
     };
-    use petgraph::graph::NodeIndex;
-    #[allow(unused)]
-    use tracing::{
-        debug,
-    };
-    use tracing_test::traced_test;
     use maplit::hashset;
+    use petgraph::graph::NodeIndex;
+    use pretty_assertions::assert_eq;
+    #[allow(unused)]
+    use tracing::debug;
+    use tracing_test::traced_test;
     lazy_static::lazy_static! {
         pub static ref SEQS: Vec<&'static str> = Vec::from([
             "bc",
@@ -409,23 +443,31 @@ mod tests {
     #[traced_test]
     #[test]
     fn join_bc() {
-        debug!("{:#?}", G.node_indices().zip(G.all_node_weights()).collect::<Vec<_>>());
+        debug!(
+            "{:#?}",
+            G.node_indices()
+                .zip(G.all_node_weights())
+                .collect::<Vec<_>>()
+        );
         let b_node = G.load_node('b').unwrap();
         let c_node = G.load_node('c').unwrap();
         let bc_node = b_node.join_right(&c_node);
 
         assert_eq!(bc_node.token(), b_node.token() + c_node.token());
-        let m = bc_node.mapping(); 
+        let m = bc_node.mapping();
         assert_eq!(
-            (m.incoming_sources().collect(), m.outgoing_targets().collect()),
-            (hashset![
-                (1, NodeIndex::new(0)),
-                (1, NodeIndex::new(4)),
-                (2, NodeIndex::new(0)),
-            ],
-            hashset![
-                (1, NodeIndex::new(3)),
-            ])
+            (
+                m.incoming_sources().collect(),
+                m.outgoing_targets().collect()
+            ),
+            (
+                hashset![
+                    (1, NodeIndex::new(0)),
+                    (1, NodeIndex::new(4)),
+                    (2, NodeIndex::new(0)),
+                ],
+                hashset![(1, NodeIndex::new(3)),]
+            )
         );
         //debug!("{:#?}", _bc_node.get_info(&G));
     }
@@ -435,15 +477,13 @@ mod tests {
         let a_node = G.load_node('a').unwrap();
         let aa_node = a_node.join_right(&a_node);
         assert_eq!(aa_node.token(), a_node.token() + a_node.token());
-        let m = aa_node.mapping(); 
+        let m = aa_node.mapping();
         assert_eq!(
-            (m.incoming_sources().collect(), m.outgoing_targets().collect()),
-            (vec![
-                (1, NodeIndex::new(0)),
-            ],
-            vec![
-                (1, NodeIndex::new(3)),
-            ])
+            (
+                m.incoming_sources().collect(),
+                m.outgoing_targets().collect()
+            ),
+            (vec![(1, NodeIndex::new(0)),], vec![(1, NodeIndex::new(3)),])
         );
         //debug!("{:#?}", _bc_node.get_info(&G));
     }
@@ -454,9 +494,12 @@ mod tests {
         let a_node = G.load_node('a').unwrap();
         let ba_node = b_node.join_right(&a_node);
         assert_eq!(ba_node.token(), b_node.token() + a_node.token());
-        let m = ba_node.mapping(); 
+        let m = ba_node.mapping();
         assert_eq!(
-            (m.incoming_sources().collect(), m.outgoing_targets().collect()),
+            (
+                m.incoming_sources().collect(),
+                m.outgoing_targets().collect()
+            ),
             (vec![], vec![])
         );
         //debug!("{:#?}", _bc_node.get_info(&G));

@@ -1,47 +1,39 @@
+pub mod arithmetic_bool;
 pub mod graph;
 pub mod mapping;
 pub mod node;
 pub mod token;
-pub mod arithmetic_bool;
 //pub mod grammar;
 
-use graph::{
-    Graph,
-};
+use graph::Graph;
 use mapping::{
-    LoadedEdge,
     EdgeMapping,
+    LoadedEdge,
     LoadedEdgeMapping,
 };
 use node::{
-    Node,
     LoadedNode,
-};
-use token::{
-    Token,
-    Tokenize,
-    TokenContext,
-};
-use std::{
-    fmt::Debug,
-};
-use std::{
-    ops::{
-        Deref,
-        DerefMut,
-    },
+    Node,
 };
 use petgraph::{
-    Direction,
     graph::{
         EdgeIndex,
         NodeIndex,
     },
+    Direction,
+};
+use std::fmt::Debug;
+use std::ops::{
+    Deref,
+    DerefMut,
+};
+use token::{
+    Token,
+    TokenContext,
+    Tokenize,
 };
 #[allow(unused)]
-use tracing::{
-    debug,
-};
+use tracing::debug;
 
 /// Graph of T: TokenData + Mappable mapping possible distances
 /// between nodes to prefix and postfix nodes
@@ -96,7 +88,11 @@ where
     }
     pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
         let index = self.graph.find_node_index(p)?;
-        let node = self.graph.node_weight(index).expect("Find node by index.").clone();
+        let node = self
+            .graph
+            .node_weight(index)
+            .expect("Find node by index.")
+            .clone();
         let mapping = self.load_mapping(node.mapping)?;
         Some(LoadedNode::new(index, node.token, mapping))
     }
@@ -110,11 +106,13 @@ where
         })
     }
     pub fn load_mapping(&self, mapping: EdgeMapping) -> Option<LoadedEdgeMapping> {
-        let incoming: Vec<_> = mapping.incoming
+        let incoming: Vec<_> = mapping
+            .incoming
             .into_iter()
             .map(|i| self.load_edge(i, Direction::Outgoing).unwrap())
             .collect();
-        let outgoing: Vec<_> = mapping.outgoing
+        let outgoing: Vec<_> = mapping
+            .outgoing
             .into_iter()
             .map(|i| self.load_edge(i, Direction::Incoming).unwrap())
             .collect();
@@ -168,9 +166,9 @@ impl<T: Tokenize> DerefMut for SequenceGraph<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracing_test::traced_test;
-    use pretty_assertions::assert_eq;
     use maplit::hashset;
+    use pretty_assertions::assert_eq;
+    use tracing_test::traced_test;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
@@ -205,30 +203,35 @@ mod tests {
     #[traced_test]
     #[test]
     fn read_sequence() {
-        debug!("{:#?}", G.node_indices().zip(G.all_node_weights()).collect::<Vec<_>>());
+        debug!(
+            "{:#?}",
+            G.node_indices()
+                .zip(G.all_node_weights())
+                .collect::<Vec<_>>()
+        );
         let b_node = G.load_node('b').unwrap();
         let c_node = G.load_node('c').unwrap();
-        let bm = b_node.mapping(); 
+        let bm = b_node.mapping();
         assert_eq!(
-            (bm.incoming_sources().collect(), bm.outgoing_targets().collect()),
-            (hashset![
-                (1, NodeIndex::new(0)),
-            ],
-            hashset![
-                (1, NodeIndex::new(2)),
-                (2, NodeIndex::new(3)),
-            ])
+            (
+                bm.incoming_sources().collect(),
+                bm.outgoing_targets().collect()
+            ),
+            (
+                hashset![(1, NodeIndex::new(0)),],
+                hashset![(1, NodeIndex::new(2)), (2, NodeIndex::new(3)),]
+            )
         );
-        let cm = c_node.mapping(); 
+        let cm = c_node.mapping();
         assert_eq!(
-            (cm.incoming_sources().collect(), cm.outgoing_targets().collect()),
-            (hashset![
-                (2, NodeIndex::new(0)),
-                (1, NodeIndex::new(1)),
-            ],
-            hashset![
-                (1, NodeIndex::new(3)),
-            ])
+            (
+                cm.incoming_sources().collect(),
+                cm.outgoing_targets().collect()
+            ),
+            (
+                hashset![(2, NodeIndex::new(0)), (1, NodeIndex::new(1)),],
+                hashset![(1, NodeIndex::new(3)),]
+            )
         );
     }
 }

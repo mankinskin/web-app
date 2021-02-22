@@ -1,18 +1,18 @@
 use std::{
+    default::Default,
+    fmt::{
+        self,
+        Debug,
+        Display,
+        Formatter,
+    },
     ops::{
-        Mul,
-        MulAssign,
         Add,
         AddAssign,
         Deref,
         DerefMut,
-    },
-    default::Default,
-    fmt::{
-        self,
-        Formatter,
-        Debug,
-        Display,
+        Mul,
+        MulAssign,
     },
 };
 
@@ -21,10 +21,14 @@ pub struct ArithmeticBool(pub bool);
 
 impl Display for ArithmeticBool {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", match self.0 {
-            true => "1",
-            false => "0",
-        })
+        write!(
+            f,
+            "{}",
+            match self.0 {
+                true => "1",
+                false => "0",
+            }
+        )
     }
 }
 impl num_traits::Zero for ArithmeticBool {

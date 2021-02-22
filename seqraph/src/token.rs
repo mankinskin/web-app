@@ -1,30 +1,22 @@
 use crate::{
-    graph::{
-        node::NodeData,
-    },
+    graph::node::NodeData,
     node::Node,
 };
+use petgraph::graph::EdgeIndex;
 use serde::{
     Deserialize,
     Serialize,
 };
 use std::{
-    ops::{
-        Add,
-    },
     fmt::{
         self,
         Debug,
         Display,
     },
-};
-use petgraph::graph::{
-    EdgeIndex,
+    ops::Add,
 };
 #[allow(unused)]
-use tracing::{
-    debug,
-};
+use tracing::debug;
 pub trait TokenData: NodeData + Wide {}
 impl<T: NodeData + Wide> TokenData for T {}
 
@@ -109,7 +101,9 @@ pub trait TokenContext<T: Tokenize, E: ContextLink>: Sized {
     //    }
     //}
 }
-pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Display>(groups: Vec<Vec<C>>) -> String {
+pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Display>(
+    groups: Vec<Vec<C>>,
+) -> String {
     let mut lines = Vec::new();
     let max = groups.iter().map(Vec::len).max().unwrap_or(0);
     for i in 0..max {
@@ -145,12 +139,8 @@ impl<T: TokenData + Display> Display for Token<T> {
             "{}",
             match self {
                 Token::Element(t) => t.to_string(),
-                Token::Tokens(v) => format!(
-                    "{:#?}",
-                    v.iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<_>>()
-                ),
+                Token::Tokens(v) =>
+                    format!("{:#?}", v.iter().map(|t| t.to_string()).collect::<Vec<_>>()),
                 Token::Start => "START".to_string(),
                 Token::End => "END".to_string(),
             }
@@ -161,24 +151,28 @@ impl<T: TokenData> Add for Token<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
         match self {
-            Token::Tokens(mut v) => match other {
-                Token::Tokens(t) => {
-                    v.extend(t);
-                    Token::Tokens(v)
-                },
-                _ => {
-                    v.push(other);
-                    Token::Tokens(v)
-                },
-            },
-            _ => match other {
-                Token::Tokens(t) => {
-                    let mut v = vec![self];
-                    v.extend(t);
-                    Token::Tokens(v)
-                },
-                _ => Token::Tokens(vec![self, other]),
-            },
+            Token::Tokens(mut v) => {
+                match other {
+                    Token::Tokens(t) => {
+                        v.extend(t);
+                        Token::Tokens(v)
+                    }
+                    _ => {
+                        v.push(other);
+                        Token::Tokens(v)
+                    }
+                }
+            }
+            _ => {
+                match other {
+                    Token::Tokens(t) => {
+                        let mut v = vec![self];
+                        v.extend(t);
+                        Token::Tokens(v)
+                    }
+                    _ => Token::Tokens(vec![self, other]),
+                }
+            }
         }
     }
 }
