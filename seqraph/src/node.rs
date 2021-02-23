@@ -134,8 +134,7 @@ impl<T: Tokenize> LoadedNode<T> {
         }
     }
     fn intersections<
-        L: Clone,
-        R: Clone,
+        L, R,
         W: Fn(&Token<T>, &Token<T>) -> usize,
         LE: Fn(Vec<LoadedEdge>, Vec<LoadedEdge>) -> (Vec<LoadedEdge>, Vec<LoadedEdge>),
         RE: Fn(Vec<LoadedEdge>, Vec<LoadedEdge>) -> (Vec<LoadedEdge>, Vec<LoadedEdge>),
@@ -421,6 +420,7 @@ mod tests {
     #[allow(unused)]
     use tracing::debug;
     use tracing_test::traced_test;
+    use test::Bencher;
     lazy_static::lazy_static! {
         pub static ref SEQS: Vec<&'static str> = Vec::from([
             "bc",
@@ -470,6 +470,12 @@ mod tests {
             )
         );
         //debug!("{:#?}", _bc_node.get_info(&G));
+    }
+    #[bench]
+    fn bench_join(b: &mut Bencher) {
+        let b_node = G.load_node('b').unwrap();
+        let c_node = G.load_node('c').unwrap();
+        b.iter(|| b_node.join_right(&c_node))
     }
     #[traced_test]
     #[test]

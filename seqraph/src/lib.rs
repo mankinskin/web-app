@@ -1,3 +1,7 @@
+#![feature(test)]
+
+extern crate test;
+
 pub mod arithmetic_bool;
 pub mod graph;
 pub mod mapping;
