@@ -409,13 +409,16 @@ impl<T: Tokenize> TokenContext<T, LoadedEdge> for JoinedNode<T> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::{
-        token::TokenContext,
+        token::{
+            TokenContext,
+            Token,
+        },
         SequenceGraph,
     };
+    use std::collections::HashSet;
     use maplit::hashset;
-    use petgraph::graph::NodeIndex;
     use pretty_assertions::assert_eq;
     #[allow(unused)]
     use tracing::debug;
@@ -423,14 +426,14 @@ mod tests {
     use test::Bencher;
     lazy_static::lazy_static! {
         pub static ref SEQS: Vec<&'static str> = Vec::from([
+            "",
             "bc",
             "aa",
             "abc",
-            //"bcade",
-            //"aa",
-            //"bcaade",
-            //"bcbcabc",
-            //"abcaa",
+            "bcade",
+            "bcaade",
+            "bcbcabc",
+            "abcaa",
         ]);
         pub static ref G: SequenceGraph<char> = {
             let mut g = SequenceGraph::new();
@@ -439,6 +442,21 @@ mod tests {
             }
             g
         };
+    }
+    #[macro_export]
+    macro_rules! assert_distances_match {
+        ($name: expr, $g: expr, $input: expr, $ty: ty, [ $($e: expr),* $(,)? ]) => {
+            assert_eq!(
+                $input,
+                hashset![
+                    $($e),*
+                ]
+                .into_iter()
+                .map(|(d, t): (usize, $ty)| (d, $g.find_node_index(t).unwrap()))
+                .collect(),
+                $name,
+            )
+        }
     }
     #[traced_test]
     #[test]
@@ -455,20 +473,55 @@ mod tests {
 
         assert_eq!(bc_node.token(), b_node.token() + c_node.token());
         let m = bc_node.mapping();
-        assert_eq!(
-            (
-                m.incoming_sources().collect(),
-                m.outgoing_targets().collect()
-            ),
-            (
-                hashset![
-                    (1, NodeIndex::new(0)),
-                    (1, NodeIndex::new(4)),
-                    (2, NodeIndex::new(0)),
-                ],
-                hashset![(1, NodeIndex::new(3)),]
-            )
-        );
+        debug!("Incoming");
+        assert_distances_match!("Incoming", G,
+            m.incoming_sources().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::Start),
+
+                (2, Token::Start),
+                (1, Token::Element('a')),
+
+                (3, Token::Start),
+                (2, Token::Element('b')),
+                (1, Token::Element('c')),
+
+                (6, Token::Start),
+                (5, Token::Element('b')),
+                (4, Token::Element('c')),
+                (3, Token::Element('b')),
+                (2, Token::Element('c')),
+            ]);
+        assert_distances_match!("Outgoing", G,
+            m.outgoing_targets().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::End),
+
+                (1, Token::Element('a')),
+                (2, Token::Element('d')),
+                (3, Token::Element('e')),
+                (4, Token::End),
+
+                (2, Token::Element('a')),
+                (3, Token::Element('d')),
+                (4, Token::Element('e')),
+                (5, Token::End),
+
+                (1, Token::Element('b')),
+                (2, Token::Element('c')),
+                (3, Token::Element('a')),
+                (4, Token::Element('b')),
+                (5, Token::Element('c')),
+                (6, Token::End),
+
+                (2, Token::Element('b')),
+                (3, Token::Element('c')),
+                (4, Token::End),
+
+                (3, Token::End),
+            ]);
         //debug!("{:#?}", _bc_node.get_info(&G));
     }
     #[bench]
@@ -484,13 +537,27 @@ mod tests {
         let aa_node = a_node.join_right(&a_node);
         assert_eq!(aa_node.token(), a_node.token() + a_node.token());
         let m = aa_node.mapping();
-        assert_eq!(
-            (
-                m.incoming_sources().collect(),
-                m.outgoing_targets().collect()
-            ),
-            (vec![(1, NodeIndex::new(0)),], vec![(1, NodeIndex::new(3)),])
-        );
+        assert_distances_match!("Incoming", G, m.incoming_sources().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::Start),
+
+                (3, Token::Start),
+                (2, Token::Element('b')),
+                (1, Token::Element('c')),
+
+                (4, Token::Start),
+                (3, Token::Element('a')),
+            ]);
+        assert_distances_match!("Outgoing", G, m.outgoing_targets().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::End),
+
+                (1, Token::Element('d')),
+                (2, Token::Element('e')),
+                (3, Token::End),
+            ]);
         //debug!("{:#?}", _bc_node.get_info(&G));
     }
     #[traced_test]
@@ -501,13 +568,12 @@ mod tests {
         let ba_node = b_node.join_right(&a_node);
         assert_eq!(ba_node.token(), b_node.token() + a_node.token());
         let m = ba_node.mapping();
-        assert_eq!(
-            (
-                m.incoming_sources().collect(),
-                m.outgoing_targets().collect()
-            ),
-            (vec![], vec![])
-        );
+        assert_distances_match!("Incoming", G, m.incoming_sources().collect::<HashSet<_>>(),
+            Token<char>,
+            []);
+        assert_distances_match!("Outgoing", G, m.outgoing_targets().collect::<HashSet<_>>(),
+            Token<char>,
+            []);
         //debug!("{:#?}", _bc_node.get_info(&G));
     }
     //#[traced_test]

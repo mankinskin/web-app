@@ -178,6 +178,8 @@ mod tests {
     use maplit::hashset;
     use pretty_assertions::assert_eq;
     use tracing_test::traced_test;
+    use crate::assert_distances_match;
+    use std::collections::HashSet;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
@@ -221,26 +223,28 @@ mod tests {
         let b_node = G.load_node('b').unwrap();
         let c_node = G.load_node('c').unwrap();
         let bm = b_node.mapping();
-        assert_eq!(
-            (
-                bm.incoming_sources().collect(),
-                bm.outgoing_targets().collect()
-            ),
-            (
-                hashset![(1, NodeIndex::new(0)),],
-                hashset![(1, NodeIndex::new(2)), (2, NodeIndex::new(3)),]
-            )
-        );
+        assert_distances_match!("Incoming", G, bm.incoming_sources().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::Start),
+            ]);
+        assert_distances_match!("Outgoing", G, bm.outgoing_targets().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::Element('c')),
+                (2, Token::End),
+            ]);
         let cm = c_node.mapping();
-        assert_eq!(
-            (
-                cm.incoming_sources().collect(),
-                cm.outgoing_targets().collect()
-            ),
-            (
-                hashset![(2, NodeIndex::new(0)), (1, NodeIndex::new(1)),],
-                hashset![(1, NodeIndex::new(3)),]
-            )
-        );
+        assert_distances_match!("Incoming", G, cm.incoming_sources().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (2, Token::Start),
+                (1, Token::Element('b')),
+            ]);
+        assert_distances_match!("Outgoing", G, cm.outgoing_targets().collect::<HashSet<_>>(),
+            Token<char>,
+            [
+                (1, Token::End),
+            ]);
     }
 }
