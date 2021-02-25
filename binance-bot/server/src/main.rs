@@ -63,6 +63,12 @@ pub async fn actor_sys() -> RwLockReadGuard<'static, ActorSystem> {
 pub async fn actor_sys_mut() -> RwLockWriteGuard<'static, ActorSystem> {
 	ACTOR_SYS.write().await
 }
+pub fn try_actor_sys() -> Option<RwLockReadGuard<'static, ActorSystem>> {
+    ACTOR_SYS.try_read()
+}
+pub fn try_actor_sys_mut() -> Option<RwLockWriteGuard<'static, ActorSystem>> {
+    ACTOR_SYS.try_write()
+}
 #[derive(Debug, Clone)]
 pub struct Error(String);
 impl From<String> for Error {
