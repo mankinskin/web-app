@@ -15,6 +15,7 @@ use std::{
         Display,
     },
     ops::Add,
+    hash::Hash,
 };
 #[allow(unused)]
 use tracing::debug;
@@ -126,14 +127,14 @@ pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Dis
 }
 
 /// Type for storing elements of a sequence
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Eq)]
-pub enum Token<T: TokenData> {
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Eq, Hash)]
+pub enum Token<T: Tokenize> {
     Element(T),
     Tokens(Vec<Self>),
     Start,
     End,
 }
-impl<T: TokenData + Display> Display for Token<T> {
+impl<T: Tokenize + Display> Display for Token<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -148,7 +149,7 @@ impl<T: TokenData + Display> Display for Token<T> {
         )
     }
 }
-impl<T: TokenData> Add for Token<T> {
+impl<T: Tokenize> Add for Token<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
         match self {
@@ -177,25 +178,25 @@ impl<T: TokenData> Add for Token<T> {
         }
     }
 }
-impl<T: TokenData> Add<&Token<T>> for Token<T> {
+impl<T: Tokenize> Add<&Token<T>> for Token<T> {
     type Output = Self;
     fn add(self, other: &Self) -> Self::Output {
         self + other.clone()
     }
 }
-impl<T: TokenData> Add<Token<T>> for &Token<T> {
+impl<T: Tokenize> Add<Token<T>> for &Token<T> {
     type Output = Token<T>;
     fn add(self, other: Token<T>) -> Self::Output {
         self.clone() + other
     }
 }
-impl<T: TokenData> Add for &Token<T> {
+impl<T: Tokenize> Add for &Token<T> {
     type Output = Token<T>;
     fn add(self, other: Self) -> Self::Output {
         self.clone() + other.clone()
     }
 }
-impl<T: TokenData> Wide for Token<T> {
+impl<T: Tokenize> Wide for Token<T> {
     fn width(&self) -> usize {
         match self {
             Token::Element(t) => t.width(),
@@ -205,17 +206,17 @@ impl<T: TokenData> Wide for Token<T> {
         }
     }
 }
-impl<T: TokenData> From<T> for Token<T> {
+impl<T: Tokenize> From<T> for Token<T> {
     fn from(e: T) -> Self {
         Token::Element(e)
     }
 }
-impl<T: TokenData> PartialEq<Token<T>> for &Token<T> {
+impl<T: Tokenize> PartialEq<Token<T>> for &Token<T> {
     fn eq(&self, rhs: &Token<T>) -> bool {
         **self == *rhs
     }
 }
-impl<T: TokenData> PartialEq<T> for Token<T> {
+impl<T: Tokenize> PartialEq<T> for Token<T> {
     fn eq(&self, rhs: &T) -> bool {
         match self {
             Token::Element(e) => *e == *rhs,
@@ -223,7 +224,7 @@ impl<T: TokenData> PartialEq<T> for Token<T> {
         }
     }
 }
-impl<T: TokenData> PartialEq<Node<T>> for Token<T> {
+impl<T: Tokenize> PartialEq<Node<T>> for Token<T> {
     fn eq(&self, rhs: &Node<T>) -> bool {
         *self == *<Node<T> as TokenContext<T, Edge>>::token(rhs)
     }
