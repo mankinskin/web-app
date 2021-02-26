@@ -44,7 +44,7 @@ where
     /// Nodes
 
     /// Return a NodeIndex for a node with NodeData
-    pub fn add_node(&mut self, element: &N) -> NodeIndex {
+    pub fn node(&mut self, element: &N) -> NodeIndex {
         if let Some(i) = self.find_node_index(element.clone()) {
             //debug!("Found node for element {:?} with index {}", element, i.index());
             i
@@ -113,7 +113,7 @@ where
     /// Edges
 
     /// Return an EdgeIndex for an edge with weight between NodeIndices
-    pub fn add_edge(&mut self, li: NodeIndex, ri: NodeIndex, w: E) -> EdgeIndex {
+    pub fn edge(&mut self, li: NodeIndex, ri: NodeIndex, w: E) -> EdgeIndex {
         let i = self.find_edge_index(li, ri, &w);
         let i = if let Some(i) = i {
             i
@@ -123,9 +123,9 @@ where
         i
     }
     /// Add a new edge with weight between NodeDatas
-    pub fn add_node_edge(&mut self, l: &N, r: &N, w: E) -> EdgeIndex {
-        let li = self.add_node(l);
-        let ri = self.add_node(r);
+    pub fn node_edge(&mut self, l: &N, r: &N, w: E) -> EdgeIndex {
+        let li = self.node(l);
+        let ri = self.node(r);
         self.graph.add_edge(li, ri, w)
     }
     /// Get all edge weights between NodeIndices
@@ -323,13 +323,13 @@ mod tests {
         static ref G: Mutex<Graph<char, usize>> = Mutex::new(Graph::new());
         static ref NODE_INDICES: Vec<NodeIndex> = {
             let mut g = G.lock().unwrap();
-            ELEMS.iter().map(|e| g.add_node(e)).collect()
+            ELEMS.iter().map(|e| g.node(e)).collect()
         };
         static ref EDGE_INDICES: Vec<EdgeIndex> = {
             let mut g = G.lock().unwrap();
             EDGES
                 .iter()
-                .map(|(l, r, w)| g.add_node_edge(l, r, w.clone()))
+                .map(|(l, r, w)| g.node_edge(l, r, w.clone()))
                 .collect()
         };
     }

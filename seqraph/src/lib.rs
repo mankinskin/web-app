@@ -72,27 +72,54 @@ where
     pub fn read_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) {
         let seq = T::tokenize(seq.into_iter());
         for index in 1..seq.len() {
-            self.read_to_node(&seq[..], index);
+            let ni = self.node(seq[index].clone());
+            self.read_preceding_context(&seq[..index], ni);
         }
     }
-    fn read_to_node(&mut self, seq: &[Token<T>], index: usize) {
-        let element = &seq[index];
-        let len = seq.len();
-        for pre in 0..index {
-            let l = &seq[pre];
-            let ld = index - pre;
-            for post in (index + 1)..len {
-                let r = &seq[post];
-                let rd = post - index;
-                self.insert_node_neighborhood(l.clone(), ld, element.clone(), rd, r.clone());
+    fn read_preceding_context(&mut self, text: &[Token<T>], node: NodeIndex) {
+        let end = text.len();
+        for index in 0..end {
+            let element = &text[index];
+            let rd = end - index;
+            for pre in 0..index {
+                let l = &text[pre];
+                let ld = index - pre;
+                let li = self.node(l.clone());
+                let xi = self.node(element.clone());
+                self.insert_node_neighborhood(li, ld, xi, rd, node);
             }
         }
     }
-    pub fn add_node(&mut self, token: Token<T>) -> NodeIndex {
-        self.graph.add_node(&Node::new(token))
+    fn read_from<N: Into<T>, TI: Iterator<Item=N>>(&mut self, text: TI) -> Option<()> {
+        let cap = text.size_hint().0;
+        T::tokenize(text).into_iter().fold(Vec::with_capacity(cap), |mut stack, token| {
+            let ni = self.node(token.clone());
+            self.read_preceding_context(&stack, ni);
+            stack.push(token);
+            stack
+        });
+        None
     }
-    pub fn add_edge(&mut self, li: NodeIndex, ri: NodeIndex, w: usize) -> Edge {
-        Edge::new(self.graph.add_edge(li, ri, w))
+    fn insert_node_neighborhood(
+        &mut self,
+        li: NodeIndex, // left-hand element
+        ld: usize,   // distance to left-hand element
+        xi: NodeIndex, // center element
+        rd: usize,   // distance to right-hand element
+        ri: NodeIndex, // right-hand element
+    ) {
+        let le = self.edge(li, xi, ld);
+        let re = self.edge(xi, ri, rd);
+        self.node_weight_mut(xi)
+            .unwrap()
+            .mapping_mut()
+            .add_transition(le, re);
+    }
+    pub fn node(&mut self, token: Token<T>) -> NodeIndex {
+        self.graph.node(&Node::new(token))
+    }
+    pub fn edge(&mut self, li: NodeIndex, ri: NodeIndex, w: usize) -> Edge {
+        Edge::new(self.graph.edge(li, ri, w))
     }
     pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
         let index = self.graph.find_node_index(p)?;
@@ -131,26 +158,6 @@ where
             outgoing,
         })
     }
-    fn insert_node_neighborhood(
-        &mut self,
-        l: Token<T>, // left-hand element
-        ld: usize,   // distance to left-hand element
-        x: Token<T>, // center element
-        rd: usize,   // distance to right-hand element
-        r: Token<T>, // right-hand element
-    ) {
-        let li = self.add_node(l.clone());
-        let xi = self.add_node(x.clone());
-        let ri = self.add_node(r.clone());
-        let le = self.add_edge(li, xi, ld);
-        let re = self.add_edge(xi, ri, rd);
-        //debug!("Inserting node neighborhood {:?}({}) -{}> {:?}({}) -{}> {:?}({})",
-        //l, li.index(), ld, x, xi.index(), rd, r, ri.index());
-        self.node_weight_mut(xi)
-            .unwrap()
-            .mapping_mut()
-            .add_transition(le, re);
-    }
     //pub fn knows_sequence(&self, seq: &[Token<T>]) -> bool {
     //    if let Some(nodes) = self.graph.find_node_weights(seq.into_iter()) {
     //        //nodes.iter().fold(
@@ -180,10 +187,19 @@ mod tests {
     use tracing_test::traced_test;
     use crate::assert_distances_match;
     use std::collections::HashSet;
+    use test::Bencher;
     lazy_static::lazy_static! {
         pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
+            "",
             "bc",
+            "aa",
+            "abc",
+            "bcade",
+            "bcaade",
+            "bcbcabc",
+            "abcaa",
+            "abcaabcbcabcbcade",
         ]);
         pub static ref EDGES: Vec<(Token<char>, Token<char>, usize)> = {
             Vec::from([
@@ -211,40 +227,22 @@ mod tests {
             g
         };
     }
-    #[traced_test]
-    #[test]
-    fn read_sequence() {
-        debug!(
-            "{:#?}",
-            G.node_indices()
-                .zip(G.all_node_weights())
-                .collect::<Vec<_>>()
-        );
-        let b_node = G.load_node('b').unwrap();
-        let c_node = G.load_node('c').unwrap();
-        let bm = b_node.mapping();
-        assert_distances_match!("Incoming", G, bm.incoming_sources().collect::<HashSet<_>>(),
-            Token<char>,
-            [
-                (1, Token::Start),
-            ]);
-        assert_distances_match!("Outgoing", G, bm.outgoing_targets().collect::<HashSet<_>>(),
-            Token<char>,
-            [
-                (1, Token::Element('c')),
-                (2, Token::End),
-            ]);
-        let cm = c_node.mapping();
-        assert_distances_match!("Incoming", G, cm.incoming_sources().collect::<HashSet<_>>(),
-            Token<char>,
-            [
-                (2, Token::Start),
-                (1, Token::Element('b')),
-            ]);
-        assert_distances_match!("Outgoing", G, cm.outgoing_targets().collect::<HashSet<_>>(),
-            Token<char>,
-            [
-                (1, Token::End),
-            ]);
+    #[bench]
+    fn bench_read_sequence(b: &mut Bencher) {
+        b.iter(|| {
+            let mut g = SequenceGraph::<char>::new();
+            for &s in SEQS.iter() {
+                g.read_sequence(s.chars());
+            }
+        })
+    }
+    #[bench]
+    fn bench_read_from(b: &mut Bencher) {
+        b.iter(|| {
+            let mut g = SequenceGraph::<char>::new();
+            for &s in SEQS.iter() {
+                g.read_from(s.chars());
+            }
+        })
     }
 }
