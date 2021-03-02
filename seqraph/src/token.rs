@@ -38,7 +38,7 @@ pub struct ContextInfo<T: Tokenize> {
     pub outgoing_groups: Vec<Vec<Token<T>>>,
 }
 /// Trait for token that can be mapped in a sequence
-pub trait Tokenize: TokenData + Wide {
+pub trait Tokenize: TokenData + Wide + Hash + Eq {
     fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
         let mut v = vec![Token::Start];
         v.extend(seq.map(|t| Token::Element(t.into())));
@@ -46,7 +46,7 @@ pub trait Tokenize: TokenData + Wide {
         v
     }
 }
-impl<T: TokenData + Wide> Tokenize for T {}
+impl<T: TokenData + Wide + Hash + Eq> Tokenize for T {}
 
 pub trait ContextLink: Sized + Clone {
     fn index(&self) -> &EdgeIndex;
