@@ -467,8 +467,8 @@ pub mod tests {
                 .zip(G.all_node_weights())
                 .collect::<Vec<_>>()
         );
-        let b_node = G.load_node('b').unwrap();
-        let c_node = G.load_node('c').unwrap();
+        let b_node = G.load_node_from('b').unwrap();
+        let c_node = G.load_node_from('c').unwrap();
         let bc_node = b_node.join_right(&c_node);
 
         assert_eq!(bc_node.token(), b_node.token() + c_node.token());
@@ -526,14 +526,14 @@ pub mod tests {
     }
     #[bench]
     fn bench_join(b: &mut Bencher) {
-        let b_node = G.load_node('b').unwrap();
-        let c_node = G.load_node('c').unwrap();
+        let b_node = G.load_node_from('b').unwrap();
+        let c_node = G.load_node_from('c').unwrap();
         b.iter(|| b_node.join_right(&c_node))
     }
     #[traced_test]
     #[test]
     fn join_aa() {
-        let a_node = G.load_node('a').unwrap();
+        let a_node = G.load_node_from('a').unwrap();
         let aa_node = a_node.join_right(&a_node);
         assert_eq!(aa_node.token(), a_node.token() + a_node.token());
         let m = aa_node.mapping();
@@ -563,8 +563,8 @@ pub mod tests {
     #[traced_test]
     #[test]
     fn join_ba() {
-        let b_node = G.load_node('b').unwrap();
-        let a_node = G.load_node('a').unwrap();
+        let b_node = G.load_node_from('b').unwrap();
+        let a_node = G.load_node_from('a').unwrap();
         let ba_node = b_node.join_right(&a_node);
         assert_eq!(ba_node.token(), b_node.token() + a_node.token());
         let m = ba_node.mapping();

@@ -121,8 +121,11 @@ where
     pub fn edge(&mut self, li: NodeIndex, ri: NodeIndex, w: usize) -> Edge {
         Edge::new(self.graph.edge(li, ri, w))
     }
-    pub fn load_node<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
+    pub fn load_node_from<P: PartialEq<Node<T>> + Debug>(&self, p: P) -> Option<LoadedNode<T>> {
         let index = self.graph.find_node_index(p)?;
+        self.load_node(index)
+    }
+    pub fn load_node(&self, index: NodeIndex) -> Option<LoadedNode<T>> {
         let node = self
             .graph
             .node_weight(index)
