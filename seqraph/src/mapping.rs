@@ -133,6 +133,10 @@ impl<E: ContextLink> MatrixMapping<E> {
         let ri = self.add_outgoing_edge(r);
         self.matrix[(ri, li)] = true.into();
     }
+    ///// extends the context with the context of another mapping
+    //pub fn extend(&mut self, other: &Self) {
+    //    self.incoming.extend(other)
+    //}
 }
 impl<'a> MatrixMapping<LoadedEdge> {
     /// Get weights and sources of incoming edges

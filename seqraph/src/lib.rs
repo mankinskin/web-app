@@ -65,14 +65,18 @@ where
     T: Tokenize,
 {
     graph: Graph<Node<T>, usize>,
+    pattern_graph: Dag<NodeIndex, usize>,
 }
+
 impl<T> SequenceGraph<T>
 where
     T: Tokenize,
 {
     pub fn new() -> Self {
-        let graph = Graph::new();
-        Self { graph }
+        Self {
+            graph: Graph::new(),
+            pattern_graph: Dag::new(),
+        }
     }
     //pub fn query<T: Into<T> + Into<char> + Clone, I: Iterator<Item = T> + Clone>(
     //    &self,

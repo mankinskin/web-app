@@ -28,6 +28,12 @@ features = [
 #version = "^0.5"
 path = "../../petgraph"
 
+[dependencies.daggy]
+version = "^0.7"
+features = [
+  "stable_dag",
+]
+
 [dependencies.nalgebra]
 version = "^0.24"
 #path = "../../nalgebra"

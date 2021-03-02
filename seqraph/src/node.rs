@@ -24,22 +24,60 @@ use std::{
         Display,
     },
     iter::repeat,
+    collections::HashMap,
 };
 #[allow(unused)]
 use tracing::debug;
 
-/// Stores sequenced tokens with an edge map
+#[derive(Clone, PartialEq, Eq)]
+pub struct PatternNode {
+    token_node: NodeIndex,
+}
+#[derive(Clone, PartialEq, Eq)]
+pub struct LoadedPatternNode {
+    token_node: NodeIndex,
+    parents: HashMap<usize, Vec<NodeIndex>>,
+    children: Vec<(usize, NodeIndex)>,
+}
+#[derive(Clone, PartialEq, Eq)]
+pub struct Family {
+    parents: HashMap<usize, Vec<NodeIndex>>,
+    children: Vec<NodeIndex>,
+}
+impl Family {
+    pub fn new() -> Self {
+        Self {
+            parents: HashMap::new(),
+            children: Vec::new(),
+        }
+    }
+    pub fn parents_at_position(&self, pos: usize) -> Option<&Vec<NodeIndex>> {
+        self.parents.get(&pos)
+    }
+    pub fn child(&self, index: usize) -> Option<&NodeIndex> {
+        self.children.get(index)
+    }
+    pub fn is_child(&self, node: &NodeIndex) -> bool {
+        self.children.contains(node)
+    }
+}
+/// Stores tokens with an edge map and a parent child hierarchy
 #[derive(Clone, Eq)]
 pub struct Node<T: Tokenize> {
     pub(crate) token: Token<T>,
     pub(crate) mapping: EdgeMapping,
+    pub(crate) family: Family,
 }
 impl<T: Tokenize> Node<T> {
     pub fn new(token: Token<T>) -> Self {
         Self {
             token,
             mapping: EdgeMapping::new(),
+            family: Family::new(),
         }
+    }
+    pub fn parents_at_position(&self, pos: usize) -> Option<&Vec<NodeIndex>> {
+        self.family.parents_at_position(pos)
     }
 }
 impl<T: Tokenize> TokenContext<T, Edge> for Node<T> {
