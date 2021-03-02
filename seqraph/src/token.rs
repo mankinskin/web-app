@@ -32,7 +32,7 @@ impl Wide for char {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextInfo<T: TokenData> {
+pub struct ContextInfo<T: Tokenize> {
     pub token: Token<T>,
     pub incoming_groups: Vec<Vec<Token<T>>>,
     pub outgoing_groups: Vec<Vec<Token<T>>>,

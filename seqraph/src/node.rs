@@ -9,7 +9,6 @@ use crate::{
     token::{
         Token,
         TokenContext,
-        TokenData,
         Tokenize,
         Wide,
     },
@@ -31,7 +30,7 @@ use tracing::debug;
 
 /// Stores sequenced tokens with an edge map
 #[derive(Clone, Eq)]
-pub struct Node<T: TokenData> {
+pub struct Node<T: Tokenize> {
     pub(crate) token: Token<T>,
     pub(crate) mapping: EdgeMapping,
 }
@@ -58,27 +57,27 @@ impl<T: Tokenize> TokenContext<T, Edge> for Node<T> {
         &mut self.mapping
     }
 }
-impl<T: TokenData> Wide for Node<T> {
+impl<T: Tokenize> Wide for Node<T> {
     fn width(&self) -> usize {
         self.token.width()
     }
 }
-impl<T: TokenData> PartialEq<T> for Node<T> {
+impl<T: Tokenize> PartialEq<T> for Node<T> {
     fn eq(&self, rhs: &T) -> bool {
         self.token == *rhs
     }
 }
-impl<T: TokenData> PartialEq<Token<T>> for Node<T> {
+impl<T: Tokenize> PartialEq<Token<T>> for Node<T> {
     fn eq(&self, rhs: &Token<T>) -> bool {
         self.token == *rhs
     }
 }
-impl<T: TokenData> PartialEq<Node<T>> for Node<T> {
+impl<T: Tokenize> PartialEq<Node<T>> for Node<T> {
     fn eq(&self, rhs: &Node<T>) -> bool {
         self.token == *rhs
     }
 }
-impl<T: TokenData> PartialEq<Node<T>> for &Node<T> {
+impl<T: Tokenize> PartialEq<Node<T>> for &Node<T> {
     fn eq(&self, rhs: &Node<T>) -> bool {
         self.token == *rhs
     }
@@ -88,22 +87,22 @@ impl PartialEq<Node<char>> for char {
         *self == rhs.token
     }
 }
-impl<T: TokenData> Debug for Node<T> {
+impl<T: Tokenize> Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.token)
     }
 }
-impl<T: TokenData + Display> Display for Node<T> {
+impl<T: Tokenize + Display> Display for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.token)
     }
 }
 /// Stores sequenced tokens with an edge map
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct LoadedNode<T: TokenData> {
-    token: Token<T>,
-    index: NodeIndex,
-    mapping: LoadedEdgeMapping,
+pub struct LoadedNode<T: Tokenize> {
+    pub(crate) token: Token<T>,
+    pub(crate) index: NodeIndex,
+    pub(crate) mapping: LoadedEdgeMapping,
 }
 impl<T: Tokenize> TokenContext<T, LoadedEdge> for LoadedNode<T> {
     type Mapping = LoadedEdgeMapping;
@@ -120,7 +119,7 @@ impl<T: Tokenize> TokenContext<T, LoadedEdge> for LoadedNode<T> {
         &mut self.mapping
     }
 }
-impl<T: TokenData> Wide for LoadedNode<T> {
+impl<T: Tokenize> Wide for LoadedNode<T> {
     fn width(&self) -> usize {
         self.token.width()
     }
