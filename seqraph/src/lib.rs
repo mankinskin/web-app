@@ -40,6 +40,22 @@ use token::{
 #[allow(unused)]
 use tracing::debug;
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Vertex<T>
+    where
+        T: Tokenize,
+{
+    Token(T),
+    Edge(usize),
+}
+#[derive(Debug)]
+pub struct Hypergraph<T>
+where
+    T: Tokenize,
+{
+    graph: hypergraph::Hypergraph<Vertex<T>, ()>,
+}
+
 /// Graph of T: TokenData + Mappable mapping possible distances
 /// between nodes to prefix and postfix nodes
 #[derive(Debug)]
