@@ -74,31 +74,58 @@ where
         for index in 1..seq.len() {
             let ni = self.node(seq[index].clone());
             self.read_preceding_context(&seq[..index], ni);
+        //let seq = self.to_indices(seq);
+        //for pos in 0..seq.len() {
+        //    let ri = seq[pos];
+        //    self.read_preceding_context(&seq[..pos], ri);
         }
     }
-    fn read_preceding_context(&mut self, text: &[Token<T>], node: NodeIndex) {
-        let end = text.len();
+    fn to_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Vec<NodeIndex> {
+        let mut tokens = tokens.into_iter();
+        let first = tokens.next();
+        if let Some(first) = first {
+            //let first = self.node(first);
+            //let first = self.load_node(first).unwrap();
+            //tokens.fold((vec![], Some(first)), |(stack, last), token| {
+            //    let node = self.load_node_from(token);
+            //    if let Some(joined) = last.join_right(node) {
+
+            //    }
+            //    stack
+            //})
+            //.into_iter()
+            //.map(|loaded| loaded.index)
+            //.collect()
+            Vec::new()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn read_from<N: Into<T>, TI: Iterator<Item=N>>(&mut self, text: TI) -> Option<()> {
+        let cap = text.size_hint().0;
+        T::tokenize(text)
+            .into_iter()
+            .fold(Vec::with_capacity(cap), |mut stack, token| {
+                let ri = self.node(token.clone());
+                self.read_preceding_context(&stack, ri);
+                stack.push(token.clone());
+                stack
+            });
+        None
+    }
+    fn read_preceding_context(&mut self, stack: &[Token<T>], ri: NodeIndex) {
+        let end = stack.len();
         for index in 0..end {
-            let element = &text[index];
+            let xi = &stack[index];
+            let xi = self.node(xi.clone());
             let rd = end - index;
             for pre in 0..index {
-                let l = &text[pre];
+                let li = &stack[pre];
+                let li = self.node(li.clone());
                 let ld = index - pre;
-                let li = self.node(l.clone());
-                let xi = self.node(element.clone());
-                self.insert_node_neighborhood(li, ld, xi, rd, node);
+                self.insert_node_neighborhood(li, ld, xi, rd, ri);
             }
         }
-    }
-    fn read_from<N: Into<T>, TI: Iterator<Item=N>>(&mut self, text: TI) -> Option<()> {
-        let cap = text.size_hint().0;
-        T::tokenize(text).into_iter().fold(Vec::with_capacity(cap), |mut stack, token| {
-            let ni = self.node(token.clone());
-            self.read_preceding_context(&stack, ni);
-            stack.push(token);
-            stack
-        });
-        None
     }
     fn insert_node_neighborhood(
         &mut self,
@@ -185,14 +212,8 @@ impl<T: Tokenize> DerefMut for SequenceGraph<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maplit::hashset;
-    use pretty_assertions::assert_eq;
-    use tracing_test::traced_test;
-    use crate::assert_distances_match;
-    use std::collections::HashSet;
     use test::Bencher;
     lazy_static::lazy_static! {
-        pub static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c', 'd', 'e']);
         pub static ref SEQS: Vec<&'static str> = Vec::from([
             "",
             "bc",
@@ -204,31 +225,6 @@ mod tests {
             "abcaa",
             "abcaabcbcabcbcade",
         ]);
-        pub static ref EDGES: Vec<(Token<char>, Token<char>, usize)> = {
-            Vec::from([
-                (Token::Start, 'a'.into(), 1),
-                (Token::Start, 'b'.into(), 2),
-                (Token::Start, 'c'.into(), 3),
-                (Token::Start, 'd'.into(), 4),
-                ('a'.into(), Token::End, 4),
-                ('b'.into(), Token::End, 3),
-                ('c'.into(), Token::End, 2),
-                ('d'.into(), Token::End, 1),
-                ('a'.into(), 'b'.into(), 1),
-                ('a'.into(), 'c'.into(), 2),
-                ('a'.into(), 'd'.into(), 3),
-                ('b'.into(), 'c'.into(), 1),
-                ('b'.into(), 'd'.into(), 2),
-                ('c'.into(), 'd'.into(), 1),
-            ])
-        };
-        pub static ref G: SequenceGraph<char> = {
-            let mut g = SequenceGraph::new();
-            for &s in SEQS.iter() {
-                g.read_sequence(s.chars());
-            }
-            g
-        };
     }
     #[bench]
     fn bench_read_sequence(b: &mut Bencher) {
