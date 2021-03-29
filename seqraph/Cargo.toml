@@ -18,6 +18,7 @@ tracing-subscriber = "^0.2"
 tracing-test = "^0.1"
 maplit = "^1"
 hypergraph = "^0.1"
+indexmap = "^1.6"
 
 [dependencies.serde]
 version = "^1"

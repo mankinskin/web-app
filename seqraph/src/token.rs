@@ -1,7 +1,7 @@
 use crate::{
     graph::node::NodeData,
-    node::Node,
-    mapping::Edge,
+    //node::Node,
+    //mapping::Edge,
 };
 use petgraph::graph::EdgeIndex;
 use serde::{
@@ -38,7 +38,7 @@ pub struct ContextInfo<T: Tokenize> {
     pub outgoing_groups: Vec<Vec<Token<T>>>,
 }
 /// Trait for token that can be mapped in a sequence
-pub trait Tokenize: TokenData + Wide + Hash + Eq {
+pub trait Tokenize: TokenData + Wide + Hash + Eq + Copy + Debug {
     fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
         let mut v = vec![Token::Start];
         v.extend(seq.map(|t| Token::Element(t.into())));
@@ -46,7 +46,7 @@ pub trait Tokenize: TokenData + Wide + Hash + Eq {
         v
     }
 }
-impl<T: TokenData + Wide + Hash + Eq> Tokenize for T {}
+impl<T: TokenData + Wide + Hash + Eq + Copy + Debug> Tokenize for T {}
 
 pub trait ContextLink: Sized + Clone {
     fn index(&self) -> &EdgeIndex;
@@ -127,10 +127,9 @@ pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Dis
 }
 
 /// Type for storing elements of a sequence
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Eq, Hash)]
+#[derive(Copy, Debug, PartialEq, Clone, Serialize, Deserialize, Eq, Hash)]
 pub enum Token<T: Tokenize> {
     Element(T),
-    Tokens(Vec<Self>),
     Start,
     End,
 }
@@ -141,66 +140,16 @@ impl<T: Tokenize + Display> Display for Token<T> {
             "{}",
             match self {
                 Token::Element(t) => t.to_string(),
-                Token::Tokens(v) =>
-                    format!("{:#?}", v.iter().map(|t| t.to_string()).collect::<Vec<_>>()),
                 Token::Start => "START".to_string(),
                 Token::End => "END".to_string(),
             }
         )
     }
 }
-impl<T: Tokenize> Add for Token<T> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
-        match self {
-            Token::Tokens(mut v) => {
-                match other {
-                    Token::Tokens(t) => {
-                        v.extend(t);
-                        Token::Tokens(v)
-                    }
-                    _ => {
-                        v.push(other);
-                        Token::Tokens(v)
-                    }
-                }
-            }
-            _ => {
-                match other {
-                    Token::Tokens(t) => {
-                        let mut v = vec![self];
-                        v.extend(t);
-                        Token::Tokens(v)
-                    }
-                    _ => Token::Tokens(vec![self, other]),
-                }
-            }
-        }
-    }
-}
-impl<T: Tokenize> Add<&Token<T>> for Token<T> {
-    type Output = Self;
-    fn add(self, other: &Self) -> Self::Output {
-        self + other.clone()
-    }
-}
-impl<T: Tokenize> Add<Token<T>> for &Token<T> {
-    type Output = Token<T>;
-    fn add(self, other: Token<T>) -> Self::Output {
-        self.clone() + other
-    }
-}
-impl<T: Tokenize> Add for &Token<T> {
-    type Output = Token<T>;
-    fn add(self, other: Self) -> Self::Output {
-        self.clone() + other.clone()
-    }
-}
 impl<T: Tokenize> Wide for Token<T> {
     fn width(&self) -> usize {
         match self {
             Token::Element(t) => t.width(),
-            Token::Tokens(v) => v.iter().fold(0, |acc, x| acc + x.width()),
             Token::Start => 0,
             Token::End => 0,
         }
@@ -211,11 +160,11 @@ impl<T: Tokenize> From<T> for Token<T> {
         Token::Element(e)
     }
 }
-impl<T: Tokenize> PartialEq<Token<T>> for &Token<T> {
-    fn eq(&self, rhs: &Token<T>) -> bool {
-        **self == *rhs
-    }
-}
+//impl<T: Tokenize> PartialEq<Token<T>> for &Token<T> {
+//    fn eq(&self, rhs: &Token<T>) -> bool {
+//        **self == *rhs
+//    }
+//}
 impl<T: Tokenize> PartialEq<T> for Token<T> {
     fn eq(&self, rhs: &T) -> bool {
         match self {
@@ -224,11 +173,11 @@ impl<T: Tokenize> PartialEq<T> for Token<T> {
         }
     }
 }
-impl<T: Tokenize> PartialEq<Node<T>> for Token<T> {
-    fn eq(&self, rhs: &Node<T>) -> bool {
-        *self == *<Node<T> as TokenContext<T, Edge>>::token(rhs)
-    }
-}
+//impl<T: Tokenize> PartialEq<Node<T>> for Token<T> {
+//    fn eq(&self, rhs: &Node<T>) -> bool {
+//        *self == *<Node<T> as TokenContext<T, Edge>>::token(rhs)
+//    }
+//}
 impl PartialEq<Token<char>> for char {
     fn eq(&self, rhs: &Token<char>) -> bool {
         *rhs == *self
