@@ -23,6 +23,10 @@ use crate::{
 use std::collections::HashSet;
 use indexmap::IndexSet;
 use std::borrow::Borrow;
+use itertools::{
+    Itertools,
+    EitherOrBoth,
+};
 
 type VertexIndex = usize;
 type VertexParents = Vec<Parent>;
@@ -260,53 +264,64 @@ where
         }
     }
     fn match_prefix(&self, pattern_a: PatternView<'a>, pattern_b: PatternView<'a>) -> MatchResult {
-        if pattern_a.is_empty() && pattern_b.is_empty() {
-            return MatchResult::Matching;
-        } else if pattern_a.is_empty() {
-            println!("left empty");
-            return MatchResult::Remainder(Remainder::Left(pattern_b.iter().cloned().collect()));
-        } else if pattern_b.is_empty() {
-            println!("right empty");
-            return MatchResult::Remainder(Remainder::Right(pattern_a.iter().cloned().collect()));
-        }
-        if let Some((pos, (&Child {
-                index: index_a,
-                width: width_a,
-            },
-            &Child {
+        let mut pattern_a_iter = pattern_a.iter().cloned().peekable();
+        let mut pattern_b_iter = pattern_b.iter().cloned().enumerate();
+        while let Some(_) = pattern_a_iter.peek() {
+
+            if let Some((pos, Child {
                 index: index_b,
                 width: width_b,
-            }))) = pattern_a.iter().zip(pattern_b).enumerate().skip_while(|(_, (a, b))| *a == *b).next() {
-            // Note: depending on sizes of a, b it may be differently efficient
-            // to search for children or parents, large patterns have less parents,
-            // small patterns have less children
-            // search larger in parents of smaller
-            if width_a == width_b {
-                // relatives can not have same sizes
-                MatchResult::Mismatch
-            } else if width_a > width_b {
-                println!("right sub");
-                self.match_prefix_impl(
-                    &pattern_b[pos..],
-                    &pattern_a[pos+1..],
-                    index_a,
-                    index_b,
-                    width_a,
-                    //width_b
-                )
+            })) = pattern_b_iter.next() {
+                let Child {
+                    index: index_a,
+                    width: width_a,
+                } = pattern_a_iter.next().unwrap();
+
+                if index_a == index_b {
+                    continue;
+                }
+                // Note: depending on sizes of a, b it may be differently efficient
+                // to search for children or parents, large patterns have less parents,
+                // small patterns have less children
+                // search larger in parents of smaller
+                return if width_a == width_b {
+                    // relatives can not have same sizes
+                    MatchResult::Mismatch
+                } else if width_a > width_b {
+                    println!("right sub");
+                    self.match_prefix_impl(
+                        &pattern_b[pos..],
+                        &pattern_a[pos+1..],
+                        index_a,
+                        index_b,
+                        width_a,
+                        //width_b
+                    )
+                } else {
+                    println!("left sub");
+                    self.match_prefix_impl(
+                        &pattern_a[pos..],
+                        &pattern_b[pos+1..],
+                        index_b,
+                        index_a,
+                        width_b,
+                        //width_a
+                    )
+                };
             } else {
-                println!("left sub");
-                self.match_prefix_impl(
-                    &pattern_a[pos..],
-                    &pattern_b[pos+1..],
-                    index_b,
-                    index_a,
-                    width_b,
-                    //width_a
-                )
+                println!("right empty");
+                return MatchResult::Remainder(Remainder::Left(
+                    pattern_a_iter.collect()
+                ));
             }
+        }
+        let rem: Vec<_> = pattern_b_iter.map(|(_, x)| x).collect();
+        if rem.is_empty() {
+            println!("no patterns left");
+            return MatchResult::Matching;
         } else {
-            MatchResult::Matching
+            println!("left empty");
+            return MatchResult::Remainder(Remainder::Right(rem));
         }
     }
     //pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) {
@@ -350,6 +365,8 @@ mod tests {
         let a = g.insert_token(Token::Element('a'));
         let b = g.insert_token(Token::Element('b'));
         let c = g.insert_token(Token::Element('c'));
+        let d = g.insert_token(Token::Element('d'));
+        let e = g.insert_token(Token::Element('e'));
 
         let mut ab_data = VertexData::with_width(2);
         ab_data.family.add_pattern(&[Child::new(a, 1), Child::new(b, 1)]);
@@ -374,10 +391,41 @@ mod tests {
         g.get_vertex_data_mut(ab).unwrap().family.add_parent(abc, 3, 1, 0);
         g.get_vertex_data_mut(c).unwrap().family.add_parent(abc, 3, 1, 1);
         let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+
+
+        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+
+        let mut abcd_data = VertexData::with_width(4);
+        abcd_data.family.add_pattern(abc_d_pattern);
+        abcd_data.family.add_pattern(a_bc_d_pattern);
+        abcd_data.family.add_pattern(ab_c_d_pattern);
+        let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
+        g.get_vertex_data_mut(a).unwrap().family.add_parent(abcd, 4, 1, 0);
+        g.get_vertex_data_mut(d).unwrap().family.add_parent(abcd, 4, 0, 1);
+        g.get_vertex_data_mut(d).unwrap().family.add_parent(abcd, 4, 1, 2);
+        g.get_vertex_data_mut(d).unwrap().family.add_parent(abcd, 4, 2, 2);
+        g.get_vertex_data_mut(c).unwrap().family.add_parent(abcd, 4, 2, 1);
+        g.get_vertex_data_mut(bc).unwrap().family.add_parent(abcd, 4, 1, 1);
+        g.get_vertex_data_mut(ab).unwrap().family.add_parent(abcd, 4, 2, 0);
+        g.get_vertex_data_mut(abc).unwrap().family.add_parent(abcd, 4, 0, 0);
+        let abcd_pattern = &[Child::new(abcd, 4)];
         assert_eq!(g.match_prefix(a_bc_pattern, ab_c_pattern), MatchResult::Matching);
         assert_eq!(g.match_prefix(ab_c_pattern, a_bc_pattern), MatchResult::Matching);
         assert_eq!(g.match_prefix(a_bc_pattern, a_b_c_pattern), MatchResult::Matching);
         assert_eq!(g.match_prefix(a_b_c_pattern, a_b_c_pattern), MatchResult::Matching);
         assert_eq!(g.match_prefix(ab_c_pattern, a_b_c_pattern), MatchResult::Matching);
+        assert_eq!(g.match_prefix(ab_c_d_pattern, a_bc_d_pattern), MatchResult::Matching);
+        assert_eq!(g.match_prefix(abcd_pattern, a_bc_d_pattern), MatchResult::Matching);
+        assert_eq!(g.match_prefix(abc_d_pattern, a_bc_d_pattern), MatchResult::Matching);
+        assert_eq!(g.match_prefix(abc_d_pattern, abcd_pattern), MatchResult::Matching);
+        let bc_pattern = &[Child::new(bc, 2)];
+        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
+        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        assert_eq!(g.match_prefix(bc_pattern, abcd_pattern), MatchResult::Mismatch);
+        assert_eq!(g.match_prefix(b_c_pattern, a_bc_pattern), MatchResult::Mismatch);
+        assert_eq!(g.match_prefix(b_c_pattern, a_d_c_pattern), MatchResult::Mismatch);
+        assert_eq!(g.match_prefix(a_b_c_pattern, abcd_pattern), MatchResult::Remainder(Remainder::Right(vec![Child::new(d, 1)])));
     }
 }
