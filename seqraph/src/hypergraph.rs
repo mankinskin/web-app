@@ -27,6 +27,7 @@ use itertools::{
     Itertools,
     EitherOrBoth,
 };
+use either::Either;
 
 type VertexIndex = usize;
 type VertexParents = Vec<Parent>;
@@ -212,7 +213,7 @@ where
             .map(|token|
 				Child {
                 	index: self.get_token_index(&token)
-                    		.unwrap_or_else(|| self.insert_token(token)),
+                        .unwrap_or_else(|| self.insert_token(token)),
 					width: 1,
 				}
             )
@@ -259,6 +260,26 @@ where
         // match successors in parents where a is at beginning
 		self.match_parent_at_pos(post_sub_pat, parent, Some(0))
     }
+    fn find_matching_parent_prefix_below_width(&self,
+            post_sub_pat: PatternView<'a>,
+            parents: &Vec<Parent>,
+            width_ceiling: Option<usize>,
+        ) -> MatchResult {
+		self.find_matching_parent_at_pos_below_width(post_sub_pat, parents, Some(0), width_ceiling)
+	}
+    fn find_matching_parent_at_pos(&self,
+            post_sub_pat: PatternView<'a>,
+            parents: &Vec<Parent>,
+            pos: Option<usize>,
+        ) -> MatchResult {
+		self.find_matching_parent_at_pos_below_width(post_sub_pat, parents, pos, None)
+	}
+    fn find_matching_parent(&self,
+            post_sub_pat: PatternView<'a>,
+            parents: &Vec<Parent>,
+        ) -> MatchResult {
+		self.find_matching_parent_at_pos_below_width(post_sub_pat, parents, None, None)
+	}
 	/// match sub_pat against children in parent with an optional offset.
     fn match_parent_at_pos(&self, post_sub_pat: PatternView<'a>, parent: &Parent, pos: Option<usize>) -> MatchResult {
 		println!("match_parent");
@@ -266,32 +287,53 @@ where
         let children = &vert.family.children;
         // find pattern where sub is at pos
         // TODO: any heuristics to find the most efficient pattern to compare?
-		let mut filtered;
-		let mut unfiltered;
-		while let Some((pattern_index, pos_sub)) = if let Some(pos) = pos {
-			filtered = parent.positions.iter()
-				.filter(move |(_pattern_index, pos_sub)| *pos_sub == pos);
-			&mut filtered as &mut dyn Iterator<Item=&(usize, usize)>
+		let candidates = if let Some(pos) = pos {
+			Either::Left(parent.positions.iter()
+				.filter(move |(_pattern_index, pos_sub)| *pos_sub == pos))
 		} else {
-			unfiltered = parent.positions.iter();
-			&mut unfiltered as &mut dyn Iterator<Item=_>
-		}.next() {
+			Either::Right(parent.positions.iter())
+        };
+		// find children with matching successors or pick last candidate
+		let best_match = candidates.find_or_first(|(pattern_index, pos_sub)|
+			post_sub_pat.get(0)
+				.and_then(|i|
+					children[*pattern_index].get(pos_sub+1)
+						.map(|b| i.index == b.index)
+				).is_some()
+		);
+		if let Some((pattern_index, pos_sub)) = best_match {
 			let children = &children[*pattern_index][pos_sub+1..];
 			println!("matching remaining pattern (\"{}\") with children (\"{}\")",
 				self.pattern_string(post_sub_pat),
 				self.pattern_string(children),
 			);
-			match self.match_prefix(
+			self.match_prefix(
 			    post_sub_pat,
 			    children,
-			) {
-				MatchResult::Mismatch => {},
-				res @ _ => { return res; },
-			}
+			)
+		} else {
+            println!("no matching parents");
+        	MatchResult::Mismatch
 		}
-        println!("no matching parents");
-        MatchResult::Mismatch
     }
+    fn find_matching_parent_at_pos_below_width(&self,
+            post_sub_pat: PatternView<'a>,
+            parents: &Vec<Parent>,
+			pos: Option<usize>,
+            width_ceiling: Option<usize>,
+        ) -> MatchResult {
+        if let Some(ceil) = width_ceiling {
+			Either::Left(parents.iter()
+            	.filter(move |parent| parent.width < ceil))
+		} else {
+			Either::Right(parents.iter())
+		}
+        .find_map(|parent| match self.match_parent_at_pos(post_sub_pat, parent, pos) {
+            MatchResult::Mismatch => None,
+            r @ _ => Some(r),
+        })
+        .unwrap_or(MatchResult::Mismatch)
+	}
     fn match_sub_pattern_to_super(&self,
             post_sub_pat: PatternView<'a>,
             sub: VertexIndex,
@@ -317,14 +359,11 @@ where
         } else {
             println!("matching available parents");
             // search sup in parents
-            sub_vert.family.parents
-                .iter()
-                .filter(|parent| parent.width < sup_width)
-                .find_map(|parent| match self.match_parent_prefix(post_sub_pat, parent) {
-                    MatchResult::Mismatch => None,
-                    r @ _ => Some(r),
-                })
-                .unwrap_or(MatchResult::Mismatch)
+			self.find_matching_parent_prefix_below_width(
+				post_sub_pat,
+				parents,
+				Some(sup_width),
+			)
         }
     }
     fn match_prefix(&self, pattern_a: PatternView<'a>, pattern_b: PatternView<'a>) -> MatchResult {
