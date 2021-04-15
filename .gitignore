@@ -11,3 +11,4 @@ Cargo.lock
 **/logs/*
 /test_database
 **/binance_bot_database
+**/.vscode
