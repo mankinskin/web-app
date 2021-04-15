@@ -131,28 +131,15 @@ pub struct Hypergraph<T: Tokenize> {
     graph: indexmap::IndexMap<VertexKey<T>, VertexData>,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum Remainder {
-    Left(Pattern),
-    Right(Pattern),
-}
-impl Remainder {
-	pub fn rotate(self) -> Self {
-		match self {
-			Self::Left(x) => Self::Right(x),
-			Self::Right(x) => Self::Left(x),
-		}
-	}
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum MatchResult {
-    Remainder(Remainder),
+pub enum MatchResult {
+    Remainder(Either<Pattern, Pattern>),
     Matching,
     Mismatch,
 }
 impl MatchResult {
-	pub fn rotate_remainder(self) -> Self {
+	pub fn flip_remainder(self) -> Self {
 		match self {
-			Self::Remainder(r) => Self::Remainder(r.rotate()),
+			Self::Remainder(e) => Self::Remainder(e.flip()),
 			_ => self,
 		}
 	}
@@ -432,32 +419,32 @@ where
 					let result = match result {
 						MatchResult::Remainder(remainder) =>
 							match remainder {
-								Remainder::Left(rem) => {
+								Either::Left(rem) => {
 									self.match_prefix(
 										&rem,
 										post_sup,
 									)
 								},
-								Remainder::Right(rem) => MatchResult::Remainder(Remainder::Right([&rem, post_sup].concat())),
+								Either::Right(rem) => MatchResult::Remainder(Either::Right([&rem, post_sup].concat())),
 							},
 						MatchResult::Matching => {
 							let rem: Vec<_> = post_sup.iter().cloned().collect();
 							if rem.is_empty() {
 								MatchResult::Matching
 							} else {
-								MatchResult::Remainder(Remainder::Right(rem))
+								MatchResult::Remainder(Either::Right(rem))
 							}
 						},
 						MatchResult::Mismatch => MatchResult::Mismatch,
 					};
 					if rotate {
-						result.rotate_remainder()
+						result.flip_remainder()
 					} else {
 						result
 					}
 				},
-				EitherOrBoth::Left(_) => MatchResult::Remainder(Remainder::Left(pattern_a[pos..].iter().cloned().collect())),
-				EitherOrBoth::Right(_) => MatchResult::Remainder(Remainder::Right(pattern_b[pos..].iter().cloned().collect())),
+				EitherOrBoth::Left(_) => MatchResult::Remainder(Either::Left(pattern_a[pos..].iter().cloned().collect())),
+				EitherOrBoth::Right(_) => MatchResult::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
 			}
 		} else {
 			// skipped all elements
@@ -563,9 +550,9 @@ mod tests {
         assert_eq!(g.match_prefix(b_c_pattern, a_bc_pattern), MatchResult::Mismatch);
         assert_eq!(g.match_prefix(b_c_pattern, a_d_c_pattern), MatchResult::Mismatch);
 
-        assert_eq!(g.match_prefix(a_b_c_pattern, abcd_pattern), MatchResult::Remainder(Remainder::Right(vec![Child::new(d, 1)])));
+        assert_eq!(g.match_prefix(a_b_c_pattern, abcd_pattern), MatchResult::Remainder(Either::Right(vec![Child::new(d, 1)])));
 
-        assert_eq!(g.match_prefix(ab_c_d_pattern, a_bc_pattern), MatchResult::Remainder(Remainder::Left(vec![Child::new(d, 1)])));
-        assert_eq!(g.match_prefix(a_bc_pattern, ab_c_d_pattern), MatchResult::Remainder(Remainder::Right(vec![Child::new(d, 1)])));
+        assert_eq!(g.match_prefix(ab_c_d_pattern, a_bc_pattern), MatchResult::Remainder(Either::Left(vec![Child::new(d, 1)])));
+        assert_eq!(g.match_prefix(a_bc_pattern, ab_c_d_pattern), MatchResult::Remainder(Either::Right(vec![Child::new(d, 1)])));
     }
 }
