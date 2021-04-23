@@ -434,7 +434,8 @@ where
             self.match_sub_and_post_with_index(parent.index, &new_post, index, width)
         }
     }
-    fn match_pattern_with_index(&self,
+    fn match_pattern_with_index(
+        &self,
         sub_pattern: PatternView<'a>,
         index: VertexIndex,
         width: TokenPosition,
@@ -474,26 +475,26 @@ where
                 .map(|m| (parent.clone(), m))
         )
 	}
-    //pub fn find_pattern(
-    //    &self,
-    //    pattern: PatternView<'a>,
-    //    ) -> SearchResult {
-    //    if pattern.len() == 1 {
-    //        return SearchResult::Found(FoundRange::Complete, pattern[0].index, 0);
-    //    }
-    //    let mut pattern_iter = pattern.into_iter().cloned().enumerate();
-    //    let mut prefix = Vec::with_capacity(pattern_iter.size_hint().0);
-    //    pattern_iter.find_map(|(pos, child)| {
-    //            let vertex = self.expect_vertex_data(child.index);
-			 //   match self.find_parent_matching_pattern_at_offset_below_width(&pattern[pos+1..], vertex, None, None) {
-    //                SuperMatchResult::Mismatch => { prefix.push(child); None },
-    //                SearchResult::Found(FoundRange::Prefix(_rem), _index, _pos) => { None },
-    //                r @ _ => Some(r),
-    //            }
-    //        })
-    //        .map(move |res| res.prepend_prefix(prefix))
-    //        .unwrap_or(SearchResult::NotFound)
-    //}
+    pub fn find_pattern(
+        &self,
+        pattern: PatternView<'a>,
+        ) -> Option<(VertexIndex, IndexMatch)> {
+        let vertex = self.expect_vertex_data(pattern.get(0)?.index);
+        if pattern.len() == 1 {
+            return Some((pattern[0].index, IndexMatch::Matching));
+        }
+        let width = Self::pattern_width(pattern);
+        //let mut pattern_iter = pattern.into_iter().cloned().enumerate();
+        // accumulate prefix not found
+        //let mut prefix = Vec::with_capacity(pattern_iter.size_hint().0);
+        self.find_parent_matching_pattern_at_offset_below_width(&pattern[1..], vertex, Some(0), Some(width+1))
+            .and_then(|(p, m)| match m {
+                IndexMatch::SubRemainder(rem) =>
+                    self.find_pattern(&[&[Child::new(p.index, p.width)], &rem[..]].concat())
+                        .or(Some((p.index, IndexMatch::SubRemainder(rem)))),
+                _ => Some((p.index, m)),
+            })
+    }
     fn compare_pattern_prefix(
         &self,
         pattern_a: PatternView<'a>,
@@ -643,14 +644,13 @@ where
                     let next_end = skipped + child.width;
                     if next_end > pos {
                         let (left, right) = self.split_index_at_pos(child.index, pos - skipped);
+                        let prefix = &pattern[..i];
+                        let postfix = pattern.get(i+1..).unwrap_or(&[]);
+                        // TODO: pre and postfix may get duplicated
                         Some((
-                            left.iter().map(|left_inner| [&pattern[..i], left_inner].concat()).collect(),
+                            left.iter().map(|left_inner| [prefix, left_inner].concat()).collect(),
                             right.into_iter().map(|right_inner|
-                                pattern.get(i+1..)
-                                    .map(|pattern_right|
-                                        [&right_inner, pattern_right].concat()
-                                    )
-                                    .unwrap_or(right_inner)
+                                [&right_inner, postfix].concat()
                             )
                             .collect()
                         ))
@@ -796,51 +796,54 @@ mod tests {
         assert_eq!(G.compare_pattern_prefix(ab_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
         assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::Matching));
 
-        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
-
         assert_eq!(G.compare_pattern_prefix(abc_d_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
         assert_eq!(G.compare_pattern_prefix(bc_pattern, abcd_pattern), None);
         assert_eq!(G.compare_pattern_prefix(b_c_pattern, a_bc_pattern), None);
         assert_eq!(G.compare_pattern_prefix(b_c_pattern, a_d_c_pattern), None);
+
+        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
+        assert_eq!(G.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
 
         assert_eq!(G.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
 
         assert_eq!(G.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::Remainder(Either::Left(vec![Child::new(*d, 1)]))));
         assert_eq!(G.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
     }
-    //#[test]
-    //fn find_simple() {
-    //    let (
-    //            G,
-    //            a,
-    //            b,
-    //            c,
-    //            d,
-    //            e,
-    //            ab,
-    //            bc,
-    //            abc,
-    //            abcd,
-    //            a_b_pattern,
-    //            b_c_pattern,
-    //            a_bc_pattern,
-    //            ab_c_pattern,
-    //            abc_d_pattern,
-    //            a_bc_d_pattern,
-    //            ab_c_d_pattern,
-    //            abcd_pattern,
-    //            bc_pattern,
-    //            a_d_c_pattern,
-    //            a_b_c_pattern,
-    //        ) = &*CONTEXT;
-    //    assert_eq!(G.find_pattern(a_bc_pattern), SearchResult::Found(FoundRange::Complete, *abc, 0));
-    //    assert_eq!(G.find_pattern(ab_c_pattern), SearchResult::Found(FoundRange::Complete, *abc, 0));
-    //    assert_eq!(G.find_pattern(a_bc_d_pattern), SearchResult::Found(FoundRange::Complete, *abcd, 0));
-    //    assert_eq!(G.find_pattern(bc_pattern), SearchResult::Found(FoundRange::Complete, *bc, 0));
-    //    assert_eq!(G.find_pattern(b_c_pattern), SearchResult::Found(FoundRange::Complete, *bc, 0));
-    //}
+    #[test]
+    fn find_simple() {
+        let (
+                G,
+                a,
+                b,
+                c,
+                d,
+                e,
+                ab,
+                bc,
+                abc,
+                abcd,
+                a_b_pattern,
+                b_c_pattern,
+                a_bc_pattern,
+                ab_c_pattern,
+                abc_d_pattern,
+                a_bc_d_pattern,
+                ab_c_d_pattern,
+                abcd_pattern,
+                bc_pattern,
+                a_d_c_pattern,
+                a_b_c_pattern,
+            ) = &*CONTEXT;
+        assert_eq!(G.find_pattern(bc_pattern), Some((*bc, IndexMatch::Matching)));
+        assert_eq!(G.find_pattern(b_c_pattern), Some((*bc, IndexMatch::Matching)));
+        assert_eq!(G.find_pattern(a_bc_pattern), Some((*abc, IndexMatch::Matching)));
+        assert_eq!(G.find_pattern(ab_c_pattern), Some((*abc, IndexMatch::Matching)));
+        assert_eq!(G.find_pattern(a_bc_d_pattern), Some((*abcd, IndexMatch::Matching)));
+        assert_eq!(G.find_pattern(a_b_c_pattern), Some((*abc, IndexMatch::Matching)));
+        let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(*c, 1)]].concat();
+        assert_eq!(G.find_pattern(a_b_c_c_pattern), Some((*abc, IndexMatch::SubRemainder(vec![Child::new(*c, 1)]))));
+    }
     #[test]
     fn split_child_patterns_1() {
         let (
