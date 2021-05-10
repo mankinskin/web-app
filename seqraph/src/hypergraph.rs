@@ -249,14 +249,8 @@ where
             .collect()
     }
     fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
-        tokens.into_iter()
-            .map(|token|
-				Child {
-                	index: self.get_token_index(&token)
-                        .unwrap_or_else(|| self.insert_token(token)),
-					width: 1,
-				}
-            )
+        self.to_token_indices(tokens).into_iter()
+            .map(|index| Child { index, width: 1, })
             .collect()
     }
     fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
@@ -281,8 +275,8 @@ where
     fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
         pat.into_iter().fold(0, |acc, child| acc + child.width)
     }
-    fn sub_pattern_string(&self, pattern: PatternView<'_>) -> String {
-		pattern.iter().map(|child| self.sub_index_string(child.index)).join("")
+    fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
+		pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
     }
     fn pattern_string(&self, pattern: PatternView<'_>) -> String {
 		pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
@@ -592,16 +586,18 @@ where
 			EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
 		})
     }
-    //pub fn index_pattern(&mut self, indices: IndexPattern) {
-    //    let vertices = self.expect_vertices(indices.into_iter());
-    //    let len = vertices.len();
-    //}
-    //pub fn index_token_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) {
-    //   let seq = seq.into_iter();
-    //   let tokens = T::tokenize(seq);
-    //   let indices = self.to_token_indices(tokens);
-	//	self.index_pattern(indices)
-	//}
+    pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
+        let seq = seq.into_iter();
+        let tokens = T::tokenize(seq);
+        let pattern = self.to_token_children(tokens);
+        self.index_pattern(&pattern[..])
+    }
+    pub fn index_pattern(&mut self, pattern: PatternView<'a>) -> VertexIndex {
+        self.index_prefix(pattern)
+    }
+    pub fn index_prefix(&mut self, pattern: PatternView<'a>) -> VertexIndex {
+        unimplemented!()
+    }
     pub fn split_index_at_pos(
         &self,
         index: VertexIndex,
@@ -615,11 +611,12 @@ where
         patterns: ChildPatternView<'a>,
         pos: TokenPosition,
         ) -> (ChildPatterns, ChildPatterns) {
-        patterns.into_iter()
+        let result = patterns.into_iter()
             .filter_map(|pattern| self.split_pattern_at_pos(pattern, pos))
             .fold((Vec::new(), Vec::new()), |acc, x| 
                 ([acc.0, x.0].concat(), [acc.1, x.1].concat())
-            )
+            );
+        result
     }
     pub fn split_pattern_at_pos(
         &self,
@@ -630,34 +627,44 @@ where
         // find child overlapping with cut pos or 
         pattern.into_iter()
             .enumerate()
-            // skip until skipped children's width exceeds pos
             .find_map(|(i, child)| {
-                if skipped == pos {
-                    // if pos is exactly after skipped positions
-                    Some((vec![
-                        pattern[..i].iter().cloned().collect::<Vec<_>>()
-                    ],
-                    vec![
-                        pattern[i..].iter().cloned().collect::<Vec<_>>()
-                    ]))
+                if skipped + child.width <= pos {
+                    skipped += child.width;
+                    None
+                } else if skipped == pos {
+                    let prefix = &pattern[..i];
+                    let postfix = &pattern[i..];
+				    let prefix_str = self.sub_pattern_string(prefix);
+				    let postfix_str = self.sub_pattern_string(postfix);
+                    Some((
+                        vec![prefix.iter().cloned().collect()],
+                        vec![postfix.iter().cloned().collect()]
+                    ))
                 } else {
-                    let next_end = skipped + child.width;
-                    if next_end > pos {
-                        let (left, right) = self.split_index_at_pos(child.index, pos - skipped);
-                        let prefix = &pattern[..i];
-                        let postfix = pattern.get(i+1..).unwrap_or(&[]);
-                        // TODO: pre and postfix may get duplicated
-                        Some((
-                            left.iter().map(|left_inner| [prefix, left_inner].concat()).collect(),
-                            right.into_iter().map(|right_inner|
-                                [&right_inner, postfix].concat()
-                            )
-                            .collect()
-                        ))
-                    } else {
-                        skipped = next_end;
-                        None
-                    }
+                    // pos in pattern at i
+                    let local_pos = pos - skipped;
+                    let prefix = &pattern[..i];
+                    let postfix = pattern.get(i+1..).unwrap_or(&[]);
+				    let child_str = self.sub_index_string(child.index);
+				    let prefix_str = self.sub_pattern_string(prefix);
+				    let postfix_str = self.sub_pattern_string(postfix);
+                    let (left, right) = self.split_index_at_pos(child.index, local_pos);
+                    // TODO: pre and postfix may get duplicated
+
+                    let prefix = left.iter()
+                        .map(|left_inner| [prefix, left_inner].concat());
+                    let postfix = right.iter()
+                        .map(|right_inner| [right_inner, postfix].concat());
+				    let prefix_strs: Vec<_> =
+                        prefix.clone()
+                            .map(|p| self.sub_pattern_string(&p)).collect();
+				    let postfix_strs: Vec<_> =
+                        postfix.clone()
+                            .map(|p| self.sub_pattern_string(&p)).collect();
+                    Some((
+                        prefix.collect(),
+                        postfix.collect(),
+                    ))
                 }
             })
     }
@@ -938,6 +945,50 @@ mod tests {
                 a_b_c_pattern,
             ) = &*CONTEXT;
         let ab_pattern = [Child::new(*ab, 2)];
+        let c_pattern = [Child::new(*c, 1)];
+        let abc_data = G.expect_vertex_data(abc).clone();
+        let patterns = abc_data.children;
+        assert_eq!(patterns, vec![
+            a_bc_pattern.into_iter().cloned().collect::<Vec<_>>(),
+            ab_c_pattern.into_iter().cloned().collect::<Vec<_>>(),
+        ]);
+
+        let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
+        assert_eq!(left, vec![
+            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
+            ab_pattern.iter().cloned().collect::<Vec<_>>(),
+        ], "left");
+        assert_eq!(right, vec![
+            c_pattern.iter().cloned().collect::<Vec<_>>(),
+            c_pattern.iter().cloned().collect::<Vec<_>>(),
+        ], "right");
+    }
+    #[test]
+    fn split_child_patterns_4() {
+        let (
+                G,
+                a,
+                b,
+                c,
+                d,
+                e,
+                ab,
+                bc,
+                abc,
+                abcd,
+                a_b_pattern,
+                b_c_pattern,
+                a_bc_pattern,
+                ab_c_pattern,
+                abc_d_pattern,
+                a_bc_d_pattern,
+                ab_c_d_pattern,
+                abcd_pattern,
+                bc_pattern,
+                a_d_c_pattern,
+                a_b_c_pattern,
+            ) = &*CONTEXT;
+        let ab_pattern = [Child::new(*ab, 2)];
         let c_d_pattern = [Child::new(*c, 1), Child::new(*d, 1)];
         let abcd_data = G.expect_vertex_data(abcd).clone();
         let patterns = abcd_data.children;
@@ -947,9 +998,11 @@ mod tests {
 
         let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
         assert_eq!(left, vec![
+            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
             ab_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
+            c_d_pattern.iter().cloned().collect::<Vec<_>>(),
             c_d_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "right");
     }
