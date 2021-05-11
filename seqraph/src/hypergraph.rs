@@ -618,11 +618,11 @@ where
             );
         result
     }
-    pub fn split_pattern_at_pos(
+    pub fn find_pattern_split_index(
         &self,
         pattern: PatternView<'a>,
         pos: TokenPosition,
-        ) -> Option<(ChildPatterns, ChildPatterns)> {
+        ) -> Option<(PatternIndex, TokenPosition)> {
         let mut skipped = 0;
         // find child overlapping with cut pos or 
         pattern.into_iter()
@@ -631,42 +631,61 @@ where
                 if skipped + child.width <= pos {
                     skipped += child.width;
                     None
-                } else if skipped == pos {
-                    let prefix = &pattern[..i];
-                    let postfix = &pattern[i..];
-				    let prefix_str = self.sub_pattern_string(prefix);
-				    let postfix_str = self.sub_pattern_string(postfix);
-                    Some((
-                        vec![prefix.iter().cloned().collect()],
-                        vec![postfix.iter().cloned().collect()]
-                    ))
                 } else {
-                    // pos in pattern at i
-                    let local_pos = pos - skipped;
-                    let prefix = &pattern[..i];
-                    let postfix = pattern.get(i+1..).unwrap_or(&[]);
-				    let child_str = self.sub_index_string(child.index);
-				    let prefix_str = self.sub_pattern_string(prefix);
-				    let postfix_str = self.sub_pattern_string(postfix);
-                    let (left, right) = self.split_index_at_pos(child.index, local_pos);
-                    // TODO: pre and postfix may get duplicated
-
-                    let prefix = left.iter()
-                        .map(|left_inner| [prefix, left_inner].concat());
-                    let postfix = right.iter()
-                        .map(|right_inner| [right_inner, postfix].concat());
-				    let prefix_strs: Vec<_> =
-                        prefix.clone()
-                            .map(|p| self.sub_pattern_string(&p)).collect();
-				    let postfix_strs: Vec<_> =
-                        postfix.clone()
-                            .map(|p| self.sub_pattern_string(&p)).collect();
-                    Some((
-                        prefix.collect(),
-                        postfix.collect(),
-                    ))
+                    Some((i, pos - skipped))
                 }
             })
+    }
+    pub fn split_pattern_at_index_with_offset(
+        &self,
+        pattern: PatternView<'a>,
+        index: PatternIndex,
+        offset: TokenPosition,
+        ) -> Option<(ChildPatterns, ChildPatterns)> {
+        if offset == 0 {
+            let child = &pattern[index];
+            let prefix = &pattern[..index];
+            let postfix = &pattern[index..];
+			let prefix_str = self.sub_pattern_string(prefix);
+			let postfix_str = self.sub_pattern_string(postfix);
+            Some((
+                vec![prefix.iter().cloned().collect()],
+                vec![postfix.iter().cloned().collect()]
+            ))
+        } else {
+            // pos in pattern at i
+            let child = &pattern[index];
+            let prefix = &pattern[..index];
+            let postfix = pattern.get(index+1..).unwrap_or(&[]);
+			let child_str = self.sub_index_string(child.index);
+			let prefix_str = self.sub_pattern_string(prefix);
+			let postfix_str = self.sub_pattern_string(postfix);
+            let (left, right) = self.split_index_at_pos(child.index, offset);
+            // TODO: pre and postfix may get duplicated
+
+            let prefix = left.iter()
+                .map(|left_inner| [prefix, left_inner].concat());
+            let postfix = right.iter()
+                .map(|right_inner| [right_inner, postfix].concat());
+			let prefix_strs: Vec<_> =
+                prefix.clone()
+                    .map(|p| self.sub_pattern_string(&p)).collect();
+			let postfix_strs: Vec<_> =
+                postfix.clone()
+                    .map(|p| self.sub_pattern_string(&p)).collect();
+            Some((
+                prefix.collect(),
+                postfix.collect(),
+            ))
+        }
+    }
+    pub fn split_pattern_at_pos(
+        &self,
+        pattern: PatternView<'a>,
+        pos: TokenPosition,
+        ) -> Option<(ChildPatterns, ChildPatterns)> {
+        let (index, offset) = self.find_pattern_split_index(pattern, pos)?;
+        self.split_pattern_at_index_with_offset(pattern, index, offset)
     }
 }
 
