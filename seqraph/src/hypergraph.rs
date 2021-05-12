@@ -611,20 +611,34 @@ T: Tokenize + 't + std::fmt::Display,
         patterns: ChildPatternView<'a>,
         pos: TokenPosition,
         ) -> (ChildPatterns, ChildPatterns) {
-        let result = patterns.into_iter()
-            .filter_map(|pattern| self.split_pattern_at_pos(pattern, pos))
-            .fold((Vec::new(), Vec::new()), |acc, x| 
-                  ([acc.0, x.0].concat(), [acc.1, x.1].concat())
-                 );
-        result
+        let pattern_indices: Vec<_> = patterns.into_iter()
+            .filter_map(|pattern|
+                self.find_pattern_split_index(pattern, pos)
+                    .map(|x| (pattern, x))
+            ).collect();
+        pattern_indices.clone().into_iter()
+            .find(|(_, (_, offset))| *offset == 0)
+            .map(|(pattern, (index, offset))|
+                self.split_pattern_at_index_with_offset(pattern, index, offset)
+            )
+            .unwrap_or_else(move || {
+                pattern_indices.into_iter()
+                .fold((Vec::new(), Vec::new()), |acc, (pattern, (index, offset))| {
+                    let (l, r) = self.split_pattern_at_index_with_offset(pattern, index, offset);
+                    ([acc.0, l].concat(), [acc.1, r].concat())
+                })
+            })
     }
     pub fn split_pattern_at_pos(
         &self,
         pattern: PatternView<'a>,
         pos: TokenPosition,
-        ) -> Option<(ChildPatterns, ChildPatterns)> {
-        let (index, offset) = self.find_pattern_split_index(pattern, pos)?;
-        self.split_pattern_at_index_with_offset(pattern, index, offset)
+        ) -> (ChildPatterns, ChildPatterns) {
+        if let Some((index, offset)) = self.find_pattern_split_index(pattern, pos) {
+            self.split_pattern_at_index_with_offset(pattern, index, offset)
+        } else {
+            (vec![pattern.into_iter().cloned().collect::<Vec<_>>()], Vec::new())
+        }
     }
     pub fn find_pattern_split_index(
         &self,
@@ -649,42 +663,38 @@ T: Tokenize + 't + std::fmt::Display,
         pattern: PatternView<'a>,
         index: PatternIndex,
         offset: TokenPosition,
-        ) -> Option<(ChildPatterns, ChildPatterns)> {
+        ) -> (ChildPatterns, ChildPatterns) {
         if offset == 0 {
-            let child = &pattern[index];
             let prefix = &pattern[..index];
             let postfix = &pattern[index..];
-            let prefix_str = self.sub_pattern_string(prefix);
-            let postfix_str = self.sub_pattern_string(postfix);
-            Some((
-                    vec![prefix.iter().cloned().collect()],
-                    vec![postfix.iter().cloned().collect()]
-                 ))
+            //let prefix_str = self.sub_pattern_string(prefix);
+            //let postfix_str = self.sub_pattern_string(postfix);
+            (
+                vec![prefix.iter().cloned().collect()],
+                vec![postfix.iter().cloned().collect()]
+            )
         } else {
             // pos in pattern at i
             let child = &pattern[index];
             let prefix = &pattern[..index];
             let postfix = pattern.get(index+1..).unwrap_or(&[]);
-            let child_str = self.sub_index_string(child.index);
-            let prefix_str = self.sub_pattern_string(prefix);
-            let postfix_str = self.sub_pattern_string(postfix);
+            //let child_str = self.sub_index_string(child.index);
+            //let prefix_str = self.sub_pattern_string(prefix);
+            //let postfix_str = self.sub_pattern_string(postfix);
             let (left, right) = self.split_index_at_pos(child.index, offset);
             // TODO: pre and postfix may get duplicated
 
-            let prefix = left.iter()
+            let prefixes = left.iter()
                 .map(|left_inner| [prefix, left_inner].concat());
-            let postfix = right.iter()
+            let postfixes = right.iter()
                 .map(|right_inner| [right_inner, postfix].concat());
-            let prefix_strs: Vec<_> =
-                prefix.clone()
-                .map(|p| self.sub_pattern_string(&p)).collect();
-            let postfix_strs: Vec<_> =
-                postfix.clone()
-                .map(|p| self.sub_pattern_string(&p)).collect();
-            Some((
-                    prefix.collect(),
-                    postfix.collect(),
-                    ))
+            //let prefix_strs: Vec<_> =
+            //    prefixes.clone()
+            //    .map(|p| self.sub_pattern_string(&p)).collect();
+            //let postfix_strs: Vec<_> =
+            //    postfixes.clone()
+            //    .map(|p| self.sub_pattern_string(&p)).collect();
+            (prefixes.collect(), postfixes.collect())
         }
     }
 }
@@ -718,76 +728,76 @@ mod tests {
                 [Child; 3],
                 [Child; 3],
                 ) = {
-                    let mut g = Hypergraph::new();
-                    let a = g.insert_token(Token::Element('a'));
-                    let b = g.insert_token(Token::Element('b'));
-                    let c = g.insert_token(Token::Element('c'));
-                    let d = g.insert_token(Token::Element('d'));
-                    let e = g.insert_token(Token::Element('e'));
+        let mut g = Hypergraph::new();
+        let a = g.insert_token(Token::Element('a'));
+        let b = g.insert_token(Token::Element('b'));
+        let c = g.insert_token(Token::Element('c'));
+        let d = g.insert_token(Token::Element('d'));
+        let e = g.insert_token(Token::Element('e'));
 
-                    let mut ab_data = VertexData::with_width(2);
-                    let a_b_pattern = [Child::new(a, 1), Child::new(b, 1)];
-                    ab_data.add_pattern(&a_b_pattern);
-                    let ab = g.insert_vertex(VertexKey::Pattern(0), ab_data);
-                    g.get_vertex_data_mut(a).unwrap().add_parent(ab, 2, 0, 0);
-                    g.get_vertex_data_mut(b).unwrap().add_parent(ab, 2, 0, 1);
+        let mut ab_data = VertexData::with_width(2);
+        let a_b_pattern = [Child::new(a, 1), Child::new(b, 1)];
+        ab_data.add_pattern(&a_b_pattern);
+        let ab = g.insert_vertex(VertexKey::Pattern(0), ab_data);
+        g.get_vertex_data_mut(a).unwrap().add_parent(ab, 2, 0, 0);
+        g.get_vertex_data_mut(b).unwrap().add_parent(ab, 2, 0, 1);
 
-                    let mut bc_data = VertexData::with_width(2);
-                    let b_c_pattern = [Child::new(b, 1), Child::new(c, 1)];
-                    bc_data.add_pattern(&b_c_pattern);
-                    let bc = g.insert_vertex(VertexKey::Pattern(1), bc_data);
-                    g.get_vertex_data_mut(b).unwrap().add_parent(bc, 2, 0, 0);
-                    g.get_vertex_data_mut(c).unwrap().add_parent(bc, 2, 0, 1);
+        let mut bc_data = VertexData::with_width(2);
+        let b_c_pattern = [Child::new(b, 1), Child::new(c, 1)];
+        bc_data.add_pattern(&b_c_pattern);
+        let bc = g.insert_vertex(VertexKey::Pattern(1), bc_data);
+        g.get_vertex_data_mut(b).unwrap().add_parent(bc, 2, 0, 0);
+        g.get_vertex_data_mut(c).unwrap().add_parent(bc, 2, 0, 1);
 
-                    let a_bc_pattern = [Child::new(a, 1), Child::new(bc, 2)];
-                    let ab_c_pattern = [Child::new(ab, 2), Child::new(c, 1)];
+        let a_bc_pattern = [Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = [Child::new(ab, 2), Child::new(c, 1)];
 
-                    let mut abc_data = VertexData::with_width(3);
-                    abc_data.add_pattern(&a_bc_pattern);
-                    abc_data.add_pattern(&ab_c_pattern);
-                    let abc = g.insert_vertex(VertexKey::Pattern(2), abc_data);
-                    let abc_d_pattern = [Child::new(abc, 3), Child::new(d, 1)];
-                    let a_bc_d_pattern = [Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-                    let ab_c_d_pattern = [Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
-                    g.get_vertex_data_mut(a).unwrap().add_parent(abc, 3, 0, 0);
-                    g.get_vertex_data_mut(bc).unwrap().add_parent(abc, 3, 0, 1);
-                    g.get_vertex_data_mut(ab).unwrap().add_parent(abc, 3, 1, 0);
-                    g.get_vertex_data_mut(c).unwrap().add_parent(abc, 3, 1, 1);
-                    let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        let mut abc_data = VertexData::with_width(3);
+        abc_data.add_pattern(&a_bc_pattern);
+        abc_data.add_pattern(&ab_c_pattern);
+        let abc = g.insert_vertex(VertexKey::Pattern(2), abc_data);
+        let abc_d_pattern = [Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = [Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = [Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+        g.get_vertex_data_mut(a).unwrap().add_parent(abc, 3, 0, 0);
+        g.get_vertex_data_mut(bc).unwrap().add_parent(abc, 3, 0, 1);
+        g.get_vertex_data_mut(ab).unwrap().add_parent(abc, 3, 1, 0);
+        g.get_vertex_data_mut(c).unwrap().add_parent(abc, 3, 1, 1);
+        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
 
 
-                    let mut abcd_data = VertexData::with_width(4);
-                    abcd_data.add_pattern(&abc_d_pattern);
-                    let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
-                    g.get_vertex_data_mut(abc).unwrap().add_parent(abcd, 4, 0, 0);
-                    g.get_vertex_data_mut(d).unwrap().add_parent(abcd, 4, 0, 1);
-                    let abcd_pattern = [Child::new(abcd, 4)];
-                    let bc_pattern = [Child::new(bc, 2)];
-                    let a_d_c_pattern = [Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
-                    let a_b_c_pattern = [Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-                    (
-                        g,
-                        a,
-                        b,
-                        c,
-                        d,
-                        e,
-                        ab,
-                        bc,
-                        abc,
-                        abcd,
-                        a_b_pattern,
-                        b_c_pattern,
-                        a_bc_pattern,
-                        ab_c_pattern,
-                        abc_d_pattern,
-                        a_bc_d_pattern,
-                        ab_c_d_pattern,
-                        abcd_pattern,
-                        bc_pattern,
-                        a_d_c_pattern,
-                        a_b_c_pattern,
-                        )
+        let mut abcd_data = VertexData::with_width(4);
+        abcd_data.add_pattern(&abc_d_pattern);
+        let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
+        g.get_vertex_data_mut(abc).unwrap().add_parent(abcd, 4, 0, 0);
+        g.get_vertex_data_mut(d).unwrap().add_parent(abcd, 4, 0, 1);
+        let abcd_pattern = [Child::new(abcd, 4)];
+        let bc_pattern = [Child::new(bc, 2)];
+        let a_d_c_pattern = [Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        let a_b_c_pattern = [Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        (
+            g,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
+        )
                 };
     }
     #[test]
@@ -898,10 +908,10 @@ mod tests {
 
         let (left, right) = G.split_children_patterns_at_pos(&vec![a_b_c_pattern.iter().cloned().collect()], 2);
         assert_eq!(left, vec![
-                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
+            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-                   vec![Child::new(*c, 1)],
+            vec![Child::new(*c, 1)],
         ], "right");
     }
     #[test]
@@ -932,10 +942,10 @@ mod tests {
 
         let (left, right) = G.split_children_patterns_at_pos(&vec![ab_c_d_pattern.iter().cloned().collect()], 3);
         assert_eq!(left, vec![
-                   vec![Child::new(*ab, 2), Child::new(*c, 1)],
+            vec![Child::new(*ab, 2), Child::new(*c, 1)],
         ], "left");
         assert_eq!(right, vec![
-                   vec![Child::new(*d, 1)],
+            vec![Child::new(*d, 1)],
         ], "right");
     }
     #[test]
@@ -968,18 +978,16 @@ mod tests {
         let abc_data = G.expect_vertex_data(abc).clone();
         let patterns = abc_data.children;
         assert_eq!(patterns, vec![
-                   a_bc_pattern.into_iter().cloned().collect::<Vec<_>>(),
-                   ab_c_pattern.into_iter().cloned().collect::<Vec<_>>(),
+            a_bc_pattern.into_iter().cloned().collect::<Vec<_>>(),
+            ab_c_pattern.into_iter().cloned().collect::<Vec<_>>(),
         ]);
 
         let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
         assert_eq!(left, vec![
-                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
-                   ab_pattern.iter().cloned().collect::<Vec<_>>(),
+            ab_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-                   c_pattern.iter().cloned().collect::<Vec<_>>(),
-                   c_pattern.iter().cloned().collect::<Vec<_>>(),
+            c_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "right");
     }
     #[test]
@@ -1012,17 +1020,15 @@ mod tests {
         let abcd_data = G.expect_vertex_data(abcd).clone();
         let patterns = abcd_data.children;
         assert_eq!(patterns, vec![
-                   abc_d_pattern.into_iter().cloned().collect::<Vec<_>>(),
+            abc_d_pattern.into_iter().cloned().collect::<Vec<_>>(),
         ]);
 
         let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
         assert_eq!(left, vec![
-                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
-                   ab_pattern.iter().cloned().collect::<Vec<_>>(),
+            ab_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-                   c_d_pattern.iter().cloned().collect::<Vec<_>>(),
-                   c_d_pattern.iter().cloned().collect::<Vec<_>>(),
+            c_d_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "right");
     }
 }
