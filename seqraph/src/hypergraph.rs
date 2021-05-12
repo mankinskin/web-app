@@ -90,13 +90,13 @@ impl VertexData {
     pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternIndex) {
         if let Some(parent) = self.parents
             .iter_mut()
-            .find(|parent| parent.index == vertex) {
-            parent.add_pattern_index(pattern, index);
-        } else {
-            let mut parent = Parent::new(vertex, width);
-            parent.add_pattern_index(pattern, index);
-            self.parents.push(parent);
-        }
+                .find(|parent| parent.index == vertex) {
+                    parent.add_pattern_index(pattern, index);
+                } else {
+                    let mut parent = Parent::new(vertex, width);
+                    parent.add_pattern_index(pattern, index);
+                    self.parents.push(parent);
+                }
     }
 }
 
@@ -110,12 +110,12 @@ pub enum PatternMatch {
     Matching,
 }
 impl PatternMatch {
-	pub fn flip_remainder(self) -> Self {
-		match self {
-			Self::Remainder(e) => Self::Remainder(e.flip()),
-			_ => self,
-		}
-	}
+    pub fn flip_remainder(self) -> Self {
+        match self {
+            Self::Remainder(e) => Self::Remainder(e.flip()),
+            _ => self,
+        }
+    }
 }
 //impl From<SearchFound> for PatternMatch {
 //    fn from(SearchFound(range, index, offset): SearchFound) -> Self {
@@ -200,7 +200,7 @@ impl SearchFound {
 
 impl<'t, 'a, T> Hypergraph<T>
 where
-    T: Tokenize + 't + std::fmt::Display,
+T: Tokenize + 't + std::fmt::Display,
 {
     pub fn new() -> Self {
         Self {
@@ -243,9 +243,9 @@ where
     fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
         tokens.into_iter()
             .map(|token|
-                self.get_token_index(&token)
-                    .unwrap_or_else(|| self.insert_token(token))
-            )
+                 self.get_token_index(&token)
+                 .unwrap_or_else(|| self.insert_token(token))
+                )
             .collect()
     }
     fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
@@ -276,28 +276,28 @@ where
         pat.into_iter().fold(0, |acc, child| acc + child.width)
     }
     fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
-		pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
+        pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
     }
     fn pattern_string(&self, pattern: PatternView<'_>) -> String {
-		pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
+        pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
     }
     fn sub_index_string(&self, index: VertexIndex) -> String {
-		let (key, data) = self.expect_vertex(index);
-		match key {
-			VertexKey::Token(token) => token.to_string(),
-			VertexKey::Pattern(_) => {
-				self.sub_pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
-			},
-		}
+        let (key, data) = self.expect_vertex(index);
+        match key {
+            VertexKey::Token(token) => token.to_string(),
+            VertexKey::Pattern(_) => {
+                self.sub_pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            },
+        }
     }
     fn index_string(&self, index: VertexIndex) -> String {
-		let (key, data) = self.expect_vertex(index);
-		match key {
-			VertexKey::Token(token) => token.to_string(),
-			VertexKey::Pattern(_) => {
-				self.pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
-			},
-		}
+        let (key, data) = self.expect_vertex(index);
+        match key {
+            VertexKey::Token(token) => token.to_string(),
+            VertexKey::Pattern(_) => {
+                self.pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            },
+        }
     }
     fn pick_best_matching_child_pattern(
         child_patterns: &'a ChildPatterns,
@@ -305,18 +305,18 @@ where
         post_sub_pat: PatternView<'a>,
         ) -> Option<PatternView<'a>> {
         candidates.find_or_first(|(pattern_index, sub_index)|
-            post_sub_pat.get(0)
-            .and_then(|i|
-            	child_patterns[*pattern_index]
-                    .get(sub_index+1)
-            		.map(|b| i.index == b.index)
-            ).unwrap_or(false)
-    	)
-        .and_then(|&(pattern_index, sub_index)|
-            child_patterns[pattern_index].get(sub_index..)
-        )
+                                 post_sub_pat.get(0)
+                                 .and_then(|i|
+                                           child_patterns[*pattern_index]
+                                           .get(sub_index+1)
+                                           .map(|b| i.index == b.index)
+                                          ).unwrap_or(false)
+                                )
+            .and_then(|&(pattern_index, sub_index)|
+                      child_patterns[pattern_index].get(sub_index..)
+                     )
     }
-	/// match sub_pat against children in parent with an optional offset.
+    /// match sub_pat against children in parent with an optional offset.
     fn compare_parent_at_offset(
         &self,
         post_pattern: PatternView<'a>,
@@ -324,39 +324,39 @@ where
         offset: Option<PatternIndex>,
         ) -> Option<IndexMatch> {
         // find pattern where sub is at offset
-		println!("compare_parent_at_offset");
+        println!("compare_parent_at_offset");
         let vert = self.expect_vertex_data(parent.index);
         let child_patterns = &vert.children;
-		print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
+        print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
         // optionally filter by sub offset
         let candidates = Self::get_pattern_index_candidates(parent, offset);
-		println!("with successors \"{}\"", self.pattern_string(post_pattern));
-		// find child pattern with matching successor or pick first candidate
-		let best_match = Self::pick_best_matching_child_pattern(
+        println!("with successors \"{}\"", self.pattern_string(post_pattern));
+        // find child pattern with matching successor or pick first candidate
+        let best_match = Self::pick_best_matching_child_pattern(
             &child_patterns,
             candidates,
             post_pattern,
             );
         best_match.and_then(|child_pattern|
-			//println!("comparing post sub pattern with remaining children of parent");
-			self.compare_pattern_prefix(
-			    post_pattern,
-                child_pattern.get(1..).unwrap_or(&[])
-			).map(Into::into)
-            // returns result of matching sub with parent's children
-        )
+                            //println!("comparing post sub pattern with remaining children of parent");
+                            self.compare_pattern_prefix(
+                                post_pattern,
+                                child_pattern.get(1..).unwrap_or(&[])
+                                ).map(Into::into)
+                            // returns result of matching sub with parent's children
+                           )
     }
     fn get_pattern_index_candidates(
         parent: &'a Parent,
         offset: Option<PatternIndex>,
         ) -> impl Iterator<Item=&(usize, PatternIndex)> {
-		if let Some(offset) = offset {
-		    print!("at offset = {} ", offset);
-			Either::Left(parent.pattern_indices.iter()
-				.filter(move |(_pattern_index, sub_index)| *sub_index == offset))
-		} else {
-		    print!("at offset = 0");
-			Either::Right(parent.pattern_indices.iter())
+        if let Some(offset) = offset {
+            print!("at offset = {} ", offset);
+            Either::Left(parent.pattern_indices.iter()
+                         .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
+        } else {
+            print!("at offset = 0");
+            Either::Right(parent.pattern_indices.iter())
         }
     }
     fn get_direct_vertex_parent_with_offset(
@@ -366,12 +366,12 @@ where
         ) -> Option<&'a Parent> {
         vertex.parents.iter()
             .find(|Parent { index, pattern_indices, .. }|
-                *index == parent_index &&
-                offset.map(|offset|
-                    pattern_indices.iter().any(|(_, pos)| *pos == offset)
-                )
-                .unwrap_or(true)
-            )
+                  *index == parent_index &&
+                  offset.map(|offset|
+                             pattern_indices.iter().any(|(_, pos)| *pos == offset)
+                            )
+                  .unwrap_or(true)
+                 )
     }
     fn get_direct_vertex_parent_at_prefix(
         vertex: &'a VertexData,
@@ -381,12 +381,12 @@ where
     }
     /// find an index at the prefix of a pattern
     fn match_sub_and_post_with_index(&self,
-        sub: VertexIndex,
-        post_pattern: PatternView<'a>,
-        index: VertexIndex,
-        width: TokenPosition,
-        ) -> Option<IndexMatch> {
-		println!("match_sub_pattern_to_super");
+                                     sub: VertexIndex,
+                                     post_pattern: PatternView<'a>,
+                                     index: VertexIndex,
+                                     width: TokenPosition,
+                                     ) -> Option<IndexMatch> {
+        println!("match_sub_pattern_to_super");
         // search parent of sub
         if sub == index {
             return if post_pattern.is_empty() {
@@ -403,17 +403,17 @@ where
         if let Some(parent) = sup_parent {
             // parents contain sup
             println!("sup found in parents");
-			self.compare_parent_at_offset(post_pattern, parent, Some(0))
+            self.compare_parent_at_offset(post_pattern, parent, Some(0))
         } else {
             // sup is no direct parent, search upwards
             println!("matching available parents");
             // search sup in parents
-			let (parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
-				post_pattern,
-				&vertex,
+            let (parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
+                post_pattern,
+                &vertex,
                 Some(0),
-				Some(width),
-			)?;
+                Some(width),
+                )?;
             println!("found parent matching");
             let new_post = match index_match {
                 // found index for complete pattern, tr
@@ -434,7 +434,7 @@ where
         index: VertexIndex,
         width: TokenPosition,
         ) -> Option<IndexMatch> {
-		println!("match_sub_pattern_to_super");
+        println!("match_sub_pattern_to_super");
         let sub = sub_pattern.get(0)?;
         let post_pattern = sub_pattern.get(1..);
         if let None = post_pattern {
@@ -452,23 +452,23 @@ where
         &self,
         post_pattern: PatternView<'a>,
         vertex: &VertexData,
-		offset: Option<PatternIndex>,
+        offset: Option<PatternIndex>,
         width_ceiling: Option<TokenPosition>,
         ) -> Option<(Parent, IndexMatch)> {
-		println!("find_parent_matching_pattern");
+        println!("find_parent_matching_pattern");
         let parents = &vertex.parents;
         // optionally filter parents by width
         if let Some(ceil) = width_ceiling {
-			Either::Left(parents.iter().filter(move |parent| parent.width < ceil))
-		} else {
-			Either::Right(parents.iter())
-		}
+            Either::Left(parents.iter().filter(move |parent| parent.width < ceil))
+        } else {
+            Either::Right(parents.iter())
+        }
         // find matching parent
         .find_map(|parent|
-            self.compare_parent_at_offset(post_pattern, parent, offset)
-                .map(|m| (parent.clone(), m))
-        )
-	}
+                  self.compare_parent_at_offset(post_pattern, parent, offset)
+                  .map(|m| (parent.clone(), m))
+                 )
+    }
     pub fn find_pattern(
         &self,
         pattern: PatternView<'a>,
@@ -485,7 +485,7 @@ where
             .and_then(|(p, m)| match m {
                 IndexMatch::SubRemainder(rem) =>
                     self.find_pattern(&[&[Child::new(p.index, p.width)], &rem[..]].concat())
-                        .or(Some((p.index, IndexMatch::SubRemainder(rem)))),
+                    .or(Some((p.index, IndexMatch::SubRemainder(rem)))),
                 _ => Some((p.index, m)),
             })
     }
@@ -494,97 +494,97 @@ where
         pattern_a: PatternView<'a>,
         pattern_b: PatternView<'a>,
         ) -> Option<PatternMatch> {
-		println!("compare_pattern_prefix(\"{}\", \"{}\")", self.pattern_string(pattern_a), self.pattern_string(pattern_b));
+        println!("compare_pattern_prefix(\"{}\", \"{}\")", self.pattern_string(pattern_a), self.pattern_string(pattern_b));
         let pattern_a_iter = pattern_a.iter();
         let pattern_b_iter = pattern_b.iter();
-		let mut zipped = pattern_a_iter
-			.zip_longest(pattern_b_iter)
-			.enumerate()
-			.skip_while(|(_, eob)|
-				match eob {
-					EitherOrBoth::Both(a, b) => a == b,
-					_ => false,
-				}
-			);
-		let (pos, eob) = if let Some(next) = zipped.next() {
+        let mut zipped = pattern_a_iter
+            .zip_longest(pattern_b_iter)
+            .enumerate()
+            .skip_while(|(_, eob)|
+                        match eob {
+                            EitherOrBoth::Both(a, b) => a == b,
+                            _ => false,
+                        }
+                       );
+        let (pos, eob) = if let Some(next) = zipped.next() {
             next
         } else {
             return Some(PatternMatch::Matching);
         };
-		Some(match eob {
-			// different elements on both sides
-			EitherOrBoth::Both(&Child {
-				index: index_a,
-				width: width_a,
-			}, &Child {
-				index: index_b,
-				width: width_b,
-			}) => {
-				println!("matching \"{}\" and \"{}\"", self.sub_index_string(index_a), self.sub_index_string(index_b));
-				// Note: depending on sizes of a, b it may be differently efficient
-				// to search for children or parents, large patterns have less parents,
-				// small patterns have less children
-				// search larger in parents of smaller
-				let post_sub_pattern;
-				let post_sup;
-				let sub;
-				let sup;
-				let sup_width;
-				let rotate = if width_a == width_b {
-					// relatives can not have same sizes
-					return None;
-				} else if width_a < width_b {
-					println!("right super");
-					post_sub_pattern = &pattern_a[pos+1..];
-					post_sup = &pattern_b[pos+1..];
-					sub = index_a;
-					sup = index_b;
-					sup_width = width_b;
-					false
-   	            } else {
-					println!("left super");
-					post_sub_pattern = &pattern_b[pos+1..];
-					post_sup = &pattern_a[pos+1..];
-					sub = index_b;
-					sup = index_a;
-					sup_width = width_a;
-					true
-				};
-				let result = self.match_sub_and_post_with_index(
+        Some(match eob {
+            // different elements on both sides
+            EitherOrBoth::Both(&Child {
+                index: index_a,
+                width: width_a,
+            }, &Child {
+                index: index_b,
+                width: width_b,
+            }) => {
+                println!("matching \"{}\" and \"{}\"", self.sub_index_string(index_a), self.sub_index_string(index_b));
+                // Note: depending on sizes of a, b it may be differently efficient
+                // to search for children or parents, large patterns have less parents,
+                // small patterns have less children
+                // search larger in parents of smaller
+                let post_sub_pattern;
+                let post_sup;
+                let sub;
+                let sup;
+                let sup_width;
+                let rotate = if width_a == width_b {
+                    // relatives can not have same sizes
+                    return None;
+                } else if width_a < width_b {
+                    println!("right super");
+                    post_sub_pattern = &pattern_a[pos+1..];
+                    post_sup = &pattern_b[pos+1..];
+                    sub = index_a;
+                    sup = index_b;
+                    sup_width = width_b;
+                    false
+                } else {
+                    println!("left super");
+                    post_sub_pattern = &pattern_b[pos+1..];
+                    post_sup = &pattern_a[pos+1..];
+                    sub = index_b;
+                    sup = index_a;
+                    sup_width = width_a;
+                    true
+                };
+                let result = self.match_sub_and_post_with_index(
                     sub,
-					post_sub_pattern,
-				    sup,
-				    sup_width,
-				);
-				// left remainder: sub remainder
-				// right remainder: sup remainder
-				// matching: sub & sup finished
-				println!("return {:#?}", result);
-				let result = match result? {
-					IndexMatch::SubRemainder(rem) =>
-								self.compare_pattern_prefix(
-									&rem,
-									post_sup,
-								)?,
-					IndexMatch::SupRemainder(rem) => PatternMatch::Remainder(Either::Right([&rem, post_sup].concat())),
-					IndexMatch::Matching => {
-						let rem: Vec<_> = post_sup.iter().cloned().collect();
-						if rem.is_empty() {
-							PatternMatch::Matching
-						} else {
-							PatternMatch::Remainder(Either::Right(rem))
-						}
-					},
-				};
-				if rotate {
-					result.flip_remainder()
-				} else {
-					result
-				}
-			},
-			EitherOrBoth::Left(_) => PatternMatch::Remainder(Either::Left(pattern_a[pos..].iter().cloned().collect())),
-			EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
-		})
+                    post_sub_pattern,
+                    sup,
+                    sup_width,
+                    );
+                // left remainder: sub remainder
+                // right remainder: sup remainder
+                // matching: sub & sup finished
+                println!("return {:#?}", result);
+                let result = match result? {
+                    IndexMatch::SubRemainder(rem) =>
+                        self.compare_pattern_prefix(
+                            &rem,
+                            post_sup,
+                            )?,
+                    IndexMatch::SupRemainder(rem) => PatternMatch::Remainder(Either::Right([&rem, post_sup].concat())),
+                    IndexMatch::Matching => {
+                        let rem: Vec<_> = post_sup.iter().cloned().collect();
+                        if rem.is_empty() {
+                            PatternMatch::Matching
+                        } else {
+                            PatternMatch::Remainder(Either::Right(rem))
+                        }
+                    },
+                };
+                if rotate {
+                    result.flip_remainder()
+                } else {
+                    result
+                }
+            },
+            EitherOrBoth::Left(_) => PatternMatch::Remainder(Either::Left(pattern_a[pos..].iter().cloned().collect())),
+            EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
+        })
     }
     pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
         let seq = seq.into_iter();
@@ -614,9 +614,17 @@ where
         let result = patterns.into_iter()
             .filter_map(|pattern| self.split_pattern_at_pos(pattern, pos))
             .fold((Vec::new(), Vec::new()), |acc, x| 
-                ([acc.0, x.0].concat(), [acc.1, x.1].concat())
-            );
+                  ([acc.0, x.0].concat(), [acc.1, x.1].concat())
+                 );
         result
+    }
+    pub fn split_pattern_at_pos(
+        &self,
+        pattern: PatternView<'a>,
+        pos: TokenPosition,
+        ) -> Option<(ChildPatterns, ChildPatterns)> {
+        let (index, offset) = self.find_pattern_split_index(pattern, pos)?;
+        self.split_pattern_at_index_with_offset(pattern, index, offset)
     }
     pub fn find_pattern_split_index(
         &self,
@@ -646,20 +654,20 @@ where
             let child = &pattern[index];
             let prefix = &pattern[..index];
             let postfix = &pattern[index..];
-			let prefix_str = self.sub_pattern_string(prefix);
-			let postfix_str = self.sub_pattern_string(postfix);
+            let prefix_str = self.sub_pattern_string(prefix);
+            let postfix_str = self.sub_pattern_string(postfix);
             Some((
-                vec![prefix.iter().cloned().collect()],
-                vec![postfix.iter().cloned().collect()]
-            ))
+                    vec![prefix.iter().cloned().collect()],
+                    vec![postfix.iter().cloned().collect()]
+                 ))
         } else {
             // pos in pattern at i
             let child = &pattern[index];
             let prefix = &pattern[..index];
             let postfix = pattern.get(index+1..).unwrap_or(&[]);
-			let child_str = self.sub_index_string(child.index);
-			let prefix_str = self.sub_pattern_string(prefix);
-			let postfix_str = self.sub_pattern_string(postfix);
+            let child_str = self.sub_index_string(child.index);
+            let prefix_str = self.sub_pattern_string(prefix);
+            let postfix_str = self.sub_pattern_string(postfix);
             let (left, right) = self.split_index_at_pos(child.index, offset);
             // TODO: pre and postfix may get duplicated
 
@@ -667,25 +675,17 @@ where
                 .map(|left_inner| [prefix, left_inner].concat());
             let postfix = right.iter()
                 .map(|right_inner| [right_inner, postfix].concat());
-			let prefix_strs: Vec<_> =
+            let prefix_strs: Vec<_> =
                 prefix.clone()
-                    .map(|p| self.sub_pattern_string(&p)).collect();
-			let postfix_strs: Vec<_> =
+                .map(|p| self.sub_pattern_string(&p)).collect();
+            let postfix_strs: Vec<_> =
                 postfix.clone()
-                    .map(|p| self.sub_pattern_string(&p)).collect();
+                .map(|p| self.sub_pattern_string(&p)).collect();
             Some((
-                prefix.collect(),
-                postfix.collect(),
-            ))
+                    prefix.collect(),
+                    postfix.collect(),
+                    ))
         }
-    }
-    pub fn split_pattern_at_pos(
-        &self,
-        pattern: PatternView<'a>,
-        pos: TokenPosition,
-        ) -> Option<(ChildPatterns, ChildPatterns)> {
-        let (index, offset) = self.find_pattern_split_index(pattern, pos)?;
-        self.split_pattern_at_index_with_offset(pattern, index, offset)
     }
 }
 
@@ -717,103 +717,103 @@ mod tests {
                 [Child; 1],
                 [Child; 3],
                 [Child; 3],
-            ) = {
-            let mut g = Hypergraph::new();
-            let a = g.insert_token(Token::Element('a'));
-            let b = g.insert_token(Token::Element('b'));
-            let c = g.insert_token(Token::Element('c'));
-            let d = g.insert_token(Token::Element('d'));
-            let e = g.insert_token(Token::Element('e'));
+                ) = {
+                    let mut g = Hypergraph::new();
+                    let a = g.insert_token(Token::Element('a'));
+                    let b = g.insert_token(Token::Element('b'));
+                    let c = g.insert_token(Token::Element('c'));
+                    let d = g.insert_token(Token::Element('d'));
+                    let e = g.insert_token(Token::Element('e'));
 
-            let mut ab_data = VertexData::with_width(2);
-            let a_b_pattern = [Child::new(a, 1), Child::new(b, 1)];
-            ab_data.add_pattern(&a_b_pattern);
-            let ab = g.insert_vertex(VertexKey::Pattern(0), ab_data);
-            g.get_vertex_data_mut(a).unwrap().add_parent(ab, 2, 0, 0);
-            g.get_vertex_data_mut(b).unwrap().add_parent(ab, 2, 0, 1);
+                    let mut ab_data = VertexData::with_width(2);
+                    let a_b_pattern = [Child::new(a, 1), Child::new(b, 1)];
+                    ab_data.add_pattern(&a_b_pattern);
+                    let ab = g.insert_vertex(VertexKey::Pattern(0), ab_data);
+                    g.get_vertex_data_mut(a).unwrap().add_parent(ab, 2, 0, 0);
+                    g.get_vertex_data_mut(b).unwrap().add_parent(ab, 2, 0, 1);
 
-            let mut bc_data = VertexData::with_width(2);
-            let b_c_pattern = [Child::new(b, 1), Child::new(c, 1)];
-            bc_data.add_pattern(&b_c_pattern);
-            let bc = g.insert_vertex(VertexKey::Pattern(1), bc_data);
-            g.get_vertex_data_mut(b).unwrap().add_parent(bc, 2, 0, 0);
-            g.get_vertex_data_mut(c).unwrap().add_parent(bc, 2, 0, 1);
+                    let mut bc_data = VertexData::with_width(2);
+                    let b_c_pattern = [Child::new(b, 1), Child::new(c, 1)];
+                    bc_data.add_pattern(&b_c_pattern);
+                    let bc = g.insert_vertex(VertexKey::Pattern(1), bc_data);
+                    g.get_vertex_data_mut(b).unwrap().add_parent(bc, 2, 0, 0);
+                    g.get_vertex_data_mut(c).unwrap().add_parent(bc, 2, 0, 1);
 
-            let a_bc_pattern = [Child::new(a, 1), Child::new(bc, 2)];
-            let ab_c_pattern = [Child::new(ab, 2), Child::new(c, 1)];
+                    let a_bc_pattern = [Child::new(a, 1), Child::new(bc, 2)];
+                    let ab_c_pattern = [Child::new(ab, 2), Child::new(c, 1)];
 
-            let mut abc_data = VertexData::with_width(3);
-            abc_data.add_pattern(&a_bc_pattern);
-            abc_data.add_pattern(&ab_c_pattern);
-            let abc = g.insert_vertex(VertexKey::Pattern(2), abc_data);
-            let abc_d_pattern = [Child::new(abc, 3), Child::new(d, 1)];
-            let a_bc_d_pattern = [Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-            let ab_c_d_pattern = [Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
-            g.get_vertex_data_mut(a).unwrap().add_parent(abc, 3, 0, 0);
-            g.get_vertex_data_mut(bc).unwrap().add_parent(abc, 3, 0, 1);
-            g.get_vertex_data_mut(ab).unwrap().add_parent(abc, 3, 1, 0);
-            g.get_vertex_data_mut(c).unwrap().add_parent(abc, 3, 1, 1);
-            let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+                    let mut abc_data = VertexData::with_width(3);
+                    abc_data.add_pattern(&a_bc_pattern);
+                    abc_data.add_pattern(&ab_c_pattern);
+                    let abc = g.insert_vertex(VertexKey::Pattern(2), abc_data);
+                    let abc_d_pattern = [Child::new(abc, 3), Child::new(d, 1)];
+                    let a_bc_d_pattern = [Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+                    let ab_c_d_pattern = [Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+                    g.get_vertex_data_mut(a).unwrap().add_parent(abc, 3, 0, 0);
+                    g.get_vertex_data_mut(bc).unwrap().add_parent(abc, 3, 0, 1);
+                    g.get_vertex_data_mut(ab).unwrap().add_parent(abc, 3, 1, 0);
+                    g.get_vertex_data_mut(c).unwrap().add_parent(abc, 3, 1, 1);
+                    let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
 
 
-            let mut abcd_data = VertexData::with_width(4);
-            abcd_data.add_pattern(&abc_d_pattern);
-            let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
-            g.get_vertex_data_mut(abc).unwrap().add_parent(abcd, 4, 0, 0);
-            g.get_vertex_data_mut(d).unwrap().add_parent(abcd, 4, 0, 1);
-            let abcd_pattern = [Child::new(abcd, 4)];
-            let bc_pattern = [Child::new(bc, 2)];
-            let a_d_c_pattern = [Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
-            let a_b_c_pattern = [Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-            (
-                g,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
-            )
-        };
+                    let mut abcd_data = VertexData::with_width(4);
+                    abcd_data.add_pattern(&abc_d_pattern);
+                    let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
+                    g.get_vertex_data_mut(abc).unwrap().add_parent(abcd, 4, 0, 0);
+                    g.get_vertex_data_mut(d).unwrap().add_parent(abcd, 4, 0, 1);
+                    let abcd_pattern = [Child::new(abcd, 4)];
+                    let bc_pattern = [Child::new(bc, 2)];
+                    let a_d_c_pattern = [Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+                    let a_b_c_pattern = [Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+                    (
+                        g,
+                        a,
+                        b,
+                        c,
+                        d,
+                        e,
+                        ab,
+                        bc,
+                        abc,
+                        abcd,
+                        a_b_pattern,
+                        b_c_pattern,
+                        a_bc_pattern,
+                        ab_c_pattern,
+                        abc_d_pattern,
+                        a_bc_d_pattern,
+                        ab_c_d_pattern,
+                        abcd_pattern,
+                        bc_pattern,
+                        a_d_c_pattern,
+                        a_b_c_pattern,
+                        )
+                };
     }
     #[test]
     fn match_simple() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
         assert_eq!(G.compare_pattern_prefix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
         assert_eq!(G.compare_pattern_prefix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
@@ -839,27 +839,27 @@ mod tests {
     #[test]
     fn find_simple() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
         assert_eq!(G.find_pattern(bc_pattern), Some((*bc, IndexMatch::Matching)));
         assert_eq!(G.find_pattern(b_c_pattern), Some((*bc, IndexMatch::Matching)));
@@ -873,156 +873,156 @@ mod tests {
     #[test]
     fn split_child_patterns_1() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
 
         let (left, right) = G.split_children_patterns_at_pos(&vec![a_b_c_pattern.iter().cloned().collect()], 2);
         assert_eq!(left, vec![
-            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
+                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-            vec![Child::new(*c, 1)],
+                   vec![Child::new(*c, 1)],
         ], "right");
     }
     #[test]
     fn split_child_patterns_2() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
 
         let (left, right) = G.split_children_patterns_at_pos(&vec![ab_c_d_pattern.iter().cloned().collect()], 3);
         assert_eq!(left, vec![
-            vec![Child::new(*ab, 2), Child::new(*c, 1)],
+                   vec![Child::new(*ab, 2), Child::new(*c, 1)],
         ], "left");
         assert_eq!(right, vec![
-            vec![Child::new(*d, 1)],
+                   vec![Child::new(*d, 1)],
         ], "right");
     }
     #[test]
     fn split_child_patterns_3() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
         let ab_pattern = [Child::new(*ab, 2)];
         let c_pattern = [Child::new(*c, 1)];
         let abc_data = G.expect_vertex_data(abc).clone();
         let patterns = abc_data.children;
         assert_eq!(patterns, vec![
-            a_bc_pattern.into_iter().cloned().collect::<Vec<_>>(),
-            ab_c_pattern.into_iter().cloned().collect::<Vec<_>>(),
+                   a_bc_pattern.into_iter().cloned().collect::<Vec<_>>(),
+                   ab_c_pattern.into_iter().cloned().collect::<Vec<_>>(),
         ]);
 
         let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
         assert_eq!(left, vec![
-            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
-            ab_pattern.iter().cloned().collect::<Vec<_>>(),
+                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
+                   ab_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-            c_pattern.iter().cloned().collect::<Vec<_>>(),
-            c_pattern.iter().cloned().collect::<Vec<_>>(),
+                   c_pattern.iter().cloned().collect::<Vec<_>>(),
+                   c_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "right");
     }
     #[test]
     fn split_child_patterns_4() {
         let (
-                G,
-                a,
-                b,
-                c,
-                d,
-                e,
-                ab,
-                bc,
-                abc,
-                abcd,
-                a_b_pattern,
-                b_c_pattern,
-                a_bc_pattern,
-                ab_c_pattern,
-                abc_d_pattern,
-                a_bc_d_pattern,
-                ab_c_d_pattern,
-                abcd_pattern,
-                bc_pattern,
-                a_d_c_pattern,
-                a_b_c_pattern,
+            G,
+            a,
+            b,
+            c,
+            d,
+            e,
+            ab,
+            bc,
+            abc,
+            abcd,
+            a_b_pattern,
+            b_c_pattern,
+            a_bc_pattern,
+            ab_c_pattern,
+            abc_d_pattern,
+            a_bc_d_pattern,
+            ab_c_d_pattern,
+            abcd_pattern,
+            bc_pattern,
+            a_d_c_pattern,
+            a_b_c_pattern,
             ) = &*CONTEXT;
         let ab_pattern = [Child::new(*ab, 2)];
         let c_d_pattern = [Child::new(*c, 1), Child::new(*d, 1)];
         let abcd_data = G.expect_vertex_data(abcd).clone();
         let patterns = abcd_data.children;
         assert_eq!(patterns, vec![
-            abc_d_pattern.into_iter().cloned().collect::<Vec<_>>(),
+                   abc_d_pattern.into_iter().cloned().collect::<Vec<_>>(),
         ]);
 
         let (left, right) = G.split_children_patterns_at_pos(&patterns, 2);
         assert_eq!(left, vec![
-            a_b_pattern.iter().cloned().collect::<Vec<_>>(),
-            ab_pattern.iter().cloned().collect::<Vec<_>>(),
+                   a_b_pattern.iter().cloned().collect::<Vec<_>>(),
+                   ab_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "left");
         assert_eq!(right, vec![
-            c_d_pattern.iter().cloned().collect::<Vec<_>>(),
-            c_d_pattern.iter().cloned().collect::<Vec<_>>(),
+                   c_d_pattern.iter().cloned().collect::<Vec<_>>(),
+                   c_d_pattern.iter().cloned().collect::<Vec<_>>(),
         ], "right");
     }
 }
