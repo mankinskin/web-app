@@ -20,6 +20,10 @@ use itertools::{
 use either::Either;
 use std::num::NonZeroUsize;
 use std::iter::FromIterator;
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
 
 type VertexIndex = usize;
 type VertexParents = Vec<Parent>;
@@ -45,9 +49,9 @@ pub struct Parent {
     pattern_indices: HashSet<(usize, PatternIndex)>, // positions of child in parent patterns
 }
 impl Parent {
-    pub fn new(index: VertexIndex, width: TokenPosition) -> Self {
+    pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
         Self {
-            index,
+            index: *index.borrow(),
             width,
             pattern_indices: Default::default(),
         }
@@ -67,9 +71,9 @@ pub struct Child {
     width: TokenPosition, // the token width
 }
 impl Child {
-    pub fn new(index: VertexIndex, width: TokenPosition) -> Self {
+    pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
         Self {
-            index,
+            index: *index.borrow(),
             width,
         }
     }
@@ -88,20 +92,20 @@ impl VertexData {
             children: ChildPatterns::new(),
         }
     }
-    pub fn add_pattern<'c, I: IntoIterator<Item=&'c Child>>(&mut self, pat: I) {
+    pub fn add_pattern<'c, I: IntoIterator<Item=&'c Child>>(&mut self, pat: I) -> usize {
         // TODO: detect unmatching pattern
-        self.children.push(pat.into_iter().cloned().collect())
+        let id = self.children.len();
+        self.children.push(pat.into_iter().cloned().collect());
+        id
     }
     pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternIndex) {
-        if let Some(parent) = self.parents
-            .iter_mut()
-                .find(|parent| parent.index == vertex) {
-                    parent.add_pattern_index(pattern, index);
-                } else {
-                    let mut parent = Parent::new(vertex, width);
-                    parent.add_pattern_index(pattern, index);
-                    self.parents.push(parent);
-                }
+        if let Some(parent) = self.parents.iter_mut().find(|parent| parent.index == vertex) {
+            parent.add_pattern_index(pattern, index);
+        } else {
+            let mut parent = Parent::new(vertex, width);
+            parent.add_pattern_index(pattern, index);
+            self.parents.push(parent);
+        }
     }
 }
 
@@ -254,38 +258,13 @@ impl PathTree {
         self.add_element(Some(parent), index)
     }
 }
-
-impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't + std::fmt::Display,
-{
-    fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
-        pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
-    }
-    fn pattern_string(&self, pattern: PatternView<'_>) -> String {
-        pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
-    }
-    fn sub_index_string(&self, index: VertexIndex) -> String {
-        let (key, data) = self.expect_vertex(index);
-        match key {
-            VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(_) => {
-                self.sub_pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
-            },
-        }
-    }
-    fn index_string(&self, index: VertexIndex) -> String {
-        let (key, data) = self.expect_vertex(index);
-        match key {
-            VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(_) => {
-                self.pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
-            },
-        }
-    }
-}
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
+    fn next_pattern_id(&mut self) -> VertexIndex {
+        static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        ID_COUNTER.fetch_add(1, Ordering::Relaxed)
+    }
     pub fn new() -> Self {
         Self {
             graph: indexmap::IndexMap::new(),
@@ -294,10 +273,10 @@ impl<'t, 'a, T> Hypergraph<T>
     fn get_token_index(&self, token: &Token<T>) -> Option<VertexIndex> {
         self.graph.get_index_of(&VertexKey::Token(*token))
     }
-    fn get_token_data(&self, token: &Token<T>) -> Option<&VertexData> {
+    pub fn get_token_data(&self, token: &Token<T>) -> Option<&VertexData> {
         self.graph.get(&VertexKey::Token(*token))
     }
-    fn get_token_data_mut(&mut self, token: &Token<T>) -> Option<&mut VertexData> {
+    pub fn get_token_data_mut(&mut self, token: &Token<T>) -> Option<&mut VertexData> {
         self.graph.get_mut(&VertexKey::Token(*token))
     }
     fn get_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexData> {
@@ -307,7 +286,13 @@ impl<'t, 'a, T> Hypergraph<T>
         self.expect_vertex(index).1
     }
     fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
-        self.get_vertex(index).expect("Invalid index!")
+        self.get_vertex(index).expect("Index does not exist!")
+    }
+    fn expect_vertex_mut(&mut self, index: VertexIndex) -> (&mut VertexKey<T>, &mut VertexData) {
+        self.get_vertex_mut(index).expect("Index does not exist!")
+    }
+    fn expect_vertex_data_mut(&mut self, index: VertexIndex) -> &mut VertexData {
+        self.expect_vertex_mut(index).1
     }
     fn get_vertex_data_mut(&mut self, index: VertexIndex) -> Option<&mut VertexData> {
         self.get_vertex_mut(index).map(|(_, v)| v)
@@ -321,10 +306,57 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn insert_token(&mut self, token: Token<T>) -> VertexIndex {
         self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
     }
+    pub fn insert_tokens(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Vec<VertexIndex> {
+        tokens.into_iter()
+            .map(|token|
+                self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
+            )
+            .collect()
+    }
+    pub fn insert_to_pattern(&mut self, index: VertexIndex, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> usize {
+        // todo handle token nodes
+        let (width, indices, children) = self.to_width_indices_children(indices);
+        let data = self.expect_vertex_data_mut(index);
+        let pattern_index = data.add_pattern(&children);
+        self.add_pattern_parent(indices, index, width, pattern_index);
+        pattern_index
+    }
+    fn add_pattern_parent(&mut self, indices: Vec<VertexIndex>, parent_index: VertexIndex, width: TokenPosition, pattern_index: usize) {
+        for (i, child_index) in indices.into_iter().enumerate() {
+            let node = self.expect_vertex_data_mut(child_index);
+            node.add_parent(parent_index, width, pattern_index, i);
+        }
+    }
+    fn to_width_indices_children(
+        &self,
+        indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>,
+        ) -> (TokenPosition, Vec<VertexIndex>, Vec<Child>) {
+        let mut width = 0;
+        let (a, b) = indices.into_iter()
+            .map(|index| {
+                let index = *index.borrow();
+                let w = self.expect_vertex_data(index).width.clone();
+                width += w;
+                (index, Child::new(index, w))
+            })
+            .unzip();
+        (width, a, b)
+    }
+    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> VertexIndex {
+        // todo check if exists already
+        let id = self.next_pattern_id();
+        // todo handle token nodes
+        let (width, indices, children) = self.to_width_indices_children(indices);
+        let mut new_data = VertexData::with_width(width);
+        let pattern_index = new_data.add_pattern(&children);
+        let index = self.insert_vertex(VertexKey::Pattern(id), new_data);
+        self.add_pattern_parent(indices, index, width, pattern_index);
+        index
+    }
     pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> VertexIndex {
         self.graph.insert_full(key, data).0
     }
-    fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
+    pub fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
         tokens.into_iter()
             .map(|token|
                  self.get_token_index(&token)
@@ -332,22 +364,22 @@ impl<'t, 'a, T> Hypergraph<T>
                 )
             .collect()
     }
-    fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
+    pub fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
         self.to_token_indices(tokens).into_iter()
             .map(|index| Child { index, width: 1, })
             .collect()
     }
-    fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
+    pub fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
         indices
             .map(move |index| self.expect_vertex_data(index))
             .collect()
     }
-    fn get_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> Option<VertexPatternView<'_>> {
+    pub fn get_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> Option<VertexPatternView<'_>> {
         indices
             .map(move |index| self.get_vertex_data(index))
             .collect()
     }
-    fn get_token_indices(&mut self, tokens: impl Iterator<Item=&'t Token<T>>) -> IndexPattern {
+    pub fn get_token_indices(&mut self, tokens: impl Iterator<Item=&'t Token<T>>) -> IndexPattern {
         let mut v = IndexPattern::with_capacity(tokens.size_hint().0);
         for token in tokens {
             let index = self.get_token_index(token)
@@ -356,7 +388,7 @@ impl<'t, 'a, T> Hypergraph<T>
         }
         v
     }
-    fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
+    pub fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
         pat.into_iter().fold(0, |acc, child| acc + child.width)
     }
     fn pick_best_matching_child_pattern(
@@ -485,7 +517,7 @@ impl<'t, 'a, T> Hypergraph<T>
             self.match_sub_and_post_with_index(parent.index, &new_post, index, width)
         }
     }
-    fn match_pattern_with_index(
+    pub fn match_pattern_with_index(
         &self,
         sub_pattern: PatternView<'a>,
         index: VertexIndex,
@@ -643,18 +675,12 @@ impl<'t, 'a, T> Hypergraph<T>
             EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
         })
     }
-    pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
-        let seq = seq.into_iter();
-        let tokens = T::tokenize(seq);
-        let pattern = self.to_token_children(tokens);
-        self.index_pattern(&pattern[..])
-    }
-    pub fn index_pattern(&mut self, pattern: PatternView<'a>) -> VertexIndex {
-        self.index_prefix(pattern)
-    }
-    pub fn index_prefix(&mut self, pattern: PatternView<'a>) -> VertexIndex {
-        unimplemented!()
-    }
+    //pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
+    //    let seq = seq.into_iter();
+    //    let tokens = T::tokenize(seq);
+    //    let pattern = self.to_token_children(tokens);
+    //    self.index_pattern(&pattern[..])
+    //}
     pub fn split_pattern_at_index(
         pattern: PatternView<'a>,
         index: PatternIndex,
@@ -699,7 +725,7 @@ impl<'t, 'a, T> Hypergraph<T>
             Self::find_pattern_split_index(pattern, pos)
         )
     }
-    fn build_split_from_tree(&self, mut split: (Pattern, Pattern), tree_parent: Option<TreeParent>, mut tree: PathTree) -> (Pattern, Pattern) {
+    fn build_split_from_tree(&self, mut split: (Pattern, Pattern), tree_parent: Option<TreeParent>, tree: PathTree) -> (Pattern, Pattern) {
         if let Some(mut parent) = tree_parent {
             //self.build_split_from_path(split, parent.index_in_parent, path)
             while let Some((next_parent, index)) = tree.parents.get(parent.tree_node) {
@@ -726,7 +752,7 @@ impl<'t, 'a, T> Hypergraph<T>
         }
         split
     }
-    fn split_index_at_pos(&self, root: VertexIndex, pos: NonZeroUsize) -> (Pattern, Pattern) {
+    pub fn split_index_at_pos(&self, root: VertexIndex, pos: NonZeroUsize) -> (Pattern, Pattern) {
         let mut queue = VecDeque::from_iter(std::iter::once(IndexPositionDescriptor {
                 node: root,
                 offset: pos,
@@ -782,6 +808,34 @@ impl<'t, 'a, T> Hypergraph<T>
         }
     }
 }
+impl<'t, 'a, T> Hypergraph<T>
+    where T: Tokenize + 't + std::fmt::Display,
+{
+    fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
+        pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
+    }
+    fn pattern_string(&self, pattern: PatternView<'_>) -> String {
+        pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
+    }
+    fn sub_index_string(&self, index: VertexIndex) -> String {
+        let (key, data) = self.expect_vertex(index);
+        match key {
+            VertexKey::Token(token) => token.to_string(),
+            VertexKey::Pattern(_) => {
+                self.sub_pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            },
+        }
+    }
+    pub fn index_string(&self, index: VertexIndex) -> String {
+        let (key, data) = self.expect_vertex(index);
+        match key {
+            VertexKey::Token(token) => token.to_string(),
+            VertexKey::Pattern(_) => {
+                self.pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            },
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -800,263 +854,208 @@ mod tests {
                 VertexIndex,
                 VertexIndex,
                 VertexIndex,
-                [Child; 2],
-                [Child; 2],
-                [Child; 2],
-                [Child; 2],
-                [Child; 2],
-                [Child; 3],
-                [Child; 3],
-                [Child; 1],
-                [Child; 1],
-                [Child; 3],
-                [Child; 3],
+                VertexIndex,
+                VertexIndex,
+                VertexIndex,
+                VertexIndex,
                 ) = {
-        let mut g = Hypergraph::new();
-        let a = g.insert_token(Token::Element('a'));
-        let b = g.insert_token(Token::Element('b'));
-        let c = g.insert_token(Token::Element('c'));
-        let d = g.insert_token(Token::Element('d'));
-        let e = g.insert_token(Token::Element('e'));
+        let mut graph = Hypergraph::new();
+        if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
+            vec![
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+                Token::Element('e'),
+                Token::Element('f'),
+                Token::Element('g'),
+                Token::Element('h'),
+                Token::Element('i'),
+            ])[..] {
+            // ab abab aba abc cdef def efgh ghi
+            // ababababcdbcdefdefcdefefghefghghi
 
-        let mut ab_data = VertexData::with_width(2);
-        let a_b_pattern = [Child::new(a, 1), Child::new(b, 1)];
-        ab_data.add_pattern(&a_b_pattern);
-        let ab = g.insert_vertex(VertexKey::Pattern(0), ab_data);
-        g.get_vertex_data_mut(a).unwrap().add_parent(ab, 2, 0, 0);
-        g.get_vertex_data_mut(b).unwrap().add_parent(ab, 2, 0, 1);
-
-        let mut bc_data = VertexData::with_width(2);
-        let b_c_pattern = [Child::new(b, 1), Child::new(c, 1)];
-        bc_data.add_pattern(&b_c_pattern);
-        let bc = g.insert_vertex(VertexKey::Pattern(1), bc_data);
-        g.get_vertex_data_mut(b).unwrap().add_parent(bc, 2, 0, 0);
-        g.get_vertex_data_mut(c).unwrap().add_parent(bc, 2, 0, 1);
-
-        let a_bc_pattern = [Child::new(a, 1), Child::new(bc, 2)];
-        let ab_c_pattern = [Child::new(ab, 2), Child::new(c, 1)];
-
-        let mut abc_data = VertexData::with_width(3);
-        abc_data.add_pattern(&a_bc_pattern);
-        abc_data.add_pattern(&ab_c_pattern);
-        let abc = g.insert_vertex(VertexKey::Pattern(2), abc_data);
-        let abc_d_pattern = [Child::new(abc, 3), Child::new(d, 1)];
-        let a_bc_d_pattern = [Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-        let ab_c_d_pattern = [Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
-        g.get_vertex_data_mut(a).unwrap().add_parent(abc, 3, 0, 0);
-        g.get_vertex_data_mut(bc).unwrap().add_parent(abc, 3, 0, 1);
-        g.get_vertex_data_mut(ab).unwrap().add_parent(abc, 3, 1, 0);
-        g.get_vertex_data_mut(c).unwrap().add_parent(abc, 3, 1, 1);
-        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-
-
-        let mut abcd_data = VertexData::with_width(4);
-        abcd_data.add_pattern(&abc_d_pattern);
-        let abcd = g.insert_vertex(VertexKey::Pattern(3), abcd_data);
-        g.get_vertex_data_mut(abc).unwrap().add_parent(abcd, 4, 0, 0);
-        g.get_vertex_data_mut(d).unwrap().add_parent(abcd, 4, 0, 1);
-        let abcd_pattern = [Child::new(abcd, 4)];
-        let bc_pattern = [Child::new(bc, 2)];
-        let a_d_c_pattern = [Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
-        let a_b_c_pattern = [Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        let ab = graph.insert_pattern(&[a, b]);
+        let bc = graph.insert_pattern(&[b, c]);
+        let abc = graph.insert_pattern(&[a, bc]);
+        graph.insert_to_pattern(abc, &[ab, c]);
+        let abcd = graph.insert_pattern(&[abc, d]);
         (
-            g,
+            graph,
             a,
             b,
             c,
             d,
             e,
+            f,
+            g,
+            h,
+            i,
             ab,
             bc,
             abc,
             abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
         )
+        } else {
+            panic!();
+        }
                 };
     }
     #[test]
     fn match_simple() {
         let (
-            G,
+            graph,
             a,
             b,
             c,
             d,
-            e,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
             ab,
             bc,
             abc,
             abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
             ) = &*CONTEXT;
-        assert_eq!(G.compare_pattern_prefix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(a_b_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(a_b_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(ab_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::Matching));
+        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
+        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+        let abcd_pattern = &[Child::new(abcd, 4)];
+        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
+        let bc_pattern = &[Child::new(bc, 2)];
+        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::Matching));
 
-        assert_eq!(G.compare_pattern_prefix(abc_d_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(bc_pattern, abcd_pattern), None);
-        assert_eq!(G.compare_pattern_prefix(b_c_pattern, a_bc_pattern), None);
-        assert_eq!(G.compare_pattern_prefix(b_c_pattern, a_d_c_pattern), None);
+        assert_eq!(graph.compare_pattern_prefix(abc_d_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(bc_pattern, abcd_pattern), None);
+        assert_eq!(graph.compare_pattern_prefix(b_c_pattern, a_bc_pattern), None);
+        assert_eq!(graph.compare_pattern_prefix(b_c_pattern, a_d_c_pattern), None);
 
-        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
-        assert_eq!(G.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
 
-        assert_eq!(G.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
 
-        assert_eq!(G.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::Remainder(Either::Left(vec![Child::new(*d, 1)]))));
-        assert_eq!(G.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::Remainder(Either::Left(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
     }
     #[test]
     fn find_simple() {
         let (
-            G,
+            graph,
             a,
             b,
             c,
             d,
-            e,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
             ab,
             bc,
             abc,
             abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
             ) = &*CONTEXT;
-        assert_eq!(G.find_pattern(bc_pattern), Some((*bc, IndexMatch::Matching)));
-        assert_eq!(G.find_pattern(b_c_pattern), Some((*bc, IndexMatch::Matching)));
-        assert_eq!(G.find_pattern(a_bc_pattern), Some((*abc, IndexMatch::Matching)));
-        assert_eq!(G.find_pattern(ab_c_pattern), Some((*abc, IndexMatch::Matching)));
-        assert_eq!(G.find_pattern(a_bc_d_pattern), Some((*abcd, IndexMatch::Matching)));
-        assert_eq!(G.find_pattern(a_b_c_pattern), Some((*abc, IndexMatch::Matching)));
+        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
+        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
+        let bc_pattern = &[Child::new(bc, 2)];
+        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        assert_eq!(graph.find_pattern(bc_pattern), Some((*bc, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(b_c_pattern), Some((*bc, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_bc_pattern), Some((*abc, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(ab_c_pattern), Some((*abc, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((*abcd, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_b_c_pattern), Some((*abc, IndexMatch::Matching)));
         let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(*c, 1)]].concat();
-        assert_eq!(G.find_pattern(a_b_c_c_pattern), Some((*abc, IndexMatch::SubRemainder(vec![Child::new(*c, 1)]))));
+        assert_eq!(graph.find_pattern(a_b_c_c_pattern), Some((*abc, IndexMatch::SubRemainder(vec![Child::new(*c, 1)]))));
     }
     #[test]
     fn split_index_1() {
         let (
-            G,
-            a,
-            b,
+            graph,
+            _a,
+            _b,
             c,
-            d,
-            e,
+            _d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
             ab,
-            bc,
+            _bc,
             abc,
-            abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
+            _abcd,
             ) = &*CONTEXT;
-        let (left, right) = G.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
+        let (left, right) = graph.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
         assert_eq!(left, vec![Child::new(*ab, 2)], "left");
         assert_eq!(right, vec![Child::new(*c, 1)], "right");
     }
     #[test]
     fn split_child_patterns_2() {
         let (
-            G,
-            a,
-            b,
-            c,
+            graph,
+            _a,
+            _b,
+            _c,
             d,
-            e,
-            ab,
-            bc,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            _ab,
+            _bc,
             abc,
             abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
             ) = &*CONTEXT;
-
-        let (left, right) = G.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
+        let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
         assert_eq!(left, vec![Child::new(*abc, 3)], "left");
         assert_eq!(right, vec![Child::new(*d, 1)], "right");
     }
     #[test]
     fn split_child_patterns_3() {
         let (
-            G,
-            a,
-            b,
+            graph,
+            _a,
+            _b,
             c,
             d,
-            e,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
             ab,
-            bc,
+            _bc,
             abc,
             abcd,
-            a_b_pattern,
-            b_c_pattern,
-            a_bc_pattern,
-            ab_c_pattern,
-            abc_d_pattern,
-            a_bc_d_pattern,
-            ab_c_d_pattern,
-            abcd_pattern,
-            bc_pattern,
-            a_d_c_pattern,
-            a_b_c_pattern,
             ) = &*CONTEXT;
-        let ab_pattern = [Child::new(*ab, 2)];
-        let c_d_pattern = [Child::new(*c, 1), Child::new(*d, 1)];
-        let abcd_data = G.expect_vertex_data(abcd).clone();
+        let ab_pattern = &[Child::new(ab, 2)];
+        let c_d_pattern = &[Child::new(c, 1), Child::new(d, 1)];
+        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
+
+        let abcd_data = graph.expect_vertex_data(abcd).clone();
         let patterns = abcd_data.children;
         assert_eq!(patterns, vec![
             abc_d_pattern.into_iter().cloned().collect::<Vec<_>>(),
         ]);
 
-        let (left, right) = G.split_index_at_pos(*abcd, NonZeroUsize::new(2).unwrap());
+        let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(2).unwrap());
         assert_eq!(left, ab_pattern.iter().cloned().collect::<Vec<_>>(), "left");
         assert_eq!(right, c_d_pattern.iter().cloned().collect::<Vec<_>>(), "right");
     }
