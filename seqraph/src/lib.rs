@@ -11,7 +11,7 @@ pub mod token;
 pub mod hypergraph;
 pub mod pattern;
 
-use graph::Graph;
+//use graph::Graph;
 //use mapping::{
 //    EdgeMapping,
 //    LoadedEdge,
@@ -22,25 +22,25 @@ use graph::Graph;
 //    LoadedNode,
 //    Node,
 //};
-use petgraph::{
-    graph::{
-        NodeIndex,
-    },
-    Direction,
-};
-use std::fmt::Debug;
-use std::ops::{
-    Deref,
-    DerefMut,
-};
-use token::{
-    Token,
-    TokenContext,
-    Tokenize,
-    ContextLink,
-};
-#[allow(unused)]
-use tracing::debug;
+//use petgraph::{
+//    graph::{
+//        NodeIndex,
+//    },
+//    Direction,
+//};
+//use std::fmt::Debug;
+//use std::ops::{
+//    Deref,
+//    DerefMut,
+//};
+//use token::{
+//    Token,
+//    TokenContext,
+//    Tokenize,
+//    ContextLink,
+//};
+//#[allow(unused)]
+//use tracing::debug;
 // Graph of T: TokenData + Mappable mapping possible distances
 // between nodes to prefix and postfix nodes
 //#[derive(Debug)]
