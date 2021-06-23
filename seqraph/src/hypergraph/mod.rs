@@ -1,8 +1,5 @@
 use std::fmt::Debug;
 use crate::{
-    //pattern::{
-    //    Pattern,
-    //},
     token::{
         Token,
         Tokenize,
@@ -10,6 +7,7 @@ use crate::{
 };
 use std::collections::{
     HashSet,
+    HashMap,
 };
 use std::borrow::Borrow;
 use itertools::{
@@ -19,14 +17,16 @@ use std::sync::atomic::{
     AtomicUsize,
     Ordering,
 };
+use either::Either;
 
 mod search;
 mod r#match;
 mod split;
 mod path_tree;
+mod insert;
 
 pub type VertexIndex = usize;
-type VertexParents = Vec<Parent>;
+type VertexParents = HashMap<VertexIndex, Parent>;
 type ChildPatterns = Vec<Pattern>;
 type ChildPatternView<'a> = &'a[PatternView<'a>];
 pub type Pattern = Vec<Child>;
@@ -37,6 +37,7 @@ type VertexPattern = Vec<VertexData>;
 pub type PatternView<'a> = &'a[Child];
 type VertexPatternView<'a> = Vec<&'a VertexData>;
 type VertexPatternViewMut<'a> = Vec<&'a mut VertexData>;
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum VertexKey<T: Tokenize> {
     Token(Token<T>),
@@ -44,14 +45,12 @@ pub enum VertexKey<T: Tokenize> {
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parent {
-    index: VertexIndex, // the parent pattern
     width: TokenPosition,
     pattern_indices: HashSet<(usize, PatternIndex)>, // positions of child in parent patterns
 }
 impl Parent {
-    pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
+    pub fn new(width: TokenPosition) -> Self {
         Self {
-            index: *index.borrow(),
             width,
             pattern_indices: Default::default(),
         }
@@ -59,10 +58,24 @@ impl Parent {
     pub fn add_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
         self.pattern_indices.insert((pattern, index));
     }
-}
-impl Into<VertexIndex> for Parent {
-    fn into(self) -> VertexIndex {
-        self.index
+    pub fn remove_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
+        self.pattern_indices.remove(&(pattern, index));
+    }
+    pub fn exists_at_pos(&self, p: PatternIndex) -> bool {
+        self.pattern_indices.iter().any(|(_, pos)| *pos == p)
+    }
+    pub fn get_pattern_index_candidates(
+        &self,
+        offset: Option<PatternIndex>,
+        ) -> impl Iterator<Item=&(usize, PatternIndex)> {
+        if let Some(offset) = offset {
+            print!("at offset = {} ", offset);
+            Either::Left(self.pattern_indices.iter()
+                .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
+        } else {
+            print!("at offset = 0");
+            Either::Right(self.pattern_indices.iter())
+        }
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -99,12 +112,21 @@ impl VertexData {
         id
     }
     pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternIndex) {
-        if let Some(parent) = self.parents.iter_mut().find(|parent| parent.index == vertex) {
+        if let Some(parent) = self.parents.get_mut(&vertex) {
             parent.add_pattern_index(pattern, index);
         } else {
-            let mut parent = Parent::new(vertex, width);
+            let mut parent = Parent::new(width);
             parent.add_pattern_index(pattern, index);
-            self.parents.push(parent);
+            self.parents.insert(vertex, parent);
+        }
+    }
+    pub fn remove_parent(&mut self, vertex: VertexIndex, pattern: usize, index: PatternIndex) {
+        if let Some(parent) = self.parents.get_mut(&vertex) {
+            if parent.pattern_indices.len() > 1 {
+                parent.remove_pattern_index(pattern, index);
+            } else {
+                self.parents.remove(&vertex);
+            }
         }
     }
 }
@@ -157,69 +179,6 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     fn get_vertex_mut(&mut self, index: VertexIndex) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
         self.graph.get_index_mut(index)
-    }
-    pub fn insert_token(&mut self, token: Token<T>) -> VertexIndex {
-        self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
-    }
-    pub fn insert_tokens(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Vec<VertexIndex> {
-        tokens.into_iter()
-            .map(|token|
-                self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
-            )
-            .collect()
-    }
-    fn add_pattern_parent(&mut self, indices: Vec<VertexIndex>, parent_index: VertexIndex, width: TokenPosition, pattern_index: usize) {
-        for (i, child_index) in indices.into_iter().enumerate() {
-            let node = self.expect_vertex_data_mut(child_index);
-            node.add_parent(parent_index, width, pattern_index, i);
-        }
-    }
-    fn to_width_indices_children(
-        &self,
-        indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>,
-        ) -> (TokenPosition, Vec<VertexIndex>, Vec<Child>) {
-        let mut width = 0;
-        let (a, b) = indices.into_iter()
-            .map(|index| {
-                let index = *index.borrow();
-                let w = self.expect_vertex_data(index).width.clone();
-                width += w;
-                (index, Child::new(index, w))
-            })
-            .unzip();
-        (width, a, b)
-    }
-    pub fn insert_to_pattern(&mut self, index: VertexIndex, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> usize {
-        // todo handle token nodes
-        let (width, indices, children) = self.to_width_indices_children(indices);
-        let data = self.expect_vertex_data_mut(index);
-        let pattern_index = data.add_pattern(&children);
-        self.add_pattern_parent(indices, index, width, pattern_index);
-        pattern_index
-    }
-    pub fn insert_patterns(&mut self, indices: impl IntoIterator<Item=impl IntoIterator<Item=impl Borrow<VertexIndex>>>) -> usize {
-        // todo handle token nodes
-        let mut iter = indices.into_iter();
-        let first = iter.next().unwrap();
-        let node = self.insert_pattern(first);
-        for pat in iter {
-            self.insert_to_pattern(node, pat);
-        }
-        node
-    }
-    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> VertexIndex {
-        // todo check if exists already
-        let id = self.next_pattern_id();
-        // todo handle token nodes
-        let (width, indices, children) = self.to_width_indices_children(indices);
-        let mut new_data = VertexData::with_width(width);
-        let pattern_index = new_data.add_pattern(&children);
-        let index = self.insert_vertex(VertexKey::Pattern(id), new_data);
-        self.add_pattern_parent(indices, index, width, pattern_index);
-        index
-    }
-    pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> VertexIndex {
-        self.graph.insert_full(key, data).0
     }
     pub fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
         tokens.into_iter()
@@ -315,110 +274,112 @@ mod tests {
                 VertexIndex,
                 VertexIndex,
                 VertexIndex,
+                VertexIndex,
                 ) = {
-        let mut graph = Hypergraph::new();
-        if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
-            vec![
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('c'),
-                Token::Element('d'),
-                Token::Element('e'),
-                Token::Element('f'),
-                Token::Element('g'),
-                Token::Element('h'),
-                Token::Element('i'),
-            ])[..] {
-            // abcdefghi
-            // ababababcdbcdefdefcdefefghefghghi
-            // ->
-            // abab ab abcdbcdefdefcdefefghefghghi
-            // ab abab abcdbcdefdefcdefefghefghghi
+            let mut graph = Hypergraph::new();
+            if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
+                [
+                    Token::Element('a'),
+                    Token::Element('b'),
+                    Token::Element('c'),
+                    Token::Element('d'),
+                    Token::Element('e'),
+                    Token::Element('f'),
+                    Token::Element('g'),
+                    Token::Element('h'),
+                    Token::Element('i'),
+                ])[..] {
+                // abcdefghi
+                // ababababcdbcdefdefcdefefghefghghi
+                // ->
+                // abab ab abcdbcdefdefcdefefghefghghi
+                // ab abab abcdbcdefdefcdefefghefghghi
 
-            // abcdbcdef def cdef efgh efgh ghi
+                // abcdbcdef def cdef efgh efgh ghi
 
-            // abcd b cdef
-            // abcd bcd ef
+                // abcd b cdef
+                // abcd bcd ef
 
-            // ab cd
-            // abc d
-            // a bcd
+                // ab cd
+                // abc d
+                // a bcd
 
-        let ab = graph.insert_pattern(&[a, b]);
-        let bc = graph.insert_pattern(&[b, c]);
-        let ef = graph.insert_pattern(&[e, f]);
-        let def = graph.insert_pattern(&[d, ef]);
-        let cdef = graph.insert_pattern(&[c, def]);
-        let gh = graph.insert_pattern(&[g, h]);
-        let efgh = graph.insert_pattern(&[ef, gh]);
-        let ghi = graph.insert_pattern(&[gh, i]);
-        let abc = graph.insert_patterns(&[
-            [ab, c],
-            [a, bc],
-        ]);
-        let cd = graph.insert_pattern(&[c, d]);
-        let bcd = graph.insert_patterns(&[
-            [bc, d],
-            [b, cd],
-        ]);
-        //let abcd = graph.insert_pattern(&[abc, d]);
-        //graph.insert_to_pattern(abcd, &[a, bcd]);
-        let abcd = graph.insert_patterns(&[
-            [abc, d],
-            [a, bcd],
-        ]);
-        let efghi = graph.insert_patterns(&[
-            [efgh, i],
-            [ef, ghi],
-        ]);
-        let abcdefghi = graph.insert_pattern(&[abcd, efghi]);
-        let aba = graph.insert_pattern(&[ab, a]);
-        let abab = graph.insert_patterns(&[
-            [aba, b],
-            [ab, ab],
-        ]);
-        let ababab = graph.insert_patterns(&[
-            [abab, ab],
-            [ab, abab],
-        ]);
-        let ababcd = graph.insert_patterns(&[
-            [ab, abcd],
-            [aba, bcd],
-            [abab, cd],
-        ]);
-        let ababababcd = graph.insert_patterns(&[
-            [ababab, abcd],
-            [abab, ababcd],
-        ]);
-        let ababcdefghi = graph.insert_patterns(vec![
-            [ab, abcdefghi].into_iter(),
-            [ababcd, efghi].into_iter(),
-        ]);
-        let ababababcdefghi = graph.insert_patterns(vec![
-            [ababababcd, efghi].into_iter(),
-            [abab, ababcdefghi].into_iter(),
-        ]);
-        let longer_pattern = graph.insert_pattern(&[ababab, abcdefghi]);
-        (
-            graph,
-            a,
-            b,
-            c,
-            d,
-            e,
-            f,
-            g,
-            h,
-            i,
-            ab,
-            bc,
-            bcd,
-            abc,
-            abcd,
-        )
-        } else {
-            panic!();
-        }
-                };
+                let ab = graph.insert_pattern([a, b]);
+                let bc = graph.insert_pattern([b, c]);
+                let ef = graph.insert_pattern([e, f]);
+                let def = graph.insert_pattern([d, ef]);
+                let cdef = graph.insert_pattern([c, def]);
+                let gh = graph.insert_pattern([g, h]);
+                let efgh = graph.insert_pattern([ef, gh]);
+                let ghi = graph.insert_pattern([gh, i]);
+                let abc = graph.insert_patterns([
+                    [ab, c],
+                    [a, bc],
+                ]);
+                let cd = graph.insert_pattern([c, d]);
+                let bcd = graph.insert_patterns([
+                    [bc, d],
+                    [b, cd],
+                ]);
+                //let abcd = graph.insert_pattern(&[abc, d]);
+                //graph.insert_to_pattern(abcd, &[a, bcd]);
+                let abcd = graph.insert_patterns([
+                    [abc, d],
+                    [a, bcd],
+                ]);
+                let efghi = graph.insert_patterns([
+                    [efgh, i],
+                    [ef, ghi],
+                ]);
+                let abcdefghi = graph.insert_pattern([abcd, efghi]);
+                let aba = graph.insert_pattern([ab, a]);
+                let abab = graph.insert_patterns([
+                    [aba, b],
+                    [ab, ab],
+                ]);
+                let ababab = graph.insert_patterns([
+                    [abab, ab],
+                    [ab, abab],
+                ]);
+                let ababcd = graph.insert_patterns([
+                    [ab, abcd],
+                    [aba, bcd],
+                    [abab, cd],
+                ]);
+                let ababababcd = graph.insert_patterns([
+                    [ababab, abcd],
+                    [abab, ababcd],
+                ]);
+                let ababcdefghi = graph.insert_patterns([
+                    [ab, abcdefghi],
+                    [ababcd, efghi],
+                ]);
+                let ababababcdefghi = graph.insert_patterns([
+                    [ababababcd, efghi],
+                    [abab, ababcdefghi],
+                ]);
+                let longer_pattern = graph.insert_pattern([ababab, abcdefghi]);
+                (
+                    graph,
+                    a,
+                    b,
+                    c,
+                    d,
+                    e,
+                    f,
+                    g,
+                    h,
+                    i,
+                    ab,
+                    bc,
+                    bcd,
+                    abc,
+                    abcd,
+                    cdef,
+                )
+            } else {
+                panic!();
+            }
+        };
     }
 }

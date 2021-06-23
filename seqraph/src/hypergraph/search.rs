@@ -66,19 +66,19 @@ impl<'t, 'a, T> Hypergraph<T>
         vertex: &VertexData,
         offset: Option<PatternIndex>,
         width_ceiling: Option<TokenPosition>,
-        ) -> Option<(Parent, IndexMatch)> {
+        ) -> Option<(VertexIndex, Parent, IndexMatch)> {
         println!("find_parent_matching_pattern");
         let parents = &vertex.parents;
         // optionally filter parents by width
         if let Some(ceil) = width_ceiling {
-            Either::Left(parents.iter().filter(move |parent| parent.width < ceil))
+            Either::Left(parents.iter().filter(move |(_, parent)| parent.width < ceil))
         } else {
             Either::Right(parents.iter())
         }
         // find matching parent
-        .find_map(|parent|
-            self.compare_parent_at_offset(post_pattern, parent, offset)
-                .map(|m| (parent.clone(), m))
+        .find_map(|(&index, parent)|
+            self.compare_parent_at_offset(post_pattern, index, parent, offset)
+                .map(|m| (index, parent.clone(), m))
         )
     }
     pub(crate) fn find_pattern(
@@ -94,11 +94,11 @@ impl<'t, 'a, T> Hypergraph<T>
         // accumulate prefix not found
         //let mut prefix = Vec::with_capacity(pattern_iter.size_hint().0);
         self.find_parent_matching_pattern_at_offset_below_width(&pattern[1..], vertex, Some(0), Some(width+1))
-            .and_then(|(p, m)| match m {
+            .and_then(|(index, p, m)| match m {
                 IndexMatch::SubRemainder(rem) =>
-                    self.find_pattern(&[&[Child::new(p.index, p.width)], &rem[..]].concat())
-                    .or(Some((p.index, IndexMatch::SubRemainder(rem)))),
-                _ => Some((p.index, m)),
+                    self.find_pattern(&[&[Child::new(index, p.width)], &rem[..]].concat())
+                    .or(Some((index, IndexMatch::SubRemainder(rem)))),
+                _ => Some((index, m)),
             })
     }
 }
@@ -125,6 +125,7 @@ mod tests {
             _bcd,
             abc,
             abcd,
+            _cdef,
             ) = &*CONTEXT;
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];

@@ -82,19 +82,6 @@ pub enum IndexMatch {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    fn get_pattern_index_candidates(
-        parent: &'a Parent,
-        offset: Option<PatternIndex>,
-        ) -> impl Iterator<Item=&(usize, PatternIndex)> {
-        if let Some(offset) = offset {
-            print!("at offset = {} ", offset);
-            Either::Left(parent.pattern_indices.iter()
-                .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
-        } else {
-            print!("at offset = 0");
-            Either::Right(parent.pattern_indices.iter())
-        }
-    }
     fn pick_best_matching_child_pattern(
         child_patterns: &'a ChildPatterns,
         candidates: impl Iterator<Item=&'a (usize, PatternIndex)>,
@@ -114,16 +101,17 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn compare_parent_at_offset(
         &self,
         post_pattern: PatternView<'a>,
+        parent_index: VertexIndex,
         parent: &Parent,
         offset: Option<PatternIndex>,
         ) -> Option<IndexMatch> {
         // find pattern where sub is at offset
         println!("compare_parent_at_offset");
-        let vert = self.expect_vertex_data(parent.index);
+        let vert = self.expect_vertex_data(parent_index);
         let child_patterns = &vert.children;
         //print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
         // optionally filter by sub offset
-        let candidates = Self::get_pattern_index_candidates(parent, offset);
+        let candidates = parent.get_pattern_index_candidates(offset);
         //println!("with successors \"{}\"", self.pattern_string(post_pattern));
         // find child pattern with matching successor or pick first candidate
         let best_match = Self::pick_best_matching_child_pattern(
@@ -145,11 +133,10 @@ impl<'t, 'a, T> Hypergraph<T>
         parent_index: VertexIndex,
         offset: Option<PatternIndex>,
         ) -> Option<&'a Parent> {
-        vertex.parents.iter()
-            .find(|Parent { index, pattern_indices, .. }|
-                *index == parent_index &&
+        vertex.parents.get(&parent_index)
+            .filter(|parent|
                 offset.map(|offset|
-                    pattern_indices.iter().any(|(_, pos)| *pos == offset)
+                    parent.exists_at_pos(offset)
                 ).unwrap_or(true)
             )
     }
@@ -163,12 +150,12 @@ impl<'t, 'a, T> Hypergraph<T>
     fn match_sub_and_post_with_index(&self,
             sub: VertexIndex,
             post_pattern: PatternView<'a>,
-            index: VertexIndex,
+            sup_index: VertexIndex,
             width: TokenPosition,
         ) -> Option<IndexMatch> {
         println!("match_sub_pattern_to_super");
         // search parent of sub
-        if sub == index {
+        if sub == sup_index {
             return if post_pattern.is_empty() {
                 Some(IndexMatch::Matching)
             } else {
@@ -179,16 +166,16 @@ impl<'t, 'a, T> Hypergraph<T>
         if vertex.parents.len() < 1 {
             return None;
         }
-        let sup_parent = Self::get_direct_vertex_parent_at_prefix(&vertex, index);
+        let sup_parent = Self::get_direct_vertex_parent_at_prefix(&vertex, sup_index);
         if let Some(parent) = sup_parent {
             // parents contain sup
             println!("sup found in parents");
-            self.compare_parent_at_offset(post_pattern, parent, Some(0))
+            self.compare_parent_at_offset(post_pattern, sup_index, parent, Some(0))
         } else {
             // sup is no direct parent, search upwards
             println!("matching available parents");
             // search sup in parents
-            let (parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
+            let (parent_index, parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
                 post_pattern,
                 &vertex,
                 Some(0),
@@ -205,7 +192,7 @@ impl<'t, 'a, T> Hypergraph<T>
             }?;
             // TODO: faster way to handle empty new_post
             println!("matching on parent with remainder");
-            self.match_sub_and_post_with_index(parent.index, &new_post, index, width)
+            self.match_sub_and_post_with_index(parent_index, &new_post, sup_index, width)
         }
     }
     pub(crate) fn match_pattern_with_index(
@@ -323,5 +310,62 @@ impl<'t, 'a, T> Hypergraph<T>
             EitherOrBoth::Left(_) => PatternMatch::Remainder(Either::Left(pattern_a[pos..].iter().cloned().collect())),
             EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
         })
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use crate::hypergraph::tests::CONTEXT;
+    #[test]
+    fn match_simple() {
+        let (
+            graph,
+            a,
+            b,
+            c,
+            d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            ab,
+            bc,
+            _bcd,
+            abc,
+            abcd,
+            _cdef,
+            ) = &*CONTEXT;
+        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
+        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+        let abcd_pattern = &[Child::new(abcd, 4)];
+        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
+        let bc_pattern = &[Child::new(bc, 2)];
+        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_prefix(abc_d_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(bc_pattern, abcd_pattern), None);
+        assert_eq!(graph.compare_pattern_prefix(b_c_pattern, a_bc_pattern), None);
+        assert_eq!(graph.compare_pattern_prefix(b_c_pattern, a_d_c_pattern), None);
+
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
+
+        assert_eq!(graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::Remainder(Either::Left(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
     }
 }

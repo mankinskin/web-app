@@ -196,6 +196,7 @@ mod tests {
             _bcd,
             abc,
             _abcd,
+            _cdef,
             ) = &*CONTEXT;
         let (left, right) = graph.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
         assert_eq!(left, vec![Child::new(*ab, 2)], "left");
@@ -219,6 +220,7 @@ mod tests {
             _bcd,
             abc,
             abcd,
+            _cdef,
             ) = &*CONTEXT;
         let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
         assert_eq!(left, vec![Child::new(*abc, 3)], "left");
@@ -242,6 +244,7 @@ mod tests {
             bcd,
             abc,
             abcd,
+            _cdef,
             ) = &*CONTEXT;
         let ab_pattern = &[Child::new(ab, 2)];
         let c_d_pattern = &[Child::new(c, 1), Child::new(d, 1)];
