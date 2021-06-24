@@ -5,10 +5,6 @@ use crate::{
         Tokenize,
     },
 };
-use std::collections::{
-    HashSet,
-    HashMap,
-};
 use std::borrow::Borrow;
 use itertools::{
     Itertools,
@@ -17,119 +13,16 @@ use std::sync::atomic::{
     AtomicUsize,
     Ordering,
 };
-use either::Either;
 
 mod search;
 mod r#match;
 mod split;
 mod path_tree;
 mod insert;
+mod vertex;
 
-pub type VertexIndex = usize;
-type VertexParents = HashMap<VertexIndex, Parent>;
-type ChildPatterns = Vec<Pattern>;
-type ChildPatternView<'a> = &'a[PatternView<'a>];
-pub type Pattern = Vec<Child>;
-type TokenPosition = usize;
-pub type PatternIndex = usize;
-type IndexPattern = Vec<VertexIndex>;
-type VertexPattern = Vec<VertexData>;
-pub type PatternView<'a> = &'a[Child];
-type VertexPatternView<'a> = Vec<&'a VertexData>;
-type VertexPatternViewMut<'a> = Vec<&'a mut VertexData>;
+use vertex::*;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-pub enum VertexKey<T: Tokenize> {
-    Token(Token<T>),
-    Pattern(VertexIndex)
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Parent {
-    width: TokenPosition,
-    pattern_indices: HashSet<(usize, PatternIndex)>, // positions of child in parent patterns
-}
-impl Parent {
-    pub fn new(width: TokenPosition) -> Self {
-        Self {
-            width,
-            pattern_indices: Default::default(),
-        }
-    }
-    pub fn add_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
-        self.pattern_indices.insert((pattern, index));
-    }
-    pub fn remove_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
-        self.pattern_indices.remove(&(pattern, index));
-    }
-    pub fn exists_at_pos(&self, p: PatternIndex) -> bool {
-        self.pattern_indices.iter().any(|(_, pos)| *pos == p)
-    }
-    pub fn get_pattern_index_candidates(
-        &self,
-        offset: Option<PatternIndex>,
-        ) -> impl Iterator<Item=&(usize, PatternIndex)> {
-        if let Some(offset) = offset {
-            print!("at offset = {} ", offset);
-            Either::Left(self.pattern_indices.iter()
-                .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
-        } else {
-            print!("at offset = 0");
-            Either::Right(self.pattern_indices.iter())
-        }
-    }
-}
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct Child {
-    index: VertexIndex, // the child index
-    width: TokenPosition, // the token width
-}
-impl Child {
-    pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
-        Self {
-            index: *index.borrow(),
-            width,
-        }
-    }
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct VertexData {
-    width: TokenPosition,
-    parents: VertexParents,
-    children: ChildPatterns,
-}
-impl VertexData {
-    pub fn with_width(width: TokenPosition) -> Self {
-        Self {
-            width,
-            parents: VertexParents::new(),
-            children: ChildPatterns::new(),
-        }
-    }
-    pub fn add_pattern<'c, I: IntoIterator<Item=&'c Child>>(&mut self, pat: I) -> usize {
-        // TODO: detect unmatching pattern
-        let id = self.children.len();
-        self.children.push(pat.into_iter().cloned().collect());
-        id
-    }
-    pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternIndex) {
-        if let Some(parent) = self.parents.get_mut(&vertex) {
-            parent.add_pattern_index(pattern, index);
-        } else {
-            let mut parent = Parent::new(width);
-            parent.add_pattern_index(pattern, index);
-            self.parents.insert(vertex, parent);
-        }
-    }
-    pub fn remove_parent(&mut self, vertex: VertexIndex, pattern: usize, index: PatternIndex) {
-        if let Some(parent) = self.parents.get_mut(&vertex) {
-            if parent.pattern_indices.len() > 1 {
-                parent.remove_pattern_index(pattern, index);
-            } else {
-                self.parents.remove(&vertex);
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Hypergraph<T: Tokenize> {
@@ -138,7 +31,7 @@ pub struct Hypergraph<T: Tokenize> {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    fn next_pattern_id(&mut self) -> VertexIndex {
+    fn next_pattern_id() -> VertexIndex {
         static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
         ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
@@ -190,7 +83,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     pub fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
         self.to_token_indices(tokens).into_iter()
-            .map(|index| Child { index, width: 1, })
+            .map(|index| Child::new(index, 1))
             .collect()
     }
     pub fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
@@ -213,7 +106,7 @@ impl<'t, 'a, T> Hypergraph<T>
         v
     }
     pub fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
-        pat.into_iter().fold(0, |acc, child| acc + child.width)
+        pat.into_iter().fold(0, |acc, child| acc + child.get_width())
     }
     //pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
     //    let seq = seq.into_iter();
@@ -226,17 +119,17 @@ impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
 {
     fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
-        pattern.into_iter().map(|child| self.sub_index_string(child.index)).join("")
+        pattern.into_iter().map(|child| self.sub_index_string(child.get_index())).join("")
     }
     fn pattern_string(&self, pattern: PatternView<'_>) -> String {
-        pattern.iter().map(|child| self.sub_index_string(child.index)).join("_")
+        pattern.iter().map(|child| self.sub_index_string(child.get_index())).join("_")
     }
     fn sub_index_string(&self, index: VertexIndex) -> String {
         let (key, data) = self.expect_vertex(index);
         match key {
             VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(_) => {
-                self.sub_pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            VertexKey::Pattern(index) => {
+                self.sub_pattern_string(data.get_child_pattern(index).expect("Pattern vertex with no children!"))
             },
         }
     }
@@ -244,8 +137,8 @@ impl<'t, 'a, T> Hypergraph<T>
         let (key, data) = self.expect_vertex(index);
         match key {
             VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(_) => {
-                self.pattern_string(&data.children.get(0).expect("Pattern vertex with no children!")[..])
+            VertexKey::Pattern(index) => {
+                self.pattern_string(data.get_child_pattern(index).expect("Pattern vertex with no children!"))
             },
         }
     }
@@ -260,6 +153,7 @@ mod tests {
         pub static ref 
             CONTEXT: (
                 Hypergraph<char>,
+                VertexIndex,
                 VertexIndex,
                 VertexIndex,
                 VertexIndex,
@@ -372,6 +266,7 @@ mod tests {
                     i,
                     ab,
                     bc,
+                    cd,
                     bcd,
                     abc,
                     abcd,

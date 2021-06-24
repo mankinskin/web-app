@@ -43,7 +43,7 @@ impl<'t, 'a, T> Hypergraph<T>
         let (a, b) = indices.into_iter()
             .map(|index| {
                 let index = *index.borrow();
-                let w = self.expect_vertex_data(index).width.clone();
+                let w = self.expect_vertex_data(index).get_width();
                 width += w;
                 (index, Child::new(index, w))
             })
@@ -67,7 +67,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> VertexIndex {
         // todo check if exists already
-        let id = self.next_pattern_id();
+        let id = Self::next_pattern_id();
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
         let mut new_data = VertexData::with_width(width);

@@ -68,10 +68,10 @@ impl<'t, 'a, T> Hypergraph<T>
         width_ceiling: Option<TokenPosition>,
         ) -> Option<(VertexIndex, Parent, IndexMatch)> {
         println!("find_parent_matching_pattern");
-        let parents = &vertex.parents;
+        let parents = vertex.get_parents();
         // optionally filter parents by width
         if let Some(ceil) = width_ceiling {
-            Either::Left(parents.iter().filter(move |(_, parent)| parent.width < ceil))
+            Either::Left(parents.iter().filter(move |(_, parent)| parent.get_width() < ceil))
         } else {
             Either::Right(parents.iter())
         }
@@ -85,9 +85,9 @@ impl<'t, 'a, T> Hypergraph<T>
         &self,
         pattern: PatternView<'a>,
         ) -> Option<(VertexIndex, IndexMatch)> {
-        let vertex = self.expect_vertex_data(pattern.get(0)?.index);
+        let vertex = self.expect_vertex_data(pattern.get(0)?.get_index());
         if pattern.len() == 1 {
-            return Some((pattern[0].index, IndexMatch::Matching));
+            return Some((pattern[0].get_index(), IndexMatch::Matching));
         }
         let width = Self::pattern_width(pattern);
         //let mut pattern_iter = pattern.into_iter().cloned().enumerate();
@@ -96,7 +96,7 @@ impl<'t, 'a, T> Hypergraph<T>
         self.find_parent_matching_pattern_at_offset_below_width(&pattern[1..], vertex, Some(0), Some(width+1))
             .and_then(|(index, p, m)| match m {
                 IndexMatch::SubRemainder(rem) =>
-                    self.find_pattern(&[&[Child::new(index, p.width)], &rem[..]].concat())
+                    self.find_pattern(&[&[Child::new(index, p.get_width())], &rem[..]].concat())
                     .or(Some((index, IndexMatch::SubRemainder(rem)))),
                 _ => Some((index, m)),
             })
@@ -122,6 +122,7 @@ mod tests {
             _i,
             ab,
             bc,
+            cd,
             _bcd,
             abc,
             abcd,

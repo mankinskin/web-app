@@ -88,13 +88,14 @@ impl<'t, 'a, T> Hypergraph<T>
         post_sub_pat: PatternView<'a>,
         ) -> Option<PatternView<'a>> {
         candidates.find_or_first(|(pattern_index, sub_index)|
-            post_sub_pat.get(0).and_then(|i|
-                    child_patterns[*pattern_index]
-                        .get(sub_index+1)
-                        .map(|b| i.index == b.index)
+            post_sub_pat.get(0).and_then(|post_sub|
+                    child_patterns.get(pattern_index)
+                        .and_then(|pattern|
+                            pattern.get(sub_index+1).map(|b| post_sub == b)
+                        )
             ).unwrap_or(false)
-        ).and_then(|&(pattern_index, sub_index)|
-            child_patterns[pattern_index].get(sub_index..)
+        ).and_then(|(pattern_index, sub_index)|
+            child_patterns.get(pattern_index).and_then(|pattern| pattern.get(*sub_index..))
         )
     }
     /// match sub_pat against children in parent with an optional offset.
@@ -108,7 +109,7 @@ impl<'t, 'a, T> Hypergraph<T>
         // find pattern where sub is at offset
         println!("compare_parent_at_offset");
         let vert = self.expect_vertex_data(parent_index);
-        let child_patterns = &vert.children;
+        let child_patterns = vert.get_children();
         //print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
         // optionally filter by sub offset
         let candidates = parent.get_pattern_index_candidates(offset);
@@ -133,7 +134,7 @@ impl<'t, 'a, T> Hypergraph<T>
         parent_index: VertexIndex,
         offset: Option<PatternIndex>,
         ) -> Option<&'a Parent> {
-        vertex.parents.get(&parent_index)
+        vertex.get_parent(&parent_index)
             .filter(|parent|
                 offset.map(|offset|
                     parent.exists_at_pos(offset)
@@ -163,7 +164,7 @@ impl<'t, 'a, T> Hypergraph<T>
             }
         }
         let vertex = self.expect_vertex_data(sub);
-        if vertex.parents.len() < 1 {
+        if vertex.get_parents().len() < 1 {
             return None;
         }
         let sup_parent = Self::get_direct_vertex_parent_at_prefix(&vertex, sup_index);
@@ -205,14 +206,14 @@ impl<'t, 'a, T> Hypergraph<T>
         let sub = sub_pattern.get(0)?;
         let post_pattern = sub_pattern.get(1..);
         if let None = post_pattern {
-            return if sub.index == index {
+            return if sub.get_index() == index {
                 Some(IndexMatch::Matching)
             } else {
                 None
             };
         }
         let post_pattern = post_pattern?;
-        self.match_sub_and_post_with_index(sub.index, post_pattern, index, width)
+        self.match_sub_and_post_with_index(sub.get_index(), post_pattern, index, width)
     }
     fn compare_pattern_prefix(
             &self,
@@ -238,13 +239,7 @@ impl<'t, 'a, T> Hypergraph<T>
         };
         Some(match eob {
             // different elements on both sides
-            EitherOrBoth::Both(&Child {
-                index: index_a,
-                width: width_a,
-            }, &Child {
-                index: index_b,
-                width: width_b,
-            }) => {
+            EitherOrBoth::Both(a, b) => {
                 //println!("matching \"{}\" and \"{}\"", self.sub_index_string(index_a), self.sub_index_string(index_b));
                 // Note: depending on sizes of a, b it may be differently efficient
                 // to search for children or parents, large patterns have less parents,
@@ -255,24 +250,24 @@ impl<'t, 'a, T> Hypergraph<T>
                 let sub;
                 let sup;
                 let sup_width;
-                let rotate = if width_a == width_b {
+                let rotate = if a.get_width() == b.get_width() {
                     // relatives can not have same sizes
                     return None;
-                } else if width_a < width_b {
+                } else if a.get_width() < b.get_width() {
                     println!("right super");
                     post_sub_pattern = &pattern_a[pos+1..];
                     post_sup = &pattern_b[pos+1..];
-                    sub = index_a;
-                    sup = index_b;
-                    sup_width = width_b;
+                    sub = a.get_index();
+                    sup = b.get_index();
+                    sup_width = b.get_width();
                     false
                 } else {
                     println!("left super");
                     post_sub_pattern = &pattern_b[pos+1..];
                     post_sup = &pattern_a[pos+1..];
-                    sub = index_b;
-                    sup = index_a;
-                    sup_width = width_a;
+                    sub = b.get_index();
+                    sup = a.get_index();
+                    sup_width = a.get_width();
                     true
                 };
                 let result = self.match_sub_and_post_with_index(
@@ -332,6 +327,7 @@ mod tests {
             _i,
             ab,
             bc,
+            cd,
             _bcd,
             abc,
             abcd,
