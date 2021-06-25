@@ -169,6 +169,10 @@ mod tests {
                 VertexIndex,
                 VertexIndex,
                 VertexIndex,
+                VertexIndex,
+                VertexIndex,
+                VertexIndex,
+                VertexIndex,
                 ) = {
             let mut graph = Hypergraph::new();
             if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
@@ -271,6 +275,10 @@ mod tests {
                     abc,
                     abcd,
                     cdef,
+                    efghi,
+                    abab,
+                    ababab,
+                    ababababcdefghi,
                 )
             } else {
                 panic!();

@@ -127,6 +127,10 @@ mod tests {
             abc,
             abcd,
             _cdef,
+            efghi,
+            abab,
+            ababab,
+            _ababababcdefghi,
             ) = &*CONTEXT;
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];

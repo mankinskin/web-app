@@ -118,7 +118,7 @@ impl<'t, 'a, T> Hypergraph<T>
                     split.width += width;
                     split.pattern = match half {
                         Either::Left(_) => [neighbors, &split.pattern].concat(),
-                        Either::Right(_) => [neighbors, &split.pattern].concat(),
+                        Either::Right(_) => [&split.pattern, neighbors].concat(),
                     };
                     split.parent = next_parent;
                 }
@@ -129,7 +129,7 @@ impl<'t, 'a, T> Hypergraph<T>
         }
         splits.into_iter().map(|split| split.pattern).collect()
     }
-    fn build_splits_from_tree(&self, mut splits: Vec<(Split, Split)>, tree: PathTree) -> (Vec<Pattern>, Vec<Pattern>) {
+    fn build_splits_from_tree(&self, splits: Vec<(Split, Split)>, tree: PathTree) -> (Vec<Pattern>, Vec<Pattern>) {
         let (left, right): (Vec<_>, Vec<_>) = splits.into_iter().unzip();
         (
             self.build_split_halves_from_tree(left, &tree, Either::Left(())),
@@ -220,8 +220,6 @@ mod tests {
     use super::*;
     use crate::hypergraph::tests::CONTEXT;
     use pretty_assertions::assert_eq;
-    use maplit::hashset;
-    use std::collections::HashSet;
     #[test]
     fn split_index_1() {
         let (
@@ -237,11 +235,15 @@ mod tests {
             _i,
             ab,
             _bc,
-            cd,
+            _cd,
             _bcd,
             abc,
             _abcd,
             _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            _ababababcdefghi,
             ) = &*CONTEXT;
         let (left, right) = graph.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
         assert_eq!(left, vec![vec![Child::new(*ab, 2)]], "left");
@@ -262,48 +264,97 @@ mod tests {
             _i,
             _ab,
             _bc,
-            cd,
+            _cd,
             _bcd,
             abc,
             abcd,
             _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            _ababababcdefghi,
             ) = &*CONTEXT;
         let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
         assert_eq!(left, vec![vec![Child::new(*abc, 3)]], "left");
         assert_eq!(right, vec![vec![Child::new(*d, 1)]], "right");
     }
+    use crate::token::*;
     #[test]
     fn split_child_patterns_3() {
-        let (
-            graph,
-            a,
-            _b,
-            c,
-            d,
-            _e,
-            _f,
-            _g,
-            _h,
-            _i,
-            ab,
-            _bc,
-            cd,
-            bcd,
-            abc,
-            abcd,
-            _cdef,
-            ) = &*CONTEXT;
-        let ab_pattern = vec![Child::new(ab, 2)];
-        let cd_pattern = vec![Child::new(cd, 2)];
+        let mut graph = Hypergraph::new();
+        if let [a, b, c, d] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let bc = graph.insert_pattern([b, c]);
+            let cd = graph.insert_pattern([c, d]);
+            let abc = graph.insert_patterns([
+                vec![ab, c],
+                vec![a, bc]
+            ]);
+            let bcd = graph.insert_patterns([
+                vec![bc, d],
+                vec![b, cd]
+            ]);
+            let abcd = graph.insert_patterns([
+                vec![abc, d],
+                vec![a, bcd]
+            ]);
+            let ab_pattern = vec![Child::new(ab, 2)];
+            let cd_pattern = vec![Child::new(cd, 2)];
 
-        let abcd_patterns = graph.expect_vertex_data(abcd).get_children().clone();
-        assert_eq!(abcd_patterns.into_values().collect::<HashSet<_>>(), hashset![
-            [Child::new(abc, 3), Child::new(d, 1)].iter().cloned().collect::<Vec<_>>(),
-            [Child::new(a, 1), Child::new(bcd, 3)].iter().cloned().collect::<Vec<_>>(),
-        ]);
+            let (left, right) = graph.split_index_at_pos(abcd, NonZeroUsize::new(2).unwrap());
+            assert_eq!(left, vec![ab_pattern], "left");
+            assert_eq!(right, vec![cd_pattern], "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_4() {
+        let mut graph = Hypergraph::new();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let _wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
+            // split xabyz at 2
+            let xa_pattern = vec![
+                vec![Child::new(x, 1), Child::new(a, 1)],
+            ];
+            let byz_pattern = vec![
+                vec![Child::new(by, 2), Child::new(z, 1)],
+                vec![Child::new(b, 1), Child::new(yz, 2)],
+            ];
 
-        let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(2).unwrap());
-        assert_eq!(left, vec![ab_pattern], "left");
-        assert_eq!(right, vec![cd_pattern], "right");
+            let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
+            assert_eq!(left, xa_pattern, "left");
+            assert_eq!(right, byz_pattern, "right");
+        } else {
+            panic!();
+        }
     }
 }
