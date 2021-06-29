@@ -84,50 +84,51 @@ impl<'t, 'a, T> Hypergraph<T>
             Self::find_pattern_split_index(pattern, pos).map(|split| (*i, split))
         )
     }
-    fn get_split_neighbors_and_next_parent(&self, split: &Split, tree: &PathTree, half: Either<(), ()>) -> (&[Child], Option<TreeParent>) {
-        if let Some(tree_parent) = &split.parent {
-            let (next_parent, index) = tree.get_parents().get(tree_parent.tree_node).unwrap();
-            let IndexInParent {
-                pattern_index,
-                replaced_index,
-            } = tree_parent.index_in_parent;
-            let parent_node = self.get_vertex_data(index).unwrap();
-            let neighbors = match half {
-                Either::Left(_) => parent_node.get_child_pattern_range(&pattern_index, ..replaced_index).unwrap(),
-                Either::Right(_) => parent_node.get_child_pattern_range(&pattern_index, replaced_index+1..).unwrap(),
-            };
-            (neighbors, next_parent.clone())
-        } else {
-            (&[], None)
-        }
+    fn get_split_neighbors_and_next_parent(&self, tree_parent: &TreeParent, tree: &PathTree, half: Either<(), ()>) -> (&[Child], Option<TreeParent>) {
+        let IndexInParent {
+            pattern_index,
+            replaced_index,
+        } = tree_parent.index_in_parent;
+        let (next_parent, index) = tree.get_parents().get(tree_parent.tree_node).unwrap();
+        let parent_node = self.get_vertex_data(index).unwrap();
+        let neighbors = match half {
+            Either::Left(_) => parent_node.get_child_pattern_range(&pattern_index, ..replaced_index).unwrap(),
+            Either::Right(_) => parent_node.get_child_pattern_range(&pattern_index, replaced_index+1..).unwrap(),
+        };
+        (neighbors, next_parent.clone())
     }
     fn build_split_halves_from_tree(&self, mut splits: Vec<Split>, tree: &PathTree, half: Either<(), ()>) -> Vec<Pattern> {
         if splits.is_empty() {
             return Vec::new();
         }
-        loop {
-            let largest = splits.iter().max_by(|a, b| a.width.cmp(&b.width)).unwrap();
-            let (neighbors, next_parent) = self.get_split_neighbors_and_next_parent(largest, tree, half);
-            // if at end
-            if neighbors.is_empty() && next_parent.is_none() {
-                return vec![largest.pattern.clone()];
-            } else {
-                for split in splits.iter_mut() {
-                    let (neighbors, next_parent) = self.get_split_neighbors_and_next_parent(split, tree, half);
+        // todo: reuse this later
+        let largest = splits.iter().map(|s| s.width).max().unwrap();
+        //let (neighbors, next_parent) = largest.parent.as_ref().map(|parent|
+        //    self.get_split_neighbors_and_next_parent(parent, tree, half)
+        //).unwrap_or((&[], None));
+        //// if at end
+        //if neighbors.is_empty() && next_parent.is_none() {
+        //    return vec![largest.pattern.clone()];
+        //}
+        for split in splits.iter_mut() {
+            while let Some(tree_parent) = &split.parent {
+                let (neighbors, next_parent) = self.get_split_neighbors_and_next_parent(&tree_parent, tree, half);
+                if !neighbors.is_empty() {
                     let width = Self::pattern_width(neighbors);
                     split.width += width;
+                    if split.width == largest {
+                        split.width = 0; // exclude at end
+                        break;
+                    }
                     split.pattern = match half {
                         Either::Left(_) => [neighbors, &split.pattern].concat(),
                         Either::Right(_) => [&split.pattern, neighbors].concat(),
                     };
-                    split.parent = next_parent;
                 }
-            }
-            if next_parent.is_none() {
-                break;
+                split.parent = next_parent;
             }
         }
-        splits.into_iter().map(|split| split.pattern).collect()
+        splits.into_iter().filter(|s| s.width > 0).map(|s| s.pattern).collect()
     }
     fn build_splits_from_tree(&self, splits: Vec<(Split, Split)>, tree: PathTree) -> (Vec<Pattern>, Vec<Pattern>) {
         let (left, right): (Vec<_>, Vec<_>) = splits.into_iter().unzip();
@@ -137,82 +138,70 @@ impl<'t, 'a, T> Hypergraph<T>
         )
     }
     pub fn split_index_at_pos(&self, root: VertexIndex, pos: NonZeroUsize) -> (Vec<Pattern>, Vec<Pattern>) {
-        let mut queue = VecDeque::from_iter(std::iter::once(vec![IndexPositionDescriptor {
+        let mut queue = VecDeque::from_iter(std::iter::once(IndexPositionDescriptor {
                 node: root,
                 offset: pos,
                 parent: None,
-            }]));
+            }));
         let mut path_tree = PathTree::new();
-        loop {
-            let mut splits = Vec::new();
-            let mut next_children = Vec::new();
-            let children = queue.pop_front().unwrap();
-            for IndexPositionDescriptor {
-                    node: current_index,
-                    offset,
-                    parent,
-                 } in children.into_iter() {
-                let current_node = self.get_vertex_data(current_index).unwrap();
-                let children = current_node.get_children().clone();
-                let child_slices = children.iter().map(|(i, p)| (i, p.iter()));
-                let split_indices = Hypergraph::<T>::find_child_pattern_split_indices(child_slices, offset);
-                let perfect_split = split_indices
-                    .map(|(pattern_index, (split_index, offset))| {
-                        let index_in_parent = IndexInParent {
-                            pattern_index,
-                            replaced_index: split_index,
-                        };
-                        NonZeroUsize::new(offset)
-                            .ok_or(index_in_parent.clone())
-                            .map(|offset| (index_in_parent, offset))
-                    })
-                    .collect::<Result<Vec<_>, _>>();
-                match perfect_split {
-                    Err(IndexInParent {
-                            pattern_index,
-                            replaced_index: split_index,
-                        }) => {
-                        // perfect split found
-                        let (left_split, right_split) = Hypergraph::<T>::split_pattern_at_index(&current_node.get_child_pattern(&pattern_index).unwrap(), split_index);
-                        splits.push((Split {
-                            width: Self::pattern_width(&left_split),
-                            pattern: left_split,
-                            parent: parent.clone(),
-                        }, Split {
-                            width: Self::pattern_width(&right_split),
-                            pattern: right_split,
-                            parent,
-                        }));
-                    },
-                    Ok(mut split_indices) => {
-                        // no perfect split
-                        // add current node to path tree
-                        let tree_node = path_tree.add_element(parent, current_index);
-                        split_indices.sort_unstable_by(|(ind_a, _), (ind_b, _)| 
-                            current_node.get_child_pattern_position(&ind_a.pattern_index, ind_a.replaced_index).unwrap().get_width()
-                                .cmp(&current_node.get_child_pattern_position(&ind_b.pattern_index, ind_b.replaced_index).unwrap().get_width())
-                        );
-                        next_children.extend(split_indices.into_iter()
-                            .map(|(index_in_parent, offset)| {
-                            let IndexInParent { pattern_index, replaced_index } = index_in_parent;
-                            IndexPositionDescriptor {
-                                node: current_node.get_child_pattern_position(&pattern_index, replaced_index).unwrap().get_index(),
-                                offset,
-                                parent: Some(TreeParent {
-                                    tree_node,
-                                    index_in_parent,
-                                }),
-                            }
-                        }));
-                    }
-                };
-            }
-            if splits.is_empty() {
-                queue.push_back(next_children);
-            } else {
-                return self.build_splits_from_tree(splits, path_tree);
-            }
+        let mut splits = Vec::new();
+        while let Some(IndexPositionDescriptor {
+                node: current_index,
+                offset,
+                parent,
+             }) = queue.pop_front() {
+            let current_node = self.get_vertex_data(current_index).unwrap();
+            let children = current_node.get_children().clone();
+            let child_slices = children.iter().map(|(i, p)| (i, p.iter()));
+            let split_indices = Hypergraph::<T>::find_child_pattern_split_indices(child_slices, offset);
+            let perfect_split = split_indices
+                .map(|(pattern_index, (split_index, offset))| {
+                    let index_in_parent = IndexInParent {
+                        pattern_index,
+                        replaced_index: split_index,
+                    };
+                    NonZeroUsize::new(offset)
+                        .ok_or(index_in_parent.clone())
+                        .map(|offset| (index_in_parent, offset))
+                })
+                .collect::<Result<Vec<_>, _>>();
+            match perfect_split {
+                Err(IndexInParent {
+                        pattern_index,
+                        replaced_index: split_index,
+                    }) => {
+                    // perfect split found
+                    let (left_split, right_split) = Hypergraph::<T>::split_pattern_at_index(&current_node.get_child_pattern(&pattern_index).unwrap(), split_index);
+                    splits.push((Split {
+                        width: Self::pattern_width(&left_split),
+                        pattern: left_split,
+                        parent: parent.clone(),
+                    }, Split {
+                        width: Self::pattern_width(&right_split),
+                        pattern: right_split,
+                        parent,
+                    }));
+                },
+                Ok(split_indices) => {
+                    // no perfect split
+                    // add current node to path tree
+                    let tree_node = path_tree.add_element(parent, current_index);
+                    queue.extend(split_indices.into_iter()
+                        .map(|(index_in_parent, offset)| {
+                        let IndexInParent { pattern_index, replaced_index } = index_in_parent;
+                        IndexPositionDescriptor {
+                            node: current_node.get_child_pattern_position(&pattern_index, replaced_index).unwrap().get_index(),
+                            offset,
+                            parent: Some(TreeParent {
+                                tree_node,
+                                index_in_parent,
+                            }),
+                        }
+                    }));
+                }
+            };
         }
+        return self.build_splits_from_tree(splits, path_tree);
     }
 }
 #[cfg(test)]
@@ -340,7 +329,6 @@ mod tests {
                 vec![xaby, z],
                 vec![xab, yz]
             ]);
-            let _wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
             // split xabyz at 2
             let xa_pattern = vec![
                 vec![Child::new(x, 1), Child::new(a, 1)],
@@ -352,6 +340,104 @@ mod tests {
 
             let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
             assert_eq!(left, xa_pattern, "left");
+            assert_eq!(right, byz_pattern, "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_5() {
+        let mut graph = Hypergraph::new();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
+
+            // split wxabyzabbyxabyz at 3
+            let wxa_pattern = vec![
+                vec![Child::new(w, 1), Child::new(x, 1), Child::new(a, 1)],
+            ];
+            let byzabbyxabyz_pattern = vec![
+                vec![Child::new(by, 2), Child::new(z, 1), Child::new(ab, 2), Child::new(by, 2), Child::new(xabyz, 5)],
+                vec![Child::new(b, 1), Child::new(yz, 2), Child::new(ab, 2), Child::new(by, 2), Child::new(xabyz, 5)],
+            ];
+            let (left, right) = graph.split_index_at_pos(wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
+            assert_eq!(left, wxa_pattern, "left");
+            assert_eq!(right, byzabbyxabyz_pattern, "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_6() {
+        let mut graph = Hypergraph::new();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let wx = graph.insert_pattern([w, x]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let wxab = graph.insert_patterns([
+                vec![wx, ab],
+                vec![w, xab]
+            ]);
+            let wxaby = graph.insert_patterns([
+                vec![w, xaby],
+                vec![wx, a, by],
+                vec![wxab, y]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyz = graph.insert_patterns([
+                vec![w, xabyz],
+                vec![wxaby, z],
+                vec![wx, ab, yz]
+            ]);
+            // split wxabyz at 3
+            let wxa_pattern = vec![
+                vec![Child::new(wx, 2), Child::new(a, 1)],
+            ];
+            let byz_pattern = vec![
+                vec![Child::new(by, 2), Child::new(z, 1)],
+                vec![Child::new(b, 1), Child::new(yz, 2)],
+            ];
+
+            let (left, right) = graph.split_index_at_pos(wxabyz, NonZeroUsize::new(3).unwrap());
+            assert_eq!(left, wxa_pattern, "left");
             assert_eq!(right, byz_pattern, "right");
         } else {
             panic!();
