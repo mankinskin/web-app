@@ -11,4 +11,5 @@ members = [
   "database-table",
   "define_api",
   "session-service",
+  "egui_app",
 ]
