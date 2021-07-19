@@ -1,10 +1,8 @@
 use app_model::market::PriceHistory;
+use database_table::Routable;
 use database_table::{
     Entry,
     Route as DbRoute,
-};
-use database_table::{
-    Routable,
 };
 use openlimits::model::Interval;
 use serde::{

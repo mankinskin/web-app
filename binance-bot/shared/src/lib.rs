@@ -5,14 +5,14 @@ use app_model::{
     auth::Route as AuthRoute,
     user::Route as UserRoute,
 };
+use database_table::{
+    Routable,
+    Route as DbRoute,
+};
 use enum_paths::AsPath;
 use serde::{
     Deserialize,
     Serialize,
-};
-use database_table::{
-    Route as DbRoute,
-    Routable,
 };
 use std::convert::TryFrom;
 #[derive(Debug, Clone)]
@@ -59,7 +59,8 @@ pub enum PageRoute {
     Root,
 }
 pub trait Router<Sub>
-    where Sub: Routable
+where
+    Sub: Routable,
 {
     fn route_sub(sub: Sub::Route) -> Self;
 }

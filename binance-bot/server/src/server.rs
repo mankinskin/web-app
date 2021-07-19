@@ -22,10 +22,10 @@ use shared::{
 };
 use tide::{
     Body,
-    Endpoint,
     Middleware,
     Request,
     Response,
+    Endpoint,
 };
 use tide_rustls::TlsListener;
 use tide_tracing::TraceMiddleware;
@@ -106,8 +106,8 @@ impl TideServer {
             server: tide::new(),
         };
         new.server.with(TraceMiddleware::new());
-        server.with(Self::session_middleware());
-        server.with(Self::session_validator_middleware());
+        new.server.with(Self::session_middleware());
+        new.server.with(Self::session_validator_middleware());
         new.api();
         new.wss();
         new.root();
@@ -117,8 +117,7 @@ impl TideServer {
         <Self as ServeSession<'_, Schema>>::serve(server)
     }
     fn wss(&mut self) {
-        let server = &mut self.server;
-        server.at("/wss").get(Self::wss_handler);
+        self.server.at("/wss").get(Self::wss_handler);
     }
     fn root(&mut self) {
         self.server.at("/subscriptions").get(index!());
@@ -131,7 +130,6 @@ impl TideServer {
         //self.server.at("/").serve_dir(format!("{}/pkg", CLIENT_PATH)).expect("Cannot serve directory");
     }
     fn api(&mut self) {
-        let server = &mut self.server;
         let route = <Route as Router<ApiRoute>>::route_sub(ApiRoute::default()).prefix();
         debug!("Routing {}", route);
         let mut api = tide::new();
@@ -139,7 +137,7 @@ impl TideServer {
         <Self as ServeTable<'_, Route, PriceSubscription, Schema>>
             ::serve(&mut api);
         api.at("/price_history").nest(price_api());
-        server.at(&route).nest(api);
+        self.server.at(&route).nest(api);
     }
     async fn wss_handler(request: Request<()>) -> tide::Result {
         WebSocket::new(async move |_, ws| {

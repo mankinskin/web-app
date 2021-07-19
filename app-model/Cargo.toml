@@ -42,6 +42,7 @@ path = "../components"
 
 [dependencies.openlimits]
 path = "../../openlimits"
+#version = "^0.1"
 
 [dependencies.rql]
 path = "../../rql"

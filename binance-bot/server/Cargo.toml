@@ -24,11 +24,15 @@ tracing = "^0.1"
 tracing-appender = "^0.1"
 tracing-subscriber = "^0.2"
 
+[dependencies.openlimits]
+path = "../../../openlimits"
+#version = "^0.1"
+
 [dependencies.app-model]
 path = "../../app-model"
 
 [dependencies.async-std]
-features = ["attributes"]
+features = ["attributes", "tokio1"]
 version = "^1"
 
 [dependencies.chrono]
@@ -50,11 +54,9 @@ version = "^0.3"
 [dependencies.futures-util]
 version = "^0.3"
 
-[dependencies.openlimits]
-path = "../../../openlimits"
-
 [dependencies.riker]
 path = "../../../riker"
+features = ["tokio_executor"]
 
 [dependencies.rql]
 path = "../../../rql"
@@ -91,7 +93,7 @@ version = "^1"
 
 [dependencies.tokio-util]
 features = ["compat"]
-version = "^0.3"
+version = "^0.6"
 
 [dependencies.tracing-log]
 version = "^0.1"

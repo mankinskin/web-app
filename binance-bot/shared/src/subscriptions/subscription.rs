@@ -10,8 +10,8 @@ use {
         Route as CrateRoute,
     },
     database_table::{
-        TableRoutable,
         Routed,
+        TableRoutable,
     },
     rql::*,
 };

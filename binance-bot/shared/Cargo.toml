@@ -9,6 +9,7 @@ features = ["serde"]
 version = "^0.4"
 
 [dependencies.openlimits]
+#version ="^0.1.12"
 path = "../../../openlimits"
 
 [dependencies.app-model]
