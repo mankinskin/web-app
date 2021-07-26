@@ -50,29 +50,23 @@ impl<'t, 'a, T> Hypergraph<T>
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
 {
-    fn sub_pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
-        pattern.into_iter().map(|child| self.sub_index_string(child.get_index())).join("")
+    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
+        pattern.into_iter().map(|child| self.index_string(child.get_index())).join("")
     }
-    fn pattern_string(&self, pattern: PatternView<'_>) -> String {
-        pattern.iter().map(|child| self.sub_index_string(child.get_index())).join("_")
-    }
-    fn sub_index_string(&self, index: VertexIndex) -> String {
-        let (key, data) = self.expect_vertex(index);
+    pub fn key_data_string(&self, key: &VertexKey<T>, data: &VertexData) -> String {
         match key {
             VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(index) => {
-                self.sub_pattern_string(data.get_child_pattern(index).expect("Pattern vertex with no children!"))
-            },
+            VertexKey::Pattern(_) =>
+                self.pattern_string(data.expect_any_pattern()),
         }
     }
     pub fn index_string(&self, index: VertexIndex) -> String {
         let (key, data) = self.expect_vertex(index);
-        match key {
-            VertexKey::Token(token) => token.to_string(),
-            VertexKey::Pattern(index) => {
-                self.pattern_string(data.get_child_pattern(index).expect("Pattern vertex with no children!"))
-            },
-        }
+        self.key_data_string(key, data)
+    }
+    pub fn key_string(&self, key: &VertexKey<T>) -> String {
+        let data = self.expect_vertex_data_by_key(key);
+        self.key_data_string(key, data)
     }
 }
 
