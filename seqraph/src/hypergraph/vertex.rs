@@ -19,10 +19,10 @@ use std::sync::atomic::{
 
 pub(crate) type VertexIndex = usize;
 pub(crate) type VertexParents = HashMap<VertexIndex, Parent>;
-pub(crate) type ChildPatterns = HashMap<PatternIndex, Pattern>;
+pub(crate) type ChildPatterns = HashMap<PatternId, Pattern>;
 pub(crate) type ChildPatternView<'a> = &'a[PatternView<'a>];
 pub(crate) type Pattern = Vec<Child>;
-pub(crate) type PatternIndex = usize;
+pub(crate) type PatternId = usize;
 pub(crate) type TokenPosition = usize;
 pub(crate) type IndexPosition = usize;
 pub(crate) type IndexPattern = Vec<VertexIndex>;
@@ -39,7 +39,7 @@ pub enum VertexKey<T: Tokenize> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parent {
     width: TokenPosition,
-    pattern_indices: HashSet<(usize, PatternIndex)>, // positions of child in parent patterns
+    pattern_indices: HashSet<(usize, PatternId)>, // positions of child in parent patterns
 }
 impl Parent {
     pub fn new(width: TokenPosition) -> Self {
@@ -51,19 +51,19 @@ impl Parent {
     pub fn get_width(&self) -> TokenPosition {
         self.width
     }
-    pub fn add_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
+    pub fn add_pattern_index(&mut self, pattern: usize, index: PatternId) {
         self.pattern_indices.insert((pattern, index));
     }
-    pub fn remove_pattern_index(&mut self, pattern: usize, index: PatternIndex) {
+    pub fn remove_pattern_index(&mut self, pattern: usize, index: PatternId) {
         self.pattern_indices.remove(&(pattern, index));
     }
-    pub fn exists_at_pos(&self, p: PatternIndex) -> bool {
+    pub fn exists_at_pos(&self, p: PatternId) -> bool {
         self.pattern_indices.iter().any(|(_, pos)| *pos == p)
     }
     pub fn get_pattern_index_candidates(
         &self,
-        offset: Option<PatternIndex>,
-        ) -> impl Iterator<Item=&(usize, PatternIndex)> {
+        offset: Option<PatternId>,
+        ) -> impl Iterator<Item=&(usize, PatternId)> {
         if let Some(offset) = offset {
             print!("at offset = {} ", offset);
             Either::Left(self.pattern_indices.iter()
@@ -105,9 +105,10 @@ pub struct VertexData {
     children: ChildPatterns,
 }
 impl VertexData {
-    fn next_child_pattern_id() -> PatternIndex {
-        static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-        ID_COUNTER.fetch_add(1, Ordering::Relaxed)
+    fn next_child_pattern_id() -> PatternId {
+        static PATTERN_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = PATTERN_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        id
     }
     pub fn with_width(width: TokenPosition) -> Self {
         Self {
@@ -125,25 +126,39 @@ impl VertexData {
     pub fn get_parents(&self) -> &VertexParents {
         &self.parents
     }
-    pub fn get_child_pattern_range<R: SliceIndex<[Child]>>(&self, index: &PatternIndex, range: R) -> Option<&<R as SliceIndex<[Child]>>::Output> {
-        self.children.get(index)?.get(range)
+    pub fn get_child_pattern_range<R: SliceIndex<[Child]>>(&self, id: &PatternId, range: R) -> Option<&<R as SliceIndex<[Child]>>::Output> {
+        self.children.get(id)?.get(range)
     }
-    pub fn get_child_pattern_position(&self, index: &PatternIndex, pos: IndexPosition) -> Option<&Child> {
-        self.children.get(index)?.get(pos)
+    pub fn get_child_pattern_position(&self, id: &PatternId, pos: IndexPosition) -> Option<&Child> {
+        self.children.get(id)?.get(pos)
     }
-    pub fn get_child_pattern(&self, index: &PatternIndex) -> Option<&Pattern> {
-        self.children.get(index)
+    pub fn get_child_pattern(&self, id: &PatternId) -> Option<&Pattern> {
+        self.children.get(id)
+    }
+    pub fn expect_any_pattern(&self) -> &Pattern {
+        self.children.values().next()
+            .expect(&format!(
+                    "Pattern vertex has no children {:#?}",
+                    self,
+            ))
+    }
+    pub fn expect_child_pattern(&self, id: &PatternId) -> &Pattern {
+        self.children.get(id)
+            .expect(&format!(
+                    "Child pattern with id {} does not exist in in vertex {:#?}",
+                    id, self,
+            ))
     }
     pub fn get_children(&self) -> &ChildPatterns {
         &self.children
     }
-    pub fn add_pattern<'c, I: IntoIterator<Item=&'c Child>>(&mut self, pat: I) -> usize {
+    pub fn add_pattern<'c, P: IntoIterator<Item=&'c Child>>(&mut self, pat: P) -> PatternId {
         // TODO: detect unmatching pattern
         let id = Self::next_child_pattern_id();
         self.children.insert(id, pat.into_iter().cloned().collect());
         id
     }
-    pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternIndex) {
+    pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternId) {
         if let Some(parent) = self.parents.get_mut(&vertex) {
             parent.add_pattern_index(pattern, index);
         } else {
@@ -152,7 +167,7 @@ impl VertexData {
             self.parents.insert(vertex, parent);
         }
     }
-    pub fn remove_parent(&mut self, vertex: VertexIndex, pattern: usize, index: PatternIndex) {
+    pub fn remove_parent(&mut self, vertex: VertexIndex, pattern: usize, index: PatternId) {
         if let Some(parent) = self.parents.get_mut(&vertex) {
             if parent.pattern_indices.len() > 1 {
                 parent.remove_pattern_index(pattern, index);

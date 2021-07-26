@@ -2,7 +2,7 @@ use crate::{
     hypergraph::{
         Hypergraph,
         VertexIndex,
-        PatternIndex,
+        PatternId,
         Pattern,
         PatternView,
         VertexData,
@@ -84,7 +84,7 @@ impl<'t, 'a, T> Hypergraph<T>
 {
     fn pick_best_matching_child_pattern(
         child_patterns: &'a ChildPatterns,
-        candidates: impl Iterator<Item=&'a (usize, PatternIndex)>,
+        candidates: impl Iterator<Item=&'a (usize, PatternId)>,
         post_sub_pat: PatternView<'a>,
         ) -> Option<PatternView<'a>> {
         candidates.find_or_first(|(pattern_index, sub_index)|
@@ -104,7 +104,7 @@ impl<'t, 'a, T> Hypergraph<T>
         post_pattern: PatternView<'a>,
         parent_index: VertexIndex,
         parent: &Parent,
-        offset: Option<PatternIndex>,
+        offset: Option<PatternId>,
         ) -> Option<IndexMatch> {
         // find pattern where sub is at offset
         println!("compare_parent_at_offset");
@@ -132,7 +132,7 @@ impl<'t, 'a, T> Hypergraph<T>
     fn get_direct_vertex_parent_with_offset(
         vertex: &'a VertexData,
         parent_index: VertexIndex,
-        offset: Option<PatternIndex>,
+        offset: Option<PatternId>,
         ) -> Option<&'a Parent> {
         vertex.get_parent(&parent_index)
             .filter(|parent|

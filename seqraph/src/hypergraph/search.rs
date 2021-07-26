@@ -2,7 +2,7 @@ use crate::{
     hypergraph::{
         Hypergraph,
         VertexIndex,
-        PatternIndex,
+        PatternId,
         Pattern,
         PatternView,
         VertexData,
@@ -20,11 +20,11 @@ use crate::{
 use either::Either;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SearchFound(FoundRange, VertexIndex, PatternIndex);
+pub struct SearchFound(FoundRange, VertexIndex, PatternId);
 // found range of search pattern in vertex at index
 
 impl SearchFound {
-    //pub fn from_match_result_on_index_at_offset(result: PatternMatch, index: VertexIndex, offset: Option<PatternIndex>) -> Self {
+    //pub fn from_match_result_on_index_at_offset(result: PatternMatch, index: VertexIndex, offset: Option<PatternId>) -> Self {
     //    let offset = offset.unwrap_or(0);
     //    match result {
     //        PatternMatch::Matching => Self(FoundRange::Complete, index, offset),
@@ -64,7 +64,7 @@ impl<'t, 'a, T> Hypergraph<T>
         &self,
         post_pattern: PatternView<'a>,
         vertex: &VertexData,
-        offset: Option<PatternIndex>,
+        offset: Option<PatternId>,
         width_ceiling: Option<TokenPosition>,
         ) -> Option<(VertexIndex, Parent, IndexMatch)> {
         println!("find_parent_matching_pattern");

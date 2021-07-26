@@ -2,7 +2,7 @@ use crate::{
     hypergraph::{
         Hypergraph,
         VertexIndex,
-        PatternIndex,
+        PatternId,
         Pattern,
         PatternView,
         TokenPosition,
@@ -48,7 +48,7 @@ impl<'t, 'a, T> Hypergraph<T>
 {
     pub fn split_pattern_at_index(
         pattern: PatternView<'a>,
-        index: PatternIndex,
+        index: PatternId,
         ) -> (Pattern, Pattern) {
         let prefix = &pattern[..index];
         let postfix = &pattern[index..];
@@ -77,9 +77,9 @@ impl<'t, 'a, T> Hypergraph<T>
             })
     }
     pub fn find_child_pattern_split_indices(
-        patterns: impl Iterator<Item=(&'a PatternIndex, impl Iterator<Item=&'a Child> + 'a)> + 'a,
+        patterns: impl Iterator<Item=(&'a PatternId, impl Iterator<Item=&'a Child> + 'a)> + 'a,
         pos: NonZeroUsize,
-        ) -> impl Iterator<Item=(PatternIndex, (IndexPosition, TokenPosition))> + 'a {
+        ) -> impl Iterator<Item=(PatternId, (IndexPosition, TokenPosition))> + 'a {
         patterns.filter_map(move |(i, pattern)|
             Self::find_pattern_split_index(pattern, pos).map(|split| (*i, split))
         )
