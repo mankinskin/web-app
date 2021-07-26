@@ -1,22 +1,24 @@
 use crate::{
-    hypergraph::{
-        Hypergraph,
-        VertexIndex,
-        VertexData,
-        VertexKey,
-        TokenPosition,
-        Child,
-    },
+    hypergraph::*,
     token::{
         Token,
         Tokenize,
     },
 };
 use std::borrow::Borrow;
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
 
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
+    fn next_vertex_id() -> VertexIndex {
+        static VERTEX_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = VERTEX_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        id
+    }
     /// insert single token node
     pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> VertexIndex {
         // TODO: return error if exists (don't overwrite by default)

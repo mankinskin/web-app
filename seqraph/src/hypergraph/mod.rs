@@ -9,10 +9,6 @@ use std::borrow::Borrow;
 use itertools::{
     Itertools,
 };
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
 
 mod search;
 mod r#match;
@@ -20,8 +16,10 @@ mod split;
 mod path_tree;
 mod insert;
 mod vertex;
+mod getters;
 
-use vertex::*;
+pub use vertex::*;
+pub use getters::*;
 
 
 #[derive(Debug)]
@@ -31,82 +29,16 @@ pub struct Hypergraph<T: Tokenize> {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    fn next_pattern_id() -> VertexIndex {
-        static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-        ID_COUNTER.fetch_add(1, Ordering::Relaxed)
-    }
     pub fn new() -> Self {
         Self {
             graph: indexmap::IndexMap::new(),
         }
     }
-    fn get_token_index(&self, token: &Token<T>) -> Option<VertexIndex> {
-        self.graph.get_index_of(&VertexKey::Token(*token))
-    }
-    pub fn get_token_data(&self, token: &Token<T>) -> Option<&VertexData> {
-        self.graph.get(&VertexKey::Token(*token))
-    }
-    pub fn get_token_data_mut(&mut self, token: &Token<T>) -> Option<&mut VertexData> {
-        self.graph.get_mut(&VertexKey::Token(*token))
-    }
-    fn get_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexData> {
-        self.get_vertex(index).map(|(_, v)| v)
-    }
-    fn expect_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexData {
-        self.expect_vertex(index).1
-    }
-    fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
-        self.get_vertex(index).expect("Index does not exist!")
-    }
-    fn expect_vertex_mut(&mut self, index: VertexIndex) -> (&mut VertexKey<T>, &mut VertexData) {
-        self.get_vertex_mut(index).expect("Index does not exist!")
-    }
-    fn expect_vertex_data_mut(&mut self, index: VertexIndex) -> &mut VertexData {
-        self.expect_vertex_mut(index).1
-    }
-    fn get_vertex_data_mut(&mut self, index: VertexIndex) -> Option<&mut VertexData> {
-        self.get_vertex_mut(index).map(|(_, v)| v)
-    }
-    fn get_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> Option<(&VertexKey<T>, &VertexData)> {
-        self.graph.get_index(*index.borrow())
-    }
-    fn get_vertex_mut(&mut self, index: VertexIndex) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
-        self.graph.get_index_mut(index)
-    }
-    pub fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
-        tokens.into_iter()
-            .map(|token|
-                 self.get_token_index(&token)
-                 .unwrap_or_else(|| self.insert_token(token))
-                )
-            .collect()
-    }
-    pub fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
-        self.to_token_indices(tokens).into_iter()
-            .map(|index| Child::new(index, 1))
-            .collect()
-    }
-    pub fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
-        indices
-            .map(move |index| self.expect_vertex_data(index))
-            .collect()
-    }
-    pub fn get_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> Option<VertexPatternView<'_>> {
-        indices
-            .map(move |index| self.get_vertex_data(index))
-            .collect()
-    }
-    pub fn get_token_indices(&mut self, tokens: impl Iterator<Item=&'t Token<T>>) -> IndexPattern {
-        let mut v = IndexPattern::with_capacity(tokens.size_hint().0);
-        for token in tokens {
-            let index = self.get_token_index(token)
-                .unwrap_or_else(|| self.insert_token(token.clone()));
-            v.push(index);
-        }
-        v
-    }
     pub fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
         pat.into_iter().fold(0, |acc, child| acc + child.get_width())
+    }
+    pub fn vertex_count(&self) -> usize {
+        self.graph.len()
     }
     //pub fn index_sequence<N: Into<T>, I: IntoIterator<Item = N>>(&mut self, seq: I) -> VertexIndex {
     //    let seq = seq.into_iter();
