@@ -18,7 +18,7 @@ futures = "^0.3"
 version = "^0.8"
 
 [dependencies.database-table]
-path = "../database-table"
+path = "../../database-table"
 
 [dependencies.tracing-wasm]
 path = "../../tracing-wasm"

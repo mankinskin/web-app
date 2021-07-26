@@ -18,7 +18,7 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use rql::*;
-use seqraph::*;
+//use seqraph::*;
 use std::convert::TryFrom;
 use std::sync::Mutex;
 
@@ -30,7 +30,7 @@ schema! {
     }
 }
 lazy_static! {
-    pub static ref TG: Mutex<SequenceGraph<char>> = Mutex::new(SequenceGraph::new());
+    //pub static ref TG: Mutex<SequenceGraph<char>> = Mutex::new(SequenceGraph::new());
     pub static ref DB: Schema = Schema::new("test_database", rql::BinaryStable).unwrap();
 }
 impl<'db> Database<'db, User> for Schema {

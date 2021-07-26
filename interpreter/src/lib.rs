@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![feature(split_inclusive)]
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate linefeed;

@@ -35,19 +35,19 @@ api! {
         <Project as DatabaseTable<'_, Schema>>::filter(|project| project.members().contains(&id))
     }
     //fn project_create_subtask(project: Id<Project>, task: Task) -> Id<Task> {
-    //	let id = <Task as DatabaseTable>::insert(task);
-    //	<Project as DatabaseTable>::update(project, Project::update().tasks(vec![id.clone()]));
-    //	id
+    //  let id = <Task as DatabaseTable>::insert(task);
+    //  <Project as DatabaseTable>::update(project, Project::update().tasks(vec![id.clone()]));
+    //  id
     //}
-    fn interpret_text(text: String) -> String {
-        let mut g = TG.lock().unwrap();
-        g.read_sequence(text.chars());
-        g.write_to_file("graphs/g1").unwrap();
-        "Done".into()
-    }
-    fn query_text(query: String) -> Option<NodeInfo<char>> {
-        TG.lock().unwrap().query(query.chars())
-    }
+    //fn interpret_text(text: String) -> String {
+    //    let mut g = TG.lock().unwrap();
+    //    g.read_sequence(text.chars());
+    //    g.write_to_file("graphs/g1").unwrap();
+    //    "Done".into()
+    //}
+    //fn query_text(query: String) -> Option<NodeInfo<char>> {
+    //    TG.lock().unwrap().query(query.chars())
+    //}
     rest_api!(User);
     rest_api!(Project);
     rest_api!(Task);

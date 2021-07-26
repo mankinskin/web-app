@@ -48,7 +48,7 @@ path = "../../../enum_paths"
 path = "../../app-model"
 
 [dependencies.database-table]
-path = "../../database-table"
+path = "../../../database-table"
 
 [dependencies.updatable]
 path = "../../../updatable"
