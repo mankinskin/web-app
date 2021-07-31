@@ -17,19 +17,16 @@ use std::sync::atomic::{
     Ordering,
 };
 
-pub(crate) type VertexIndex = usize;
-pub(crate) type VertexParents = HashMap<VertexIndex, Parent>;
-pub(crate) type ChildPatterns = HashMap<PatternId, Pattern>;
-pub(crate) type ChildPatternView<'a> = &'a[PatternView<'a>];
-pub(crate) type Pattern = Vec<Child>;
-pub(crate) type PatternId = usize;
-pub(crate) type TokenPosition = usize;
-pub(crate) type IndexPosition = usize;
-pub(crate) type IndexPattern = Vec<VertexIndex>;
-pub(crate) type VertexPattern = Vec<VertexData>;
-pub(crate) type PatternView<'a> = &'a[Child];
-pub(crate) type VertexPatternView<'a> = Vec<&'a VertexData>;
-pub(crate) type VertexPatternViewMut<'a> = Vec<&'a mut VertexData>;
+pub type VertexIndex = usize;
+pub type VertexParents = HashMap<VertexIndex, Parent>;
+pub type ChildPatterns = HashMap<PatternId, Pattern>;
+pub type Pattern = Vec<Child>;
+pub type PatternId = usize;
+pub type TokenPosition = usize;
+pub type IndexPosition = usize;
+pub type IndexPattern = Vec<VertexIndex>;
+pub type PatternView<'a> = &'a[Child];
+pub type VertexPatternView<'a> = Vec<&'a VertexData>;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum VertexKey<T: Tokenize> {
@@ -76,8 +73,8 @@ impl Parent {
 }
 #[derive(Debug, Eq, Clone, Hash)]
 pub struct Child {
-    index: VertexIndex, // the child index
-    width: TokenPosition, // the token width
+    pub index: VertexIndex, // the child index
+    pub width: TokenPosition, // the token width
 }
 impl Child {
     pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
@@ -100,7 +97,7 @@ impl PartialEq for Child {
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VertexData {
-    width: TokenPosition,
+    pub width: TokenPosition,
     parents: VertexParents,
     children: ChildPatterns,
 }
