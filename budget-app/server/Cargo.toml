@@ -43,5 +43,5 @@ path = "../../../rql"
 path = "../../app-model"
 
 [dependencies.database-table]
-path = "../../../database-table"
+path = "../../database-table"
 

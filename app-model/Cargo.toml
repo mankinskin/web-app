@@ -48,7 +48,7 @@ path = "../../openlimits"
 path = "../../rql"
 
 [dependencies.database-table]
-path = "../../database-table"
+path = "../database-table"
 
 [dependencies.enum_paths]
 path = "../../enum_paths"
