@@ -34,5 +34,5 @@ version = "^0.24"
 #path = "../../nalgebra"
 
 [dependencies.itertools]
-path = "../../itertools"
-#version = "0.10"
+version = "0.10"
+#path = "../../itertools"
