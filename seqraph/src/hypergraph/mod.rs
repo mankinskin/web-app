@@ -34,8 +34,8 @@ impl<'t, 'a, T> Hypergraph<T>
             graph: indexmap::IndexMap::new(),
         }
     }
-    pub fn pattern_width(pat: PatternView<'a>) -> TokenPosition {
-        pat.into_iter().fold(0, |acc, child| acc + child.get_width())
+    pub fn index_width(&self, index: VertexIndex) -> TokenPosition {
+        self.expect_vertex_data(index).width
     }
     pub fn vertex_count(&self) -> usize {
         self.graph.len()
@@ -68,6 +68,9 @@ impl<'t, 'a, T> Hypergraph<T>
         let data = self.expect_vertex_data_by_key(key);
         self.key_data_string(key, data)
     }
+}
+pub fn pattern_width<'a>(pat: impl IntoIterator<Item=&'a Child>) -> TokenPosition {
+    pat.into_iter().fold(0, |acc, child| acc + child.get_width())
 }
 
 #[cfg(test)]

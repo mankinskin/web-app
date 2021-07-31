@@ -9,6 +9,7 @@ use crate::{
         Parent,
         TokenPosition,
         Child,
+        pattern_width,
         r#match::{
             IndexMatch,
         },
@@ -89,11 +90,15 @@ impl<'t, 'a, T> Hypergraph<T>
         if pattern.len() == 1 {
             return Some((pattern[0].get_index(), IndexMatch::Matching));
         }
-        let width = Self::pattern_width(pattern);
+        let width = pattern_width(pattern);
         //let mut pattern_iter = pattern.into_iter().cloned().enumerate();
         // accumulate prefix not found
         //let mut prefix = Vec::with_capacity(pattern_iter.size_hint().0);
-        self.find_parent_matching_pattern_at_offset_below_width(&pattern[1..], vertex, Some(0), Some(width+1))
+        self.find_parent_matching_pattern_at_offset_below_width(
+            &pattern[1..],
+            vertex,
+            Some(0),
+             Some(width+1))
             .and_then(|(index, p, m)| match m {
                 IndexMatch::SubRemainder(rem) =>
                     self.find_pattern(&[&[Child::new(index, p.get_width())], &rem[..]].concat())

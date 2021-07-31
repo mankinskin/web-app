@@ -8,6 +8,7 @@ use crate::{
         TokenPosition,
         Child,
         ChildPatterns,
+        pattern_width,
         path_tree::{
             IndexInParent,
             TreeParent,
@@ -114,7 +115,7 @@ impl<'t, 'a, T> Hypergraph<T>
             while let Some(tree_parent) = &split.parent {
                 let (neighbors, next_parent) = self.get_split_neighbors_and_next_parent(&tree_parent, tree, half);
                 if !neighbors.is_empty() {
-                    let width = Self::pattern_width(neighbors);
+                    let width = pattern_width(neighbors);
                     split.width += width;
                     if split.width == largest {
                         split.width = 0; // exclude at end
@@ -173,11 +174,11 @@ impl<'t, 'a, T> Hypergraph<T>
                     // perfect split found
                     let (left_split, right_split) = Hypergraph::<T>::split_pattern_at_index(&current_node.get_child_pattern(&pattern_index).unwrap(), split_index);
                     splits.push((Split {
-                        width: Self::pattern_width(&left_split),
+                        width: pattern_width(&left_split),
                         pattern: left_split,
                         parent: parent.clone(),
                     }, Split {
-                        width: Self::pattern_width(&right_split),
+                        width: pattern_width(&right_split),
                         pattern: right_split,
                         parent,
                     }));
