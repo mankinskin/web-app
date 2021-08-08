@@ -8,7 +8,6 @@ use crate::{
         VertexData,
         Parent,
         TokenPosition,
-        Child,
         ChildPatterns,
     },
     token::{
@@ -78,6 +77,11 @@ pub enum IndexMatch {
     SubRemainder(Pattern),
     Matching,
 }
+impl IndexMatch {
+    pub fn is_matching(&self) -> bool {
+        self == &Self::Matching
+    }
+}
 
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
@@ -107,7 +111,7 @@ impl<'t, 'a, T> Hypergraph<T>
         offset: Option<PatternId>,
         ) -> Option<IndexMatch> {
         // find pattern where sub is at offset
-        println!("compare_parent_at_offset");
+        //println!("compare_parent_at_offset");
         let vert = self.expect_vertex_data(parent_index);
         let child_patterns = vert.get_children();
         //print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
@@ -154,7 +158,7 @@ impl<'t, 'a, T> Hypergraph<T>
             sup_index: VertexIndex,
             width: TokenPosition,
         ) -> Option<IndexMatch> {
-        println!("match_sub_pattern_to_super");
+        //println!("match_sub_pattern_to_super");
         // search parent of sub
         if sub == sup_index {
             return if post_pattern.is_empty() {
@@ -170,19 +174,19 @@ impl<'t, 'a, T> Hypergraph<T>
         let sup_parent = Self::get_direct_vertex_parent_at_prefix(&vertex, sup_index);
         if let Some(parent) = sup_parent {
             // parents contain sup
-            println!("sup found in parents");
+            //println!("sup found in parents");
             self.compare_parent_at_offset(post_pattern, sup_index, parent, Some(0))
         } else {
             // sup is no direct parent, search upwards
-            println!("matching available parents");
+            //println!("matching available parents");
             // search sup in parents
-            let (parent_index, parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
+            let (parent_index, _parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
                 post_pattern,
                 &vertex,
                 Some(0),
                 Some(width),
             )?;
-            println!("found parent matching");
+            //println!("found parent matching");
             let new_post = match index_match {
                 // found index for complete pattern, tr
                 IndexMatch::Matching => Some(Vec::new()),
@@ -192,17 +196,18 @@ impl<'t, 'a, T> Hypergraph<T>
                 IndexMatch::SubRemainder(rem) => Some(rem),
             }?;
             // TODO: faster way to handle empty new_post
-            println!("matching on parent with remainder");
+            //println!("matching on parent with remainder");
             self.match_sub_and_post_with_index(parent_index, &new_post, sup_index, width)
         }
     }
+    #[allow(unused)]
     pub(crate) fn match_pattern_with_index(
         &self,
         sub_pattern: PatternView<'a>,
         index: VertexIndex,
         width: TokenPosition,
         ) -> Option<IndexMatch> {
-        println!("match_sub_pattern_to_super");
+        //println!("match_sub_pattern_to_super");
         let sub = sub_pattern.get(0)?;
         let post_pattern = sub_pattern.get(1..);
         if let None = post_pattern {
@@ -254,7 +259,7 @@ impl<'t, 'a, T> Hypergraph<T>
                     // relatives can not have same sizes
                     return None;
                 } else if a.get_width() < b.get_width() {
-                    println!("right super");
+                    //println!("right super");
                     post_sub_pattern = &pattern_a[pos+1..];
                     post_sup = &pattern_b[pos+1..];
                     sub = a.get_index();
@@ -262,7 +267,7 @@ impl<'t, 'a, T> Hypergraph<T>
                     sup_width = b.get_width();
                     false
                 } else {
-                    println!("left super");
+                    //println!("left super");
                     post_sub_pattern = &pattern_b[pos+1..];
                     post_sup = &pattern_a[pos+1..];
                     sub = b.get_index();
@@ -279,7 +284,7 @@ impl<'t, 'a, T> Hypergraph<T>
                 // left remainder: sub remainder
                 // right remainder: sup remainder
                 // matching: sub & sup finished
-                println!("return {:#?}", result);
+                //println!("return {:#?}", result);
                 let result = match result? {
                     IndexMatch::SubRemainder(rem) =>
                         self.compare_pattern_prefix(
@@ -311,7 +316,10 @@ impl<'t, 'a, T> Hypergraph<T>
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use crate::hypergraph::tests::CONTEXT;
+    use crate::hypergraph::{
+        Child,
+        tests::context
+    };
     #[test]
     fn match_simple() {
         let (
@@ -327,16 +335,16 @@ mod tests {
             _i,
             ab,
             bc,
-            cd,
+            _cd,
             _bcd,
             abc,
             abcd,
             _cdef,
-            efghi,
-            abab,
-            ababab,
+            _efghi,
+            _abab,
+            _ababab,
             _ababababcdefghi,
-            ) = &*CONTEXT;
+            ) = &*context();
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
         let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];

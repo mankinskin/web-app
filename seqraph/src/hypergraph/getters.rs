@@ -9,6 +9,50 @@ use std::borrow::Borrow;
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
+    pub fn get_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> Option<(&VertexKey<T>, &VertexData)> {
+        self.graph.get_index(*index.borrow())
+    }
+    pub fn get_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
+        self.graph.get_index_mut(*index.borrow())
+    }
+    pub fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
+        let index = *index.borrow();
+        self.get_vertex(index).expect(&format!("Index {} does not exist!", index))
+    }
+    pub fn expect_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> (&mut VertexKey<T>, &mut VertexData) {
+        let index = *index.borrow();
+        self.get_vertex_mut(index).expect(&format!("Index {} does not exist!", index))
+    }
+    pub fn get_vertex_key<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexKey<T>> {
+        self.get_vertex(index).map(|entry| entry.0)
+    }
+    pub fn expect_vertex_key<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexKey<T> {
+        self.expect_vertex(index).0
+    }
+    pub fn get_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexData> {
+        self.get_vertex(index).map(|(_, v)| v)
+    }
+    pub fn get_vertex_data_mut(&mut self, index: VertexIndex) -> Option<&mut VertexData> {
+        self.get_vertex_mut(index).map(|(_, v)| v)
+    }
+    pub fn expect_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexData {
+        self.expect_vertex(index).1
+    }
+    pub fn expect_vertex_data_mut(&mut self, index: VertexIndex) -> &mut VertexData {
+        self.expect_vertex_mut(index).1
+    }
+    pub fn get_vertex_data_by_key(&self, key: &VertexKey<T>) -> Option<&VertexData> {
+        self.graph.get(key)
+    }
+    pub fn get_vertex_data_by_key_mut(&mut self, key: &VertexKey<T>) -> Option<&mut VertexData> {
+        self.graph.get_mut(key)
+    }
+    pub fn expect_vertex_data_by_key(&self, key: &VertexKey<T>) -> &VertexData {
+        self.graph.get(key).expect("Key does not exist")
+    }
+    pub fn expect_vertex_data_by_key_mut(&mut self, key: &VertexKey<T>) -> &mut VertexData {
+        self.graph.get_mut(key).expect("Key does not exist")
+    }
     pub fn vertex_iter(&self) -> impl Iterator<Item=(&VertexKey<T>, &VertexData)> {
         self.graph.iter()
     }
@@ -24,44 +68,6 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn vertex_data_iter_mut(&mut self) -> impl Iterator<Item=&mut VertexData> {
         self.graph.values_mut()
     }
-    pub fn get_vertex_data_by_key(&self, key: &VertexKey<T>) -> Option<&VertexData> {
-        self.graph.get(key)
-    }
-    pub fn get_vertex_data_by_key_mut(&mut self, key: &VertexKey<T>) -> Option<&mut VertexData> {
-        self.graph.get_mut(key)
-    }
-    pub fn expect_vertex_data_by_key(&self, key: &VertexKey<T>) -> &VertexData {
-        self.graph.get(key).expect("Key does not exist")
-    }
-    pub fn expect_vertex_data_by_key_mut(&mut self, key: &VertexKey<T>) -> &mut VertexData {
-        self.graph.get_mut(key).expect("Key does not exist")
-    }
-    pub fn get_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexData> {
-        self.get_vertex(index).map(|(_, v)| v)
-    }
-    pub fn expect_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexData {
-        self.expect_vertex(index).1
-    }
-    pub fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
-        let index = *index.borrow();
-        self.get_vertex(index).expect(&format!("Index {} does not exist!", index))
-    }
-    pub fn expect_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> (&mut VertexKey<T>, &mut VertexData) {
-        let index = *index.borrow();
-        self.get_vertex_mut(index).expect(&format!("Index {} does not exist!", index))
-    }
-    pub fn expect_vertex_data_mut(&mut self, index: VertexIndex) -> &mut VertexData {
-        self.expect_vertex_mut(index).1
-    }
-    pub fn get_vertex_data_mut(&mut self, index: VertexIndex) -> Option<&mut VertexData> {
-        self.get_vertex_mut(index).map(|(_, v)| v)
-    }
-    pub fn get_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> Option<(&VertexKey<T>, &VertexData)> {
-        self.graph.get_index(*index.borrow())
-    }
-    pub fn get_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
-        self.graph.get_index_mut(*index.borrow())
-    }
     pub fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
         indices
             .map(move |index| self.expect_vertex_data(index))
@@ -72,10 +78,6 @@ impl<'t, 'a, T> Hypergraph<T>
             .map(move |index| self.get_vertex_data(index))
             .collect()
     }
-}
-impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't,
-{
     pub fn get_token_data(&self, token: &Token<T>) -> Option<&VertexData> {
         self.get_vertex_data_by_key(&VertexKey::Token(*token))
     }

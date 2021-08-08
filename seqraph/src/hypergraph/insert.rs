@@ -92,11 +92,14 @@ impl<'t, 'a, T> Hypergraph<T>
         node
     }
 }
+impl<'t, 'a, T> Hypergraph<T>
+    where T: Tokenize + 't + std::fmt::Display,
+{
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::*;
     #[test]
     fn insert_subpattern() {
         let mut graph = Hypergraph::new();
@@ -106,7 +109,7 @@ mod tests {
                 Token::Element('c'),
                 Token::Element('d'),
             ])[..] {
-            let abcd = graph.insert_pattern([a, b, c, d]);
+            let _abcd = graph.insert_pattern([a, b, c, d]);
             // read abcd
             // then abe
             // then bce

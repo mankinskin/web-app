@@ -32,10 +32,12 @@ impl SearchFound {
     //        PatternMatch::Remainder(Either::Left(rem)) => Self(FoundRange::Prefix(rem), index, offset),
     //    }
     //}
+    #[allow(unused)]
     pub fn prepend_prefix(self, pattern: Pattern) -> Self {
         Self(self.0.prepend_prefix(pattern), self.1, self.2)
     }
 }
+    #[allow(unused)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FoundRange {
     Complete, // Full index found
@@ -60,15 +62,17 @@ impl FoundRange {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    // find parent of vertex matching a pattern
+    /// find parent of vertex matching a pattern after the vertex
+    /// offset: limit results to a position
+    /// width_ceiling: only search parents below this width
     pub(crate) fn find_parent_matching_pattern_at_offset_below_width(
         &self,
         post_pattern: PatternView<'a>,
         vertex: &VertexData,
-        offset: Option<PatternId>,
+        offset: Option<usize>,
         width_ceiling: Option<TokenPosition>,
         ) -> Option<(VertexIndex, Parent, IndexMatch)> {
-        println!("find_parent_matching_pattern");
+        //println!("find_parent_matching_pattern");
         let parents = vertex.get_parents();
         // optionally filter parents by width
         if let Some(ceil) = width_ceiling {
@@ -111,7 +115,7 @@ impl<'t, 'a, T> Hypergraph<T>
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use crate::hypergraph::tests::CONTEXT;
+    use crate::hypergraph::tests::context;
     #[test]
     fn find_simple() {
         let (
@@ -127,16 +131,16 @@ mod tests {
             _i,
             ab,
             bc,
-            cd,
+            _cd,
             _bcd,
             abc,
             abcd,
             _cdef,
-            efghi,
-            abab,
-            ababab,
+            _efghi,
+            _abab,
+            _ababab,
             _ababababcdefghi,
-            ) = &*CONTEXT;
+            ) = &*context();
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
         let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];

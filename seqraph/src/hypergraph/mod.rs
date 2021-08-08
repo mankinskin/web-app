@@ -6,14 +6,15 @@ use crate::{
     },
 };
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use itertools::{
     Itertools,
 };
-
+use petgraph::graph::DiGraph;
 mod search;
 mod r#match;
 mod split;
-mod path_tree;
+mod split_merge;
 mod insert;
 mod vertex;
 mod getters;
@@ -50,12 +51,44 @@ impl<'t, 'a, T> Hypergraph<T>
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
 {
-    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=&'a Child>) -> String {
-        pattern.into_iter().map(|child| self.index_string(child.get_index())).join("")
+    pub fn to_petgraph(&self) -> DiGraph<(VertexKey<T>, VertexData), Parent> {
+        let mut pg = DiGraph::new();
+
+        // id refers to index in Hypergraph
+        // idx refers to index in petgraph
+        let nodes: HashMap<_, _> = self.vertex_iter()
+            .map(|(key, node)| {
+                let idx = pg.add_node((*key, node.clone()));
+                let id = self.expect_index_by_key(key);
+                (id, (idx, node))
+            })
+            .collect();
+        nodes.values()
+            .for_each(|(idx, node)| {
+                let parents = node.get_parents();
+                for (p_id, rel) in parents {
+                    let (p_idx, _p_data)
+                        = nodes.get(p_id).expect("Parent not mapped to node in petgraph!");
+                    pg.add_edge(*p_idx, *idx, rel.clone());
+                }
+            });
+        pg
+    }
+    fn pattern_string_with_separator(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>, separator: &'static str) -> String {
+        pattern.into_iter().map(|child| self.index_string(*child.borrow())).join(separator)
+    }
+    pub fn separated_pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> String {
+        self.pattern_string_with_separator(pattern, "_")
+    }
+    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> String {
+        self.pattern_string_with_separator(pattern, "")
     }
     pub fn key_data_string(&self, key: &VertexKey<T>, data: &VertexData) -> String {
+        self.key_data_string_impl(key, data, |t| t.to_string())
+    }
+    pub fn key_data_string_impl(&self, key: &VertexKey<T>, data: &VertexData, f: impl Fn(&Token<T>) -> String) -> String {
         match key {
-            VertexKey::Token(token) => token.to_string(),
+            VertexKey::Token(token) => f(token),
             VertexKey::Pattern(_) =>
                 self.pattern_string(data.expect_any_pattern()),
         }
@@ -69,8 +102,8 @@ impl<'t, 'a, T> Hypergraph<T>
         self.key_data_string(key, data)
     }
 }
-pub fn pattern_width<'a>(pat: impl IntoIterator<Item=&'a Child>) -> TokenPosition {
-    pat.into_iter().fold(0, |acc, child| acc + child.get_width())
+pub fn pattern_width<'a>(pat: impl IntoIterator<Item=impl Borrow<Child>>) -> TokenPosition {
+    pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
 }
 
 #[cfg(test)]
@@ -78,9 +111,13 @@ pub fn pattern_width<'a>(pat: impl IntoIterator<Item=&'a Child>) -> TokenPositio
 mod tests {
     use super::*;
     use crate::token::*;
-    lazy_static::lazy_static! {
-        pub static ref 
-            CONTEXT: (
+    use std::sync::{
+        Arc,
+        RwLock,
+        RwLockWriteGuard,
+        RwLockReadGuard,
+    };
+    type Context = (
                 Hypergraph<char>,
                 VertexIndex,
                 VertexIndex,
@@ -102,7 +139,10 @@ mod tests {
                 VertexIndex,
                 VertexIndex,
                 VertexIndex,
-                ) = {
+                );
+    lazy_static::lazy_static! {
+        pub static ref 
+            CONTEXT: Arc<RwLock<Context>> = Arc::new(RwLock::new({
             let mut graph = Hypergraph::new();
             if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
                 [
@@ -185,7 +225,7 @@ mod tests {
                     [ababababcd, efghi],
                     [abab, ababcdefghi],
                 ]);
-                let longer_pattern = graph.insert_pattern([ababab, abcdefghi]);
+                let _longer_pattern = graph.insert_pattern([ababab, abcdefghi]);
                 (
                     graph,
                     a,
@@ -212,6 +252,48 @@ mod tests {
             } else {
                 panic!();
             }
-        };
+        }));
+    }
+    pub fn context() -> RwLockReadGuard<'static, Context> {
+        CONTEXT.read().unwrap()
+    }
+    pub fn context_mut() -> RwLockWriteGuard<'static, Context> {
+        CONTEXT.write().unwrap()
+    }
+    #[test]
+    fn test_to_petgraph() {
+        let mut graph = Hypergraph::new();
+        if let [a, b, c, d] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+            ])[..] {
+            // ab cd
+            // abc d
+            // a bcd
+
+            let ab = graph.insert_pattern([a, b]);
+            let bc = graph.insert_pattern([b, c]);
+            let abc = graph.insert_patterns([
+                [ab, c],
+                [a, bc],
+            ]);
+            let cd = graph.insert_pattern([c, d]);
+            let bcd = graph.insert_patterns([
+                [bc, d],
+                [b, cd],
+            ]);
+            let _abcd = graph.insert_patterns([
+                [abc, d],
+                [a, bcd],
+            ]);
+        } else {
+            panic!();
+        }
+        let pg = graph.to_petgraph();
+        pg.write_to_file("test_graph1.dot")
+            .expect("Failed to write test_graph1.dot file!");
     }
 }

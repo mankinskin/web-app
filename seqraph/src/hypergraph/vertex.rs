@@ -28,15 +28,15 @@ pub type IndexPattern = Vec<VertexIndex>;
 pub type PatternView<'a> = &'a[Child];
 pub type VertexPatternView<'a> = Vec<&'a VertexData>;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum VertexKey<T: Tokenize> {
     Token(Token<T>),
     Pattern(VertexIndex)
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parent {
-    width: TokenPosition,
-    pattern_indices: HashSet<(usize, PatternId)>, // positions of child in parent patterns
+    pub width: TokenPosition,
+    pub pattern_indices: HashSet<(usize, usize)>, // positions of child in parent patterns
 }
 impl Parent {
     pub fn new(width: TokenPosition) -> Self {
@@ -62,11 +62,11 @@ impl Parent {
         offset: Option<PatternId>,
         ) -> impl Iterator<Item=&(usize, PatternId)> {
         if let Some(offset) = offset {
-            print!("at offset = {} ", offset);
+            //println!("at offset = {} ", offset);
             Either::Left(self.pattern_indices.iter()
                 .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
         } else {
-            print!("at offset = 0");
+            //println!("at offset = 0");
             Either::Right(self.pattern_indices.iter())
         }
     }
@@ -90,9 +90,29 @@ impl Child {
         self.index
     }
 }
+impl std::cmp::PartialOrd for Child {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+impl std::cmp::Ord for Child {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
+    }
+}
 impl PartialEq for Child {
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index
+    }
+}
+impl std::borrow::Borrow<VertexIndex> for Child {
+    fn borrow(&self) -> &VertexIndex {
+        &self.index
+    }
+}
+impl std::borrow::Borrow<VertexIndex> for &'_ Child {
+    fn borrow(&self) -> &VertexIndex {
+        &self.index
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
