@@ -11,7 +11,7 @@ use crate::{
         Child,
         pattern_width,
         r#match::{
-            IndexMatch,
+            PatternMatch,
         },
     },
     token::{
@@ -71,7 +71,7 @@ impl<'t, 'a, T> Hypergraph<T>
         vertex: &VertexData,
         offset: Option<usize>,
         width_ceiling: Option<TokenPosition>,
-        ) -> Option<(VertexIndex, Parent, IndexMatch)> {
+        ) -> Option<(VertexIndex, Parent, PatternMatch)> {
         //println!("find_parent_matching_pattern");
         let parents = vertex.get_parents();
         // optionally filter parents by width
@@ -89,10 +89,10 @@ impl<'t, 'a, T> Hypergraph<T>
     pub(crate) fn find_pattern(
         &self,
         pattern: PatternView<'a>,
-        ) -> Option<(VertexIndex, IndexMatch)> {
+        ) -> Option<(VertexIndex, PatternMatch)> {
         let vertex = self.expect_vertex_data(pattern.get(0)?.get_index());
         if pattern.len() == 1 {
-            return Some((pattern[0].get_index(), IndexMatch::Matching));
+            return Some((pattern[0].get_index(), PatternMatch::Matching));
         }
         let width = pattern_width(pattern);
         //let mut pattern_iter = pattern.into_iter().cloned().enumerate();
@@ -102,13 +102,14 @@ impl<'t, 'a, T> Hypergraph<T>
             &pattern[1..],
             vertex,
             Some(0),
-             Some(width+1))
-            .and_then(|(index, p, m)| match m {
-                IndexMatch::SubRemainder(rem) =>
-                    self.find_pattern(&[&[Child::new(index, p.get_width())], &rem[..]].concat())
-                    .or(Some((index, IndexMatch::SubRemainder(rem)))),
-                _ => Some((index, m)),
-            })
+             Some(width+1)
+        )
+        .and_then(|(index, p, m)| match m {
+            PatternMatch::SubRemainder(rem) =>
+                self.find_pattern(&[&[Child::new(index, p.get_width())], &rem[..]].concat())
+                .or(Some((index, PatternMatch::SubRemainder(rem)))),
+            _ => Some((index, m)),
+        })
     }
 }
 #[cfg(test)]
@@ -147,13 +148,13 @@ mod tests {
         let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
         let bc_pattern = &[Child::new(bc, 2)];
         let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-        assert_eq!(graph.find_pattern(bc_pattern), Some((*bc, IndexMatch::Matching)));
-        assert_eq!(graph.find_pattern(b_c_pattern), Some((*bc, IndexMatch::Matching)));
-        assert_eq!(graph.find_pattern(a_bc_pattern), Some((*abc, IndexMatch::Matching)));
-        assert_eq!(graph.find_pattern(ab_c_pattern), Some((*abc, IndexMatch::Matching)));
-        assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((*abcd, IndexMatch::Matching)));
-        assert_eq!(graph.find_pattern(a_b_c_pattern), Some((*abc, IndexMatch::Matching)));
+        assert_eq!(graph.find_pattern(bc_pattern), Some((*bc, PatternMatch::Matching)));
+        assert_eq!(graph.find_pattern(b_c_pattern), Some((*bc, PatternMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_bc_pattern), Some((*abc, PatternMatch::Matching)));
+        assert_eq!(graph.find_pattern(ab_c_pattern), Some((*abc, PatternMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((*abcd, PatternMatch::Matching)));
+        assert_eq!(graph.find_pattern(a_b_c_pattern), Some((*abc, PatternMatch::Matching)));
         let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(*c, 1)]].concat();
-        assert_eq!(graph.find_pattern(a_b_c_c_pattern), Some((*abc, IndexMatch::SubRemainder(vec![Child::new(*c, 1)]))));
+        assert_eq!(graph.find_pattern(a_b_c_c_pattern), Some((*abc, PatternMatch::SubRemainder(vec![Child::new(*c, 1)]))));
     }
 }

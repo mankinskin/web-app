@@ -22,15 +22,20 @@ use itertools::{
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PatternMatch {
-    Remainder(Either<Pattern, Pattern>),
+    SupRemainder(Pattern),
+    SubRemainder(Pattern),
     Matching,
 }
 impl PatternMatch {
     pub fn flip_remainder(self) -> Self {
         match self {
-            Self::Remainder(e) => Self::Remainder(e.flip()),
+            Self::SubRemainder(p) => Self::SupRemainder(p),
+            Self::SupRemainder(p) => Self::SubRemainder(p),
             _ => self,
         }
+    }
+    pub fn is_matching(&self) -> bool {
+        self == &Self::Matching
     }
 }
 //impl From<SearchFound> for PatternMatch {
@@ -42,7 +47,7 @@ impl PatternMatch {
 //        }
 //    }
 //}
-//impl From<SearchFound> for IndexMatch {
+//impl From<SearchFound> for PatternMatch {
 //    fn from(SearchFound(range, index, offset): SearchFound) -> Self {
 //        match (offset, range) {
 //            (0, FoundRange::Complete) => Self::Matching,
@@ -51,35 +56,12 @@ impl PatternMatch {
 //        }
 //    }
 //}
-impl From<IndexMatch> for PatternMatch {
-    fn from(r: IndexMatch) -> Self {
-        match r {
-            IndexMatch::SubRemainder(p) => Self::Remainder(Either::Left(p)),
-            IndexMatch::SupRemainder(p) => Self::Remainder(Either::Right(p)),
-            IndexMatch::Matching => Self::Matching,
+impl From<Either<Pattern, Pattern>> for PatternMatch {
+    fn from(e: Either<Pattern, Pattern>) -> Self {
+        match e {
+            Either::Left(p) => Self::SubRemainder(p),
+            Either::Right(p) => Self::SupRemainder(p),
         }
-    }
-}
-impl From<PatternMatch> for IndexMatch {
-    fn from(r: PatternMatch) -> Self {
-        match r {
-            PatternMatch::Remainder(e) => match e {
-                Either::Left(p) => Self::SubRemainder(p),
-                Either::Right(p) => Self::SupRemainder(p),
-            },
-            PatternMatch::Matching => Self::Matching,
-        }
-    }
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum IndexMatch {
-    SupRemainder(Pattern),
-    SubRemainder(Pattern),
-    Matching,
-}
-impl IndexMatch {
-    pub fn is_matching(&self) -> bool {
-        self == &Self::Matching
     }
 }
 
@@ -109,7 +91,7 @@ impl<'t, 'a, T> Hypergraph<T>
         parent_index: VertexIndex,
         parent: &Parent,
         offset: Option<PatternId>,
-        ) -> Option<IndexMatch> {
+        ) -> Option<PatternMatch> {
         // find pattern where sub is at offset
         //println!("compare_parent_at_offset");
         let vert = self.expect_vertex_data(parent_index);
@@ -157,14 +139,14 @@ impl<'t, 'a, T> Hypergraph<T>
             post_pattern: PatternView<'a>,
             sup_index: VertexIndex,
             width: TokenPosition,
-        ) -> Option<IndexMatch> {
+        ) -> Option<PatternMatch> {
         //println!("match_sub_pattern_to_super");
         // search parent of sub
         if sub == sup_index {
             return if post_pattern.is_empty() {
-                Some(IndexMatch::Matching)
+                Some(PatternMatch::Matching)
             } else {
-                Some(IndexMatch::SubRemainder(post_pattern.into()))
+                Some(PatternMatch::SubRemainder(post_pattern.into()))
             }
         }
         let vertex = self.expect_vertex_data(sub);
@@ -189,11 +171,11 @@ impl<'t, 'a, T> Hypergraph<T>
             //println!("found parent matching");
             let new_post = match index_match {
                 // found index for complete pattern, tr
-                IndexMatch::Matching => Some(Vec::new()),
+                PatternMatch::Matching => Some(Vec::new()),
                 // found matching parent larger than the pattern, not the one we were looking for
-                IndexMatch::SupRemainder(_) => None,
+                PatternMatch::SupRemainder(_) => None,
                 // found parent matching with prefix of pattern, continue
-                IndexMatch::SubRemainder(rem) => Some(rem),
+                PatternMatch::SubRemainder(rem) => Some(rem),
             }?;
             // TODO: faster way to handle empty new_post
             //println!("matching on parent with remainder");
@@ -206,13 +188,13 @@ impl<'t, 'a, T> Hypergraph<T>
         sub_pattern: PatternView<'a>,
         index: VertexIndex,
         width: TokenPosition,
-        ) -> Option<IndexMatch> {
+        ) -> Option<PatternMatch> {
         //println!("match_sub_pattern_to_super");
         let sub = sub_pattern.get(0)?;
         let post_pattern = sub_pattern.get(1..);
         if let None = post_pattern {
             return if sub.get_index() == index {
-                Some(IndexMatch::Matching)
+                Some(PatternMatch::Matching)
             } else {
                 None
             };
@@ -286,18 +268,18 @@ impl<'t, 'a, T> Hypergraph<T>
                 // matching: sub & sup finished
                 //println!("return {:#?}", result);
                 let result = match result? {
-                    IndexMatch::SubRemainder(rem) =>
+                    PatternMatch::SubRemainder(rem) =>
                         self.compare_pattern_prefix(
                             &rem,
                             post_sup,
                         )?,
-                    IndexMatch::SupRemainder(rem) => PatternMatch::Remainder(Either::Right([&rem, post_sup].concat())),
-                    IndexMatch::Matching => {
+                    PatternMatch::SupRemainder(rem) => PatternMatch::SupRemainder([&rem, post_sup].concat()),
+                    PatternMatch::Matching => {
                         let rem: Vec<_> = post_sup.iter().cloned().collect();
                         if rem.is_empty() {
                             PatternMatch::Matching
                         } else {
-                            PatternMatch::Remainder(Either::Right(rem))
+                            PatternMatch::SupRemainder(rem)
                         }
                     },
                 };
@@ -307,8 +289,8 @@ impl<'t, 'a, T> Hypergraph<T>
                     result
                 }
             },
-            EitherOrBoth::Left(_) => PatternMatch::Remainder(Either::Left(pattern_a[pos..].iter().cloned().collect())),
-            EitherOrBoth::Right(_) => PatternMatch::Remainder(Either::Right(pattern_b[pos..].iter().cloned().collect())),
+            EitherOrBoth::Left(_) => PatternMatch::SubRemainder(pattern_a[pos..].iter().cloned().collect()),
+            EitherOrBoth::Right(_) => PatternMatch::SupRemainder(pattern_b[pos..].iter().cloned().collect()),
         })
     }
 }
@@ -371,9 +353,9 @@ mod tests {
         assert_eq!(graph.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
         assert_eq!(graph.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
 
-        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(a_b_c_pattern, abcd_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*d, 1)])));
 
-        assert_eq!(graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::Remainder(Either::Left(vec![Child::new(*d, 1)]))));
-        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::Remainder(Either::Right(vec![Child::new(*d, 1)]))));
+        assert_eq!(graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::SubRemainder(vec![Child::new(*d, 1)])));
+        assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*d, 1)])));
     }
 }
