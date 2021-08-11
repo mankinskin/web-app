@@ -191,19 +191,11 @@ impl<'t, 'a, T> Hypergraph<T>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hypergraph::tests::context_mut;
+    use crate::hypergraph::{
+        tests::context_mut,
+        child_strings::*,
+    };
     use pretty_assertions::assert_eq;
-    macro_rules! assert_splits_eq {
-        ($g:ident, $in:expr, $expected:expr, $name:literal) => {
-            assert_eq!($in, $expected, $name);
-        }
-    }
-    macro_rules! assert_splits_eq_str {
-        ($g:ident, $in:expr, $expected:expr, $name:literal) => {
-            let input = $g.separated_pattern_string($in);
-            assert_eq!(input, $expected, $name);
-        }
-    }
     #[test]
     fn split_index_1() {
         let (
@@ -230,8 +222,8 @@ mod tests {
             _ababababcdefghi,
             ) = &mut *context_mut();
         let (left, right) = graph.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
-        assert_splits_eq!(graph, left, vec![Child::new(*ab, 2)], "left");
-        assert_splits_eq!(graph, right, vec![Child::new(*c, 1)], "right");
+        assert_eq!(left, vec![Child::new(*ab, 2)], "left");
+        assert_eq!(right, vec![Child::new(*c, 1)], "right");
     }
     #[test]
     fn split_child_patterns_2() {
@@ -259,8 +251,8 @@ mod tests {
             _ababababcdefghi,
             ) = &mut *context_mut();
         let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
-        assert_splits_eq!(graph, left, vec![Child::new(*abc, 3)], "left");
-        assert_splits_eq!(graph, right, vec![Child::new(*d, 1)], "right");
+        assert_eq!(left, vec![Child::new(*abc, 3)], "left");
+        assert_eq!(right, vec![Child::new(*d, 1)], "right");
     }
     use crate::token::*;
     #[test]
@@ -293,8 +285,8 @@ mod tests {
             let cd_pattern = vec![Child::new(cd, 2)];
 
             let (left, right) = graph.split_index_at_pos(abcd, NonZeroUsize::new(2).unwrap());
-            assert_splits_eq!(graph, left, ab_pattern, "left");
-            assert_splits_eq!(graph, right, cd_pattern, "right");
+            assert_eq!(left, ab_pattern, "left");
+            assert_eq!(right, cd_pattern, "right");
         } else {
             panic!();
         }
@@ -325,19 +317,25 @@ mod tests {
                 vec![xab, yz]
             ]);
             // split xabyz at 2
-            let xa_pattern = "x_a".to_string();
-            //vec![
-            //    Child::new(x, 1), Child::new(a, 1),
-            //];
-            let byz_pattern = "byz".to_string();
-            //vec![
-                //vec![Child::new(by, 2), Child::new(z, 1)],
-                //vec![Child::new(b, 1), Child::new(yz, 2)],
-            //];
+            let xa_graph = ChildStrings::from_node(
+                "xa",
+                vec![
+                    vec!["x", "a"],
+                ]
+            );
+            let byz_graph = ChildStrings::from_node(
+                "byz",
+                vec![
+                    vec!["by", "z"],
+                    vec!["b", "yz"],
+                ]
+            );
 
             let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
-            assert_splits_eq_str!(graph, left, xa_pattern, "left");
-            assert_splits_eq_str!(graph, right, byz_pattern, "right");
+            let left = graph.pattern_child_strings(left);
+            let right = graph.pattern_child_strings(right);
+            assert_eq!(left, xa_graph, "left");
+            assert_eq!(right, byz_graph, "right");
         } else {
             panic!();
         }
@@ -358,10 +356,14 @@ mod tests {
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
-            let xab = graph.insert_pattern([x, ab]);
+            let xa = graph.insert_pattern([x, a]);
+            let xab = graph.insert_patterns([
+                vec![x, ab],
+                vec![xa, b],
+            ]);
             let xaby = graph.insert_patterns([
                 vec![xab, y],
-                vec![x, a, by]
+                vec![xa, by]
             ]);
             let xabyz = graph.insert_patterns([
                 vec![xaby, z],
@@ -370,18 +372,23 @@ mod tests {
             let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
 
             // split wxabyzabbyxabyz at 3
-            let wxa_pattern = "w_x_a".to_string();
-            //vec![
-            //    Child::new(w, 1), Child::new(x, 1), Child::new(a, 1),
-            //];
-            let byzabbyxabyz_pattern = "byz_ab_by_xabyz".to_string();
-            //vec![
-                //vec![Child::new(by, 2), Child::new(z, 1), Child::new(ab, 2), Child::new(by, 2), Child::new(xabyz, 5)],
-                //vec![Child::new(b, 1), Child::new(yz, 2), Child::new(ab, 2), Child::new(by, 2), Child::new(xabyz, 5)],
-            //];
+            let wxa_graph = ChildStrings::from_node(
+                "wxa",
+                vec![
+                    vec!["w", "xa"],
+                ]
+            );
+            let byzabbyxabyz_graph = ChildStrings::from_node(
+                "byzabbyxabyz",
+                vec![
+                    ["byz", "abbyxabyz"],
+                ]
+            );
             let (left, right) = graph.split_index_at_pos(wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
-            assert_splits_eq_str!(graph, left, wxa_pattern, "left");
-            assert_splits_eq_str!(graph, right, byzabbyxabyz_pattern, "right");
+            let left = graph.pattern_child_strings(left);
+            let right = graph.pattern_child_strings(right);
+            assert_eq!(left, wxa_graph, "left");
+            assert_eq!(right, byzabbyxabyz_graph, "right");
         } else {
             panic!();
         }
@@ -426,20 +433,25 @@ mod tests {
                 vec![wxaby, z],
                 vec![wx, ab, yz]
             ]);
-            // split wxabyz at 3
-            let wxa_pattern = "wx_a".to_string();
-            //vec![
-                //vec![Child::new(wx, 2), Child::new(a, 1)],
-            //];
-            let byz_pattern = "byz".to_string();
-            //vec![
-                //vec![Child::new(by, 2), Child::new(z, 1)],
-                //vec![Child::new(b, 1), Child::new(yz, 2)],
-            //];
+            let wxa_graph = ChildStrings::from_node(
+                "wxa",
+                vec![
+                    vec!["wx", "a"],
+                ]
+            );
+            let byz_graph = ChildStrings::from_node(
+                "byz",
+                vec![
+                    vec!["by", "z"],
+                    vec!["b", "yz"],
+                ]
+            );
 
             let (left, right) = graph.split_index_at_pos(wxabyz, NonZeroUsize::new(3).unwrap());
-            assert_splits_eq_str!(graph, left, wxa_pattern, "left");
-            assert_splits_eq_str!(graph, right, byz_pattern, "right");
+            let left = graph.pattern_child_strings(left);
+            let right = graph.pattern_child_strings(right);
+            assert_eq!(left, wxa_graph, "left");
+            assert_eq!(right, byz_graph, "right");
         } else {
             panic!();
         }

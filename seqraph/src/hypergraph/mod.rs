@@ -18,10 +18,11 @@ mod split_merge;
 mod insert;
 mod vertex;
 mod getters;
+mod child_strings;
 
 pub use vertex::*;
 pub use getters::*;
-
+pub use child_strings::*;
 
 #[derive(Debug)]
 pub struct Hypergraph<T: Tokenize> {
@@ -73,6 +74,25 @@ impl<'t, 'a, T> Hypergraph<T>
             });
         pg
     }
+
+    pub fn to_node_child_strings(&self) -> ChildStrings {
+        let nodes = self.graph
+            .iter()
+            .map(|(key, data)|
+                (self.key_data_string(key, data), data.to_pattern_strings(self))
+            );
+        ChildStrings::from_nodes(nodes)
+    }
+    pub fn pattern_child_strings(&self, pattern: Pattern) -> ChildStrings {
+        let nodes = pattern
+            .into_iter()
+            .map(|child|
+                (self.index_string(child.index), self.expect_vertex_data(child.index)
+                    .to_pattern_strings(self))
+            );
+        ChildStrings::from_nodes(nodes)
+    }
+
     fn pattern_string_with_separator(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>, separator: &'static str) -> String {
         pattern.into_iter().map(|child| self.index_string(*child.borrow())).join(separator)
     }

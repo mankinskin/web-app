@@ -4,6 +4,7 @@ use crate::{
         Token,
         Tokenize,
     },
+    hypergraph::Hypergraph,
 };
 use std::collections::{
     HashSet,
@@ -118,8 +119,8 @@ impl std::borrow::Borrow<VertexIndex> for &'_ Child {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VertexData {
     pub width: TokenPosition,
-    parents: VertexParents,
-    children: ChildPatterns,
+    pub parents: VertexParents,
+    pub children: ChildPatterns,
 }
 impl VertexData {
     fn next_child_pattern_id() -> PatternId {
@@ -201,5 +202,13 @@ impl VertexData {
         } else {
             Either::Right(parents.iter())
         }
+    }
+    pub fn to_pattern_strings<T: Tokenize + std::fmt::Display>(&self, g: &Hypergraph<T>) -> Vec<Vec<String>> {
+        self.get_children()
+            .values()
+            .map(|pat|
+                pat.iter().map(|c| g.index_string(c.index)).collect::<Vec<_>>()
+            )
+            .collect::<Vec<_>>()
     }
 }
