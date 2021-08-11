@@ -20,6 +20,8 @@ use itertools::{
     EitherOrBoth,
 };
 
+use super::search::FoundRange;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PatternMatch {
     SupRemainder(Pattern),
@@ -36,6 +38,21 @@ impl PatternMatch {
     }
     pub fn is_matching(&self) -> bool {
         self == &Self::Matching
+    }
+    pub fn prepend_prefix(self, pattern: Pattern) -> Option<FoundRange> {
+        if pattern.is_empty() {
+            match self {
+                Self::Matching => Some(FoundRange::Complete),
+                Self::SupRemainder(post) => Some(FoundRange::Postfix(post)),
+                Self::SubRemainder(_) => None,
+            }
+        } else {
+            match self {
+                Self::Matching => Some(FoundRange::Prefix(pattern)),
+                Self::SupRemainder(post) => Some(FoundRange::Infix(pattern, post)),
+                Self::SubRemainder(_) => None,
+            }
+        }
     }
 }
 //impl From<SearchFound> for PatternMatch {
@@ -68,11 +85,12 @@ impl From<Either<Pattern, Pattern>> for PatternMatch {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
+    // find child pattern with matching successor or pick first candidate
     fn pick_best_matching_child_pattern(
         child_patterns: &'a ChildPatterns,
         candidates: impl Iterator<Item=&'a (usize, PatternId)>,
         post_sub_pat: PatternView<'a>,
-        ) -> Option<PatternView<'a>> {
+        ) -> Option<(Pattern, PatternView<'a>)> {
         candidates.find_or_first(|(pattern_index, sub_index)|
             post_sub_pat.get(0).and_then(|post_sub|
                     child_patterns.get(pattern_index)
@@ -81,7 +99,13 @@ impl<'t, 'a, T> Hypergraph<T>
                         )
             ).unwrap_or(false)
         ).and_then(|(pattern_index, sub_index)|
-            child_patterns.get(pattern_index).and_then(|pattern| pattern.get(*sub_index..))
+            child_patterns.get(pattern_index)
+                .map(|pattern| (
+                    pattern.get(..*sub_index)
+                        .map(|p| p.into_iter().cloned().collect())
+                        .unwrap_or_default(),
+                    &pattern[*sub_index..]
+                ))
         )
     }
     /// match sub_pat against children in parent with an optional offset.
@@ -91,7 +115,7 @@ impl<'t, 'a, T> Hypergraph<T>
         parent_index: VertexIndex,
         parent: &Parent,
         offset: Option<PatternId>,
-        ) -> Option<PatternMatch> {
+        ) -> Option<(Pattern, PatternMatch)> {
         // find pattern where sub is at offset
         //println!("compare_parent_at_offset");
         let vert = self.expect_vertex_data(parent_index);
@@ -100,20 +124,35 @@ impl<'t, 'a, T> Hypergraph<T>
         // optionally filter by sub offset
         let candidates = parent.get_pattern_index_candidates(offset);
         //println!("with successors \"{}\"", self.pattern_string(post_pattern));
-        // find child pattern with matching successor or pick first candidate
         let best_match = Self::pick_best_matching_child_pattern(
             &child_patterns,
             candidates,
             post_pattern,
         );
-        best_match.and_then(|child_pattern|
+        best_match.and_then(|(prefix, match_pattern)|
             //println!("comparing post sub pattern with remaining children of parent");
             self.compare_pattern_prefix(
                 post_pattern,
-                child_pattern.get(1..).unwrap_or(&[])
-                ).map(Into::into)
+                match_pattern.get(1..).unwrap_or(&[])
+            ).map(|pm| (prefix, pm))
             // returns result of matching sub with parent's children
         )
+    }
+    /// match sub_pat against children in parent with an optional offset.
+    pub fn search_parent_at_offset(
+        &self,
+        post_pattern: PatternView<'a>,
+        parent_index: VertexIndex,
+        parent: &Parent,
+        offset: Option<PatternId>,
+        ) -> Option<FoundRange> {
+        self.compare_parent_at_offset(
+            post_pattern,
+            parent_index,
+            parent,
+            offset,
+            )
+            .and_then(|(prefix, p)| p.prepend_prefix(prefix))
     }
     fn get_direct_vertex_parent_with_offset(
         vertex: &'a VertexData,
@@ -158,11 +197,12 @@ impl<'t, 'a, T> Hypergraph<T>
             // parents contain sup
             //println!("sup found in parents");
             self.compare_parent_at_offset(post_pattern, sup_index, parent, Some(0))
+                .map(|(_prefix, pm)| pm)
         } else {
             // sup is no direct parent, search upwards
             //println!("matching available parents");
             // search sup in parents
-            let (parent_index, _parent, index_match) = self.find_parent_matching_pattern_at_offset_below_width(
+            let (parent_index, _parent, index_match) = self.compare_parent_matching_pattern_at_offset_below_width(
                 post_pattern,
                 &vertex,
                 Some(0),

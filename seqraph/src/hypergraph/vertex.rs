@@ -193,4 +193,13 @@ impl VertexData {
             }
         }
     }
+    pub fn get_parents_below_width(&self, width_ceiling: Option<TokenPosition>) -> impl Iterator<Item=(&VertexIndex, &Parent)> {
+        let parents = self.get_parents();
+        // optionally filter parents by width
+        if let Some(ceil) = width_ceiling {
+            Either::Left(parents.iter().filter(move |(_, parent)| parent.get_width() < ceil))
+        } else {
+            Either::Right(parents.iter())
+        }
+    }
 }

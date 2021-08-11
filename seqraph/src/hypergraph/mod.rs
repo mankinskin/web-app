@@ -53,7 +53,6 @@ impl<'t, 'a, T> Hypergraph<T>
 {
     pub fn to_petgraph(&self) -> DiGraph<(VertexKey<T>, VertexData), Parent> {
         let mut pg = DiGraph::new();
-
         // id refers to index in Hypergraph
         // idx refers to index in petgraph
         let nodes: HashMap<_, _> = self.vertex_iter()
