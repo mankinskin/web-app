@@ -13,6 +13,7 @@ use itertools::{
 use petgraph::graph::DiGraph;
 mod search;
 mod r#match;
+mod matcher;
 mod split;
 mod split_merge;
 mod insert;
@@ -123,6 +124,23 @@ impl<'t, 'a, T> Hypergraph<T>
 }
 pub fn pattern_width<'a>(pat: impl IntoIterator<Item=impl Borrow<Child>>) -> TokenPosition {
     pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
+}
+pub fn prefix<'a>(
+    pattern: PatternView<'a>,
+    index: PatternId,
+    ) -> Pattern {
+    pattern.get(..index)
+        .unwrap_or(pattern)
+        .into_iter().cloned()
+        .collect()
+}
+pub fn postfix<'a>(
+    pattern: PatternView<'a>,
+    index: PatternId,
+    ) -> Pattern {
+    pattern.get(index..)
+        .unwrap_or(&[])
+        .into_iter().cloned().collect()
 }
 
 #[cfg(test)]

@@ -1,26 +1,20 @@
 use crate::{
     hypergraph::{
         Hypergraph,
-        VertexIndex,
-        PatternId,
         Pattern,
         PatternView,
-        VertexData,
-        Parent,
-        TokenPosition,
-        ChildPatterns,
+        matcher::{
+            Matcher,
+            MatchRight,
+            MatchLeft,
+        },
+        search::FoundRange,
     },
     token::{
         Tokenize,
     },
 };
 use either::Either;
-use itertools::{
-    Itertools,
-    EitherOrBoth,
-};
-
-use super::search::FoundRange;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PatternMatch {
@@ -55,24 +49,6 @@ impl PatternMatch {
         }
     }
 }
-//impl From<SearchFound> for PatternMatch {
-//    fn from(SearchFound(range, index, offset): SearchFound) -> Self {
-//        match (offset, range) {
-//            (0, FoundRange::Complete) => Self::Matching,
-//            (0, FoundRange::Prefix(remainder)) => Self::Remainder(Either::Left(remainder)),
-//            _ => Self::Mismatch,
-//        }
-//    }
-//}
-//impl From<SearchFound> for PatternMatch {
-//    fn from(SearchFound(range, index, offset): SearchFound) -> Self {
-//        match (offset, range) {
-//            (0, FoundRange::Complete) => Self::Matching,
-//            (0, FoundRange::Prefix(remainder)) => Self::SubRemainder(remainder),
-//            _ => Self::Mismatch,
-//        }
-//    }
-//}
 impl From<Either<Pattern, Pattern>> for PatternMatch {
     fn from(e: Either<Pattern, Pattern>) -> Self {
         match e {
@@ -82,256 +58,29 @@ impl From<Either<Pattern, Pattern>> for PatternMatch {
     }
 }
 
+
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    // find child pattern with matching successor or pick first candidate
-    fn pick_best_matching_child_pattern(
-        child_patterns: &'a ChildPatterns,
-        candidates: impl Iterator<Item=&'a (usize, PatternId)>,
-        post_sub_pat: PatternView<'a>,
-        ) -> Option<(Pattern, PatternView<'a>)> {
-        candidates.find_or_first(|(pattern_index, sub_index)|
-            post_sub_pat.get(0).and_then(|post_sub|
-                    child_patterns.get(pattern_index)
-                        .and_then(|pattern|
-                            pattern.get(sub_index+1).map(|b| post_sub == b)
-                        )
-            ).unwrap_or(false)
-        ).and_then(|(pattern_index, sub_index)|
-            child_patterns.get(pattern_index)
-                .map(|pattern| (
-                    pattern.get(..*sub_index)
-                        .map(|p| p.into_iter().cloned().collect())
-                        .unwrap_or_default(),
-                    &pattern[*sub_index..]
-                ))
-        )
+    pub fn right_matcher(&'a self) -> Matcher<'a, T, MatchRight> {
+        Matcher::new(&self)
     }
-    /// match sub_pat against children in parent with an optional offset.
-    pub fn compare_parent_at_offset(
-        &self,
-        post_pattern: PatternView<'a>,
-        parent_index: VertexIndex,
-        parent: &Parent,
-        offset: Option<PatternId>,
-        ) -> Option<(Pattern, PatternMatch)> {
-        // find pattern where sub is at offset
-        //println!("compare_parent_at_offset");
-        let vert = self.expect_vertex_data(parent_index);
-        let child_patterns = vert.get_children();
-        //print!("matching parent \"{}\" ", self.sub_index_string(parent.index));
-        // optionally filter by sub offset
-        let candidates = parent.get_pattern_index_candidates(offset);
-        //println!("with successors \"{}\"", self.pattern_string(post_pattern));
-        let best_match = Self::pick_best_matching_child_pattern(
-            &child_patterns,
-            candidates,
-            post_pattern,
-        );
-        best_match.and_then(|(prefix, match_pattern)|
-            //println!("comparing post sub pattern with remaining children of parent");
-            self.compare_pattern_prefix(
-                post_pattern,
-                match_pattern.get(1..).unwrap_or(&[])
-            ).map(|pm| (prefix, pm))
-            // returns result of matching sub with parent's children
-        )
+    pub fn left_matcher(&'a self) -> Matcher<'a, T, MatchLeft> {
+        Matcher::new(&self)
     }
-    /// match sub_pat against children in parent with an optional offset.
-    pub fn search_parent_at_offset(
-        &self,
-        post_pattern: PatternView<'a>,
-        parent_index: VertexIndex,
-        parent: &Parent,
-        offset: Option<PatternId>,
-        ) -> Option<FoundRange> {
-        self.compare_parent_at_offset(
-            post_pattern,
-            parent_index,
-            parent,
-            offset,
-            )
-            .and_then(|(prefix, p)| p.prepend_prefix(prefix))
-    }
-    fn get_direct_vertex_parent_with_offset(
-        vertex: &'a VertexData,
-        parent_index: VertexIndex,
-        offset: Option<PatternId>,
-        ) -> Option<&'a Parent> {
-        vertex.get_parent(&parent_index)
-            .filter(|parent|
-                offset.map(|offset|
-                    parent.exists_at_pos(offset)
-                ).unwrap_or(true)
-            )
-    }
-    fn get_direct_vertex_parent_at_prefix(
-        vertex: &'a VertexData,
-        index: VertexIndex,
-        ) -> Option<&'a Parent> {
-        Self::get_direct_vertex_parent_with_offset(&vertex, index, Some(0))
-    }
-    /// find an index at the prefix of a pattern
-    fn match_sub_and_post_with_index(&self,
-            sub: VertexIndex,
-            post_pattern: PatternView<'a>,
-            sup_index: VertexIndex,
-            width: TokenPosition,
-        ) -> Option<PatternMatch> {
-        //println!("match_sub_pattern_to_super");
-        // search parent of sub
-        if sub == sup_index {
-            return if post_pattern.is_empty() {
-                Some(PatternMatch::Matching)
-            } else {
-                Some(PatternMatch::SubRemainder(post_pattern.into()))
-            }
-        }
-        let vertex = self.expect_vertex_data(sub);
-        if vertex.get_parents().len() < 1 {
-            return None;
-        }
-        let sup_parent = Self::get_direct_vertex_parent_at_prefix(&vertex, sup_index);
-        if let Some(parent) = sup_parent {
-            // parents contain sup
-            //println!("sup found in parents");
-            self.compare_parent_at_offset(post_pattern, sup_index, parent, Some(0))
-                .map(|(_prefix, pm)| pm)
-        } else {
-            // sup is no direct parent, search upwards
-            //println!("matching available parents");
-            // search sup in parents
-            let (parent_index, _parent, index_match) = self.compare_parent_matching_pattern_at_offset_below_width(
-                post_pattern,
-                &vertex,
-                Some(0),
-                Some(width),
-            )?;
-            //println!("found parent matching");
-            let new_post = match index_match {
-                // found index for complete pattern, tr
-                PatternMatch::Matching => Some(Vec::new()),
-                // found matching parent larger than the pattern, not the one we were looking for
-                PatternMatch::SupRemainder(_) => None,
-                // found parent matching with prefix of pattern, continue
-                PatternMatch::SubRemainder(rem) => Some(rem),
-            }?;
-            // TODO: faster way to handle empty new_post
-            //println!("matching on parent with remainder");
-            self.match_sub_and_post_with_index(parent_index, &new_post, sup_index, width)
-        }
-    }
-    #[allow(unused)]
-    pub(crate) fn match_pattern_with_index(
-        &self,
-        sub_pattern: PatternView<'a>,
-        index: VertexIndex,
-        width: TokenPosition,
-        ) -> Option<PatternMatch> {
-        //println!("match_sub_pattern_to_super");
-        let sub = sub_pattern.get(0)?;
-        let post_pattern = sub_pattern.get(1..);
-        if let None = post_pattern {
-            return if sub.get_index() == index {
-                Some(PatternMatch::Matching)
-            } else {
-                None
-            };
-        }
-        let post_pattern = post_pattern?;
-        self.match_sub_and_post_with_index(sub.get_index(), post_pattern, index, width)
-    }
-    fn compare_pattern_prefix(
+    pub fn compare_pattern_postfix(
             &self,
-            pattern_a: PatternView<'a>,
-            pattern_b: PatternView<'a>,
+            a: PatternView<'a>,
+            b: PatternView<'a>,
         ) -> Option<PatternMatch> {
-        //println!("compare_pattern_prefix(\"{}\", \"{}\")", self.pattern_string(pattern_a), self.pattern_string(pattern_b));
-        let pattern_a_iter = pattern_a.iter();
-        let pattern_b_iter = pattern_b.iter();
-        let mut zipped = pattern_a_iter
-            .zip_longest(pattern_b_iter)
-            .enumerate()
-            .skip_while(|(_, eob)|
-                match eob {
-                    EitherOrBoth::Both(a, b) => a == b,
-                    _ => false,
-                }
-            );
-        let (pos, eob) = if let Some(next) = zipped.next() {
-            next
-        } else {
-            return Some(PatternMatch::Matching);
-        };
-        Some(match eob {
-            // different elements on both sides
-            EitherOrBoth::Both(a, b) => {
-                //println!("matching \"{}\" and \"{}\"", self.sub_index_string(index_a), self.sub_index_string(index_b));
-                // Note: depending on sizes of a, b it may be differently efficient
-                // to search for children or parents, large patterns have less parents,
-                // small patterns have less children
-                // search larger in parents of smaller
-                let post_sub_pattern;
-                let post_sup;
-                let sub;
-                let sup;
-                let sup_width;
-                let rotate = if a.get_width() == b.get_width() {
-                    // relatives can not have same sizes
-                    return None;
-                } else if a.get_width() < b.get_width() {
-                    //println!("right super");
-                    post_sub_pattern = &pattern_a[pos+1..];
-                    post_sup = &pattern_b[pos+1..];
-                    sub = a.get_index();
-                    sup = b.get_index();
-                    sup_width = b.get_width();
-                    false
-                } else {
-                    //println!("left super");
-                    post_sub_pattern = &pattern_b[pos+1..];
-                    post_sup = &pattern_a[pos+1..];
-                    sub = b.get_index();
-                    sup = a.get_index();
-                    sup_width = a.get_width();
-                    true
-                };
-                let result = self.match_sub_and_post_with_index(
-                    sub,
-                    post_sub_pattern,
-                    sup,
-                    sup_width,
-                );
-                // left remainder: sub remainder
-                // right remainder: sup remainder
-                // matching: sub & sup finished
-                //println!("return {:#?}", result);
-                let result = match result? {
-                    PatternMatch::SubRemainder(rem) =>
-                        self.compare_pattern_prefix(
-                            &rem,
-                            post_sup,
-                        )?,
-                    PatternMatch::SupRemainder(rem) => PatternMatch::SupRemainder([&rem, post_sup].concat()),
-                    PatternMatch::Matching => {
-                        let rem: Vec<_> = post_sup.iter().cloned().collect();
-                        if rem.is_empty() {
-                            PatternMatch::Matching
-                        } else {
-                            PatternMatch::SupRemainder(rem)
-                        }
-                    },
-                };
-                if rotate {
-                    result.flip_remainder()
-                } else {
-                    result
-                }
-            },
-            EitherOrBoth::Left(_) => PatternMatch::SubRemainder(pattern_a[pos..].iter().cloned().collect()),
-            EitherOrBoth::Right(_) => PatternMatch::SupRemainder(pattern_b[pos..].iter().cloned().collect()),
-        })
+        self.left_matcher().compare(a, b)
+    }
+    pub fn compare_pattern_prefix(
+            &self,
+            a: PatternView<'a>,
+            b: PatternView<'a>,
+        ) -> Option<PatternMatch> {
+        self.right_matcher().compare(a, b)
     }
 }
 #[cfg(test)]
@@ -343,7 +92,7 @@ mod tests {
         tests::context
     };
     #[test]
-    fn match_simple() {
+    fn compare_pattern_prefix() {
         let (
             graph,
             a,
@@ -397,5 +146,68 @@ mod tests {
 
         assert_eq!(graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern), Some(PatternMatch::SubRemainder(vec![Child::new(*d, 1)])));
         assert_eq!(graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*d, 1)])));
+    }
+    #[test]
+    fn compare_pattern_postfix() {
+        let (
+            graph,
+            a,
+            b,
+            c,
+            d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            ab,
+            bc,
+            _cd,
+            _bcd,
+            abc,
+            abcd,
+            _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            _ababababcdefghi,
+            ) = &*context();
+        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
+        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+        let abcd_pattern = &[Child::new(abcd, 4)];
+        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
+        let b_pattern = &[Child::new(b, 1)];
+        let bc_pattern = &[Child::new(bc, 2)];
+        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        let a_b_pattern = &[Child::new(a, 1), Child::new(b, 1)];
+        let bc_d_pattern = &[Child::new(bc, 2), Child::new(d, 1)];
+        assert_eq!(graph.compare_pattern_postfix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_postfix(a_b_pattern, b_pattern), Some(PatternMatch::SubRemainder(vec![Child::new(a, 1)])));
+        assert_eq!(graph.compare_pattern_postfix(a_b_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_postfix(a_b_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(ab_c_pattern, a_b_c_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(a_bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(abc_d_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(bc_pattern, abcd_pattern), None);
+        assert_eq!(graph.compare_pattern_postfix(b_c_pattern, a_bc_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*a, 1)])));
+        assert_eq!(graph.compare_pattern_postfix(b_c_pattern, a_d_c_pattern), None);
+        assert_eq!(graph.compare_pattern_postfix(a_bc_d_pattern, abc_d_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_postfix(a_bc_d_pattern, abcd_pattern), Some(PatternMatch::Matching));
+        assert_eq!(graph.compare_pattern_postfix(abcd_pattern, a_bc_d_pattern), Some(PatternMatch::Matching));
+
+        assert_eq!(graph.compare_pattern_postfix(a_b_c_pattern, abcd_pattern), None);
+        assert_eq!(graph.compare_pattern_postfix(ab_c_d_pattern, a_bc_pattern), None);
+        assert_eq!(graph.compare_pattern_postfix(a_bc_pattern, ab_c_d_pattern), None);
+        assert_eq!(graph.compare_pattern_postfix(bc_d_pattern, ab_c_d_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*a, 1)])));
+        assert_eq!(graph.compare_pattern_postfix(bc_d_pattern, abc_d_pattern), Some(PatternMatch::SupRemainder(vec![Child::new(*a, 1)])));
+        assert_eq!(graph.compare_pattern_postfix(abcd_pattern, bc_d_pattern), Some(PatternMatch::SubRemainder(vec![Child::new(*a, 1)])));
     }
 }

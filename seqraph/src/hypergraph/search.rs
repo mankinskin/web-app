@@ -9,9 +9,6 @@ use crate::{
         Parent,
         TokenPosition,
         pattern_width,
-        r#match::{
-            PatternMatch,
-        },
     },
     token::{
         Tokenize,
@@ -59,29 +56,23 @@ impl FoundRange {
     pub fn is_matching(&self) -> bool {
         self == &FoundRange::Complete
     }
+    pub fn reverse(self) -> Self {
+        match self {
+            Self::Complete => Self::Complete,
+            Self::Prefix(post) => Self::Postfix(post),
+            Self::Postfix(pre) => Self::Prefix(pre),
+            Self::Infix(pre, post) => Self::Infix(post, pre),
+        }
+    }
 }
 
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub(crate) fn compare_parent_matching_pattern_at_offset_below_width(
-        &self,
-        post_pattern: PatternView<'a>,
-        vertex: &VertexData,
-        offset: Option<usize>,
-        width_ceiling: Option<TokenPosition>,
-        ) -> Option<(VertexIndex, Parent, PatternMatch)> {
-        vertex.get_parents_below_width(width_ceiling)
-        .find_map(|(&index, parent)|
-            self.compare_parent_at_offset(post_pattern, index, parent, offset)
-                .map(|(_pre, m)| (index, parent.clone(), m))
-        )
-    }
     pub(crate) fn find_parent_matching_pattern_at_offset_below_width(
         &self,
         post_pattern: PatternView<'a>,
         vertex: &VertexData,
-        offset: Option<usize>,
         width_ceiling: Option<TokenPosition>,
         ) -> Option<(VertexIndex, Parent, FoundRange)> {
         //println!("find_parent_matching_pattern");
@@ -94,7 +85,7 @@ impl<'t, 'a, T> Hypergraph<T>
         }
         // find matching parent
         .find_map(|(&index, parent)|
-            self.search_parent_at_offset(post_pattern, index, parent, offset)
+            self.right_matcher().compare_parent_with_context(post_pattern, index, parent)
                 .map(|m| (index, parent.clone(), m))
         )
     }
@@ -113,7 +104,6 @@ impl<'t, 'a, T> Hypergraph<T>
         self.find_parent_matching_pattern_at_offset_below_width(
             &pattern[1..],
             vertex,
-            Some(0),
             Some(width+1)
         ).map(|(i, _parent, found)| (i, found))
     }

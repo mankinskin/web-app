@@ -14,6 +14,8 @@ use crate::{
             SplitContext,
         },
         vertex::*,
+        prefix,
+        postfix,
     },
     token::{
         Tokenize,
@@ -32,28 +34,14 @@ pub struct SplitIndex {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
 {
-    pub fn prefix(
-        pattern: PatternView<'a>,
-        index: PatternId,
-        ) -> Pattern {
-        let prefix = &pattern[..index];
-        prefix.into_iter().cloned().collect()
-    }
-    pub fn postfix(
-        pattern: PatternView<'a>,
-        index: PatternId,
-        ) -> Pattern {
-        let postfix = &pattern[index..];
-        postfix.into_iter().cloned().collect()
-    }
     /// Split a pattern before the specified index
     pub fn split_pattern_at_index(
         pattern: PatternView<'a>,
         index: PatternId,
         ) -> (Pattern, Pattern) {
         (
-            Self::prefix(pattern, index),
-            Self::postfix(pattern, index)
+            prefix(pattern, index),
+            postfix(pattern, index)
         )
     }
     pub fn split_context(
@@ -61,8 +49,8 @@ impl<'t, 'a, T> Hypergraph<T>
         index: PatternId,
         ) -> (Pattern, Pattern) {
         (
-            Self::prefix(pattern, index),
-            Self::postfix(pattern, index+1)
+            prefix(pattern, index),
+            postfix(pattern, index+1)
         )
     }
     /// find split position in index in pattern
@@ -176,16 +164,11 @@ impl<'t, 'a, T> Hypergraph<T>
         // otherwise build a merge graph over all children until perfect splits are found in all branches
         // then merge patterns upwards into their parent contexts
 
-        //let split = self.try_perfect_split(root, pos)
-        //    .unwrap_or_else(|split_indices| {
-                // no perfect split
-                let (left, right) = SplitMerge::split(self, root, pos);
-                println!("Split: {} at {} =>", self.index_string(root), pos);
-                println!("left:\n\t{}", self.separated_pattern_string(&left));
-                println!("right:\n\t{}", self.separated_pattern_string(&right));
-                let split = (left, right);
-        //    });
-        split
+        let (left, right) = SplitMerge::split(self, root, pos);
+        println!("Split: {} at {} =>", self.index_string(root), pos);
+        println!("left:\n\t{}", self.separated_pattern_string(&left));
+        println!("right:\n\t{}", self.separated_pattern_string(&right));
+        (left, right)
     }
 }
 #[cfg(test)]

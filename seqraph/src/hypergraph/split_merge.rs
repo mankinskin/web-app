@@ -6,6 +6,7 @@ use crate::{
         split::Split,
         Child,
         pattern_width,
+        search::FoundRange,
     },
     token::Tokenize,
 };

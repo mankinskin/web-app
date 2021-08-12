@@ -58,18 +58,20 @@ impl Parent {
     pub fn exists_at_pos(&self, p: PatternId) -> bool {
         self.pattern_indices.iter().any(|(_, pos)| *pos == p)
     }
-    pub fn get_pattern_index_candidates(
+    pub fn filter_pattern_indicies_at_prefix(
         &self,
-        offset: Option<PatternId>,
-        ) -> impl Iterator<Item=&(usize, PatternId)> {
-        if let Some(offset) = offset {
-            //println!("at offset = {} ", offset);
-            Either::Left(self.pattern_indices.iter()
-                .filter(move |(_pattern_index, sub_index)| *sub_index == offset))
-        } else {
-            //println!("at offset = 0");
-            Either::Right(self.pattern_indices.iter())
-        }
+        ) -> impl Iterator<Item=&(PatternId, usize)> {
+        self.pattern_indices.iter()
+            .filter(move |(_pattern_index, sub_index)| *sub_index == 0)
+    }
+    pub fn filter_pattern_indicies_at_end_in_patterns<'a>(
+        &'a self,
+        patterns: &'a HashMap<PatternId, Pattern>,
+        ) -> impl Iterator<Item=&'a (PatternId, usize)> {
+        self.pattern_indices.iter()
+            .filter(move |(pattern_index, sub_index)|
+                *sub_index + 1 == patterns.get(pattern_index).expect("Pattern index not in patterns!").len()
+            )
     }
 }
 #[derive(Debug, Eq, Clone, Hash)]
@@ -210,5 +212,49 @@ impl VertexData {
                 pat.iter().map(|c| g.index_string(c.index)).collect::<Vec<_>>()
             )
             .collect::<Vec<_>>()
+    }
+    pub fn filter_parent(
+        &self,
+        parent_index: VertexIndex,
+        cond: impl Fn(&&Parent) -> bool,
+        ) -> Option<&'_ Parent> {
+        self.get_parent(&parent_index)
+            .filter(cond)
+    }
+    pub fn get_parent_starting_at(
+        &self,
+        parent_index: VertexIndex,
+        offset: PatternId,
+        ) -> Option<&'_ Parent> {
+        self.filter_parent(parent_index, |parent|
+            parent.exists_at_pos(offset)
+        )
+    }
+    pub fn get_parent_ending_at(
+        &self,
+        parent_index: VertexIndex,
+        offset: PatternId,
+        ) -> Option<&'_ Parent> {
+        self.filter_parent(parent_index, |parent|
+            offset.checked_sub(self.width)
+                .map(|p| parent.exists_at_pos(p))
+                .unwrap_or(false)
+        )
+    }
+    pub fn get_parent_at_prefix_of(
+        &self,
+        index: VertexIndex,
+        ) -> Option<&'_ Parent> {
+        self.get_parent_starting_at(index, 0)
+    }
+    pub fn get_parent_at_postfix_of(
+        &self,
+        index: VertexIndex,
+        ) -> Option<&'_ Parent> {
+        self.filter_parent(index, |parent|
+            parent.width.checked_sub(self.width)
+                .map(|p| parent.exists_at_pos(p))
+                .unwrap_or(false)
+        )
     }
 }
