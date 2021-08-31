@@ -33,18 +33,18 @@ impl PatternMatch {
     pub fn is_matching(&self) -> bool {
         self == &Self::Matching
     }
-    pub fn prepend_prefix(self, pattern: Pattern) -> Option<FoundRange> {
+    pub fn prepend_prefix(self, pattern: Pattern) -> FoundRange {
         if pattern.is_empty() {
             match self {
-                Self::Matching => Some(FoundRange::Complete),
-                Self::SupRemainder(post) => Some(FoundRange::Postfix(post)),
-                Self::SubRemainder(_) => None,
+                Self::Matching => FoundRange::Complete,
+                Self::SupRemainder(post) => FoundRange::Prefix(post),
+                Self::SubRemainder(post) => FoundRange::Prefix(post),
             }
         } else {
             match self {
-                Self::Matching => Some(FoundRange::Prefix(pattern)),
-                Self::SupRemainder(post) => Some(FoundRange::Infix(pattern, post)),
-                Self::SubRemainder(_) => None,
+                Self::Matching => FoundRange::Prefix(pattern),
+                Self::SupRemainder(post) => FoundRange::Infix(pattern, post),
+                Self::SubRemainder(post) => FoundRange::Infix(pattern, post),
             }
         }
     }
@@ -57,16 +57,20 @@ impl From<Either<Pattern, Pattern>> for PatternMatch {
         }
     }
 }
-
-
+pub enum PatternMismatch {
+    NoParents,
+    NoChildPatterns,
+    NoMatchingParent,
+    ParentMatchingPartially,
+}
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
     pub fn right_matcher(&'a self) -> Matcher<'a, T, MatchRight> {
-        Matcher::new(&self)
+        Matcher::new(self)
     }
     pub fn left_matcher(&'a self) -> Matcher<'a, T, MatchLeft> {
-        Matcher::new(&self)
+        Matcher::new(self)
     }
     pub fn compare_pattern_postfix(
             &self,

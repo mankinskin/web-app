@@ -15,7 +15,8 @@ mod search;
 mod r#match;
 mod matcher;
 mod split;
-mod split_merge;
+mod index_splitter;
+mod split_minimizer;
 mod insert;
 mod vertex;
 mod getters;
@@ -25,18 +26,13 @@ pub use vertex::*;
 pub use getters::*;
 pub use child_strings::*;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Hypergraph<T: Tokenize> {
     graph: indexmap::IndexMap<VertexKey<T>, VertexData>,
 }
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub fn new() -> Self {
-        Self {
-            graph: indexmap::IndexMap::new(),
-        }
-    }
     pub fn index_width(&self, index: VertexIndex) -> TokenPosition {
         self.expect_vertex_data(index).width
     }
@@ -122,25 +118,24 @@ impl<'t, 'a, T> Hypergraph<T>
         self.key_data_string(key, data)
     }
 }
-pub fn pattern_width<'a>(pat: impl IntoIterator<Item=impl Borrow<Child>>) -> TokenPosition {
+pub fn pattern_width(pat: impl IntoIterator<Item=impl Borrow<Child>>) -> TokenPosition {
     pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
 }
-pub fn prefix<'a>(
-    pattern: PatternView<'a>,
+pub fn prefix(
+    pattern: PatternView<'_>,
     index: PatternId,
     ) -> Pattern {
     pattern.get(..index)
         .unwrap_or(pattern)
-        .into_iter().cloned()
-        .collect()
+        .to_vec()
 }
-pub fn postfix<'a>(
-    pattern: PatternView<'a>,
+pub fn postfix(
+    pattern: PatternView<'_>,
     index: PatternId,
     ) -> Pattern {
     pattern.get(index..)
         .unwrap_or(&[])
-        .into_iter().cloned().collect()
+        .to_vec()
 }
 
 #[cfg(test)]
@@ -180,7 +175,7 @@ mod tests {
     lazy_static::lazy_static! {
         pub static ref 
             CONTEXT: Arc<RwLock<Context>> = Arc::new(RwLock::new({
-            let mut graph = Hypergraph::new();
+            let mut graph = Hypergraph::default();
             if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(
                 [
                     Token::Element('a'),
@@ -261,8 +256,8 @@ mod tests {
                 let ababababcdefghi = graph.insert_patterns([
                     [ababababcd, efghi],
                     [abab, ababcdefghi],
+                    [ababab, abcdefghi]
                 ]);
-                let _longer_pattern = graph.insert_pattern([ababab, abcdefghi]);
                 (
                     graph,
                     a,
@@ -299,7 +294,7 @@ mod tests {
     }
     #[test]
     fn test_to_petgraph() {
-        let mut graph = Hypergraph::new();
+        let mut graph = Hypergraph::default();
         if let [a, b, c, d] = graph.insert_tokens(
             [
                 Token::Element('a'),

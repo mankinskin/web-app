@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, hash::Hasher};
 use crate::{
     token::{
         Token,
@@ -74,7 +74,7 @@ impl Parent {
             )
     }
 }
-#[derive(Debug, Eq, Clone, Hash)]
+#[derive(Debug, Eq, Clone)]
 pub struct Child {
     pub index: VertexIndex, // the child index
     pub width: TokenPosition, // the token width
@@ -96,6 +96,11 @@ impl Child {
 impl std::cmp::PartialOrd for Child {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.index.partial_cmp(&other.index)
+    }
+}
+impl std::hash::Hash for Child {
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        self.index.hash(h);
     }
 }
 impl std::cmp::Ord for Child {
@@ -127,8 +132,7 @@ pub struct VertexData {
 impl VertexData {
     fn next_child_pattern_id() -> PatternId {
         static PATTERN_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let id = PATTERN_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-        id
+        PATTERN_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
     pub fn with_width(width: TokenPosition) -> Self {
         Self {
@@ -157,16 +161,16 @@ impl VertexData {
     }
     pub fn expect_any_pattern(&self) -> &Pattern {
         self.children.values().next()
-            .expect(&format!(
-                    "Pattern vertex has no children {:#?}",
-                    self,
+            .unwrap_or_else(|| panic!(
+                "Pattern vertex has no children {:#?}",
+                self,
             ))
     }
     pub fn expect_child_pattern(&self, id: &PatternId) -> &Pattern {
         self.children.get(id)
-            .expect(&format!(
-                    "Child pattern with id {} does not exist in in vertex {:#?}",
-                    id, self,
+            .unwrap_or_else(|| panic!(
+                "Child pattern with id {} does not exist in in vertex {:#?}",
+                id, self,
             ))
     }
     pub fn get_children(&self) -> &ChildPatterns {
@@ -175,7 +179,8 @@ impl VertexData {
     pub fn add_pattern<'c, P: IntoIterator<Item=&'c Child>>(&mut self, pat: P) -> PatternId {
         // TODO: detect unmatching pattern
         let id = Self::next_child_pattern_id();
-        self.children.insert(id, pat.into_iter().cloned().collect());
+        let pat = pat.into_iter().cloned().collect();
+        self.children.insert(id, pat);
         id
     }
     pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternId) {
@@ -196,7 +201,7 @@ impl VertexData {
             }
         }
     }
-    pub fn get_parents_below_width(&self, width_ceiling: Option<TokenPosition>) -> impl Iterator<Item=(&VertexIndex, &Parent)> {
+    pub fn get_parents_below_width(&self, width_ceiling: Option<TokenPosition>) -> impl Iterator<Item=(&VertexIndex, &Parent)> + Clone {
         let parents = self.get_parents();
         // optionally filter parents by width
         if let Some(ceil) = width_ceiling {

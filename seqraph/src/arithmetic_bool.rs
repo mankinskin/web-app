@@ -52,11 +52,6 @@ impl From<bool> for ArithmeticBool {
         Self(b)
     }
 }
-impl Into<bool> for ArithmeticBool {
-    fn into(self) -> bool {
-        self.0
-    }
-}
 impl Deref for ArithmeticBool {
     type Target = bool;
     fn deref(&self) -> &Self::Target {

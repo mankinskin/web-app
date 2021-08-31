@@ -16,8 +16,7 @@ impl<'t, 'a, T> Hypergraph<T>
 {
     fn next_vertex_id() -> VertexIndex {
         static VERTEX_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let id = VERTEX_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-        id
+        VERTEX_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
     /// insert single token node
     pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> VertexIndex {
@@ -92,17 +91,13 @@ impl<'t, 'a, T> Hypergraph<T>
         node
     }
 }
-impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't + std::fmt::Display,
-{
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn insert_subpattern() {
-        let mut graph = Hypergraph::new();
+        let mut graph = Hypergraph::default();
         if let [a, b, c, d] = graph.insert_tokens([
                 Token::Element('a'),
                 Token::Element('b'),

@@ -7,33 +7,24 @@ use crate::{
         PatternView,
         VertexData,
         Parent,
-        TokenPosition,
+        r#match::PatternMismatch,
         pattern_width,
     },
     token::{
         Tokenize,
     },
 };
-use either::Either;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SearchFound(FoundRange, VertexIndex, PatternId);
 // found range of search pattern in vertex at index
 
 impl SearchFound {
-    //pub fn from_match_result_on_index_at_offset(result: PatternMatch, index: VertexIndex, offset: Option<PatternId>) -> Self {
-    //    let offset = offset.unwrap_or(0);
-    //    match result {
-    //        PatternMatch::Matching => Self(FoundRange::Complete, index, offset),
-    //        PatternMatch::Remainder(Either::Left(rem)) => Self(FoundRange::Prefix(rem), index, offset),
-    //    }
-    //}
     #[allow(unused)]
     pub fn prepend_prefix(self, pattern: Pattern) -> Self {
         Self(self.0.prepend_prefix(pattern), self.1, self.2)
     }
 }
-    #[allow(unused)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FoundRange {
     Complete, // Full index found
@@ -65,50 +56,65 @@ impl FoundRange {
         }
     }
 }
-
+enum NotFound {
+    EmptyPattern,
+    Mismatch(PatternMismatch),
+}
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub(crate) fn find_parent_matching_pattern_at_offset_below_width(
+    pub(crate) fn find_parent_matching_context(
         &self,
-        post_pattern: PatternView<'a>,
+        postfix: PatternView<'a>,
         vertex: &VertexData,
-        width_ceiling: Option<TokenPosition>,
         ) -> Option<(VertexIndex, Parent, FoundRange)> {
         //println!("find_parent_matching_pattern");
-        let parents = vertex.get_parents();
-        // optionally filter parents by width
-        if let Some(ceil) = width_ceiling {
-            Either::Left(parents.iter().filter(move |(_, parent)| parent.get_width() < ceil))
-        } else {
-            Either::Right(parents.iter())
-        }
         // find matching parent
-        .find_map(|(&index, parent)|
-            self.right_matcher().compare_parent_with_context(post_pattern, index, parent)
-                .map(|m| (index, parent.clone(), m))
-        )
+        let width = pattern_width(postfix) + vertex.width;
+        self.right_matcher()
+            .find_parent_matching_context_below_width(postfix, vertex, Some(width + 1))
+            .map(|(index, parent, pre, m)| (index, parent, m.prepend_prefix(pre)))
+    }
+    pub(crate) fn find_postfix_for(
+        &self,
+        index: VertexIndex,
+        postfix: PatternView<'a>,
+    ) -> Option<(VertexIndex, FoundRange)> {
+        let vertex = self.expect_vertex_data(index);
+        let (index, _parent, found_range) = self.find_parent_matching_context(
+            postfix,
+            vertex,
+        )?;
+        match found_range {
+            FoundRange::Complete => Some((index, found_range)),
+            FoundRange::Prefix(post) => self.find_postfix_for(index, &post[..]),
+            // todo: match prefixes
+            _ => Some((index, found_range)),
+        }
     }
     pub(crate) fn find_pattern(
         &self,
         pattern: PatternView<'a>,
         ) -> Option<(VertexIndex, FoundRange)> {
-        let vertex = self.expect_vertex_data(pattern.get(0)?.get_index());
+        let index = pattern.get(0)?.get_index();
         if pattern.len() == 1 {
+            // pattern is the response
             return Some((pattern[0].get_index(), FoundRange::Complete));
         }
-        let width = pattern_width(pattern);
-        //let mut pattern_iter = pattern.into_iter().cloned().enumerate();
-        // accumulate prefix not found
-        //let mut prefix = Vec::with_capacity(pattern_iter.size_hint().0);
-        self.find_parent_matching_pattern_at_offset_below_width(
-            &pattern[1..],
-            vertex,
-            Some(width+1)
-        ).map(|(i, _parent, found)| (i, found))
+        let postfix = &pattern[1..];
+        self.find_postfix_for(index, postfix)
+    }
+    pub fn find_sequence(
+        &self,
+        pattern: impl IntoIterator<Item=impl Into<T>>,
+        ) -> Option<(VertexIndex, FoundRange)> {
+        let pattern = T::tokenize(pattern.into_iter());
+        let pattern = self.to_token_children(pattern)?;
+        self.find_pattern(&pattern)
     }
 }
 #[cfg(test)]
+#[allow(clippy::many_single_char_names)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
@@ -117,18 +123,18 @@ mod tests {
         tests::context,
     };
     #[test]
-    fn find_simple() {
+    fn find_pattern() {
         let (
             graph,
             a,
             b,
             c,
             d,
-            _e,
-            _f,
-            _g,
-            _h,
-            _i,
+            e,
+            f,
+            g,
+            h,
+            i,
             ab,
             bc,
             _cd,
@@ -139,7 +145,7 @@ mod tests {
             _efghi,
             _abab,
             _ababab,
-            _ababababcdefghi,
+            ababababcdefghi,
             ) = &*context();
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
@@ -153,7 +159,43 @@ mod tests {
         assert_eq!(graph.find_pattern(ab_c_pattern), Some((*abc, FoundRange::Complete)));
         assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((*abcd, FoundRange::Complete)));
         assert_eq!(graph.find_pattern(a_b_c_pattern), Some((*abc, FoundRange::Complete)));
+        let a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern = &[
+            Child::new(a, 1), Child::new(b, 1), Child::new(a, 1), Child::new(b, 1),
+            Child::new(a, 1), Child::new(b, 1), Child::new(a, 1), Child::new(b, 1),
+            Child::new(c, 1), Child::new(d, 1), Child::new(e, 1), Child::new(f, 1),
+            Child::new(g, 1), Child::new(h, 1), Child::new(i, 1)
+        ];
+        assert_eq!(graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern), Some((*ababababcdefghi, FoundRange::Complete)));
         let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(*c, 1)]].concat();
         assert_eq!(graph.find_pattern(a_b_c_c_pattern), None);
+    }
+    #[test]
+    fn find_sequence() {
+        let (
+            graph,
+            a,
+            _b,
+            _c,
+            _d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            _ab,
+            _bc,
+            _cd,
+            _bcd,
+            abc,
+            _abcd,
+            _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            ababababcdefghi,
+            ) = &*context();
+        assert_eq!(graph.find_sequence("a".chars()), Some((*a, FoundRange::Complete)), "a");
+        assert_eq!(graph.find_sequence("abc".chars()), Some((*abc, FoundRange::Complete)), "abc");
+        assert_eq!(graph.find_sequence("ababababcdefghi".chars()), Some((*ababababcdefghi, FoundRange::Complete)), "ababababcdefghi");
     }
 }

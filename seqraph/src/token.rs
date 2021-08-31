@@ -39,9 +39,9 @@ pub struct ContextInfo<T: Tokenize> {
 /// Trait for token that can be mapped in a sequence
 pub trait Tokenize: TokenData + Wide + Hash + Eq + Copy + Debug {
     fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
-        let mut v = vec![Token::Start];
+        let mut v = vec![];
         v.extend(seq.map(|t| Token::Element(t.into())));
-        v.push(Token::End);
+        //v.push(Token::End);
         v
     }
 }
@@ -55,7 +55,7 @@ pub trait ContextLink: Sized + Clone {
 }
 impl ContextLink for EdgeIndex {
     fn index(&self) -> &EdgeIndex {
-        &self
+        self
     }
 }
 pub trait ContextMapping<E: ContextLink> {
@@ -119,7 +119,7 @@ pub fn groups_to_string<T: Tokenize, E: ContextLink, C: TokenContext<T, E> + Dis
             "{}{}\n",
             a,
             line.iter().fold(String::new(), |a, elem| {
-                format!("{}{} ", a, elem.clone().unwrap_or(String::new()))
+                format!("{}{} ", a, elem.clone().unwrap_or_default())
             })
         )
     })

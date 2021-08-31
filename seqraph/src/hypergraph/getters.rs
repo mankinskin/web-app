@@ -17,11 +17,11 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     pub fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
         let index = *index.borrow();
-        self.get_vertex(index).expect(&format!("Index {} does not exist!", index))
+        self.get_vertex(index).unwrap_or_else(|| panic!("Index {} does not exist!", index))
     }
     pub fn expect_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> (&mut VertexKey<T>, &mut VertexData) {
         let index = *index.borrow();
-        self.get_vertex_mut(index).expect(&format!("Index {} does not exist!", index))
+        self.get_vertex_mut(index).unwrap_or_else(|| panic!("Index {} does not exist!", index))
     }
     pub fn get_vertex_key<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexKey<T>> {
         self.get_vertex(index).map(|entry| entry.0)
@@ -93,26 +93,25 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn get_token_index(&self, token: &Token<T>) -> Option<VertexIndex> {
         self.get_index_by_key(&VertexKey::Token(*token))
     }
-    pub fn to_token_indices(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> IndexPattern {
+    pub fn to_token_indices(&self, tokens: impl IntoIterator<Item=Token<T>>) -> Option<IndexPattern> {
         tokens.into_iter()
             .map(|token|
-                 self.get_token_index(&token)
-                 .unwrap_or_else(|| self.insert_token(token))
-                )
-            .collect()
+                self.get_token_index(&token).ok_or(())
+            )
+            .collect::<Result<_, ()>>()
+            .ok()
     }
-    pub fn to_token_children(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Pattern {
-        self.to_token_indices(tokens).into_iter()
+    pub fn to_token_children(&self, tokens: impl IntoIterator<Item=Token<T>>) -> Option<Pattern> {
+        Some(self.to_token_indices(tokens)?.into_iter()
             .map(|index| Child::new(index, 1))
-            .collect()
+            .collect())
     }
-    pub fn get_token_indices(&mut self, tokens: impl Iterator<Item=&'t Token<T>>) -> IndexPattern {
+    pub fn get_token_indices(&self, tokens: impl Iterator<Item=&'t Token<T>>) -> Option<IndexPattern> {
         let mut v = IndexPattern::with_capacity(tokens.size_hint().0);
         for token in tokens {
-            let index = self.get_token_index(token)
-                .unwrap_or_else(|| self.insert_token(token.clone()));
+            let index = self.get_token_index(token)?;
             v.push(index);
         }
-        v
+        Some(v)
     }
 }
