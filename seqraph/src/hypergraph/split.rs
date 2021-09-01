@@ -13,6 +13,7 @@ use crate::{
             SplitKey,
             SplitContext,
             IndexSplit,
+            PatternSplit,
         },
         vertex::*,
         prefix,
@@ -173,6 +174,52 @@ impl<'t, 'a, T> Hypergraph<T>
         //println!("Split: {} at {} =>", self.index_string(root), pos);
         //println!("left:\n\t{}", self.separated_pattern_string(&left));
         //println!("right:\n\t{}", self.separated_pattern_string(&right));
+    }
+    fn pattern_split_string_width(&self, split: &PatternSplit) -> usize {
+        let left = self.pattern_string_with_separator(&split.prefix, ".");
+        let right = self.pattern_string_with_separator(&split.postfix, ".");
+        left.len()
+        + self.index_split_string_width(&split.inner)
+        + right.len()
+    }
+    fn index_split_string_width(&self, split: &IndexSplit) -> usize {
+        split.splits.first().map(|s| self.pattern_split_string_width(s)).unwrap_or(1)
+    }
+    fn pattern_split_string_with_offset_and_width(&self, split: &PatternSplit, offset: usize, width: usize) -> String{
+        let left = self.pattern_string_with_separator(&split.prefix, ".");
+        let right = self.pattern_string_with_separator(&split.postfix, ".");
+        let next_width = (width - left.len()) - right.len();
+        let next_offset = offset + left.len();
+
+        let inner = split
+            .inner.splits.iter()
+            .fold(String::new(), |acc, s|
+                format!("{}{}\n",
+                    acc,
+                    self.pattern_split_string_with_offset_and_width(
+                        s, next_offset, next_width,
+                    ),
+                )
+            );
+        format!("{}\n{}", std::iter::repeat(' ').take(offset)
+            .chain(left.chars())
+            .chain(std::iter::repeat(' ').take(next_width + 1))
+            .chain(right.chars())
+            .collect::<String>(),
+            inner,
+        )
+    }
+    fn index_split_string(&self, split: &IndexSplit) -> String{
+        let width = self.index_split_string_width(split);
+        split.splits.iter()
+        .fold(String::new(), |acc, split|
+            format!("{}{}\n", acc,
+                self.pattern_split_string_with_offset_and_width(split, 0, width),
+            )
+        )
+    }
+    pub fn print_index_split(&self, split: &IndexSplit) {
+        print!("{}", self.index_split_string(split));
     }
 }
 //#[cfg(test)]

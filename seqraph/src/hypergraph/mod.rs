@@ -8,7 +8,6 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     fmt::Debug,
-    ops::Deref,
 };
 use itertools::{
     Itertools,
@@ -121,8 +120,8 @@ impl<'t, 'a, T> Hypergraph<T>
         self.key_data_string(key, data)
     }
 }
-pub fn pattern_width<T: Deref<Target=impl Borrow<Child>>>(pat: impl IntoIterator<Item=T>) -> TokenPosition {
-    pat.into_iter().fold(0, |acc, child| acc + child.deref().borrow().get_width())
+pub fn pattern_width<T:Borrow<Child>>(pat: impl IntoIterator<Item=T>) -> TokenPosition {
+    pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
 }
 pub fn prefix(
     pattern: PatternView<'_>,
