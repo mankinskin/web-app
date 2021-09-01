@@ -14,10 +14,10 @@ use indexmap::{
 use std::{
     num::NonZeroUsize,
     collections::{
-        HashSet,
         BTreeSet,
     },
     cmp::PartialEq,
+    borrow::Borrow,
 };
 
 use super::split_minimizer::SplitMinimizer;
@@ -64,17 +64,17 @@ pub struct SplitHalf {
     inner: Vec<SplitHalf>,
 }
 impl SplitHalf {
-    pub fn new<T: Into<SplitHalf>>(context: Pattern, inner: Vec<T>) -> Self {
+    pub fn new<T: Into<SplitHalf>, I: IntoIterator<Item=T>>(context: Pattern, inner: I) -> Self {
         Self {
             context,
             inner: inner.into_iter().map(Into::into).collect(),
         }
     }
 }
-impl From<Pattern> for SplitHalf {
-    fn from(pattern: Pattern) -> Self {
+impl<T: Into<Pattern>> From<T> for SplitHalf {
+    fn from(pattern: T) -> Self {
         Self {
-            context: pattern,
+            context: pattern.into(),
             inner: Default::default(),
         }
     }
@@ -164,11 +164,11 @@ pub struct IndexSplitter {
     pub cache: IndexMap<SplitKey, IndexSplit>,
 }
 impl IndexSplitter {
-    pub fn split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, root: VertexIndex, pos: NonZeroUsize) -> IndexSplit  {
+    pub fn split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> IndexSplit  {
         let index_split = Self::build_index_split(hypergraph, root, pos);
         SplitMinimizer::minimize_index_split(hypergraph, index_split)
     }
-    pub fn build_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &Hypergraph<T>, root: VertexIndex, pos: NonZeroUsize) -> IndexSplit  {
+    pub fn build_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &Hypergraph<T>, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> IndexSplit  {
         let mut s = Self::default();
         hypergraph.try_perfect_split(root, pos)
             .unwrap_or_else(|child_splits| s.perform_child_splits(hypergraph, child_splits))
@@ -229,8 +229,6 @@ mod tests {
     use super::*;
     use crate::hypergraph::{
         tests::context_mut,
-        child_strings::*,
-        Child,
     };
     use pretty_assertions::assert_eq;
     #[test]
@@ -258,10 +256,10 @@ mod tests {
             _ababab,
             _ababababcdefghi,
             ) = &mut *context_mut();
-        let index_split = IndexSplitter::build_index_split(graph, *abc, NonZeroUsize::new(2).unwrap());
+        let index_split = IndexSplitter::build_index_split(graph, abc, NonZeroUsize::new(2).unwrap());
         assert_eq!(index_split, IndexSplit::from((
-            vec![Child::new(*ab, 2)],
-            vec![Child::new(*c, 1)]
+            vec![*ab],
+            vec![*c]
         )));
     }
     #[test]
@@ -289,10 +287,10 @@ mod tests {
             _ababab,
             _ababababcdefghi,
             ) = &mut *context_mut();
-        let index_split = IndexSplitter::build_index_split(graph, *abcd, NonZeroUsize::new(3).unwrap());
+        let index_split = IndexSplitter::build_index_split(graph, abcd, NonZeroUsize::new(3).unwrap());
         assert_eq!(index_split, IndexSplit::from((
-            vec![Child::new(*abc, 3)],
-            vec![Child::new(*d, 1)]
+            vec![*abc],
+            vec![*d]
         )));
     }
     use crate::token::*;
@@ -321,12 +319,12 @@ mod tests {
                 vec![abc, d],
                 vec![a, bcd]
             ]);
-            let ab_pattern = vec![Child::new(ab, 2)];
-            let a_pattern = vec![Child::new(a, 1)];
-            let b_pattern = vec![Child::new(b, 1)];
-            let c_pattern = vec![Child::new(c, 1)];
-            let d_pattern = vec![Child::new(d, 1)];
-            let cd_pattern = vec![Child::new(cd, 2)];
+            let ab_pattern = vec![ab];
+            let a_pattern = vec![a];
+            let b_pattern = vec![b];
+            let c_pattern = vec![c];
+            let d_pattern = vec![d];
+            let cd_pattern = vec![cd];
 
             //let (left, right) = graph.split_index_at_pos(abcd, NonZeroUsize::new(2).unwrap());
             let index_split = IndexSplitter::build_index_split(&graph, abcd, NonZeroUsize::new(2).unwrap());
@@ -388,13 +386,13 @@ mod tests {
             //        vec!["b", "yz"],
             //    ]
             //);
-            let z_pattern = vec![Child::new(z, 1)];
-            let x_pattern = vec![Child::new(x, 1)];
-            let a_pattern = vec![Child::new(a, 1)];
-            let b_pattern = vec![Child::new(b, 1)];
-            let x_a_pattern = vec![Child::new(x, 1), Child::new(a, 1)];
-            let by_pattern = vec![Child::new(by, 2)];
-            let yz_pattern = vec![Child::new(yz, 2)];
+            let z_pattern = vec![z];
+            let x_pattern = vec![x];
+            let a_pattern = vec![a];
+            let b_pattern = vec![b];
+            let x_a_pattern = vec![x, a];
+            let by_pattern = vec![by];
+            let yz_pattern = vec![yz];
 
             let index_split = IndexSplitter::build_index_split(&graph, xabyz, NonZeroUsize::new(2).unwrap());
             assert_eq!(index_split, IndexSplit::from(vec![
@@ -458,13 +456,13 @@ mod tests {
             ]);
             let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
 
-            let w_pattern = vec![Child::new(w, 1)];
-            let ab_by_xabyz_pattern = vec![Child::new(ab, 2), Child::new(by, 2), Child::new(xabyz, 5)];
-            let z_pattern = vec![Child::new(z, 1)];
-            let b_pattern = vec![Child::new(b, 1)];
-            let xa_pattern = vec![Child::new(xa, 2)];
-            let by_pattern = vec![Child::new(by, 2)];
-            let yz_pattern = vec![Child::new(yz, 2)];
+            let w_pattern = vec![w];
+            let ab_by_xabyz_pattern = vec![ab, by, xabyz];
+            let z_pattern = vec![z];
+            let b_pattern = vec![b];
+            let xa_pattern = vec![xa];
+            let by_pattern = vec![by];
+            let yz_pattern = vec![yz];
             let index_split = IndexSplitter::build_index_split(&graph, wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
             assert_eq!(index_split, IndexSplit::from(vec![
                 PatternSplit::new(
@@ -533,17 +531,17 @@ mod tests {
                 vec![wxaby, z],
                 vec![wx, ab, yz]
             ]);
-            let w_pattern = vec![Child::new(w, 1)];
-            let x_pattern = vec![Child::new(x, 1)];
-            let y_pattern = vec![Child::new(y, 1)];
-            let a_pattern = vec![Child::new(a, 1)];
-            let wx_pattern = vec![Child::new(wx, 2)];
-            let wx_a_pattern = vec![Child::new(wx, 2), Child::new(a, 1)];
-            let z_pattern = vec![Child::new(z, 1)];
-            let b_pattern = vec![Child::new(b, 1)];
-            let x_a_pattern = vec![Child::new(x, 1), Child::new(a, 1)];
-            let by_pattern = vec![Child::new(by, 2)];
-            let yz_pattern = vec![Child::new(yz, 2)];
+            let w_pattern = vec![w];
+            let x_pattern = vec![x];
+            let y_pattern = vec![y];
+            let a_pattern = vec![a];
+            let wx_pattern = vec![wx];
+            let wx_a_pattern = vec![wx, a];
+            let z_pattern = vec![z];
+            let b_pattern = vec![b];
+            let x_a_pattern = vec![x, a];
+            let by_pattern = vec![by];
+            let yz_pattern = vec![yz];
             let index_split = IndexSplitter::build_index_split(&graph, wxabyz, NonZeroUsize::new(3).unwrap());
             assert_eq!(index_split, IndexSplit::from(vec![
                 PatternSplit::new(
@@ -567,7 +565,7 @@ mod tests {
                         SplitHalf::new(vec![], vec![
                             SplitHalf::from(by_pattern.clone()),
                         ]),
-                        SplitHalf::new(y_pattern.clone(), vec![
+                        SplitHalf::new(y_pattern, vec![
                             SplitHalf::new(vec![], vec![
                                 SplitHalf::new(vec![], vec![
                                     b_pattern.clone(),

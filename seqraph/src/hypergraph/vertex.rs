@@ -74,7 +74,7 @@ impl Parent {
             )
     }
 }
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, Clone, Copy)]
 pub struct Child {
     pub index: VertexIndex, // the child index
     pub width: TokenPosition, // the token width
@@ -113,16 +113,42 @@ impl PartialEq for Child {
         self.index == other.index
     }
 }
-impl std::borrow::Borrow<VertexIndex> for Child {
+impl PartialEq<VertexIndex> for Child {
+    fn eq(&self, other: &VertexIndex) -> bool {
+        self.index == *other
+    }
+}
+impl PartialEq<VertexIndex> for &'_ Child {
+    fn eq(&self, other: &VertexIndex) -> bool {
+        self.index == *other
+    }
+}
+impl PartialEq<VertexIndex> for &'_ mut Child {
+    fn eq(&self, other: &VertexIndex) -> bool {
+        self.index == *other
+    }
+}
+impl Borrow<VertexIndex> for Child {
     fn borrow(&self) -> &VertexIndex {
         &self.index
     }
 }
-impl std::borrow::Borrow<VertexIndex> for &'_ Child {
+impl Borrow<VertexIndex> for &'_ Child {
     fn borrow(&self) -> &VertexIndex {
         &self.index
     }
 }
+impl Borrow<VertexIndex> for &'_ mut Child {
+    fn borrow(&self) -> &VertexIndex {
+        &self.index
+    }
+}
+
+//impl<T: Borrow<Child>>  Borrow<Child> for &T {
+//    fn borrow(&self) -> &VertexIndex {
+//        &self.index
+//    }
+//}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VertexData {
     pub width: TokenPosition,
@@ -144,8 +170,8 @@ impl VertexData {
     pub fn get_width(&self) -> TokenPosition {
         self.width
     }
-    pub fn get_parent(&self, index: &VertexIndex) -> Option<&Parent> {
-        self.parents.get(index)
+    pub fn get_parent(&self, index: impl Borrow<VertexIndex>) -> Option<&Parent> {
+        self.parents.get(index.borrow())
     }
     pub fn get_parents(&self) -> &VertexParents {
         &self.parents
@@ -183,21 +209,21 @@ impl VertexData {
         self.children.insert(id, pat);
         id
     }
-    pub fn add_parent(&mut self, vertex: VertexIndex, width: TokenPosition, pattern: usize, index: PatternId) {
-        if let Some(parent) = self.parents.get_mut(&vertex) {
+    pub fn add_parent(&mut self, vertex: impl Borrow<VertexIndex>, width: TokenPosition, pattern: usize, index: PatternId) {
+        if let Some(parent) = self.parents.get_mut(vertex.borrow()) {
             parent.add_pattern_index(pattern, index);
         } else {
             let mut parent = Parent::new(width);
             parent.add_pattern_index(pattern, index);
-            self.parents.insert(vertex, parent);
+            self.parents.insert(*vertex.borrow(), parent);
         }
     }
-    pub fn remove_parent(&mut self, vertex: VertexIndex, pattern: usize, index: PatternId) {
-        if let Some(parent) = self.parents.get_mut(&vertex) {
+    pub fn remove_parent(&mut self, vertex: impl Borrow<VertexIndex>, pattern: usize, index: PatternId) {
+        if let Some(parent) = self.parents.get_mut(vertex.borrow()) {
             if parent.pattern_indices.len() > 1 {
                 parent.remove_pattern_index(pattern, index);
             } else {
-                self.parents.remove(&vertex);
+                self.parents.remove(vertex.borrow());
             }
         }
     }
@@ -220,15 +246,15 @@ impl VertexData {
     }
     pub fn filter_parent(
         &self,
-        parent_index: VertexIndex,
+        parent_index: impl Borrow<VertexIndex>,
         cond: impl Fn(&&Parent) -> bool,
         ) -> Option<&'_ Parent> {
-        self.get_parent(&parent_index)
+        self.get_parent(parent_index.borrow())
             .filter(cond)
     }
     pub fn get_parent_starting_at(
         &self,
-        parent_index: VertexIndex,
+        parent_index: impl Borrow<VertexIndex>,
         offset: PatternId,
         ) -> Option<&'_ Parent> {
         self.filter_parent(parent_index, |parent|
@@ -237,7 +263,7 @@ impl VertexData {
     }
     pub fn get_parent_ending_at(
         &self,
-        parent_index: VertexIndex,
+        parent_index: impl Borrow<VertexIndex>,
         offset: PatternId,
         ) -> Option<&'_ Parent> {
         self.filter_parent(parent_index, |parent|
@@ -248,13 +274,13 @@ impl VertexData {
     }
     pub fn get_parent_at_prefix_of(
         &self,
-        index: VertexIndex,
+        index: impl Borrow<VertexIndex>,
         ) -> Option<&'_ Parent> {
         self.get_parent_starting_at(index, 0)
     }
     pub fn get_parent_at_postfix_of(
         &self,
-        index: VertexIndex,
+        index: impl Borrow<VertexIndex>,
         ) -> Option<&'_ Parent> {
         self.filter_parent(index, |parent|
             parent.width.checked_sub(self.width)

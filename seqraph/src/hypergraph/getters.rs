@@ -9,36 +9,36 @@ use std::borrow::Borrow;
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub fn get_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> Option<(&VertexKey<T>, &VertexData)> {
+    pub fn get_vertex(&self, index: impl Borrow<VertexIndex>) -> Option<(&VertexKey<T>, &VertexData)> {
         self.graph.get_index(*index.borrow())
     }
-    pub fn get_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
+    pub fn get_vertex_mut(&mut self, index: impl Borrow<VertexIndex>) -> Option<(&mut VertexKey<T>, &mut VertexData)> {
         self.graph.get_index_mut(*index.borrow())
     }
-    pub fn expect_vertex<I: Borrow<VertexIndex>>(&self, index: I) -> (&VertexKey<T>, &VertexData) {
+    pub fn expect_vertex(&self, index: impl Borrow<VertexIndex>) -> (&VertexKey<T>, &VertexData) {
         let index = *index.borrow();
         self.get_vertex(index).unwrap_or_else(|| panic!("Index {} does not exist!", index))
     }
-    pub fn expect_vertex_mut<I: Borrow<VertexIndex>>(&mut self, index: I) -> (&mut VertexKey<T>, &mut VertexData) {
+    pub fn expect_vertex_mut(&mut self, index: impl Borrow<VertexIndex>) -> (&mut VertexKey<T>, &mut VertexData) {
         let index = *index.borrow();
         self.get_vertex_mut(index).unwrap_or_else(|| panic!("Index {} does not exist!", index))
     }
-    pub fn get_vertex_key<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexKey<T>> {
+    pub fn get_vertex_key(&self, index: impl Borrow<VertexIndex>) -> Option<&VertexKey<T>> {
         self.get_vertex(index).map(|entry| entry.0)
     }
-    pub fn expect_vertex_key<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexKey<T> {
+    pub fn expect_vertex_key(&self, index: impl Borrow<VertexIndex>) -> &VertexKey<T> {
         self.expect_vertex(index).0
     }
-    pub fn get_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> Option<&VertexData> {
+    pub fn get_vertex_data(&self, index: impl Borrow<VertexIndex>) -> Option<&VertexData> {
         self.get_vertex(index).map(|(_, v)| v)
     }
-    pub fn get_vertex_data_mut(&mut self, index: VertexIndex) -> Option<&mut VertexData> {
+    pub fn get_vertex_data_mut(&mut self, index: impl Borrow<VertexIndex>) -> Option<&mut VertexData> {
         self.get_vertex_mut(index).map(|(_, v)| v)
     }
-    pub fn expect_vertex_data<I: Borrow<VertexIndex>>(&self, index: I) -> &VertexData {
+    pub fn expect_vertex_data(&self, index: impl Borrow<VertexIndex>) -> &VertexData {
         self.expect_vertex(index).1
     }
-    pub fn expect_vertex_data_mut(&mut self, index: VertexIndex) -> &mut VertexData {
+    pub fn expect_vertex_data_mut(&mut self, index: impl Borrow<VertexIndex>) -> &mut VertexData {
         self.expect_vertex_mut(index).1
     }
     pub fn get_vertex_data_by_key(&self, key: &VertexKey<T>) -> Option<&VertexData> {
@@ -68,12 +68,12 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn vertex_data_iter_mut(&mut self) -> impl Iterator<Item=&mut VertexData> {
         self.graph.values_mut()
     }
-    pub fn expect_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> VertexPatternView<'_> {
+    pub fn expect_vertices(&self, indices: impl Iterator<Item=impl Borrow<VertexIndex>>) -> VertexPatternView<'_> {
         indices
             .map(move |index| self.expect_vertex_data(index))
             .collect()
     }
-    pub fn get_vertices<I: Borrow<VertexIndex>>(&self, indices: impl Iterator<Item=I>) -> Option<VertexPatternView<'_>> {
+    pub fn get_vertices(&self, indices: impl Iterator<Item=impl Borrow<VertexIndex>>) -> Option<VertexPatternView<'_>> {
         indices
             .map(move |index| self.get_vertex_data(index))
             .collect()
@@ -113,5 +113,11 @@ impl<'t, 'a, T> Hypergraph<T>
             v.push(index);
         }
         Some(v)
+    }
+    pub fn to_child(&self, index: impl Borrow<VertexIndex>) -> Child {
+        Child::new(*index.borrow(), self.index_width(&index))
+    }
+    pub fn to_children(&self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> Pattern {
+        indices.into_iter().map(|i| self.to_child(i)).collect()
     }
 }

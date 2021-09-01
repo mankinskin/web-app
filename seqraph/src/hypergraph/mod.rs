@@ -1,12 +1,15 @@
-use std::fmt::Debug;
 use crate::{
     token::{
         Token,
         Tokenize,
     },
 };
-use std::borrow::Borrow;
-use std::collections::HashMap;
+use std::{
+    borrow::Borrow,
+    collections::HashMap,
+    fmt::Debug,
+    ops::Deref,
+};
 use itertools::{
     Itertools,
 };
@@ -33,8 +36,8 @@ pub struct Hypergraph<T: Tokenize> {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub fn index_width(&self, index: VertexIndex) -> TokenPosition {
-        self.expect_vertex_data(index).width
+    pub fn index_width(&self, index: &impl Borrow<VertexIndex>) -> TokenPosition {
+        self.expect_vertex_data(index.borrow()).width
     }
     pub fn vertex_count(&self) -> usize {
         self.graph.len()
@@ -109,7 +112,7 @@ impl<'t, 'a, T> Hypergraph<T>
                 self.pattern_string(data.expect_any_pattern()),
         }
     }
-    pub fn index_string(&self, index: VertexIndex) -> String {
+    pub fn index_string(&self, index: impl Borrow<VertexIndex>) -> String {
         let (key, data) = self.expect_vertex(index);
         self.key_data_string(key, data)
     }
@@ -118,8 +121,8 @@ impl<'t, 'a, T> Hypergraph<T>
         self.key_data_string(key, data)
     }
 }
-pub fn pattern_width(pat: impl IntoIterator<Item=impl Borrow<Child>>) -> TokenPosition {
-    pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
+pub fn pattern_width<T: Deref<Target=impl Borrow<Child>>>(pat: impl IntoIterator<Item=T>) -> TokenPosition {
+    pat.into_iter().fold(0, |acc, child| acc + child.deref().borrow().get_width())
 }
 pub fn prefix(
     pattern: PatternView<'_>,
@@ -151,26 +154,26 @@ mod tests {
     };
     type Context = (
                 Hypergraph<char>,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
-                VertexIndex,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
+                Child,
                 );
     lazy_static::lazy_static! {
         pub static ref 

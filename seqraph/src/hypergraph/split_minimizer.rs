@@ -6,7 +6,6 @@ use crate::{
         Hypergraph,
         split::Split,
         Child,
-        pattern_width,
         search::FoundRange,
         index_splitter::{
             IndexSplit,
@@ -14,7 +13,6 @@ use crate::{
     },
     token::Tokenize,
 };
-use std::num::NonZeroUsize;
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct SplitMinimizer;
@@ -154,7 +152,7 @@ impl SplitMinimizer {
             //println!("Created index for: {}",
             //    hypergraph.index_string(index),
             //);
-            let width = hypergraph.index_width(index);
+            let width = hypergraph.index_width(&index);
             let child = Child::new(index, width);
             vec![child]
         } else {

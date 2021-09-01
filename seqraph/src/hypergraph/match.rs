@@ -176,19 +176,19 @@ mod tests {
             _ababab,
             _ababababcdefghi,
             ) = &*context();
-        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
-        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
-        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
-        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
-        let abcd_pattern = &[Child::new(abcd, 4)];
-        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
-        let b_pattern = &[Child::new(b, 1)];
-        let bc_pattern = &[Child::new(bc, 2)];
-        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
-        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-        let a_b_pattern = &[Child::new(a, 1), Child::new(b, 1)];
-        let bc_d_pattern = &[Child::new(bc, 2), Child::new(d, 1)];
+        let a_bc_pattern = &[*a, *bc];
+        let ab_c_pattern = &[*ab, *c];
+        let abc_d_pattern = &[*abc, *d];
+        let a_bc_d_pattern = &[*a, *bc, *d];
+        let ab_c_d_pattern = &[*ab, *c, *d];
+        let abcd_pattern = &[*abcd];
+        let b_c_pattern = &[*b, *c];
+        let b_pattern = &[*b];
+        let bc_pattern = &[*bc];
+        let a_d_c_pattern = &[*a, *d, *c];
+        let a_b_c_pattern = &[*a, *b, *c];
+        let a_b_pattern = &[*a, *b];
+        let bc_d_pattern = &[*bc, *d];
         assert_eq!(graph.compare_pattern_postfix(a_bc_pattern, ab_c_pattern), Some(PatternMatch::Matching));
         assert_eq!(graph.compare_pattern_postfix(ab_c_pattern, a_bc_pattern), Some(PatternMatch::Matching));
 

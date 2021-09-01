@@ -23,7 +23,7 @@ use tracing::debug;
 pub mod edge;
 pub mod node;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Graph<N, E>
 where
     N: NodeData,
@@ -36,11 +36,6 @@ where
     N: NodeData,
     E: EdgeData,
 {
-    pub fn new() -> Self {
-        Self {
-            graph: DiGraph::new(),
-        }
-    }
     /// Nodes
 
     /// Return a NodeIndex for a node with NodeData
@@ -49,17 +44,15 @@ where
             //debug!("Found node for element {:?} with index {}", element, i.index());
             i
         } else {
-            let i = self.graph.add_node(element.clone());
+            self.graph.add_node(element.clone())
             //debug!("Added element node {:?} with index {}", element, i.index());
-            i
         }
     }
     /// Find NodeIndex for NodeData, if any
     pub fn find_node_index<T: PartialEq<N> + Debug>(&self, element: T) -> Option<NodeIndex> {
         //debug!("Finding node index for element {:?}", element);
-        let i = self.node_indices().find(|i| element == self.graph[*i]);
+        self.node_indices().find(|i| element == self.graph[*i])
         //debug!("Found {:?}", i.map(|i| i.index()));
-        i
     }
     /// Return NodeWeight for NodeData, if any
     pub fn find_node_weight<T: PartialEq<N> + Debug>(&self, element: T) -> Option<N> {
@@ -115,12 +108,11 @@ where
     /// Return an EdgeIndex for an edge with weight between NodeIndices
     pub fn edge(&mut self, li: NodeIndex, ri: NodeIndex, w: E) -> EdgeIndex {
         let i = self.find_edge_index(li, ri, &w);
-        let i = if let Some(i) = i {
+        if let Some(i) = i {
             i
         } else {
             self.graph.add_edge(li, ri, w)
-        };
-        i
+        }
     }
     /// Add a new edge with weight between NodeDatas
     pub fn node_edge(&mut self, l: &N, r: &N, w: E) -> EdgeIndex {
@@ -229,7 +221,7 @@ where
         let mut path: PathBuf = name.into();
         path.set_extension("dot");
         //path.canonicalize()?;
-        path.parent().map(|p| std::fs::create_dir_all(p.clone()));
+        path.parent().map(std::fs::create_dir_all);
         std::fs::write(path, format!("{:?}", Dot::new(&self.graph)))
     }
 }
@@ -240,7 +232,7 @@ impl<'a, N: NodeData> Graph<N, usize> {
         es: impl Iterator<Item = EdgeIndex>,
     ) -> Vec<Vec<EdgeIndex>> {
         let es = es
-            .filter_map(|i| Some((i.clone(), self.edge_weight(i).cloned()?)))
+            .filter_map(|i| Some((i, self.edge_weight(i).cloned()?)))
             .collect::<Vec<_>>();
         let mut r = Vec::new();
         if let Some(&max) = es.iter().map(|(_, d)| d).max() {
@@ -248,7 +240,7 @@ impl<'a, N: NodeData> Graph<N, usize> {
                 r.push(
                     es.iter()
                         .filter(|(_, dist)| *dist == d)
-                        .map(|(i, _)| i.clone())
+                        .map(|(i, _)| *i)
                         .collect(),
                 )
             }
@@ -320,7 +312,7 @@ mod tests {
         static ref ELEMS: Vec<char> = Vec::from(['a', 'b', 'c']);
         static ref EDGES: Vec<(char, char, usize)> =
             Vec::from([('a', 'b', 1), ('b', 'c', 2), ('c', 'a', 3)]);
-        static ref G: Mutex<Graph<char, usize>> = Mutex::new(Graph::new());
+        static ref G: Mutex<Graph<char, usize>> = Mutex::new(Graph::default());
         static ref NODE_INDICES: Vec<NodeIndex> = {
             let mut g = G.lock().unwrap();
             ELEMS.iter().map(|e| g.node(e)).collect()
@@ -329,7 +321,7 @@ mod tests {
             let mut g = G.lock().unwrap();
             EDGES
                 .iter()
-                .map(|(l, r, w)| g.node_edge(l, r, w.clone()))
+                .map(|(l, r, w)| g.node_edge(l, r, *w))
                 .collect()
         };
     }

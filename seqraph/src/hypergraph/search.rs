@@ -94,7 +94,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: PatternView<'a>,
+        pattern: PatternView<'_>,
         ) -> Option<(VertexIndex, FoundRange)> {
         let index = pattern.get(0)?.get_index();
         if pattern.len() == 1 {
@@ -153,20 +153,17 @@ mod tests {
         let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
         let bc_pattern = &[Child::new(bc, 2)];
         let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-        assert_eq!(graph.find_pattern(bc_pattern), Some((*bc, FoundRange::Complete)));
-        assert_eq!(graph.find_pattern(b_c_pattern), Some((*bc, FoundRange::Complete)));
-        assert_eq!(graph.find_pattern(a_bc_pattern), Some((*abc, FoundRange::Complete)));
-        assert_eq!(graph.find_pattern(ab_c_pattern), Some((*abc, FoundRange::Complete)));
-        assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((*abcd, FoundRange::Complete)));
-        assert_eq!(graph.find_pattern(a_b_c_pattern), Some((*abc, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(bc_pattern), Some((bc.index, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(b_c_pattern), Some((bc.index, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(a_bc_pattern), Some((abc.index, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(ab_c_pattern), Some((abc.index, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(a_bc_d_pattern), Some((abcd.index, FoundRange::Complete)));
+        assert_eq!(graph.find_pattern(a_b_c_pattern), Some((abc.index, FoundRange::Complete)));
         let a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern = &[
-            Child::new(a, 1), Child::new(b, 1), Child::new(a, 1), Child::new(b, 1),
-            Child::new(a, 1), Child::new(b, 1), Child::new(a, 1), Child::new(b, 1),
-            Child::new(c, 1), Child::new(d, 1), Child::new(e, 1), Child::new(f, 1),
-            Child::new(g, 1), Child::new(h, 1), Child::new(i, 1)
+            *a, *b, *a, *b, *a, *b, *a, *b, *c, *d, *e, *f, *g, *h, *i
         ];
-        assert_eq!(graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern), Some((*ababababcdefghi, FoundRange::Complete)));
-        let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(*c, 1)]].concat();
+        assert_eq!(graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern), Some((ababababcdefghi.index, FoundRange::Complete)));
+        let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(c, 1)]].concat();
         assert_eq!(graph.find_pattern(a_b_c_c_pattern), None);
     }
     #[test]
@@ -194,8 +191,8 @@ mod tests {
             _ababab,
             ababababcdefghi,
             ) = &*context();
-        assert_eq!(graph.find_sequence("a".chars()), Some((*a, FoundRange::Complete)), "a");
-        assert_eq!(graph.find_sequence("abc".chars()), Some((*abc, FoundRange::Complete)), "abc");
-        assert_eq!(graph.find_sequence("ababababcdefghi".chars()), Some((*ababababcdefghi, FoundRange::Complete)), "ababababcdefghi");
+        assert_eq!(graph.find_sequence("a".chars()), Some((a.index, FoundRange::Complete)), "a");
+        assert_eq!(graph.find_sequence("abc".chars()), Some((abc.index, FoundRange::Complete)), "abc");
+        assert_eq!(graph.find_sequence("ababababcdefghi".chars()), Some((ababababcdefghi.index, FoundRange::Complete)), "ababababcdefghi");
     }
 }

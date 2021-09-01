@@ -19,16 +19,17 @@ impl<'t, 'a, T> Hypergraph<T>
         VERTEX_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
     /// insert single token node
-    pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> VertexIndex {
+    pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> Child {
         // TODO: return error if exists (don't overwrite by default)
-        self.graph.insert_full(key, data).0
+        let width = data.width;
+        Child::new(self.graph.insert_full(key, data).0, width)
     }
     /// insert single token node
-    pub fn insert_token(&mut self, token: Token<T>) -> VertexIndex {
+    pub fn insert_token(&mut self, token: Token<T>) -> Child {
         self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
     }
     /// insert multiple token nodes
-    pub fn insert_tokens(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Vec<VertexIndex> {
+    pub fn insert_tokens(&mut self, tokens: impl IntoIterator<Item=Token<T>>) -> Vec<Child> {
         tokens.into_iter()
             .map(|token|
                 self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
@@ -52,23 +53,23 @@ impl<'t, 'a, T> Hypergraph<T>
         (width, a, b)
     }
     /// adds a parent to all nodes in a pattern
-    fn add_parents_to_pattern_nodes(&mut self, pattern: Vec<VertexIndex>, parent_index: VertexIndex, width: TokenPosition, pattern_id: PatternId) {
+    fn add_parents_to_pattern_nodes(&mut self, pattern: Vec<VertexIndex>, parent_index: impl Borrow<VertexIndex>, width: TokenPosition, pattern_id: PatternId) {
         for (i, child_index) in pattern.into_iter().enumerate() {
             let node = self.expect_vertex_data_mut(child_index);
-            node.add_parent(parent_index, width, pattern_id, i);
+            node.add_parent(parent_index.borrow(), width, pattern_id, i);
         }
     }
     /// add pattern to existing node
-    pub fn add_pattern_to_node(&mut self, index: VertexIndex, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> PatternId {
+    pub fn add_pattern_to_node(&mut self, index: impl Borrow<VertexIndex>, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> PatternId {
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
-        let data = self.expect_vertex_data_mut(index);
+        let data = self.expect_vertex_data_mut(index.borrow());
         let pattern_id = data.add_pattern(&children);
-        self.add_parents_to_pattern_nodes(indices, index, width, pattern_id);
+        self.add_parents_to_pattern_nodes(indices, index.borrow(), width, pattern_id);
         pattern_id
     }
     /// create new node from a pattern
-    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> VertexIndex {
+    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> Child {
         // todo check if exists already
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
@@ -80,13 +81,13 @@ impl<'t, 'a, T> Hypergraph<T>
         index
     }
     /// create new node from multiple patterns
-    pub fn insert_patterns(&mut self, patterns: impl IntoIterator<Item=impl IntoIterator<Item=impl Borrow<VertexIndex>>>) -> VertexIndex {
+    pub fn insert_patterns(&mut self, patterns: impl IntoIterator<Item=impl IntoIterator<Item=impl Borrow<VertexIndex>>>) -> Child {
         // todo handle token nodes
         let mut patterns = patterns.into_iter();
         let first = patterns.next().unwrap();
         let node = self.insert_pattern(first);
         for pat in patterns {
-            self.add_pattern_to_node(node, pat);
+            self.add_pattern_to_node(&node, pat);
         }
         node
     }
