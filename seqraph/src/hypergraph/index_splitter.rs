@@ -60,8 +60,8 @@ impl SplitKey {
 }
 #[derive(Debug, Eq, Clone, Ord, PartialOrd)]
 pub struct SplitHalf {
-    context: Pattern,
-    inner: Vec<SplitHalf>,
+    pub(crate) context: Pattern,
+    pub(crate) inner: Vec<SplitHalf>,
 }
 impl SplitHalf {
     pub fn new<T: Into<SplitHalf>, I: IntoIterator<Item=T>>(context: Pattern, inner: I) -> Self {
@@ -95,68 +95,76 @@ impl PartialEq for SplitHalf {
         }
     }
 }
-#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub struct PatternSplit {
-    left: SplitHalf,
-    right: SplitHalf,
+    pub(crate) prefix: Pattern,
+    pub(crate) inner: IndexSplit,
+    pub(crate) postfix: Pattern,
 }
 impl PatternSplit {
-    pub fn new(left: SplitHalf, right: SplitHalf) -> Self {
+    pub fn new(prefix: Pattern, inner: impl Into<IndexSplit>, postfix: Pattern) -> Self {
         Self {
-            left,
-            right,
+            prefix,
+            inner: inner.into(),
+            postfix,
         }
     }
 }
-impl<T: Into<SplitHalf>> From<(T, T)> for PatternSplit {
-    fn from((left, right): (T, T)) -> Self {
-        Self {
-            left: left.into(),
-            right: right.into(),
-        }
-    }
-}
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Ord, PartialOrd, Default)]
 pub struct IndexSplit {
-    pattern_splits: Vec<PatternSplit>
+    pub(crate) splits: Vec<PatternSplit>,
 }
 impl IndexSplit {
+    pub fn new(inner: impl IntoIterator<Item=impl Into<PatternSplit>>) -> Self {
+        Self {
+            splits: inner.into_iter().map(Into::into).collect(),
+        }
+    }
     fn add_split<T: Into<PatternSplit>>(&mut self, split: T) {
-        self.pattern_splits.push(split.into());
+        self.splits.push(split.into());
     }
     fn into_split_halves(self) -> (Vec<SplitHalf>, Vec<SplitHalf>) {
-        self.pattern_splits
+        self.splits
             .into_iter()
-            .map(|pattern_split| (pattern_split.left, pattern_split.right))
+            .map(|split| (split.prefix, split.inner.into_split_halves(), split.postfix))
+            .map(|(pre, (left, right), post)| (
+                SplitHalf::new(pre, left),
+                SplitHalf::new(post, right)
+            ))
             .unzip()
     }
 }
 impl PartialEq for IndexSplit {
     fn eq(&self, other: &Self) -> bool {
-        let a: BTreeSet<_> = self.pattern_splits.iter().collect();
-        let b: BTreeSet<_> = other.pattern_splits.iter().collect();
+        let a: BTreeSet<_> = self.splits.iter().collect();
+        let b: BTreeSet<_> = other.splits.iter().collect();
         a == b
     }
 }
-impl From<Split> for IndexSplit {
-    fn from(split: Split) -> Self {
+impl From<Split> for PatternSplit {
+    fn from((prefix, postfix): Split) -> Self {
         Self {
-            pattern_splits: vec![PatternSplit::from(split)],
+            prefix,
+            inner: Default::default(),
+            postfix,
         }
+    }
+}
+impl<T: Into<IndexSplit>> From<(Pattern, T, Pattern)> for PatternSplit {
+    fn from((prefix, inner, postfix): (Pattern, T, Pattern)) -> Self {
+        Self::new(prefix, inner, postfix)
     }
 }
 impl<T: Into<PatternSplit>> From<Vec<T>> for IndexSplit {
     fn from(splits: Vec<T>) -> Self {
         Self {
-            pattern_splits: splits.into_iter().map(Into::into).collect(),
+            splits: splits.into_iter().map(Into::into).collect(),
         }
     }
 }
-impl<T: Into<SplitHalf>> From<(Vec<T>, Vec<T>)> for IndexSplit {
-    fn from((left, right): (Vec<T>, Vec<T>)) -> Self {
-        Self {
-            pattern_splits: left.into_iter().zip(right).map(Into::into).collect(),
-        }
+impl<T: Into<PatternSplit>> From<T> for IndexSplit {
+    fn from(split: T) -> Self {
+        Self::from(vec![split])
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
@@ -196,16 +204,16 @@ impl IndexSplitter {
     }
     fn perform_child_splits<T: Tokenize + std::fmt::Display>(&mut self, hypergraph: &Hypergraph<T>, child_splits: Vec<SplitContext>) -> IndexSplit {
         let splits: Vec<PatternSplit> = child_splits.into_iter().map(|SplitContext {
-            context: (left_context, right_context),
+            context: (prefix, postfix),
             key,
         }| {
             // recurse
             let index_split = self.get_index_split(hypergraph, key);
-            let (left, right) = index_split.into_split_halves();
-            PatternSplit::new(
-                SplitHalf::new(left_context, left),
-                SplitHalf::new(right_context, right),
-            )
+            PatternSplit::from((
+                prefix,
+                index_split,
+                postfix,
+            ))
         }).collect();
         IndexSplit::from(splits)
     }
@@ -341,12 +349,14 @@ mod tests {
             //assert_eq!(right, cd_pattern, "right");
             assert_eq!(index_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![ab_pattern]),
-                    SplitHalf::new(d_pattern, vec![c_pattern]),
+                    vec![],
+                    vec![(ab_pattern, c_pattern)],
+                    d_pattern,
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(a_pattern, vec![b_pattern]),
-                    SplitHalf::new(vec![], vec![cd_pattern]),
+                    a_pattern,
+                    vec![(b_pattern, cd_pattern)],
+                    vec![],
                 ),
             ]));
         } else {
@@ -393,24 +403,20 @@ mod tests {
             let index_split = IndexSplitter::build_index_split(&graph, xabyz, NonZeroUsize::new(2).unwrap());
             assert_eq!(index_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
-                        x_a_pattern
-                    ]),
-                    SplitHalf::new(z_pattern, vec![
-                        by_pattern
-                    ]),
+                    vec![],
+                    vec![(x_a_pattern, by_pattern)],
+                    z_pattern,
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(x_pattern, vec![
-                            a_pattern
-                        ]),
-                    ]),
-                    SplitHalf::new(yz_pattern, vec![
-                        SplitHalf::new(vec![], vec![
-                            b_pattern
-                        ]),
-                    ]),
+                    vec![],
+                    vec![
+                        PatternSplit::new(
+                            x_pattern,
+                            vec![(a_pattern, b_pattern)],
+                            vec![],
+                        ),
+                    ],
+                    yz_pattern,
                 ),
             ]));
         } else {
@@ -456,26 +462,32 @@ mod tests {
             let by_pattern = vec![by];
             let yz_pattern = vec![yz];
             let index_split = IndexSplitter::build_index_split(&graph, wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
-            assert_eq!(index_split, IndexSplit::from(vec![
-                PatternSplit::new(
-                    SplitHalf::new(w_pattern, vec![
-                        SplitHalf::new(vec![], vec![
-                            xa_pattern.clone(),
-                        ]),
-                        SplitHalf::new(vec![], vec![
-                            xa_pattern,
-                        ]),
-                    ]),
-                    SplitHalf::new(ab_by_xabyz_pattern, vec![
-                        SplitHalf::new(z_pattern, vec![
-                            by_pattern
-                        ]),
-                        SplitHalf::new(yz_pattern, vec![
-                            b_pattern
-                        ]),
-                    ]),
-                ),
-            ]));
+            assert_eq!(index_split, IndexSplit::from((
+                w_pattern,
+                vec![
+                    PatternSplit::new(
+                        vec![],
+                        vec![
+                            PatternSplit::from((
+                                xa_pattern.clone(),
+                                b_pattern,
+                            )),
+                        ],
+                        yz_pattern,
+                    ),
+                    PatternSplit::new(
+                        vec![],
+                        vec![
+                            PatternSplit::from((
+                                xa_pattern,
+                                by_pattern,
+                            )),
+                        ],
+                        z_pattern,
+                    ),
+                ],
+                ab_by_xabyz_pattern,
+            )));
         } else {
             panic!();
         }
@@ -533,68 +545,67 @@ mod tests {
             let wxabyz_split = IndexSplitter::build_index_split(&graph, wxabyz, NonZeroUsize::new(3).unwrap());
             assert_eq!(wxabyz_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(w_pattern.clone(), vec![
-                            SplitHalf::from(x_a_pattern.clone()),
-                        ]),
-                        SplitHalf::new(vec![], vec![
-                            SplitHalf::new(wx_pattern.clone(), vec![
-                                a_pattern.clone(),
-                            ]),
-                            SplitHalf::new(w_pattern.clone(), vec![
-                                SplitHalf::new(x_pattern.clone(), vec![
-                                    a_pattern.clone(),
-                                ]),
-                            ]),
-                        ]),
-                        SplitHalf::from(wx_a_pattern),
-                    ]),
-                    SplitHalf::new(z_pattern.clone(), vec![
-                        SplitHalf::new(vec![], vec![
-                            SplitHalf::from(by_pattern.clone()),
-                        ]),
-                        SplitHalf::new(y_pattern, vec![
-                            SplitHalf::new(vec![], vec![
-                                SplitHalf::new(vec![], vec![
-                                    b_pattern.clone(),
-                                ]),
-                            ]),
-                            SplitHalf::new(vec![], vec![
-                                b_pattern.clone(),
-                            ]),
-                        ]),
-                        SplitHalf::from(by_pattern.clone()),
-                    ]),
+                    wx_pattern.clone(),
+                    (a_pattern.clone(), b_pattern.clone()),
+                    yz_pattern.clone(),
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(w_pattern, vec![
-                        SplitHalf::new(vec![], vec![
-                            SplitHalf::new(x_pattern, vec![
-                                a_pattern.clone(),
-                            ]),
-                        ]),
-                        SplitHalf::new(vec![], vec![
-                            x_a_pattern,
-                        ]),
-                    ]),
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(yz_pattern.clone(), vec![
-                            SplitHalf::new(vec![], vec![
-                                b_pattern.clone(),
-                            ]),
-                        ]),
-                        SplitHalf::new(z_pattern, vec![
-                            by_pattern,
-                        ]),
-                    ]),
+                    vec![],
+                    vec![
+                        PatternSplit::new(
+                            w_pattern.clone(),
+                            (x_a_pattern.clone(), by_pattern.clone()),
+                            vec![],
+                        ),
+                        PatternSplit::from((
+                            wx_a_pattern,
+                            by_pattern.clone(),
+                        )),
+                        PatternSplit::new(
+                            vec![],
+                            vec![
+                                PatternSplit::from((
+                                    wx_pattern,
+                                    PatternSplit::from((
+                                        a_pattern.clone(),
+                                        b_pattern.clone(),
+                                    )),
+                                    vec![],
+                                )),
+                                PatternSplit::from((
+                                    w_pattern.clone(),
+                                    PatternSplit::from((
+                                        x_pattern.clone(),
+                                        (a_pattern.clone(), b_pattern.clone()),
+                                        vec![],
+                                    )),
+                                    vec![],
+                                )),
+                            ],
+                            y_pattern,
+                        ),
+                    ],
+                    z_pattern.clone(),
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(wx_pattern, vec![
-                        a_pattern,
-                    ]),
-                    SplitHalf::new(yz_pattern, vec![
-                        b_pattern,
-                    ]),
+                    w_pattern,
+                    vec![
+                        PatternSplit::new(
+                            vec![],
+                            PatternSplit::new(
+                                x_pattern,
+                                (a_pattern, b_pattern),
+                                vec![]
+                            ),
+                            yz_pattern,
+                        ),
+                        PatternSplit::new(
+                            vec![],
+                            (x_a_pattern, by_pattern),
+                            z_pattern,
+                        ),
+                    ],
+                    vec![]
                 ),
             ]), "wxabyz");
         } else {
@@ -662,120 +673,117 @@ mod tests {
             let wxab_split = IndexSplitter::build_index_split_complete(&graph, wxab, NonZeroUsize::new(3).unwrap());
             let xaby_split = IndexSplitter::build_index_split_complete(&graph, xaby, NonZeroUsize::new(2).unwrap());
             let xab_split = IndexSplitter::build_index_split_complete(&graph, xab, NonZeroUsize::new(2).unwrap());
-            assert_eq!(xab_split, IndexSplit::from(vec![
-                PatternSplit::new(
-                    SplitHalf::new(x_pattern.clone(), vec![
-                        a_pattern.clone(),
-                    ]),
-                    SplitHalf::new(vec![], vec![
-                        b_pattern.clone(),
-                    ]),
+            assert_eq!(xab_split, IndexSplit::from((
+                x_pattern.clone(),
+                (
+                    a_pattern.clone(),
+                    b_pattern.clone(),
                 ),
-            ]), "xab");
-            assert_eq!(xaby_split, IndexSplit::from(vec![
-                PatternSplit::new(
-                    SplitHalf::from(x_a_pattern.clone()),
-                    SplitHalf::from(by_pattern.clone()),
-                ),
-            ]), "xaby");
+                vec![]
+            )), "xab");
+            //graph.print_index_split(&wxabyz_split);
+            assert_eq!(xaby_split, IndexSplit::from((
+                x_a_pattern.clone(),
+                by_pattern.clone(),
+            )), "xaby");
             assert_eq!(wxab_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(wx_pattern.clone(), vec![
+                    wx_pattern.clone(),
+                    (
                         a_pattern.clone(),
-                    ]),
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::from(b_pattern.clone()),
-                    ]),
+                        b_pattern.clone(),
+                    ),
+                    vec![],
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(w_pattern.clone(), vec![
-                        SplitHalf::new(x_pattern.clone(), vec![
+                    w_pattern.clone(),
+                    PatternSplit::new(
+                        x_pattern.clone(),
+                        (
                             a_pattern.clone(),
-                        ]),
-                    ]),
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(vec![], vec![
-                            SplitHalf::from(b_pattern.clone()),
-                        ]),
-                    ]),
+                            b_pattern.clone(),
+                        ),
+                        vec![],
+                    ),
+                    vec![],
                 ),
             ]), "wxab");
             assert_eq!(wxaby_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(w_pattern.clone(), vec![
-                        SplitHalf::from(x_a_pattern.clone()),
-                    ]),
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::from(by_pattern.clone()),
-                    ]),
+                    w_pattern.clone(),
+                    (
+                        x_a_pattern.clone(),
+                        by_pattern.clone(),
+                    ),
+                    vec![],
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(wx_pattern.clone(), vec![
-                            a_pattern.clone(),
-                        ]),
-                        SplitHalf::new(w_pattern.clone(), vec![
-                            SplitHalf::new(x_pattern.clone(), vec![
+                    vec![],
+                    vec![
+                        PatternSplit::new(
+                            wx_pattern.clone(),
+                            (
                                 a_pattern.clone(),
-                            ]),
-                        ]),
-                    ]),
-                    SplitHalf::new(y_pattern, vec![
-                        SplitHalf::new(vec![], vec![
-                            SplitHalf::new(vec![], vec![
                                 b_pattern.clone(),
-                            ]),
-                        ]),
-                        SplitHalf::new(vec![], vec![
-                            b_pattern.clone(),
-                        ]),
-                    ]),
+                            ),
+                            vec![],
+                        ),
+                        PatternSplit::new(
+                            w_pattern.clone(),
+                            PatternSplit::new(
+                                x_pattern.clone(),
+                                (
+                                    a_pattern.clone(),
+                                    b_pattern.clone(),
+                                ),
+                                vec![],
+                            ),
+                            vec![],
+                        ),
+                    ],
+                    y_pattern
                 ),
-                PatternSplit::new(
-                    SplitHalf::from(wx_a_pattern),
-                    SplitHalf::from(by_pattern.clone()),
+                PatternSplit::from(
+                    (wx_a_pattern, by_pattern.clone())
                 ),
             ]), "wxaby");
             assert_eq!(xabyz_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
-                        SplitHalf::new(x_pattern, vec![
+                    vec![],
+                    PatternSplit::new(
+                        x_pattern,
+                        (
                             a_pattern.clone(),
-                        ]),
-                    ]),
-                    SplitHalf::new(yz_pattern.clone(), vec![
-                        SplitHalf::new(vec![], vec![
                             b_pattern.clone(),
-                        ]),
-                    ]),
+                        ),
+                        vec![],
+                    ),
+                    yz_pattern.clone(),
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(vec![], vec![
+                    vec![],
+                    (
                         x_a_pattern,
-                    ]),
-                    SplitHalf::new(z_pattern.clone(), vec![
                         by_pattern,
-                    ]),
+                    ),
+                    z_pattern.clone(),
                 ),
             ]), "xabyz");
-            let (wxaby_left, wxaby_right) = wxaby_split.into_split_halves();
-            let (xabyz_left, xabyz_right) = xabyz_split.into_split_halves();
             assert_eq!(wxabyz_split, IndexSplit::from(vec![
                 PatternSplit::new(
-                    SplitHalf::new(vec![], wxaby_left),
-                    SplitHalf::new(z_pattern, wxaby_right),
+                    vec![],
+                    wxaby_split,
+                    z_pattern
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(w_pattern, xabyz_left),
-                    SplitHalf::new(vec![], xabyz_right),
+                    w_pattern,
+                    xabyz_split,
+                    vec![],
                 ),
                 PatternSplit::new(
-                    SplitHalf::new(wx_pattern, vec![
-                        a_pattern,
-                    ]),
-                    SplitHalf::new(yz_pattern, vec![
-                        b_pattern,
-                    ]),
+                    wx_pattern,
+                    (a_pattern, b_pattern),
+                    yz_pattern
                 ),
             ]), "wxabyz");
         } else {
