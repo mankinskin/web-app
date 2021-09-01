@@ -45,15 +45,15 @@ pub struct SplitContext {
     pub context: (Pattern, Pattern),
     pub key: SplitKey,
 }
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct SplitKey {
     pub index: VertexIndex, // index in hypergraph
     pub offset: NonZeroUsize,
 }
 impl SplitKey {
-    pub fn new(index: VertexIndex, offset: NonZeroUsize) -> Self {
+    pub fn new(index: impl Borrow<VertexIndex>, offset: NonZeroUsize) -> Self {
         Self {
-            index,
+            index: *index.borrow(),
             offset,
         }
     }
@@ -173,6 +173,27 @@ impl IndexSplitter {
         hypergraph.try_perfect_split(root, pos)
             .unwrap_or_else(|child_splits| s.perform_child_splits(hypergraph, child_splits))
     }
+    /// don't resort to perfect split on first level
+    pub fn build_index_split_complete<T: Tokenize + std::fmt::Display>(hypergraph: &Hypergraph<T>, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> IndexSplit  {
+        let mut s = Self::default();
+        s.split_index_complete(hypergraph, SplitKey::new(root, pos))
+    }
+    fn split_index_complete<T: Tokenize + std::fmt::Display>(&mut self, hypergraph: &Hypergraph<T>, key: SplitKey) -> IndexSplit  {
+        let (perfect_split, remaining_splits) = hypergraph.separate_perfect_split(key.index, key.offset);
+
+        if let Some((pl, pr)) = perfect_split {
+            // if other patterns can't add any more overlapping splits
+            if (pl.len() <= 1 || pattern_width(&pl) <= 2) && (pr.len() <= 1 || pattern_width(&pr) <= 2) {
+                IndexSplit::from((pl, pr))
+            } else { 
+                let mut index_split = self.perform_child_splits(hypergraph, remaining_splits);
+                index_split.add_split((pl, pr));
+                index_split
+            }
+        } else {
+            self.perform_child_splits(hypergraph, remaining_splits)
+        }
+    }
     fn perform_child_splits<T: Tokenize + std::fmt::Display>(&mut self, hypergraph: &Hypergraph<T>, child_splits: Vec<SplitContext>) -> IndexSplit {
         let splits: Vec<PatternSplit> = child_splits.into_iter().map(|SplitContext {
             context: (left_context, right_context),
@@ -190,19 +211,7 @@ impl IndexSplitter {
     }
     fn create_new_index_split<T: Tokenize + std::fmt::Display>(&mut self, hypergraph: &Hypergraph<T>, key: SplitKey) -> IndexSplit {
         // todo: insert remaining patterns if perfect split has more than one index on one side
-        let (perfect_split, remaining_splits) = hypergraph.separate_perfect_split(key.index, key.offset);
-
-        let index_split = if let Some((pl, pr)) = perfect_split {
-            if (pl.len() <= 1 || pattern_width(&pl) <= 2) && (pr.len() <= 1 || pattern_width(&pr) <= 2) {
-                IndexSplit::from((pl, pr))
-            } else { 
-                let mut index_split = self.perform_child_splits(hypergraph, remaining_splits);
-                index_split.add_split((pl, pr));
-                index_split
-            }
-        } else {
-            self.perform_child_splits(hypergraph, remaining_splits)
-        };
+        let index_split = self.split_index_complete(hypergraph, key);
         //let (left, right) = Self::minimize_split_patterns(hypergraph, (left, right));
         //println!("Split: {} =>", name);
         //println!("left:\n\t{}", hypergraph.separated_pattern_string(&left));
@@ -373,19 +382,6 @@ mod tests {
                 vec![xaby, z],
                 vec![xab, yz]
             ]);
-            //let xa_graph = ChildStrings::from_node(
-            //    "xa",
-            //    vec![
-            //        vec!["x", "a"],
-            //    ]
-            //);
-            //let byz_graph = ChildStrings::from_node(
-            //    "byz",
-            //    vec![
-            //        vec!["by", "z"],
-            //        vec!["b", "yz"],
-            //    ]
-            //);
             let z_pattern = vec![z];
             let x_pattern = vec![x];
             let a_pattern = vec![a];
@@ -417,10 +413,6 @@ mod tests {
                     ]),
                 ),
             ]));
-            //let left = graph.pattern_child_strings(left);
-            //let right = graph.pattern_child_strings(right);
-            //assert_eq!(left, xa_graph, "left");
-            //assert_eq!(right, byz_graph, "right");
         } else {
             panic!();
         }
@@ -484,10 +476,6 @@ mod tests {
                     ]),
                 ),
             ]));
-            //let left = graph.pattern_child_strings(left);
-            //let right = graph.pattern_child_strings(right);
-            //assert_eq!(left, wxa_graph, "left");
-            //assert_eq!(right, byzabbyxabyz_graph, "right");
         } else {
             panic!();
         }
@@ -542,8 +530,8 @@ mod tests {
             let x_a_pattern = vec![x, a];
             let by_pattern = vec![by];
             let yz_pattern = vec![yz];
-            let index_split = IndexSplitter::build_index_split(&graph, wxabyz, NonZeroUsize::new(3).unwrap());
-            assert_eq!(index_split, IndexSplit::from(vec![
+            let wxabyz_split = IndexSplitter::build_index_split(&graph, wxabyz, NonZeroUsize::new(3).unwrap());
+            assert_eq!(wxabyz_split, IndexSplit::from(vec![
                 PatternSplit::new(
                     SplitHalf::new(vec![], vec![
                         SplitHalf::new(w_pattern.clone(), vec![
@@ -608,11 +596,7 @@ mod tests {
                         b_pattern,
                     ]),
                 ),
-            ]));
-            //let left = graph.pattern_child_strings(left);
-            //let right = graph.pattern_child_strings(right);
-            //assert_eq!(left, wxa_graph, "left");
-            //assert_eq!(right, byz_graph, "right");
+            ]), "wxabyz");
         } else {
             panic!();
         }
@@ -620,6 +604,183 @@ mod tests {
     #[test]
     fn split_child_patterns_6() {
         split_child_patterns_6_impl()
+    }
+    #[test]
+    fn split_child_patterns_7() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let wx = graph.insert_pattern([w, x]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let wxab = graph.insert_patterns([
+                vec![wx, ab],
+                vec![w, xab]
+            ]);
+            let wxaby = graph.insert_patterns([
+                vec![w, xaby],
+                vec![wx, a, by],
+                vec![wxab, y]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyz = graph.insert_patterns([
+                vec![w, xabyz],
+                vec![wxaby, z],
+                vec![wx, ab, yz]
+            ]);
+            let w_pattern = vec![w];
+            let x_pattern = vec![x];
+            let y_pattern = vec![y];
+            let a_pattern = vec![a];
+            let wx_pattern = vec![wx];
+            let wx_a_pattern = vec![wx, a];
+            let z_pattern = vec![z];
+            let b_pattern = vec![b];
+            let x_a_pattern = vec![x, a];
+            let by_pattern = vec![by];
+            let yz_pattern = vec![yz];
+            let wxabyz_split = IndexSplitter::build_index_split(&graph, wxabyz, NonZeroUsize::new(3).unwrap());
+            let wxaby_split = IndexSplitter::build_index_split_complete(&graph, wxaby, NonZeroUsize::new(3).unwrap());
+            let xabyz_split = IndexSplitter::build_index_split_complete(&graph, xabyz, NonZeroUsize::new(2).unwrap());
+            let wxab_split = IndexSplitter::build_index_split_complete(&graph, wxab, NonZeroUsize::new(3).unwrap());
+            let xaby_split = IndexSplitter::build_index_split_complete(&graph, xaby, NonZeroUsize::new(2).unwrap());
+            let xab_split = IndexSplitter::build_index_split_complete(&graph, xab, NonZeroUsize::new(2).unwrap());
+            assert_eq!(xab_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::new(x_pattern.clone(), vec![
+                        a_pattern.clone(),
+                    ]),
+                    SplitHalf::new(vec![], vec![
+                        b_pattern.clone(),
+                    ]),
+                ),
+            ]), "xab");
+            assert_eq!(xaby_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::from(x_a_pattern.clone()),
+                    SplitHalf::from(by_pattern.clone()),
+                ),
+            ]), "xaby");
+            assert_eq!(wxab_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::new(wx_pattern.clone(), vec![
+                        a_pattern.clone(),
+                    ]),
+                    SplitHalf::new(vec![], vec![
+                        SplitHalf::from(b_pattern.clone()),
+                    ]),
+                ),
+                PatternSplit::new(
+                    SplitHalf::new(w_pattern.clone(), vec![
+                        SplitHalf::new(x_pattern.clone(), vec![
+                            a_pattern.clone(),
+                        ]),
+                    ]),
+                    SplitHalf::new(vec![], vec![
+                        SplitHalf::new(vec![], vec![
+                            SplitHalf::from(b_pattern.clone()),
+                        ]),
+                    ]),
+                ),
+            ]), "wxab");
+            assert_eq!(wxaby_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::new(w_pattern.clone(), vec![
+                        SplitHalf::from(x_a_pattern.clone()),
+                    ]),
+                    SplitHalf::new(vec![], vec![
+                        SplitHalf::from(by_pattern.clone()),
+                    ]),
+                ),
+                PatternSplit::new(
+                    SplitHalf::new(vec![], vec![
+                        SplitHalf::new(wx_pattern.clone(), vec![
+                            a_pattern.clone(),
+                        ]),
+                        SplitHalf::new(w_pattern.clone(), vec![
+                            SplitHalf::new(x_pattern.clone(), vec![
+                                a_pattern.clone(),
+                            ]),
+                        ]),
+                    ]),
+                    SplitHalf::new(y_pattern, vec![
+                        SplitHalf::new(vec![], vec![
+                            SplitHalf::new(vec![], vec![
+                                b_pattern.clone(),
+                            ]),
+                        ]),
+                        SplitHalf::new(vec![], vec![
+                            b_pattern.clone(),
+                        ]),
+                    ]),
+                ),
+                PatternSplit::new(
+                    SplitHalf::from(wx_a_pattern),
+                    SplitHalf::from(by_pattern.clone()),
+                ),
+            ]), "wxaby");
+            assert_eq!(xabyz_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::new(vec![], vec![
+                        SplitHalf::new(x_pattern, vec![
+                            a_pattern.clone(),
+                        ]),
+                    ]),
+                    SplitHalf::new(yz_pattern.clone(), vec![
+                        SplitHalf::new(vec![], vec![
+                            b_pattern.clone(),
+                        ]),
+                    ]),
+                ),
+                PatternSplit::new(
+                    SplitHalf::new(vec![], vec![
+                        x_a_pattern,
+                    ]),
+                    SplitHalf::new(z_pattern.clone(), vec![
+                        by_pattern,
+                    ]),
+                ),
+            ]), "xabyz");
+            let (wxaby_left, wxaby_right) = wxaby_split.into_split_halves();
+            let (xabyz_left, xabyz_right) = xabyz_split.into_split_halves();
+            assert_eq!(wxabyz_split, IndexSplit::from(vec![
+                PatternSplit::new(
+                    SplitHalf::new(vec![], wxaby_left),
+                    SplitHalf::new(z_pattern, wxaby_right),
+                ),
+                PatternSplit::new(
+                    SplitHalf::new(w_pattern, xabyz_left),
+                    SplitHalf::new(vec![], xabyz_right),
+                ),
+                PatternSplit::new(
+                    SplitHalf::new(wx_pattern, vec![
+                        a_pattern,
+                    ]),
+                    SplitHalf::new(yz_pattern, vec![
+                        b_pattern,
+                    ]),
+                ),
+            ]), "wxabyz");
+        } else {
+            panic!();
+        }
     }
     //#[bench]
     //fn bench_split_child_patterns_6(_bencher: &mut test::Bencher) {

@@ -87,7 +87,6 @@ impl SplitMinimizer {
         }
         let replace = Self::create_replace_child(hypergraph, left, right);
         if let Some((found_index, found_range)) = found {
-            let replace = replace.clone();
             let found_index = *found_index;
             match found_range {
                 FoundRange::Postfix(pre) => {
