@@ -6,6 +6,7 @@ use crate::{
         split::Split,
         pattern_width,
         Indexed,
+        Child,
     },
     token::Tokenize,
 };
@@ -153,14 +154,25 @@ pub struct IndexSplitter {
     pub cache: IndexMap<SplitKey, IndexSplit>,
 }
 impl IndexSplitter {
-    pub fn split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, root: impl Indexed, pos: NonZeroUsize) -> (Vec<Pattern>, Vec<Pattern>)  {
-        let index_split = Self::build_index_split(hypergraph, root, pos);
-        SplitMinimizer::minimize_index_split(hypergraph, index_split)
+    pub fn split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child)  {
+        let split = Self::build_index_split_with_perfect_split_info(hypergraph, root.clone(), pos);
+        SplitMinimizer::minimize_index_split(hypergraph, split, root)
     }
+    #[allow(unused)]
     pub fn build_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &Hypergraph<T>, root: impl Indexed, pos: NonZeroUsize) -> IndexSplit  {
+        Self::build_index_split_with_perfect_split_info(hypergraph, root, pos)
+            .unwrap_or_else(|(s, _)| IndexSplit::from(s))
+    }
+    pub fn build_index_split_with_perfect_split_info<T: Tokenize + std::fmt::Display>(
+        hypergraph: &Hypergraph<T>,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+        ) -> Result<IndexSplit, (Split, IndexInParent)>  {
         let mut s = Self::default();
-        hypergraph.try_perfect_split(root, pos)
-            .unwrap_or_else(|child_splits| s.perform_child_splits(hypergraph, child_splits))
+        match hypergraph.try_perfect_split(root, pos) {
+            Ok(ps) => Err(ps),
+            Err(child_splits) => Ok(s.perform_child_splits(hypergraph, child_splits)),
+        }
     }
     /// don't resort to perfect split on first level
     #[allow(unused)]

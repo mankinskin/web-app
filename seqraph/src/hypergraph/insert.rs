@@ -10,7 +10,6 @@ use std::{
         AtomicUsize,
         Ordering,
     },
-    ops::Range,
 };
 
 impl<'t, 'a, T> Hypergraph<T>
@@ -97,15 +96,51 @@ impl<'t, 'a, T> Hypergraph<T>
         &mut self,
         parent: impl Indexed,
         pat: PatternId,
-        range: Range<usize>,
-        replace: impl IntoIterator<Item=Child>
+        mut range: impl PatternRangeIndex + Clone,
+        replace: impl IntoIterator<Item=Child> + Clone,
+    ) {
+        let mut peek_range = range.clone().peekable();
+        if peek_range.peek().is_none() {
+            return;
+        }
+        let parent = parent.index();
+        let (old, width) = {
+            let vertex = self.expect_vertex_data_mut(parent);
+            (vertex.replace_in_pattern(pat, range.clone(), replace.clone()), vertex.width)
+        };
+        range.clone().zip(old.iter()).for_each(|(pos, c)| {
+            let c = self.expect_vertex_data_mut(c);
+            c.remove_parent(parent, pat, pos);
+        });
+        let start = range.next().unwrap();
+        self.add_pattern_parent_with_width(parent, replace, pat, start, width);
+    }
+    pub(crate) fn add_pattern_parent_with_width(
+        &mut self,
+        parent: impl Indexed,
+        pattern: impl IntoIterator<Item=Child>,
+        pattern_id: PatternId,
+        start: usize,
+        parent_width: usize,
     ) {
         let parent = parent.index();
-        let vertex = self.expect_vertex_data_mut(parent);
-        let pattern = vertex.expect_child_pattern_mut(&pat);
-        let old = pattern.get(range.clone()).expect("Replace range out of range of pattern!").to_vec();
-        *pattern = replace_in_pattern(pattern.iter().cloned(), range.clone(), replace);
-        range.zip(old.iter()).for_each(|(pos, c)| self.expect_vertex_data_mut(c).remove_parent(parent, pat, pos));
+        pattern.into_iter().enumerate().for_each(|(pos, c)| {
+            let pos = start + pos;
+            let c = self.expect_vertex_data_mut(c);
+            c.add_parent(parent, parent_width, pattern_id, pos);
+        });
+    }
+    #[allow(unused)]
+    pub(crate) fn add_pattern_parent(
+        &mut self,
+        parent: impl Indexed,
+        pattern: impl IntoIterator<Item=Child>,
+        pattern_id: PatternId,
+        start: usize,
+    ) {
+        let parent = parent.index();
+        let width = self.expect_vertex_data(parent).width;
+        self.add_pattern_parent_with_width(parent, pattern, pattern_id, start, width)
     }
 }
 

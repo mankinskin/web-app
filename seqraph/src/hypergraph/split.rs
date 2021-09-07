@@ -90,7 +90,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
 
     /// search for a perfect split in the split indices (offset = 0)
-    fn perfect_split_search(current_node: &'a VertexData, split_indices: impl Iterator<Item=(PatternId, SplitIndex)> + 'a) -> impl Iterator<Item=Result<SplitContext, (Pattern, Pattern)>> + 'a {
+    fn perfect_split_search(current_node: &'a VertexData, split_indices: impl Iterator<Item=(PatternId, SplitIndex)> + 'a) -> impl Iterator<Item=Result<SplitContext, (Split, IndexInParent)>> + 'a {
         split_indices.map(|(pattern_index, SplitIndex { index_pos, pos, index })| {
             let index_in_parent = IndexInParent {
                 pattern_index,
@@ -117,23 +117,21 @@ impl<'t, 'a, T> Hypergraph<T>
                     key,
                 }
             })
-            .map_err(|IndexInParent {
+            .map_err(|ind@IndexInParent {
                     pattern_index,
                     replaced_index: split_index,
                 }| {
                 let pattern = current_node.get_child_pattern(&pattern_index).unwrap();
-                Self::split_pattern_at_index(pattern, split_index)
+                (Self::split_pattern_at_index(pattern, split_index), ind)
             })
         )
     }
-    fn find_perfect_split(current_node: &VertexData, split_indices: impl Iterator<Item=(PatternId, SplitIndex)>) -> Result<(Pattern, Pattern), Vec<SplitContext>> {
-        match Self::perfect_split_search(current_node, split_indices).collect() {
-            Ok(v) => Err(v),
-            Err(i) => Ok(i),
-        }
-    }
     /// Get perfect split if it exists and remaining pattern split contexts
-    pub(crate) fn separate_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> (Option<(Pattern, Pattern)>, Vec<SplitContext>) {
+    pub(crate) fn separate_perfect_split(
+        &self,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+        ) -> (Option<(Pattern, Pattern)>, Vec<SplitContext>) {
         let current_node = self.get_vertex_data(root).unwrap();
         let children = current_node.get_children().clone();
         let len = children.len();
@@ -147,24 +145,26 @@ impl<'t, 'a, T> Hypergraph<T>
                             sa.push(s);
                             (pa, sa)
                         },
-                        Err(p) => (Some(p), sa),
+                        Err((s, _id)) => (Some(s), sa),
                     }
                 }
             )
     }
 
     /// Get perfect split or pattern split contexts
-    pub(crate) fn try_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> Result<IndexSplit, Vec<SplitContext>> {
+    pub(crate) fn try_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> Result<(Split, IndexInParent), Vec<SplitContext>> {
         let current_node = self.get_vertex_data(root).unwrap();
         let children = current_node.get_children().clone();
         let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
         let split_indices = Self::find_child_pattern_split_indices(child_slices, pos);
-        Self::find_perfect_split(current_node, split_indices)
-            .map(IndexSplit::from)
+        match Self::perfect_split_search(current_node, split_indices).collect() {
+            Ok(s) => Err(s),
+            Err(s) => Ok(s),
+        }
     }
 
     /// Split an index the specified position
-    pub fn split_index_at_pos(&mut self, root: impl Indexed, pos: NonZeroUsize) -> (Vec<Pattern>, Vec<Pattern>) {
+    pub fn split_index_at_pos(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
         // if perfect split on first level (no surrounding context), only return that
         // otherwise build a merge graph over all children until perfect splits are found in all branches
         // then merge patterns upwards into their parent contexts

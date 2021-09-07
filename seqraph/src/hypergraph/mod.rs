@@ -8,7 +8,6 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     fmt::Debug,
-    ops::Range,
 };
 use itertools::{
     Itertools,
@@ -142,11 +141,11 @@ pub fn postfix(
 }
 pub fn replace_in_pattern(
     pattern: impl IntoIterator<Item=Child>,
-    range: Range<usize>,
-    replace: impl IntoIterator<Item=Child>,
+    range: impl PatternRangeIndex,
+    replace: impl IntoIterator<Item=impl Into<Child>>,
 ) -> Pattern {
     let mut pattern: Pattern = pattern.into_iter().collect();
-    pattern.splice(range, replace.into_iter());
+    pattern.splice(range, replace.into_iter().map(Into::into));
     pattern
 }
 

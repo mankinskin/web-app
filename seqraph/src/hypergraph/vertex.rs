@@ -3,7 +3,10 @@ use crate::{
         Token,
         Tokenize,
     },
-    hypergraph::Hypergraph,
+    hypergraph::{
+        Hypergraph,
+        replace_in_pattern,
+    },
 };
 use std::{
     fmt::Debug,
@@ -14,6 +17,7 @@ use std::{
     },
     borrow::Borrow,
     slice::SliceIndex,
+    ops::RangeBounds,
     sync::atomic::{
         AtomicUsize,
         Ordering,
@@ -38,6 +42,8 @@ pub trait Indexed: Borrow<VertexIndex> + PartialEq {
     }
 }
 impl<T: Borrow<VertexIndex> + PartialEq> Indexed for T {}
+pub trait PatternRangeIndex: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize> {}
+impl<T: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize>> PatternRangeIndex for T {}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum VertexKey<T: Tokenize> {
@@ -156,6 +162,11 @@ impl Borrow<VertexIndex> for &'_ mut Child {
         &self.index
     }
 }
+impl From<&'_ Child> for Child {
+    fn from(o: &'_ Child) -> Self {
+        *o
+    }
+}
 
 //impl<T: Borrow<Child>>  Borrow<Child> for &T {
 //    fn borrow(&self) -> &VertexIndex {
@@ -225,10 +236,10 @@ impl VertexData {
     pub fn get_children(&self) -> &ChildPatterns {
         &self.children
     }
-    pub fn add_pattern<'c, P: IntoIterator<Item=&'c Child>>(&mut self, pat: P) -> PatternId {
+    pub fn add_pattern<P: IntoIterator<Item=impl Into<Child>>>(&mut self, pat: P) -> PatternId {
         // TODO: detect unmatching pattern
         let id = Self::next_child_pattern_id();
-        let pat = pat.into_iter().cloned().collect();
+        let pat = pat.into_iter().map(Into::into).collect();
         self.children.insert(id, pat);
         id
     }
@@ -310,5 +321,31 @@ impl VertexData {
                 .map(|p| parent.exists_at_pos(p))
                 .unwrap_or(false)
         )
+    }
+    pub fn find_pattern_with_range<T: Tokenize + std::fmt::Display>(
+        &self,
+        half: Pattern,
+        range: impl PatternRangeIndex + Clone,
+    ) -> Option<PatternId> {
+        self.children.iter().find_map(|(id, pat)| {
+            if pat[range.clone()] == half[..] {
+                Some(*id)
+            } else {
+                None
+            }
+        })
+    }
+    /// replace indices in sub pattern and returns old indices
+    /// doesn't modify parents of sub-patterns!
+    pub(crate) fn replace_in_pattern(
+        &mut self,
+        pat: PatternId,
+        range: impl PatternRangeIndex + Clone,
+        replace: impl IntoIterator<Item=Child>,
+    ) -> Pattern {
+        let pattern = self.expect_child_pattern_mut(&pat);
+        let old = pattern.get(range.clone()).expect("Replace range out of range of pattern!").to_vec();
+        *pattern = replace_in_pattern(pattern.iter().cloned(), range, replace);
+        old
     }
 }

@@ -96,8 +96,9 @@ impl<'t, 'a, T> Hypergraph<T>
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: PatternView<'_>,
+        pattern: impl IntoIterator<Item=impl Into<Child>>,
         ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+        let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
         let index = pattern.get(0)?.get_index();
         if pattern.len() == 1 {
             // single index is not a pattern
@@ -115,9 +116,10 @@ impl<'t, 'a, T> Hypergraph<T>
         self.find_pattern(&pattern)
     }
 }
+#[macro_use]
 #[cfg(test)]
 #[allow(clippy::many_single_char_names)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use crate::hypergraph::{
@@ -142,6 +144,7 @@ mod tests {
             }
         };
     }
+    pub(crate) use assert_match;
     #[test]
     fn find_pattern() {
         let (
