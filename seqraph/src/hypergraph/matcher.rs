@@ -14,6 +14,7 @@ use crate::{
         prefix,
         postfix,
         search::FoundRange,
+        Indexed,
     },
     token::{
         Tokenize,
@@ -23,11 +24,13 @@ use itertools::{
     Itertools,
     EitherOrBoth,
 };
-use std::collections::{
-    HashSet,
-    HashMap,
+use std::{
+    collections::{
+        HashSet,
+        HashMap,
+    },
+    cmp::Ordering,
 };
-use std::cmp::Ordering;
 
 fn to_matching_iterator<'a>(a: impl Iterator<Item=&'a Child>, b: impl Iterator<Item=&'a Child>) -> impl Iterator<Item=(usize, EitherOrBoth<&'a Child, &'a Child>)> {
     a.zip_longest(b)
@@ -41,7 +44,7 @@ fn to_matching_iterator<'a>(a: impl Iterator<Item=&'a Child>, b: impl Iterator<I
 }
 pub trait MatchDirection {
     // get the parent where vertex is at the relevant position
-    fn get_match_parent(vertex: &VertexData, sup: VertexIndex) -> Option<&'_ Parent>;
+    fn get_match_parent(vertex: &VertexData, sup: impl Indexed) -> Option<&'_ Parent>;
     fn skip_equal_indices<'a>(
         a: impl DoubleEndedIterator<Item=&'a Child>,
         b: impl DoubleEndedIterator<Item=&'a Child>,
@@ -93,7 +96,7 @@ pub trait MatchDirection {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MatchRight;
 impl MatchDirection for MatchRight {
-    fn get_match_parent(vertex: &VertexData, sup: VertexIndex) -> Option<&'_ Parent> {
+    fn get_match_parent(vertex: &VertexData, sup: impl Indexed) -> Option<&'_ Parent> {
         vertex.get_parent_at_prefix_of(sup)
     }
     fn skip_equal_indices<'a>(
@@ -148,7 +151,7 @@ impl MatchDirection for MatchRight {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MatchLeft;
 impl MatchDirection for MatchLeft {
-    fn get_match_parent(vertex: &VertexData, sup: VertexIndex) -> Option<&'_ Parent> {
+    fn get_match_parent(vertex: &VertexData, sup: impl Indexed) -> Option<&'_ Parent> {
         vertex.get_parent_at_postfix_of(sup)
     }
     fn skip_equal_indices<'a>(
@@ -200,7 +203,7 @@ impl MatchDirection for MatchLeft {
         p.prepend_prefix(context).reverse()
     }
 }
-
+type FindParentResult = (VertexIndex, Parent, (PatternId, usize), Pattern, PatternMatch);
 #[derive(Clone, Debug)]
 pub struct Matcher<'g, T: Tokenize, D: MatchDirection>{
     graph: &'g Hypergraph<T>,
@@ -223,7 +226,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         &'a self,
         mut parents: impl Iterator<Item = (&'a VertexIndex, &'a Parent)>,
         context: PatternView<'a>,
-    ) -> Option<(&'a VertexIndex, &'a Parent, &'a ChildPatterns, PatternId, usize)> {
+    ) -> Option<(&'a VertexIndex, &'a ChildPatterns, &'a Parent, PatternId, usize)> {
         parents.find_map(|(index, parent)| {
             let vert = self.expect_vertex_data(*index);
             let child_patterns = vert.get_children();
@@ -234,7 +237,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
                 Self::compare_next_index_in_child_pattern(
                     child_patterns, context, pattern_index, *sub_index,
                 )
-            ).map(|(pattern_index, sub_index)| (index, parent, child_patterns, pattern_index, sub_index))
+            ).map(|(pattern_index, sub_index)| (index, child_patterns, parent, pattern_index, sub_index))
         })
     }
     fn compare_next_index_in_child_pattern(
@@ -271,9 +274,9 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     pub fn compare_parent_context(
         &'a self,
         context: PatternView<'a>,
-        parent_index: VertexIndex,
+        parent_index: impl Indexed,
         parent: &Parent,
-    ) -> Option<(Pattern, PatternMatch)> {
+    ) -> Option<((PatternId, usize), Pattern, PatternMatch)> {
         //println!("compare_parent_context");
         let vert = self.expect_vertex_data(parent_index);
         let child_patterns = vert.get_children();
@@ -287,8 +290,9 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
             candidates.into_iter(),
             context,
         );
-        best_match.and_then(|(pattern_index, sub_index)| 
+        best_match.and_then(|(pattern_index, sub_index)|
             self.recurse_comparison_on_remainder(child_patterns, context, pattern_index, sub_index)
+                .map(|(pattern, m)| ((pattern_index, sub_index), pattern, m))
         )
     }
     pub fn recurse_comparison_on_remainder(
@@ -309,7 +313,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         &self,
         context: PatternView<'a>,
         vertex: &VertexData,
-    ) -> Option<(VertexIndex, Parent, Pattern, PatternMatch)> {
+    ) -> Option<FindParentResult> {
         self.find_parent_matching_context_below_width(context, vertex, None)
     }
     pub fn find_parent_matching_context_below_width(
@@ -317,29 +321,29 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         context: PatternView<'a>,
         vertex: &VertexData,
         width_ceiling: Option<TokenPosition>,
-    ) -> Option<(VertexIndex, Parent, Pattern, PatternMatch)> {
+    ) -> Option<FindParentResult> {
         let parents = vertex.get_parents_below_width(width_ceiling);
         let best_match = self.find_best_matching_parent(parents.clone(), context);
-        best_match.and_then(|(&index, parent, child_patterns, pattern_index, sub_index)| 
+        best_match.and_then(|(&index, child_patterns, parent, pattern_index, sub_index)|
             self.recurse_comparison_on_remainder(child_patterns, context, pattern_index, sub_index)
-                .map(|(pre, m)| (index, parent.clone(), pre, m))
+                .map(|(pre, m)| (index, parent.clone(), (pattern_index, sub_index), pre, m))
         ).or_else(||
             parents.into_iter().find_map(|(&index, parent)|
                 self.compare_parent_context(context, index, parent)
-                    .map(|(pre, m)| (index, parent.clone(), pre, m))
+                    .map(|(ppos, pre, m)| (index, parent.clone(), ppos, pre, m))
             )
         )
     }
     /// match sub index and context with sup index with max width
     fn match_sub_and_context_with_index(&self,
-            sub: VertexIndex,
+            sub: impl Indexed,
             context: PatternView<'_>,
-            sup_index: VertexIndex,
+            sup_index: impl Indexed,
             width: TokenPosition,
     ) -> Option<PatternMatch> {
         //println!("match_sub_pattern_to_super");
         // search parent of sub
-        if sub == sup_index {
+        if sub.index() == sup_index.index() {
             return if context.is_empty() {
                 Some(PatternMatch::Matching)
             } else {
@@ -351,17 +355,17 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
             return None;
         }
         // get parent where vertex is at relevant position (prefix or postfix)
-        let sup_parent = D::get_match_parent(vertex, sup_index);
+        let sup_parent = D::get_match_parent(vertex, sup_index.index());
         if let Some(parent) = sup_parent {
             // found vertex in sup at relevant position
             //println!("sup found in parents");
             // compare context after vertex in parent
-            self.compare_parent_context(context, sup_index, parent).map(|(_rem, pm)| pm)
+            self.compare_parent_context(context, sup_index, parent).map(|(_pid, _rem, pm)| pm)
         } else {
             // sup is no direct parent, search upwards
             //println!("matching available parents");
             // search sup in parents
-            let (parent_index, _parent, back_context, index_match) = self.find_parent_matching_context_below_width(
+            let (parent_index, _parent, _pattern_id, back_context, index_match) = self.find_parent_matching_context_below_width(
                 context,
                 vertex,
                 Some(width),

@@ -8,6 +8,7 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     fmt::Debug,
+    ops::Range,
 };
 use itertools::{
     Itertools,
@@ -35,7 +36,7 @@ pub struct Hypergraph<T: Tokenize> {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    pub fn index_width(&self, index: &impl Borrow<VertexIndex>) -> TokenPosition {
+    pub fn index_width(&self, index: &impl Indexed) -> TokenPosition {
         self.expect_vertex_data(index.borrow()).width
     }
     pub fn vertex_count(&self) -> usize {
@@ -92,13 +93,13 @@ impl<'t, 'a, T> Hypergraph<T>
         ChildStrings::from_nodes(nodes)
     }
 
-    fn pattern_string_with_separator(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>, separator: &'static str) -> String {
+    fn pattern_string_with_separator(&'a self, pattern: impl IntoIterator<Item=impl Indexed>, separator: &'static str) -> String {
         pattern.into_iter().map(|child| self.index_string(*child.borrow())).join(separator)
     }
-    pub fn separated_pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> String {
+    pub fn separated_pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Indexed>) -> String {
         self.pattern_string_with_separator(pattern, "_")
     }
-    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> String {
+    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Indexed>) -> String {
         self.pattern_string_with_separator(pattern, "")
     }
     pub fn key_data_string(&self, key: &VertexKey<T>, data: &VertexData) -> String {
@@ -111,7 +112,7 @@ impl<'t, 'a, T> Hypergraph<T>
                 self.pattern_string(data.expect_any_pattern()),
         }
     }
-    pub fn index_string(&self, index: impl Borrow<VertexIndex>) -> String {
+    pub fn index_string(&self, index: impl Indexed) -> String {
         let (key, data) = self.expect_vertex(index);
         self.key_data_string(key, data)
     }
@@ -138,6 +139,15 @@ pub fn postfix(
     pattern.get(index..)
         .unwrap_or(&[])
         .to_vec()
+}
+pub fn replace_in_pattern(
+    pattern: impl IntoIterator<Item=Child>,
+    range: Range<usize>,
+    replace: impl IntoIterator<Item=Child>,
+) -> Pattern {
+    let mut pattern: Pattern = pattern.into_iter().collect();
+    pattern.splice(range, replace.into_iter());
+    pattern
 }
 
 #[cfg(test)]
@@ -175,7 +185,7 @@ mod tests {
                 Child,
                 );
     lazy_static::lazy_static! {
-        pub static ref 
+        pub static ref
             CONTEXT: Arc<RwLock<Context>> = Arc::new(RwLock::new({
             let mut graph = Hypergraph::default();
             if let [a, b, c, d, e, f, g, h, i] = graph.insert_tokens(

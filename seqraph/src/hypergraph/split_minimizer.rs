@@ -1,53 +1,176 @@
 use crate::{
     hypergraph::{
-        VertexIndex,
         Pattern,
-        PatternView,
         Hypergraph,
-        split::Split,
         Child,
         search::FoundRange,
+        PatternId,
         index_splitter::{
             IndexSplit,
+            SplitHalf,
         },
+        replace_in_pattern,
     },
     token::Tokenize,
 };
-
+trait MergeDirection {
+    fn split_context_head(context: Pattern) -> Option<(Child, Pattern)>;
+    fn concat_with_context(context: Pattern, inner: Pattern) -> (Option<usize>, Pattern);
+    fn concat_patterns(left: Pattern, right: Pattern) -> (Option<usize>, Pattern) {
+        (Some(left.len()), left.into_iter().chain(right.into_iter()).collect())
+    }
+    // concat single context pattern with each inner pattern
+    fn concat_context_with_inner<T: Tokenize + std::fmt::Display>(
+        hypergraph: &mut Hypergraph<T>,
+        context: Pattern,
+        inner: Vec<Pattern>,
+        ) -> (Pattern, Vec<(Option<usize>, Pattern)>) {
+        if inner.is_empty() {
+            (vec![], if context.is_empty() {
+                vec![]
+            } else {
+                vec![(None, context)]
+            })
+        } else {
+            // if inner has multiple patterns, also create an index for those
+            let new = if inner.len() > 1 {
+                Some(hypergraph.insert_patterns(inner.clone()))
+            } else {
+                None
+            };
+            let (context, head, mut merged): (Pattern, Option<Child>, Vec<_>) = if let Some((head, tail)) = Self::split_context_head(context) {
+                (tail, Some(head), inner.into_iter()
+                    .map(|inner| Self::concat_with_context(vec![head], inner))
+                    .collect())
+            } else {
+                // empty context
+                (vec![], None, inner.into_iter()
+                    .map(|inner| (None, inner))
+                    .collect())
+            };
+            if let Some(new) = new {
+                let new = if let Some(head) = head {
+                    Self::concat_with_context(vec![head], vec![new]).1
+                } else {
+                    vec![new]
+                };
+                merged.push((None, new));
+            }
+            (context, merged)
+        }
+    }
+    fn minimize_patterns<T: Tokenize + std::fmt::Display>(
+        hypergraph: &mut Hypergraph<T>,
+        context: Pattern,
+        inner: Vec<Pattern>,
+        ) -> Vec<Pattern> {
+        let (context, merged) = Self::concat_context_with_inner(hypergraph, context, inner);
+        let minimized = SplitMinimizer::minimize_merged_patterns(hypergraph, merged);
+        if !context.is_empty() {
+            let new = hypergraph.insert_patterns(minimized);
+            vec![Self::concat_with_context(context, vec![new]).1]
+        } else {
+            minimized
+        }
+    }
+    fn minimize_split_half<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, half: SplitHalf) -> Vec<Pattern>  {
+        let minimized = Self::minimize_split_halves(hypergraph, half.inner);
+        Self::minimize_patterns(hypergraph, half.context, minimized)
+    }
+    /// returns minimal pattern of pattern split
+    /// i.e. no duplicate subsequences with respect to entire index
+    fn minimize_split_halves<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, halves: Vec<SplitHalf>) -> Vec<Pattern>  {
+        let mut acc: Vec<Pattern> = vec![];
+        for half in halves.into_iter() {
+            let minimized = Self::minimize_split_half(hypergraph, half);
+            acc.extend(minimized);
+            if acc.iter().any(|p| p.len() == 1) {
+                break;
+            }
+        }
+        acc
+    }
+}
+// context left, inner right
+struct MergeLeft;
+impl MergeDirection for MergeLeft {
+    fn split_context_head(context: Pattern) -> Option<(Child, Pattern)> {
+        let mut context = context;
+        let last = context.pop();
+        last.map(|last| (last, context))
+    }
+    fn concat_with_context(context: Pattern, inner: Pattern) -> (Option<usize>, Pattern) {
+        Self::concat_patterns(context, inner)
+    }
+}
+// context right, inner left
+struct MergeRight;
+impl MergeDirection for MergeRight {
+    fn split_context_head(context: Pattern) -> Option<(Child, Pattern)> {
+        let mut context = context.into_iter();
+        let first = context.next();
+        first.map(|first| (first, context.collect()))
+    }
+    fn concat_with_context(context: Pattern, inner: Pattern) -> (Option<usize>, Pattern) {
+        Self::concat_patterns(inner, context)
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct SplitMinimizer;
 impl SplitMinimizer {
-    pub fn minimize_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, index_split: IndexSplit) -> IndexSplit  {
-        index_split
+    /// minimal means:
+    /// - no two indicies are adjacient more than once
+    /// - no two patterns of the same index share an index border
+    /// returns minimal patterns on each side of index split
+    pub fn minimize_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, index_split: IndexSplit) -> (Vec<Pattern>, Vec<Pattern>)  {
+        let (left, right) = index_split.into_split_halves();
+        (
+            MergeLeft::minimize_split_halves(hypergraph, left),
+            MergeRight::minimize_split_halves(hypergraph, right),
+        )
     }
-    //fn perform_child_splits<T: Tokenize + std::fmt::Display>(&mut self, hypergraph: &mut Hypergraph<T>, child_splits: Vec<SplitContext>) -> IndexSplit {
-    //    // todo: create new index for multiple patterns in splits or minimize patterns
-    //    let left = Self::merge_contexts_with_splits(
-    //        hypergraph,
-    //        left,
-    //        |context, split| [context, split].concat()
-    //        );
-    //    let right = Self::merge_contexts_with_splits(
-    //        hypergraph,
-    //        right,
-    //        |context, split| [split, context].concat()
-    //        );
-    //    (left, right)
-    //}
-    fn merge_contexts_with_splits<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, contexts: Vec<(Pattern, Pattern)>, merge_fn: impl Fn(Pattern, Pattern) -> Pattern) -> Vec<Pattern> {
-        contexts.into_iter()
-            .map(|(context, split)| {
-                    let pos = context.len();
-                    let merged = merge_fn(context, split);
-                    Self::minimize_merged_pattern(hypergraph, merged, pos)
-                    //merged
-            })
-            .collect()
-    }
-    fn create_replace_child<T: Tokenize + std::fmt::Display>(
+    /// minimize a pattern which has been merged at pos
+    fn minimize_merged_patterns<T: Tokenize + std::fmt::Display>(
         hypergraph: &mut Hypergraph<T>,
+        patterns: impl IntoIterator<Item=(Option<usize>, Pattern)>,
+        ) -> Vec<Pattern> {
+        let patterns: Vec<_> = patterns.into_iter().collect();
+        if patterns.len() > 1 {
+            // more than one, so we created an index for these earlier, so we can
+            // ignore any non-minimizable merged patterns
+            patterns.into_iter()
+                .filter_map(|(pos, pattern)| pos.and_then(|pos| Self::minimize_merged_pattern(hypergraph, pattern, pos)))
+                .collect()
+        } else if let Some((pos, first)) = patterns.into_iter().next() {
+            vec![pos.and_then(|pos| Self::minimize_merged_pattern(hypergraph, first.clone(), pos))
+                .unwrap_or(first)]
+        } else {
+            vec![]
+        }
+    }
+    /// minimize a pattern which has been merged at pos
+    fn minimize_merged_pattern<T: Tokenize + std::fmt::Display>(
+        hypergraph: &mut Hypergraph<T>,
+        pattern: Pattern,
+        pos: usize,
+        ) -> Option<Pattern> {
+        //println!("pos: {}, len: {}", pos, pattern.len());
+        let left = &pattern[pos - 1];
+        let right = &pattern[pos];
+        // find pattern over merge position
+        let found = hypergraph.find_pattern(&pattern[pos-1..pos+1]);
+        found.map(|found| {
+            let replace = Self::get_or_resolve_duplicate_child(hypergraph, found, left, right);
+            replace_in_pattern(pattern.clone(), pos-1..pos+1, [replace])
+        })
+    }
+    fn resolve_duplicate<T: Tokenize + std::fmt::Display>(
+        hypergraph: &mut Hypergraph<T>,
+        parent: Child,
+        pattern_id: PatternId,
+        pos: usize,
         left: &Child,
-        right: &Child
+        right: &Child,
     ) -> Child {
         //println!("{},{} dont't match {}: {:#?}",
         //    hypergraph.index_string(left.index),
@@ -56,109 +179,71 @@ impl SplitMinimizer {
         //    index_match
         //);
         // create new index and replace in parent
-        let width = left.width + right.width;
-        let new_index = hypergraph.insert_pattern([left, right]);
-        // TODO: replace new index in parent!
-        Child::new(new_index, width)
+        let new = hypergraph.insert_pattern([left, right]);
+        hypergraph.replace_in_pattern(parent, pattern_id, pos..pos+2, [new]);
+        new
     }
-    fn get_or_create_replace_child<T: Tokenize + std::fmt::Display>(
+    fn get_or_resolve_duplicate_child<T: Tokenize + std::fmt::Display>(
         hypergraph: &mut Hypergraph<T>,
-        found: &Option<(VertexIndex, FoundRange)>,
+        (found, (pattern_id, pos), found_range): (Child, (PatternId, usize), FoundRange),
         left: &Child,
         right: &Child,
         ) -> Child {
-        let width = left.width + right.width;
-        if let Some((found_index, found_range)) = found {
-            if found_range.is_matching() {
-                //println!("{},{} match {}",
-                //    hypergraph.index_string(left.index),
-                //    hypergraph.index_string(right.index),
-                //    hypergraph.index_string(index),
-                //);
-                // since left and right half are minimal, any pattern perfectly matching
-                // first left and right indices from merge pos must be the maximum fitting
-                return Child::new(*found_index, width);
-            }
-        } else {
-            //println!("{},{} dont't have a common parent",
-            //    hypergraph.index_string(left.index),
-            //    hypergraph.index_string(right.index),
-            //);
-        }
-        let replace = Self::create_replace_child(hypergraph, left, right);
-        if let Some((found_index, found_range)) = found {
-            let found_index = *found_index;
-            match found_range {
-                FoundRange::Postfix(pre) => {
-                    hypergraph.add_pattern_to_node(found_index, &[&pre[..], &[replace]].concat());
-                },
-                FoundRange::Prefix(post) => {
-                    hypergraph.add_pattern_to_node(found_index, &[&[replace], &post[..]].concat());
-                },
-                FoundRange::Infix(pre, post) => {
-                    hypergraph.add_pattern_to_node(found_index, &[&pre[..], &[replace], &post[..]].concat());
-                },
-                FoundRange::Complete => unreachable!(),
-            }
-        }
-        replace
-    }
-    fn replace_in_pattern(
-        pattern: PatternView<'_>,
-        pos: usize,
-        replace: Child
-    ) -> Pattern {
-        let after = (pos+1).min(pattern.len());
-        [&pattern[..pos-1], &[replace], &pattern[after..]].concat()
-    }
-    /// minimize a pattern which has been merged at pos
-    fn minimize_merged_pattern<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        pattern: Pattern,
-        pos: usize,
-        ) -> Pattern {
-        if !(1..pattern.len()).contains(&pos) {
-            return pattern;
-        }
-        //println!("pos: {}, len: {}", pos, pattern.len());
-        let left = &pattern[pos - 1];
-        let right = &pattern[pos];
-        // find pattern over merge position
-        let found = hypergraph.find_pattern(&pattern[pos-1..pos+1]);
-        let replace = Self::get_or_create_replace_child(hypergraph, &found, left, right);
-        Self::replace_in_pattern(&pattern, pos, replace)
-    }
-    fn minimize_split_patterns<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, (left_splits, right_splits): (Vec<Pattern>, Vec<Pattern>)) -> Split {
-        let left = Self::minimize_split_half(hypergraph, left_splits);
-        let right = Self::minimize_split_half(hypergraph, right_splits);
-        (left, right)
-    }
-    fn minimize_split_half<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, mut splits: Vec<Pattern>) -> Pattern {
-        if splits.len() <= 1 {
-            return splits.into_iter().next().unwrap_or_default();
-        }
-        // todo: filter duplicates, index intersections
-        //println!("before: {:#?}", splits);
-        splits.sort_unstable();
-        splits.dedup();
-        //println!("after: {:#?}", splits);
-        if splits.len() > 1 {
-            //splits.iter().for_each(|pat|
-            //println!("{}",
-            //    hypergraph.pattern_string(pat),
-            //));
-            let index = hypergraph.insert_patterns(splits);
-            //println!("Created index for: {}",
-            //    hypergraph.index_string(index),
-            //);
-            let width = hypergraph.index_width(&index);
-            let child = Child::new(index, width);
-            vec![child]
-        } else {
-            splits.into_iter().next().unwrap_or_default()
+        match found_range {
+            FoundRange::Postfix(_) |
+            FoundRange::Prefix(_) |
+            FoundRange::Infix(_, _) =>
+                Self::resolve_duplicate(hypergraph, found, pattern_id, pos, left, right),
+            FoundRange::Complete => found,
         }
     }
 }
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::{
+        token::*,
+        hypergraph::{
+            index_splitter::*,
+        },
+    };
+    use std::num::NonZeroUsize;
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn minimize_split_1() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, c, d] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let bc = graph.insert_pattern([b, c]);
+            let cd = graph.insert_pattern([c, d]);
+            let abc = graph.insert_patterns([
+                vec![ab, c],
+                vec![a, bc]
+            ]);
+            let bcd = graph.insert_patterns([
+                vec![bc, d],
+                vec![b, cd]
+            ]);
+            let abcd = graph.insert_patterns([
+                vec![abc, d],
+                vec![a, bcd]
+            ]);
+            let ab_pattern = vec![ab];
+            let cd_pattern = vec![cd];
+
+            let index_split = IndexSplitter::build_index_split(&graph, abcd, NonZeroUsize::new(2).unwrap());
+            let (left, right) = SplitMinimizer::minimize_index_split(&mut graph, index_split);
+            assert_eq!(left, vec![ab_pattern], "left");
+            assert_eq!(right, vec![cd_pattern], "right");
+        } else {
+            panic!();
+        }
+    }
 }

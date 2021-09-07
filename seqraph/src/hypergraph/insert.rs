@@ -5,10 +5,12 @@ use crate::{
         Tokenize,
     },
 };
-use std::borrow::Borrow;
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
+use std::{
+    sync::atomic::{
+        AtomicUsize,
+        Ordering,
+    },
+    ops::Range,
 };
 
 impl<'t, 'a, T> Hypergraph<T>
@@ -39,7 +41,7 @@ impl<'t, 'a, T> Hypergraph<T>
     /// utility, builds total width, indices and children for pattern
     fn to_width_indices_children(
         &self,
-        indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>,
+        indices: impl IntoIterator<Item=impl Indexed>,
         ) -> (TokenPosition, Vec<VertexIndex>, Vec<Child>) {
         let mut width = 0;
         let (a, b) = indices.into_iter()
@@ -53,14 +55,14 @@ impl<'t, 'a, T> Hypergraph<T>
         (width, a, b)
     }
     /// adds a parent to all nodes in a pattern
-    fn add_parents_to_pattern_nodes(&mut self, pattern: Vec<VertexIndex>, parent_index: impl Borrow<VertexIndex>, width: TokenPosition, pattern_id: PatternId) {
+    fn add_parents_to_pattern_nodes(&mut self, pattern: Vec<VertexIndex>, parent_index: impl Indexed, width: TokenPosition, pattern_id: PatternId) {
         for (i, child_index) in pattern.into_iter().enumerate() {
             let node = self.expect_vertex_data_mut(child_index);
             node.add_parent(parent_index.borrow(), width, pattern_id, i);
         }
     }
     /// add pattern to existing node
-    pub fn add_pattern_to_node(&mut self, index: impl Borrow<VertexIndex>, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> PatternId {
+    pub fn add_pattern_to_node(&mut self, index: impl Indexed, indices: impl IntoIterator<Item=impl Indexed>) -> PatternId {
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
         let data = self.expect_vertex_data_mut(index.borrow());
@@ -69,7 +71,7 @@ impl<'t, 'a, T> Hypergraph<T>
         pattern_id
     }
     /// create new node from a pattern
-    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Borrow<VertexIndex>>) -> Child {
+    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item=impl Indexed>) -> Child {
         // todo check if exists already
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
@@ -81,7 +83,7 @@ impl<'t, 'a, T> Hypergraph<T>
         index
     }
     /// create new node from multiple patterns
-    pub fn insert_patterns(&mut self, patterns: impl IntoIterator<Item=impl IntoIterator<Item=impl Borrow<VertexIndex>>>) -> Child {
+    pub fn insert_patterns(&mut self, patterns: impl IntoIterator<Item=impl IntoIterator<Item=impl Indexed>>) -> Child {
         // todo handle token nodes
         let mut patterns = patterns.into_iter();
         let first = patterns.next().unwrap();
@@ -90,6 +92,20 @@ impl<'t, 'a, T> Hypergraph<T>
             self.add_pattern_to_node(&node, pat);
         }
         node
+    }
+    pub fn replace_in_pattern(
+        &mut self,
+        parent: impl Indexed,
+        pat: PatternId,
+        range: Range<usize>,
+        replace: impl IntoIterator<Item=Child>
+    ) {
+        let parent = parent.index();
+        let vertex = self.expect_vertex_data_mut(parent);
+        let pattern = vertex.expect_child_pattern_mut(&pat);
+        let old = pattern.get(range.clone()).expect("Replace range out of range of pattern!").to_vec();
+        *pattern = replace_in_pattern(pattern.iter().cloned(), range.clone(), replace);
+        range.zip(old.iter()).for_each(|(pos, c)| self.expect_vertex_data_mut(c).remove_parent(parent, pat, pos));
     }
 }
 

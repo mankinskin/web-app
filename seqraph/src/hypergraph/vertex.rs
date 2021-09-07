@@ -1,4 +1,3 @@
-use std::{fmt::Debug, hash::Hasher};
 use crate::{
     token::{
         Token,
@@ -6,17 +5,21 @@ use crate::{
     },
     hypergraph::Hypergraph,
 };
-use std::collections::{
-    HashSet,
-    HashMap,
+use std::{
+    fmt::Debug,
+    hash::Hasher,
+    collections::{
+        HashSet,
+        HashMap,
+    },
+    borrow::Borrow,
+    slice::SliceIndex,
+    sync::atomic::{
+        AtomicUsize,
+        Ordering,
+    },
 };
-use std::borrow::Borrow;
-use std::slice::SliceIndex;
 use either::Either;
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
 
 pub type VertexIndex = usize;
 pub type VertexParents = HashMap<VertexIndex, Parent>;
@@ -29,6 +32,13 @@ pub type IndexPattern = Vec<VertexIndex>;
 pub type PatternView<'a> = &'a[Child];
 pub type VertexPatternView<'a> = Vec<&'a VertexData>;
 
+pub trait Indexed: Borrow<VertexIndex> + PartialEq {
+    fn index(&self) -> &VertexIndex {
+        self.borrow()
+    }
+}
+impl<T: Borrow<VertexIndex> + PartialEq> Indexed for T {}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum VertexKey<T: Tokenize> {
     Token(Token<T>),
@@ -37,7 +47,7 @@ pub enum VertexKey<T: Tokenize> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parent {
     pub width: TokenPosition,
-    pub pattern_indices: HashSet<(usize, usize)>, // positions of child in parent patterns
+    pub pattern_indices: HashSet<(PatternId, usize)>, // positions of child in parent patterns
 }
 impl Parent {
     pub fn new(width: TokenPosition) -> Self {
@@ -55,8 +65,11 @@ impl Parent {
     pub fn remove_pattern_index(&mut self, pattern: usize, index: PatternId) {
         self.pattern_indices.remove(&(pattern, index));
     }
-    pub fn exists_at_pos(&self, p: PatternId) -> bool {
+    pub fn exists_at_pos(&self, p: usize) -> bool {
         self.pattern_indices.iter().any(|(_, pos)| *pos == p)
+    }
+    pub fn exists_at_pos_in_pattern(&self, pat: PatternId, pos: usize) -> bool {
+        self.pattern_indices.contains(&(pat, pos))
     }
     pub fn filter_pattern_indicies_at_prefix(
         &self,
@@ -80,7 +93,7 @@ pub struct Child {
     pub width: TokenPosition, // the token width
 }
 impl Child {
-    pub fn new(index: impl Borrow<VertexIndex>, width: TokenPosition) -> Self {
+    pub fn new(index: impl Indexed, width: TokenPosition) -> Self {
         Self {
             index: *index.borrow(),
             width,
@@ -170,7 +183,7 @@ impl VertexData {
     pub fn get_width(&self) -> TokenPosition {
         self.width
     }
-    pub fn get_parent(&self, index: impl Borrow<VertexIndex>) -> Option<&Parent> {
+    pub fn get_parent(&self, index: impl Indexed) -> Option<&Parent> {
         self.parents.get(index.borrow())
     }
     pub fn get_parents(&self) -> &VertexParents {
@@ -185,6 +198,9 @@ impl VertexData {
     pub fn get_child_pattern(&self, id: &PatternId) -> Option<&Pattern> {
         self.children.get(id)
     }
+    pub fn get_child_pattern_mut(&mut self, id: &PatternId) -> Option<&mut Pattern> {
+        self.children.get_mut(id)
+    }
     pub fn expect_any_pattern(&self) -> &Pattern {
         self.children.values().next()
             .unwrap_or_else(|| panic!(
@@ -193,10 +209,17 @@ impl VertexData {
             ))
     }
     pub fn expect_child_pattern(&self, id: &PatternId) -> &Pattern {
-        self.children.get(id)
+        self.get_child_pattern(id)
             .unwrap_or_else(|| panic!(
                 "Child pattern with id {} does not exist in in vertex {:#?}",
                 id, self,
+            ))
+    }
+    pub fn expect_child_pattern_mut(&mut self, id: &PatternId) -> &mut Pattern {
+        self.get_child_pattern_mut(id)
+            .unwrap_or_else(|| panic!(
+                "Child pattern with id {} does not exist in in vertex",
+                id,
             ))
     }
     pub fn get_children(&self) -> &ChildPatterns {
@@ -209,7 +232,7 @@ impl VertexData {
         self.children.insert(id, pat);
         id
     }
-    pub fn add_parent(&mut self, vertex: impl Borrow<VertexIndex>, width: TokenPosition, pattern: usize, index: PatternId) {
+    pub fn add_parent(&mut self, vertex: impl Indexed, width: TokenPosition, pattern: usize, index: PatternId) {
         if let Some(parent) = self.parents.get_mut(vertex.borrow()) {
             parent.add_pattern_index(pattern, index);
         } else {
@@ -218,7 +241,7 @@ impl VertexData {
             self.parents.insert(*vertex.borrow(), parent);
         }
     }
-    pub fn remove_parent(&mut self, vertex: impl Borrow<VertexIndex>, pattern: usize, index: PatternId) {
+    pub fn remove_parent(&mut self, vertex: impl Indexed, pattern: usize, index: PatternId) {
         if let Some(parent) = self.parents.get_mut(vertex.borrow()) {
             if parent.pattern_indices.len() > 1 {
                 parent.remove_pattern_index(pattern, index);
@@ -246,7 +269,7 @@ impl VertexData {
     }
     pub fn filter_parent(
         &self,
-        parent_index: impl Borrow<VertexIndex>,
+        parent_index: impl Indexed,
         cond: impl Fn(&&Parent) -> bool,
         ) -> Option<&'_ Parent> {
         self.get_parent(parent_index.borrow())
@@ -254,7 +277,7 @@ impl VertexData {
     }
     pub fn get_parent_starting_at(
         &self,
-        parent_index: impl Borrow<VertexIndex>,
+        parent_index: impl Indexed,
         offset: PatternId,
         ) -> Option<&'_ Parent> {
         self.filter_parent(parent_index, |parent|
@@ -263,7 +286,7 @@ impl VertexData {
     }
     pub fn get_parent_ending_at(
         &self,
-        parent_index: impl Borrow<VertexIndex>,
+        parent_index: impl Indexed,
         offset: PatternId,
         ) -> Option<&'_ Parent> {
         self.filter_parent(parent_index, |parent|
@@ -274,13 +297,13 @@ impl VertexData {
     }
     pub fn get_parent_at_prefix_of(
         &self,
-        index: impl Borrow<VertexIndex>,
+        index: impl Indexed,
         ) -> Option<&'_ Parent> {
         self.get_parent_starting_at(index, 0)
     }
     pub fn get_parent_at_postfix_of(
         &self,
-        index: impl Borrow<VertexIndex>,
+        index: impl Indexed,
         ) -> Option<&'_ Parent> {
         self.filter_parent(index, |parent|
             parent.width.checked_sub(self.width)

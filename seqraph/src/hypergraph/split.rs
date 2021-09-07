@@ -25,7 +25,6 @@ use crate::{
 };
 use std::{
     num::NonZeroUsize,
-    borrow::Borrow,
 };
 
 pub type Split = (Pattern, Pattern);
@@ -134,7 +133,7 @@ impl<'t, 'a, T> Hypergraph<T>
         }
     }
     /// Get perfect split if it exists and remaining pattern split contexts
-    pub(crate) fn separate_perfect_split(&self, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> (Option<(Pattern, Pattern)>, Vec<SplitContext>) {
+    pub(crate) fn separate_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> (Option<(Pattern, Pattern)>, Vec<SplitContext>) {
         let current_node = self.get_vertex_data(root).unwrap();
         let children = current_node.get_children().clone();
         let len = children.len();
@@ -155,7 +154,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
 
     /// Get perfect split or pattern split contexts
-    pub(crate) fn try_perfect_split(&self, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> Result<IndexSplit, Vec<SplitContext>> {
+    pub(crate) fn try_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> Result<IndexSplit, Vec<SplitContext>> {
         let current_node = self.get_vertex_data(root).unwrap();
         let children = current_node.get_children().clone();
         let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
@@ -165,7 +164,7 @@ impl<'t, 'a, T> Hypergraph<T>
     }
 
     /// Split an index the specified position
-    pub fn split_index_at_pos(&mut self, root: impl Borrow<VertexIndex>, pos: NonZeroUsize) -> IndexSplit {
+    pub fn split_index_at_pos(&mut self, root: impl Indexed, pos: NonZeroUsize) -> (Vec<Pattern>, Vec<Pattern>) {
         // if perfect split on first level (no surrounding context), only return that
         // otherwise build a merge graph over all children until perfect splits are found in all branches
         // then merge patterns upwards into their parent contexts
