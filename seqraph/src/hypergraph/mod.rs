@@ -5,7 +5,6 @@ use crate::{
     },
 };
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     fmt::Debug,
 };
@@ -23,8 +22,10 @@ mod insert;
 mod vertex;
 mod getters;
 mod child_strings;
+mod pattern;
 
 pub use vertex::*;
+pub use pattern::*;
 pub use getters::*;
 pub use child_strings::*;
 
@@ -119,34 +120,6 @@ impl<'t, 'a, T> Hypergraph<T>
         let data = self.expect_vertex_data_by_key(key);
         self.key_data_string(key, data)
     }
-}
-pub fn pattern_width<T:Borrow<Child>>(pat: impl IntoIterator<Item=T>) -> TokenPosition {
-    pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
-}
-pub fn prefix(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> Pattern {
-    pattern.get(..index)
-        .unwrap_or(pattern)
-        .to_vec()
-}
-pub fn postfix(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> Pattern {
-    pattern.get(index..)
-        .unwrap_or(&[])
-        .to_vec()
-}
-pub fn replace_in_pattern(
-    pattern: impl IntoIterator<Item=Child>,
-    range: impl PatternRangeIndex,
-    replace: impl IntoIterator<Item=impl Into<Child>>,
-) -> Pattern {
-    let mut pattern: Pattern = pattern.into_iter().collect();
-    pattern.splice(range, replace.into_iter().map(Into::into));
-    pattern
 }
 
 #[cfg(test)]

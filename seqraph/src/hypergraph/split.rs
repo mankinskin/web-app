@@ -3,8 +3,6 @@ use crate::{
         Hypergraph,
         VertexIndex,
         PatternId,
-        Pattern,
-        PatternView,
         TokenPosition,
         Child,
         index_splitter::{
@@ -16,8 +14,7 @@ use crate::{
             PatternSplit,
         },
         vertex::*,
-        prefix,
-        postfix,
+        pattern::*,
     },
     token::{
         Tokenize,

@@ -5,7 +5,7 @@ use crate::{
     },
     hypergraph::{
         Hypergraph,
-        replace_in_pattern,
+        pattern::*,
     },
 };
 use std::{
@@ -17,7 +17,6 @@ use std::{
     },
     borrow::Borrow,
     slice::SliceIndex,
-    ops::RangeBounds,
     sync::atomic::{
         AtomicUsize,
         Ordering,
@@ -28,12 +27,10 @@ use either::Either;
 pub type VertexIndex = usize;
 pub type VertexParents = HashMap<VertexIndex, Parent>;
 pub type ChildPatterns = HashMap<PatternId, Pattern>;
-pub type Pattern = Vec<Child>;
 pub type PatternId = usize;
 pub type TokenPosition = usize;
 pub type IndexPosition = usize;
 pub type IndexPattern = Vec<VertexIndex>;
-pub type PatternView<'a> = &'a[Child];
 pub type VertexPatternView<'a> = Vec<&'a VertexData>;
 
 pub trait Indexed: Borrow<VertexIndex> + PartialEq {
@@ -42,8 +39,6 @@ pub trait Indexed: Borrow<VertexIndex> + PartialEq {
     }
 }
 impl<T: Borrow<VertexIndex> + PartialEq> Indexed for T {}
-pub trait PatternRangeIndex: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize> {}
-impl<T: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize>> PatternRangeIndex for T {}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum VertexKey<T: Tokenize> {

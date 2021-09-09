@@ -1,14 +1,13 @@
 use crate::{
     hypergraph::{
         Hypergraph,
-        Pattern,
-        PatternView,
         matcher::{
             Matcher,
             MatchRight,
             MatchLeft,
         },
         search::FoundRange,
+        pattern::*,
     },
     token::{
         Tokenize,

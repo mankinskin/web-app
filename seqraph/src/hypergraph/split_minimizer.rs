@@ -1,6 +1,5 @@
 use crate::{
     hypergraph::{
-        Pattern,
         Hypergraph,
         Child,
         search::FoundRange,
@@ -12,8 +11,7 @@ use crate::{
             SplitHalf,
             IndexInParent,
         },
-        PatternRangeIndex,
-        replace_in_pattern,
+        pattern::*,
     },
     token::Tokenize,
 };
@@ -154,8 +152,8 @@ impl SplitMinimizer {
         ((left, right), index_in_parent): (Split, IndexInParent),
         parent: impl Indexed + Clone,
     ) -> (Child, Child) {
-        let left_single = Self::unwrap_singular_pattern(left);
-        let right_single = Self::unwrap_singular_pattern(right);
+        let left_single = single_child_pattern(left);
+        let right_single = single_child_pattern(right);
         match (left_single, right_single) {
             // perfect split between single indices
             (Ok(left), Ok(right)) => (left, right),
@@ -231,8 +229,8 @@ impl SplitMinimizer {
         (left, right): (Vec<Pattern>, Vec<Pattern>),
         parent: impl Indexed,
     ) -> (Child, Child) {
-        let left_single = Self::unwrap_singular_patterns(left);
-        let right_single = Self::unwrap_singular_patterns(right);
+        let left_single = single_child_patterns(left);
+        let right_single = single_child_patterns(right);
         match (left_single, right_single) {
             // parent contains perfect split, no changes needed
             (Ok(left), Ok(right)) => {
@@ -265,18 +263,6 @@ impl SplitMinimizer {
                 parent.add_pattern([left, right]);
                 (left, right)
             },
-        }
-    }
-    fn unwrap_singular_patterns(halves: Vec<Pattern>) -> Result<Child, Vec<Pattern>> {
-        match (halves.len(), halves.first()) {
-            (1, Some(first)) => Self::unwrap_singular_pattern(first.clone()).map_err(|_| halves),
-            _ => Err(halves),
-        }
-    }
-    fn unwrap_singular_pattern(half: Pattern) -> Result<Child, Pattern> {
-        match (half.len(), half.first()) {
-            (1, Some(first)) => Ok(*first),
-            _ => Err(half),
         }
     }
     pub fn merge_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, index_split: IndexSplit) -> (Vec<Pattern>, Vec<Pattern>)  {
