@@ -16,8 +16,6 @@ mod search;
 mod r#match;
 mod matcher;
 mod split;
-mod index_splitter;
-mod split_minimizer;
 mod insert;
 mod vertex;
 mod getters;

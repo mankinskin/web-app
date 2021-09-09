@@ -5,12 +5,6 @@ use crate::{
         PatternId,
         TokenPosition,
         Child,
-        index_splitter::{
-            IndexSplitter,
-            SplitKey,
-            SplitContext,
-        },
-        split_minimizer::SplitMinimizer,
         vertex::*,
         pattern::*,
     },
@@ -24,6 +18,16 @@ use std::{
         BTreeSet,
     },
     cmp::PartialEq,
+};
+mod index_splitter;
+mod split_minimizer;
+pub use {
+    index_splitter::{
+        IndexSplitter,
+        SplitKey,
+        SplitContext,
+    },
+    split_minimizer::SplitMinimizer,
 };
 
 pub type Split = (Pattern, Pattern);

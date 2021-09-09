@@ -5,7 +5,6 @@ use crate::{
         search::FoundRange,
         PatternId,
         split::*,
-        pattern::*,
     },
     token::Tokenize,
 };
@@ -195,7 +194,7 @@ mod tests {
     use crate::{
         token::*,
         hypergraph::{
-            index_splitter::*,
+            split::*,
         },
     };
     use std::{
