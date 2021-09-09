@@ -142,6 +142,128 @@ impl<'t, 'a, T> Hypergraph<T>
         let width = self.expect_vertex_data(parent).width;
         self.add_pattern_parent_with_width(parent, pattern, pattern_id, start, width)
     }
+    pub(crate) fn insert_split_result(
+        &mut self,
+        split: Result<(Vec<Pattern>, Vec<Pattern>), (Split, IndexInParent)>,
+        parent: impl Indexed + Clone,
+    ) -> (Child, Child) {
+        match split {
+            Ok(split) => self.insert_unperfect_split(split, parent),
+            Err((split, pattern_id)) => self.insert_perfect_split((split, pattern_id), parent),
+        }
+    }
+    fn insert_perfect_split(
+        &mut self,
+        ((left, right), index_in_parent): (Split, IndexInParent),
+        parent: impl Indexed + Clone,
+    ) -> (Child, Child) {
+        let left_single = single_child_pattern(left);
+        let right_single = single_child_pattern(right);
+        match (left_single, right_single) {
+            // perfect split between single indices
+            (Ok(left), Ok(right)) => (left, right),
+            (Ok(left), Err(right)) => {
+                let right = self.insert_perfect_split_half(
+                    right,
+                    index_in_parent.pattern_index,
+                    index_in_parent.replaced_index..,
+                    parent,
+                );
+                (left, right)
+            },
+            (Err(left), Ok(right)) => {
+                let left = self.insert_perfect_split_half(
+                    left,
+                    index_in_parent.pattern_index,
+                    0..index_in_parent.replaced_index,
+                    parent,
+                );
+                (left, right)
+            },
+            (Err(left), Err(right)) => {
+                let left = self.insert_perfect_split_half(
+                    left,
+                    index_in_parent.pattern_index,
+                    0..index_in_parent.replaced_index,
+                    parent.clone(),
+                );
+                let right = self.insert_perfect_split_half(
+                    right,
+                    index_in_parent.pattern_index,
+                    index_in_parent.replaced_index..,
+                    parent,
+                );
+                (left, right)
+            },
+        }
+    }
+    fn insert_perfect_split_half(
+        &mut self,
+        half: Pattern,
+        pattern_id: PatternId,
+        range: impl PatternRangeIndex + Clone,
+        parent: impl Indexed,
+    ) -> Child {
+        let new = self.insert_pattern(half);
+        self.replace_in_pattern(parent, pattern_id, range, [new]);
+        new
+    }
+    fn insert_unperfect_split_half(
+        &mut self,
+        halves: Vec<Pattern>,
+        parent: impl Indexed,
+        order: impl Fn(Child) -> [Child; 2],
+    ) -> Child {
+        let new = self.insert_patterns(halves);
+        let pattern = order(new);
+        let parent = parent.index();
+        let (pattern_id, width) = {
+            let parent = self.expect_vertex_data_mut(parent);
+            let pat = parent.add_pattern(pattern.iter());
+            (pat, parent.width)
+        };
+        self.add_pattern_parent_with_width(parent, pattern, pattern_id, 0, width);
+        new
+    }
+    fn insert_unperfect_split(
+        &mut self,
+        (left, right): (Vec<Pattern>, Vec<Pattern>),
+        parent: impl Indexed,
+    ) -> (Child, Child) {
+        let left_single = single_child_patterns(left);
+        let right_single = single_child_patterns(right);
+        match (left_single, right_single) {
+            // parent contains perfect split, no changes needed
+            (Ok(left), Ok(right)) => {
+                let parent = self.expect_vertex_data_mut(parent);
+                parent.add_pattern([left, right]);
+                (left, right)
+            },
+            (Ok(left), Err(right)) => {
+                let right = self.insert_unperfect_split_half(
+                    right,
+                    parent,
+                    |right| [left, right]
+                );
+                (left, right)
+            },
+            (Err(left), Ok(right)) => {
+                let left = self.insert_unperfect_split_half(
+                    left,
+                    parent,
+                    |left| [left, right]
+                );
+                (left, right)
+            },
+            (Err(left), Err(right)) => {
+                let left = self.insert_patterns(left);
+                let right = self.insert_patterns(right);
+                let parent = self.expect_vertex_data_mut(parent);
+                parent.add_pattern([left, right]);
+                (left, right)
+            },
+        }
+    }
 }
 
 #[cfg(test)]

@@ -7,12 +7,10 @@ use crate::{
         Child,
         index_splitter::{
             IndexSplitter,
-            IndexInParent,
             SplitKey,
             SplitContext,
-            IndexSplit,
-            PatternSplit,
         },
+        split_minimizer::SplitMinimizer,
         vertex::*,
         pattern::*,
     },
@@ -22,15 +20,114 @@ use crate::{
 };
 use std::{
     num::NonZeroUsize,
+    collections::{
+        BTreeSet,
+    },
+    cmp::PartialEq,
 };
 
 pub type Split = (Pattern, Pattern);
-
+/// refers to an index in a hypergraph node
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct IndexInParent {
+    pub pattern_index: usize, // index of pattern in parent
+    pub replaced_index: usize, // replaced index in pattern
+}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SplitIndex {
     pos: TokenPosition,
     index: VertexIndex,
     index_pos: IndexPosition,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) struct SplitHalf {
+    pub(crate) context: Pattern,
+    pub(crate) inner: Vec<SplitHalf>,
+}
+impl SplitHalf {
+    pub fn new(context: Pattern, inner: Vec<SplitHalf>) -> Self {
+        Self {
+            context,
+            inner,
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub struct PatternSplit {
+    pub(crate) prefix: Pattern,
+    pub(crate) inner: IndexSplit,
+    pub(crate) postfix: Pattern,
+}
+impl PatternSplit {
+    pub fn new(prefix: Pattern, inner: impl Into<IndexSplit>, postfix: Pattern) -> Self {
+        Self {
+            prefix,
+            inner: inner.into(),
+            postfix,
+        }
+    }
+}
+#[derive(Debug, Clone, Eq, Ord, PartialOrd, Default)]
+pub struct IndexSplit {
+    pub(crate) splits: Vec<PatternSplit>,
+}
+impl IndexSplit {
+    pub(crate) fn into_split_halves(self) -> (Vec<SplitHalf>, Vec<SplitHalf>) {
+        self.splits
+            .into_iter()
+            .map(|split| (split.prefix, split.inner.into_split_halves(), split.postfix))
+            .map(|(pre, (left, right), post)| (
+                SplitHalf::new(pre, left),
+                SplitHalf::new(post, right)
+            ))
+            .unzip()
+    }
+}
+impl IndexSplit {
+    pub fn new(inner: impl IntoIterator<Item=impl Into<PatternSplit>>) -> Self {
+        Self {
+            splits: inner.into_iter().map(Into::into).collect(),
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.splits.is_empty()
+    }
+    pub fn add_split<T: Into<PatternSplit>>(&mut self, split: T) {
+        self.splits.push(split.into());
+    }
+}
+impl PartialEq for IndexSplit {
+    fn eq(&self, other: &Self) -> bool {
+        let a: BTreeSet<_> = self.splits.iter().collect();
+        let b: BTreeSet<_> = other.splits.iter().collect();
+        a == b
+    }
+}
+impl From<Split> for PatternSplit {
+    fn from((prefix, postfix): Split) -> Self {
+        Self {
+            prefix,
+            inner: Default::default(),
+            postfix,
+        }
+    }
+}
+impl<T: Into<IndexSplit>> From<(Pattern, T, Pattern)> for PatternSplit {
+    fn from((prefix, inner, postfix): (Pattern, T, Pattern)) -> Self {
+        Self::new(prefix, inner, postfix)
+    }
+}
+impl<T: Into<PatternSplit>> From<Vec<T>> for IndexSplit {
+    fn from(splits: Vec<T>) -> Self {
+        Self {
+            splits: splits.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+impl<T: Into<PatternSplit>> From<T> for IndexSplit {
+    fn from(split: T) -> Self {
+        Self::from(vec![split])
+    }
 }
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
@@ -61,7 +158,7 @@ impl<'t, 'a, T> Hypergraph<T>
         ) -> Option<SplitIndex> {
         let mut skipped = 0;
         let pos: TokenPosition = pos.into();
-        // find child overlapping with cut pos or 
+        // find child overlapping with cut pos or
         pattern.enumerate()
             .find_map(|(i, child)| {
                 if skipped + child.get_width() <= pos {
@@ -162,14 +259,10 @@ impl<'t, 'a, T> Hypergraph<T>
 
     /// Split an index the specified position
     pub fn split_index_at_pos(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
-        // if perfect split on first level (no surrounding context), only return that
-        // otherwise build a merge graph over all children until perfect splits are found in all branches
-        // then merge patterns upwards into their parent contexts
-
-        IndexSplitter::split(self, root, pos)
-        //println!("Split: {} at {} =>", self.index_string(root), pos);
-        //println!("left:\n\t{}", self.separated_pattern_string(&left));
-        //println!("right:\n\t{}", self.separated_pattern_string(&right));
+        let root = root.index();
+        let split = IndexSplitter::build_index_split_with_perfect_split_info(self, root, pos)
+            .map(|split| SplitMinimizer::minimize_index_split(self, split));
+        self.insert_split_result(split, root)
     }
     fn pattern_split_string_width(&self, split: &PatternSplit) -> usize {
         let left = self.pattern_string_with_separator(&split.prefix, ".");

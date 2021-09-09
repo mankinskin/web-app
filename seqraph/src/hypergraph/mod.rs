@@ -25,6 +25,7 @@ mod child_strings;
 mod pattern;
 
 pub use vertex::*;
+pub use split::*;
 pub use pattern::*;
 pub use getters::*;
 pub use child_strings::*;

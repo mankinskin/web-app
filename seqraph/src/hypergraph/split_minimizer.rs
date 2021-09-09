@@ -4,13 +4,7 @@ use crate::{
         Child,
         search::FoundRange,
         PatternId,
-        Indexed,
-        split::Split,
-        index_splitter::{
-            IndexSplit,
-            SplitHalf,
-            IndexInParent,
-        },
+        split::*,
         pattern::*,
     },
     token::Tokenize,
@@ -133,140 +127,8 @@ impl SplitMinimizer {
     /// - no two indicies are adjacient more than once
     /// - no two patterns of the same index share an index border
     /// returns minimal patterns on each side of index split
-    pub fn minimize_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, split: Result<IndexSplit, (Split, IndexInParent)>, root: impl Indexed + Clone) -> (Child, Child)  {
-        let split = split.map(|index_split| Self::merge_index_split(hypergraph, index_split));
-        Self::resolve_split_halves(hypergraph, split, root)
-    }
-    fn resolve_split_halves<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        split: Result<(Vec<Pattern>, Vec<Pattern>), (Split, IndexInParent)>,
-        parent: impl Indexed + Clone,
-    ) -> (Child, Child) {
-        match split {
-            Ok(split) => Self::resolve_unperfect_split(hypergraph, split, parent),
-            Err((split, pattern_id)) => Self::resolve_perfect_split(hypergraph, (split, pattern_id), parent),
-        }
-    }
-    fn resolve_perfect_split<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        ((left, right), index_in_parent): (Split, IndexInParent),
-        parent: impl Indexed + Clone,
-    ) -> (Child, Child) {
-        let left_single = single_child_pattern(left);
-        let right_single = single_child_pattern(right);
-        match (left_single, right_single) {
-            // perfect split between single indices
-            (Ok(left), Ok(right)) => (left, right),
-            (Ok(left), Err(right)) => {
-                let right = Self::resolve_perfect_split_half(
-                    hypergraph,
-                    right,
-                    index_in_parent.pattern_index,
-                    index_in_parent.replaced_index..,
-                    parent,
-                );
-                (left, right)
-            },
-            (Err(left), Ok(right)) => {
-                let left = Self::resolve_perfect_split_half(
-                    hypergraph,
-                    left,
-                    index_in_parent.pattern_index,
-                    0..index_in_parent.replaced_index,
-                    parent,
-                );
-                (left, right)
-            },
-            (Err(left), Err(right)) => {
-                let left = Self::resolve_perfect_split_half(
-                    hypergraph,
-                    left,
-                    index_in_parent.pattern_index,
-                    0..index_in_parent.replaced_index,
-                    parent.clone(),
-                );
-                let right = Self::resolve_perfect_split_half(
-                    hypergraph,
-                    right,
-                    index_in_parent.pattern_index,
-                    index_in_parent.replaced_index..,
-                    parent,
-                );
-                (left, right)
-            },
-        }
-    }
-    fn resolve_perfect_split_half<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        half: Pattern,
-        pattern_id: PatternId,
-        range: impl PatternRangeIndex + Clone,
-        parent: impl Indexed,
-    ) -> Child {
-        let new = hypergraph.insert_pattern(half);
-        hypergraph.replace_in_pattern(parent, pattern_id, range, [new]);
-        new
-    }
-    fn resolve_unperfect_split_half<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        halves: Vec<Pattern>,
-        parent: impl Indexed,
-        order: impl Fn(Child) -> [Child; 2],
-    ) -> Child {
-        let new = hypergraph.insert_patterns(halves);
-        let pattern = order(new);
-        let parent = parent.index();
-        let (pattern_id, width) = {
-            let parent = hypergraph.expect_vertex_data_mut(parent);
-            let pat = parent.add_pattern(pattern.iter());
-            (pat, parent.width)
-        };
-        hypergraph.add_pattern_parent_with_width(parent, pattern, pattern_id, 0, width);
-        new
-    }
-    fn resolve_unperfect_split<T: Tokenize + std::fmt::Display>(
-        hypergraph: &mut Hypergraph<T>,
-        (left, right): (Vec<Pattern>, Vec<Pattern>),
-        parent: impl Indexed,
-    ) -> (Child, Child) {
-        let left_single = single_child_patterns(left);
-        let right_single = single_child_patterns(right);
-        match (left_single, right_single) {
-            // parent contains perfect split, no changes needed
-            (Ok(left), Ok(right)) => {
-                let parent = hypergraph.expect_vertex_data_mut(parent);
-                parent.add_pattern([left, right]);
-                (left, right)
-            },
-            (Ok(left), Err(right)) => {
-                let right = Self::resolve_unperfect_split_half(
-                    hypergraph,
-                    right,
-                    parent,
-                    |right| [left, right]
-                );
-                (left, right)
-            },
-            (Err(left), Ok(right)) => {
-                let left = Self::resolve_unperfect_split_half(
-                    hypergraph,
-                    left,
-                    parent,
-                    |left| [left, right]
-                );
-                (left, right)
-            },
-            (Err(left), Err(right)) => {
-                let left = hypergraph.insert_patterns(left);
-                let right = hypergraph.insert_patterns(right);
-                let parent = hypergraph.expect_vertex_data_mut(parent);
-                parent.add_pattern([left, right]);
-                (left, right)
-            },
-        }
-    }
-    pub fn merge_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, index_split: IndexSplit) -> (Vec<Pattern>, Vec<Pattern>)  {
-        let (left, right) = index_split.into_split_halves();
+    pub fn minimize_index_split<T: Tokenize + std::fmt::Display>(hypergraph: &mut Hypergraph<T>, split: IndexSplit) -> (Vec<Pattern>, Vec<Pattern>)  {
+        let (left, right) = split.into_split_halves();
         (
             MergeLeft::merge_split_halves(hypergraph, left),
             MergeRight::merge_split_halves(hypergraph, right),
@@ -371,7 +233,7 @@ mod tests {
             let cd_pattern = vec![cd];
 
             let index_split = IndexSplitter::build_index_split(&graph, abcd, NonZeroUsize::new(2).unwrap());
-            let (left, right) = SplitMinimizer::merge_index_split(&mut graph, index_split);
+            let (left, right) = SplitMinimizer::minimize_index_split(&mut graph, index_split);
             assert_eq!(left, vec![ab_pattern], "left");
             assert_eq!(right, vec![cd_pattern], "right");
         } else {
@@ -406,7 +268,7 @@ mod tests {
             let x_a_pattern = vec![x, a];
             let by_z_pattern = vec![by, z];
 
-            let (left, right) = IndexSplitter::split(&mut graph, xabyz, NonZeroUsize::new(2).unwrap());
+            let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
             let xa_found = graph.find_pattern(x_a_pattern);
             if let (xa, _, FoundRange::Complete) = xa_found.expect("xa not found") {
                 assert_eq!(left, xa, "left");
