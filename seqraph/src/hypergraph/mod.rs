@@ -272,6 +272,7 @@ mod tests {
     pub fn context() -> RwLockReadGuard<'static, Context> {
         CONTEXT.read().unwrap()
     }
+    #[allow(unused)]
     pub fn context_mut() -> RwLockWriteGuard<'static, Context> {
         CONTEXT.write().unwrap()
     }
