@@ -18,14 +18,12 @@ use std::{
         BTreeSet,
     },
     cmp::PartialEq,
+    ops::Bound,
 };
 mod index_splitter;
 mod split_minimizer;
 pub use {
-    index_splitter::{
-        IndexSplitter,
-        SplitKey,
-    },
+    index_splitter::*,
     split_minimizer::SplitMinimizer,
 };
 
@@ -128,149 +126,43 @@ impl<T: Into<PatternSplit>> From<T> for IndexSplit {
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't,
 {
-    /// Split a pattern before the specified index
-    pub fn split_pattern_at_index(
-        pattern: PatternView<'a>,
-        index: PatternId,
-        ) -> (Pattern, Pattern) {
-        (
-            prefix(pattern, index),
-            postfix(pattern, index)
-        )
-    }
-    pub fn split_context(
-        pattern: PatternView<'a>,
-        index: PatternId,
-        ) -> (Pattern, Pattern) {
-        (
-            prefix(pattern, index),
-            postfix(pattern, index+1)
-        )
-    }
-    /// find split position in index in pattern
-    pub fn find_pattern_split_index(
-        pattern: impl Iterator<Item=Child>,
-        pos: NonZeroUsize,
-        ) -> Option<SplitIndex> {
-        let mut skipped = 0;
-        let pos: TokenPosition = pos.into();
-        // find child overlapping with cut pos or
-        pattern.enumerate()
-            .find_map(|(i, child)| {
-                if skipped + child.get_width() <= pos {
-                    skipped += child.get_width();
-                    None
-                } else {
-                    Some(SplitIndex {
-                        index_pos: i,
-                        pos: pos - skipped,
-                        index: child.index
-                    })
-                }
-            })
-    }
-    /// Find split indicies and positions of multiple patterns
-    pub fn find_child_pattern_split_indices(
-        patterns: impl Iterator<Item=(PatternId, impl Iterator<Item=Child>)>,
-        pos: NonZeroUsize,
-        ) -> impl Iterator<Item=(PatternId, SplitIndex)> {
-        patterns.filter_map(move |(i, pattern)|
-            Self::find_pattern_split_index(pattern, pos).map(|split| (i, split))
-        )
-    }
-
-    /// search for a perfect split in the split indices (offset = 0)
-    fn perfect_split_search(current_node: &'a VertexData, split_indices: impl Iterator<Item=(PatternId, SplitIndex)> + 'a) -> impl Iterator<Item=Result<SplitContext, (Split, IndexInParent)>> + 'a {
-        split_indices.map(|(pattern_index, SplitIndex { index_pos, pos, index })| {
-            let index_in_parent = IndexInParent {
-                pattern_index,
-                replaced_index: index_pos,
-            };
-            NonZeroUsize::new(pos)
-                .map(|offset| (
-                    SplitKey::new(
-                        index,
-                        offset,
-                    ),
-                    index_in_parent.clone()
-                ))
-                .ok_or(index_in_parent)
-        })
-        .map(move |r|
-            r.map(move |(key, IndexInParent {
-                    pattern_index,
-                    replaced_index: split_index,
-                })| {
-                let pattern = current_node.get_child_pattern(&pattern_index).unwrap();
-                let (prefix, postfix) = Self::split_context(pattern, split_index);
-                SplitContext {
-                    prefix,
-                    key,
-                    postfix,
-                }
-            })
-            .map_err(|ind@IndexInParent {
-                    pattern_index,
-                    replaced_index: split_index,
-                }| {
-                let pattern = current_node.get_child_pattern(&pattern_index).unwrap();
-                (Self::split_pattern_at_index(pattern, split_index), ind)
-            })
-        )
-    }
     /// Get perfect split if it exists and remaining pattern split contexts
     pub(crate) fn separate_perfect_split(
         &self,
         root: impl Indexed,
         pos: NonZeroUsize,
         ) -> (Option<(Split, IndexInParent)>, Vec<SplitContext>) {
-        let current_node = self.get_vertex_data(root).unwrap();
+        let current_node = self.expect_vertex_data(root);
         let children = current_node.get_children().clone();
-        let len = children.len();
         let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
-        let split_indices = Self::find_child_pattern_split_indices(child_slices, pos);
-        Self::perfect_split_search(current_node, split_indices)
-            .fold((None, Vec::with_capacity(len)),
-                |(pa, mut sa), r| {
-                    match r {
-                        Ok(s) => {
-                            sa.push(s);
-                            (pa, sa)
-                        },
-                        Err(s) => (Some(s), sa),
-                    }
-                }
-            )
+        let split_indices = IndexSplitter::find_single_split_indices(child_slices, pos);
+        IndexSplitter::separate_single_split_indices(current_node, split_indices)
     }
-
     /// Get perfect split or pattern split contexts
     #[allow(unused)]
     pub(crate) fn try_perfect_split(&self, root: impl Indexed, pos: NonZeroUsize) -> Result<(Split, IndexInParent), Vec<SplitContext>> {
         let current_node = self.get_vertex_data(root).unwrap();
         let children = current_node.get_children().clone();
         let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
-        let split_indices = Self::find_child_pattern_split_indices(child_slices, pos);
-        match Self::perfect_split_search(current_node, split_indices).collect() {
+        let split_indices = IndexSplitter::find_single_split_indices(child_slices, pos);
+        match IndexSplitter::perfect_split_search(current_node, split_indices).into_iter().collect() {
             Ok(s) => Err(s),
             Err(s) => Ok(s),
         }
     }
-
-    /// Split an index the specified position
-    pub fn split_index_at_pos(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
-        IndexSplitter::split_index_complete(self, root, pos)
-    }
-    // create index from token position range in index
-    //pub fn index_subrange(&mut self, root: impl Indexed + Clone, range: impl PatternRangeIndex) -> Child {
-    //    let root = self.to_child(root);
-    //    get context of range from root patterns
-    //    split patterns at range borders
-    //    recurse into patterns overspanning range
-    //}
 }
 impl<'t, 'a, T> Hypergraph<T>
     where T: Tokenize + 't + std::fmt::Display,
 {
+    /// Split an index the specified position
+    pub fn split_index(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
+        IndexSplitter::split_index(self, root, pos)
+    }
+    // create index from token position range in index
+    pub fn index_subrange(&mut self, root: impl Indexed + Clone, range: impl PatternRangeIndex) -> RangeSplitResult {
+        IndexSplitter::index_subrange(self, root, range)
+    }
+
     fn pattern_split_string_width(&self, split: &PatternSplit) -> usize {
         let left = self.pattern_string_with_separator(&split.prefix, ".");
         let right = self.pattern_string_with_separator(&split.postfix, ".");
@@ -318,14 +210,67 @@ impl<'t, 'a, T> Hypergraph<T>
         print!("{}", self.index_split_string(split));
     }
 }
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::hypergraph::{
-//        tests::context_mut,
-//        child_strings::*,
-//    };
-//    use pretty_assertions::assert_eq;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        token::*,
+        hypergraph::{
+        tests::context_mut,
+        child_strings::*,
+        },
+    };
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn split_range_1() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let wx = graph.insert_pattern([w, x]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let wxab = graph.insert_patterns([
+                vec![wx, ab],
+                vec![w, xab]
+            ]);
+            let wxaby = graph.insert_patterns([
+                vec![w, xaby],
+                vec![wx, a, by],
+                vec![wxab, y]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyz = graph.insert_patterns([
+                vec![w, xabyz],
+                vec![wxaby, z],
+                vec![wx, ab, yz]
+            ]);
+
+            let _ = graph.index_subrange(wxabyz, 0..);
+            let _ = graph.index_subrange(wxabyz, 1..);
+            let _ = graph.index_subrange(wxabyz, 1..3);
+            let _ = graph.index_subrange(wxabyz, 2..5);
+            let _ = graph.index_subrange(wxabyz, 3..);
+        } else {
+            panic!();
+        }
+    }
 //    #[test]
 //    fn split_index_1() {
 //        let (
@@ -600,4 +545,4 @@ impl<'t, 'a, T> Hypergraph<T>
 //    //fn bench_split_child_patterns_3(b: &mut test::Bencher) {
 //    //    b.iter(|| split_child_patterns_3_impl())
 //    //}
-//}
+}

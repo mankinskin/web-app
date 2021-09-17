@@ -22,6 +22,7 @@ maplit = "^1"
 hypergraph = "^0.1"
 indexmap = "^1.6"
 either = "^1.6"
+todo-or-die = { version="^0.1", features=["crate"] }
 
 [dependencies.serde]
 version = "^1"

@@ -94,7 +94,7 @@ impl<'t, 'a, T> Hypergraph<T>
     pub fn insert_patterns(&mut self, patterns: impl IntoIterator<Item=impl IntoIterator<Item=impl Indexed>>) -> Child {
         // todo handle token nodes
         let mut patterns = patterns.into_iter();
-        let first = patterns.next().unwrap();
+        let first = patterns.next().expect("Tired to insert no patterns");
         let node = self.insert_pattern(first);
         for pat in patterns {
             self.add_pattern_to_node(&node, pat);
