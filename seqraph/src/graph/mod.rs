@@ -179,12 +179,11 @@ where
     }
     /// Get endpoint of edge
     pub fn edge_endpoint_directed(&self, i: EdgeIndex, direction: Direction) -> Option<NodeIndex> {
-        self.edge_endpoints(i).map(|(source, target)| {
-            match direction {
+        self.edge_endpoints(i)
+            .map(|(source, target)| match direction {
                 Direction::Outgoing => source,
                 Direction::Incoming => target,
-            }
-        })
+            })
     }
     /// Get source of edge
     pub fn edge_source(&self, i: EdgeIndex) -> Option<NodeIndex> {

@@ -1,9 +1,9 @@
 use crate::{
     hypergraph::{
-        Hypergraph,
-        Child,
         search::FoundRange,
         split::*,
+        Child,
+        Hypergraph,
     },
     token::Tokenize,
 };
@@ -20,16 +20,18 @@ trait MergeDirection {
         hypergraph: &mut Hypergraph<T>,
         context: Pattern,
         inner: Child,
-        ) -> Result<Child, Pattern> {
+    ) -> Result<Child, Pattern> {
         if let Some((head, tail)) = Self::split_context_head(context) {
             let (left, right) = Self::merge_order(inner, head);
             // try to find parent matching both
             SplitMinimizer::resolve_common_parent(hypergraph, left, right)
                 // if no remaining context, return found inner
-                .and_then(|inner| if tail.is_empty() {
-                    Ok(inner)
-                } else {
-                    Err(vec![inner])
+                .and_then(|inner| {
+                    if tail.is_empty() {
+                        Ok(inner)
+                    } else {
+                        Err(vec![inner])
+                    }
                 })
                 // return not found or found with tail
                 .map_err(|pat| Self::concat_inner_and_context(pat, tail))
@@ -40,26 +42,34 @@ trait MergeDirection {
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    fn merge_splits<T: Tokenize + Display>(hypergraph: &mut Hypergraph<T>, splits: Vec<(Pattern, Child)>) -> Child  {
+    fn merge_splits<T: Tokenize + Display>(
+        hypergraph: &mut Hypergraph<T>,
+        splits: Vec<(Pattern, Child)>,
+    ) -> Child {
         Self::merge_optional_splits(hypergraph, splits.into_iter().map(|(p, c)| (p, Some(c))))
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    fn merge_optional_splits<T: Tokenize + Display>(hypergraph: &mut Hypergraph<T>, splits: impl IntoIterator<Item=(Pattern, Option<Child>)>) -> Child  {
-        match splits.into_iter().try_fold(HashSet::new(), |mut acc, (context, inner)|
+    fn merge_optional_splits<T: Tokenize + Display>(
+        hypergraph: &mut Hypergraph<T>,
+        splits: impl IntoIterator<Item = (Pattern, Option<Child>)>,
+    ) -> Child {
+        match splits
+            .into_iter()
+            .try_fold(HashSet::new(), |mut acc, (context, inner)| {
                 if let Some(inner) = inner {
                     match Self::minimize_split(hypergraph, context, inner) {
                         Ok(c) => Err(c),
                         Err(pat) => {
                             acc.insert(pat);
                             Ok(acc)
-                        },
+                        }
                     }
                 } else {
                     acc.insert(context);
                     Ok(acc)
                 }
-            ) {
+            }) {
             Err(child) => {
                 //println!("adding [\n{}] to {}",
                 //    patterns.clone().into_iter().fold(String::new(), |acc, p| {
@@ -69,7 +79,7 @@ trait MergeDirection {
                 //);
                 //hypergraph.add_patterns_to_node(child, patterns);
                 child
-            },
+            }
             Ok(patterns) => hypergraph.insert_patterns(patterns),
         }
     }
@@ -112,21 +122,25 @@ impl SplitMinimizer {
         hypergraph: &mut Hypergraph<T>,
         left: Child,
         right: Child,
-        ) -> Result<Child, Pattern> {
+    ) -> Result<Child, Pattern> {
         //println!("pos: {}, len: {}", pos, pattern.len());
         let p = &[left, right];
         // find pattern over merge position
-        hypergraph.find_pattern(p)
+        hypergraph
+            .find_pattern(p)
             .map(|(found, (pattern_id, sub_index), found_range)| {
                 match found_range {
-                    FoundRange::Postfix(_) |
-                    FoundRange::Prefix(_) |
-                    FoundRange::Infix(_, _) => {
+                    FoundRange::Postfix(_) | FoundRange::Prefix(_) | FoundRange::Infix(_, _) => {
                         // create new index and replace in parent
                         let partial = hypergraph.insert_pattern(p);
-                        hypergraph.replace_in_pattern(found, pattern_id, sub_index..sub_index+2, [partial]);
+                        hypergraph.replace_in_pattern(
+                            found,
+                            pattern_id,
+                            sub_index..sub_index + 2,
+                            [partial],
+                        );
                         partial
-                    },
+                    }
                     FoundRange::Complete => found,
                 }
             })
@@ -139,82 +153,87 @@ impl SplitMinimizer {
     pub fn merge_left_splits<T: Tokenize + Display>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Child)>,
-        ) -> Child {
+    ) -> Child {
         MergeLeft::merge_splits(hypergraph, splits)
     }
     pub fn merge_right_splits<T: Tokenize + Display>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Child)>,
-        ) -> Child {
+    ) -> Child {
         MergeRight::merge_splits(hypergraph, splits)
     }
     pub fn merge_left_optional_splits<T: Tokenize + Display>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Option<Child>)>,
-        ) -> Child {
+    ) -> Child {
         MergeLeft::merge_optional_splits(hypergraph, splits)
     }
     pub fn merge_right_optional_splits<T: Tokenize + Display>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Option<Child>)>,
-        ) -> Child {
+    ) -> Child {
         MergeRight::merge_optional_splits(hypergraph, splits)
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    pub fn merge_inner_optional_splits<T: Tokenize + Display>(hypergraph: &mut Hypergraph<T>, splits: Vec<(Option<Child>, Pattern, Option<Child>)>) -> Child  {
-        match splits.into_iter().try_fold(HashSet::new(), |mut acc, (left, infix, right)|
+    pub fn merge_inner_optional_splits<T: Tokenize + Display>(
+        hypergraph: &mut Hypergraph<T>,
+        splits: Vec<(Option<Child>, Pattern, Option<Child>)>,
+    ) -> Child {
+        match splits
+            .into_iter()
+            .try_fold(HashSet::new(), |mut acc, (left, infix, right)| {
                 match (left, right) {
-                    (Some(left), Some(right)) => {
-                        match infix.len() {
-                            0 => match Self::resolve_common_parent(hypergraph, left, right) {
-                                Ok(c) => Err(c),
-                                Err(pat) => {
-                                    acc.insert(pat);
-                                    Ok(acc)
-                                },
-                            },
-                            1 => {
-                                let inner = *infix.first().unwrap();
-                                match Self::resolve_common_parent(hypergraph, left, inner) {
-                                    Ok(lc) => {
-                                        match Self::resolve_common_parent(hypergraph, lc, right) {
-                                            Ok(c) => Err(c),
-                                            Err(_) => {
-                                                match Self::resolve_common_parent(hypergraph, inner, right) {
-                                                    Ok(rc) => {
-                                                        acc.insert(vec![lc, right]);
-                                                        acc.insert(vec![left, rc]);
-                                                    },
-                                                    Err(_) => {
-                                                        acc.insert(vec![lc, right]);
-                                                    }
-                                                }
-                                                Ok(acc)
-                                            },
-                                        }
-                                    },
-                                    Err(_) => {
-                                        match Self::resolve_common_parent(hypergraph, inner, right) {
-                                            Ok(c) => {
-                                                acc.insert(vec![left, c]);
-                                            },
-                                            Err(_) => {
-                                                acc.insert(vec![left, inner, right]);
-                                            }
-                                        };
-                                        Ok(acc)
-                                    }
-                                }
-                            },
-                            _ => {
-                                let left = MergeRight::minimize_split(hypergraph, infix, left)
-                                    .unwrap_err();
-                                let right = MergeLeft::minimize_split(hypergraph, left, right)
-                                        .unwrap_err();
-                                acc.insert(right);
+                    (Some(left), Some(right)) => match infix.len() {
+                        0 => match Self::resolve_common_parent(hypergraph, left, right) {
+                            Ok(c) => Err(c),
+                            Err(pat) => {
+                                acc.insert(pat);
                                 Ok(acc)
                             }
+                        },
+                        1 => {
+                            let inner = *infix.first().unwrap();
+                            match Self::resolve_common_parent(hypergraph, left, inner) {
+                                Ok(lc) => {
+                                    match Self::resolve_common_parent(hypergraph, lc, right) {
+                                        Ok(c) => Err(c),
+                                        Err(_) => {
+                                            match Self::resolve_common_parent(
+                                                hypergraph, inner, right,
+                                            ) {
+                                                Ok(rc) => {
+                                                    acc.insert(vec![lc, right]);
+                                                    acc.insert(vec![left, rc]);
+                                                }
+                                                Err(_) => {
+                                                    acc.insert(vec![lc, right]);
+                                                }
+                                            }
+                                            Ok(acc)
+                                        }
+                                    }
+                                }
+                                Err(_) => {
+                                    match Self::resolve_common_parent(hypergraph, inner, right) {
+                                        Ok(c) => {
+                                            acc.insert(vec![left, c]);
+                                        }
+                                        Err(_) => {
+                                            acc.insert(vec![left, inner, right]);
+                                        }
+                                    };
+                                    Ok(acc)
+                                }
+                            }
+                        }
+                        _ => {
+                            let left =
+                                MergeRight::minimize_split(hypergraph, infix, left).unwrap_err();
+                            let right =
+                                MergeLeft::minimize_split(hypergraph, left, right).unwrap_err();
+                            acc.insert(right);
+                            Ok(acc)
                         }
                     },
                     (Some(left), None) => {
@@ -223,40 +242,39 @@ impl SplitMinimizer {
                             Err(pat) => {
                                 acc.insert(pat);
                                 Ok(acc)
-                            },
+                            }
                         }
-                    },
+                    }
                     (None, Some(right)) => {
                         match MergeLeft::minimize_split(hypergraph, infix, right) {
                             Ok(c) => Err(c),
                             Err(pat) => {
                                 acc.insert(pat);
                                 Ok(acc)
-                            },
+                            }
                         }
-                    },
-                    (None, None) => {
-                        match infix.len() {
-                            1 => Err(*infix.first().unwrap()),
-                            0 => panic!("Empty inner pattern in merge patterns"),
-                            _ => {
-                                acc.insert(infix);
-                                Ok(acc)
-                            },
+                    }
+                    (None, None) => match infix.len() {
+                        1 => Err(*infix.first().unwrap()),
+                        0 => panic!("Empty inner pattern in merge patterns"),
+                        _ => {
+                            acc.insert(infix);
+                            Ok(acc)
                         }
                     },
                 }
-            ) {
+            }) {
             Ok(patterns) => {
                 let c = hypergraph.insert_patterns(patterns.clone());
-                println!("created {} from [\n{}]",
+                println!(
+                    "created {} from [\n{}]",
                     hypergraph.index_string(c),
                     patterns.into_iter().fold(String::new(), |acc, p| {
                         format!("{}{},\n", acc, hypergraph.pattern_string(p))
                     })
                 );
                 c
-            },
+            }
             Err(child) => child,
         }
     }

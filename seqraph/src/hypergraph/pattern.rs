@@ -1,47 +1,39 @@
 use crate::hypergraph::*;
 use std::{
     borrow::Borrow,
-    slice::SliceIndex,
-    ops::RangeBounds,
     fmt::Debug,
+    ops::RangeBounds,
+    slice::SliceIndex,
 };
 pub type Pattern = Vec<Child>;
-pub type PatternView<'a> = &'a[Child];
-pub trait PatternRangeIndex: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize> + Debug {}
-impl<T: SliceIndex<[Child], Output=[Child]> + RangeBounds<usize> + Iterator<Item=usize> + Debug> PatternRangeIndex for T {}
+pub type PatternView<'a> = &'a [Child];
+pub trait PatternRangeIndex:
+    SliceIndex<[Child], Output = [Child]> + RangeBounds<usize> + Iterator<Item = usize> + Debug
+{
+}
+impl<
+        T: SliceIndex<[Child], Output = [Child]> + RangeBounds<usize> + Iterator<Item = usize> + Debug,
+    > PatternRangeIndex for T
+{
+}
 
-pub fn pattern_width<T:Borrow<Child>>(pat: impl IntoIterator<Item=T>) -> TokenPosition {
-    pat.into_iter().fold(0, |acc, child| acc + child.borrow().get_width())
+pub fn pattern_width<T: Borrow<Child>>(pat: impl IntoIterator<Item = T>) -> TokenPosition {
+    pat.into_iter()
+        .fold(0, |acc, child| acc + child.borrow().get_width())
 }
-pub fn prefix(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> Pattern {
-    pattern.get(..index)
-        .unwrap_or(pattern)
-        .to_vec()
+pub fn prefix(pattern: PatternView<'_>, index: PatternId) -> Pattern {
+    pattern.get(..index).unwrap_or(pattern).to_vec()
 }
-pub fn infix(
-    pattern: PatternView<'_>,
-    start: PatternId,
-    end: PatternId,
-    ) -> Pattern {
-    pattern.get(start..end)
-        .unwrap_or(&[])
-        .to_vec()
+pub fn infix(pattern: PatternView<'_>, start: PatternId, end: PatternId) -> Pattern {
+    pattern.get(start..end).unwrap_or(&[]).to_vec()
 }
-pub fn postfix(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> Pattern {
-    pattern.get(index..)
-        .unwrap_or(&[])
-        .to_vec()
+pub fn postfix(pattern: PatternView<'_>, index: PatternId) -> Pattern {
+    pattern.get(index..).unwrap_or(&[]).to_vec()
 }
 pub fn replace_in_pattern(
-    pattern: impl IntoIterator<Item=Child>,
+    pattern: impl IntoIterator<Item = Child>,
     range: impl PatternRangeIndex,
-    replace: impl IntoIterator<Item=impl Into<Child>>,
+    replace: impl IntoIterator<Item = impl Into<Child>>,
 ) -> Pattern {
     let mut pattern: Pattern = pattern.into_iter().collect();
     pattern.splice(range, replace.into_iter().map(Into::into));
@@ -60,35 +52,22 @@ pub fn single_child_pattern(half: Pattern) -> Result<Child, Pattern> {
     }
 }
 /// Split a pattern before the specified index
-pub fn split_pattern_at_index(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> (Pattern, Pattern) {
-    (
-        prefix(pattern, index),
-        postfix(pattern, index)
-    )
+pub fn split_pattern_at_index(pattern: PatternView<'_>, index: PatternId) -> (Pattern, Pattern) {
+    (prefix(pattern, index), postfix(pattern, index))
 }
-pub fn split_context(
-    pattern: PatternView<'_>,
-    index: PatternId,
-    ) -> (Pattern, Pattern) {
-    (
-        prefix(pattern, index),
-        postfix(pattern, index+1)
-    )
+pub fn split_context(pattern: PatternView<'_>, index: PatternId) -> (Pattern, Pattern) {
+    (prefix(pattern, index), postfix(pattern, index + 1))
 }
 pub fn double_split_context(
     pattern: PatternView<'_>,
     left_index: PatternId,
     right_index: PatternId,
-    ) -> (Pattern, Pattern, Pattern) {
+) -> (Pattern, Pattern, Pattern) {
     let (prefix, rem) = split_context(pattern, left_index);
     if left_index < right_index {
-        let (infix, postfix) = split_context(&rem, right_index-(left_index + 1));
+        let (infix, postfix) = split_context(&rem, right_index - (left_index + 1));
         (prefix, infix, postfix)
     } else {
         (prefix, vec![], rem)
     }
-
 }

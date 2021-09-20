@@ -1,20 +1,20 @@
 use crate::{
     hypergraph::{
+        pattern_width,
+        r#match::PatternMismatch,
+        Child,
         Hypergraph,
-        VertexIndex,
-        PatternId,
+        Indexed,
         Pattern,
+        PatternId,
         PatternView,
         VertexData,
-        Child,
-        r#match::PatternMismatch,
-        pattern_width,
-        Indexed,
+        VertexIndex,
     },
-    token::{
-        Tokenize,
-    },
+    token::Tokenize,
 };
+mod searcher;
+pub use searcher::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SearchFound(FoundRange, VertexIndex, PatternId);
@@ -28,9 +28,9 @@ impl SearchFound {
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FoundRange {
-    Complete, // Full index found
-    Prefix(Pattern), // found prefix (remainder)
-    Postfix(Pattern), // found postfix (remainder)
+    Complete,                // Full index found
+    Prefix(Pattern),         // found prefix (remainder)
+    Postfix(Pattern),        // found postfix (remainder)
     Infix(Pattern, Pattern), // found infix
 }
 impl FoundRange {
@@ -41,7 +41,9 @@ impl FoundRange {
         match self {
             FoundRange::Complete => FoundRange::Prefix(pattern),
             FoundRange::Prefix(post) => FoundRange::Infix(pattern, post),
-            FoundRange::Infix(pre, post) => FoundRange::Infix([&pattern[..], &pre[..]].concat(), post),
+            FoundRange::Infix(pre, post) => {
+                FoundRange::Infix([&pattern[..], &pre[..]].concat(), post)
+            }
             FoundRange::Postfix(pre) => FoundRange::Postfix([&pattern[..], &pre[..]].concat()),
         }
     }
@@ -62,58 +64,20 @@ enum NotFound {
     Mismatch(PatternMismatch),
 }
 impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't,
+where
+    T: Tokenize + 't,
 {
-    pub(crate) fn find_parent_matching_context(
-        &self,
-        postfix: PatternView<'a>,
-        vertex: &VertexData,
-        ) -> Option<(Child, (PatternId, usize), FoundRange)> {
-        //println!("find_parent_matching_pattern");
-        // find matching parent
-        let width = pattern_width(postfix) + vertex.width;
-        self.right_matcher()
-            .find_parent_matching_context_below_width(postfix, vertex, Some(width + 1))
-            .map(|(index, parent, pattern_pos, pre, m)| (Child::new(index, parent.width), pattern_pos, m.prepend_prefix(pre)))
-    }
-    pub(crate) fn find_postfix_for(
-        &self,
-        index: impl Indexed,
-        postfix: PatternView<'a>,
-    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
-        let vertex = self.expect_vertex_data(index);
-        let (index, pattern_id, found_range) = self.find_parent_matching_context(
-            postfix,
-            vertex,
-        )?;
-        match found_range {
-            FoundRange::Complete => Some((index, pattern_id, found_range)),
-            FoundRange::Prefix(post) => self.find_postfix_for(index, &post[..]),
-            // todo: match prefixes
-            _ => Some((index, pattern_id, found_range)),
-
-        }
-    }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoIterator<Item=impl Into<Child>>,
-        ) -> Option<(Child, (PatternId, usize), FoundRange)> {
-        let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
-        let index = pattern.get(0)?.get_index();
-        if pattern.len() == 1 {
-            // single index is not a pattern
-            return None;
-        }
-        let postfix = &pattern[1..];
-        self.find_postfix_for(index, postfix)
+        pattern: impl IntoIterator<Item = impl Into<Child>>,
+    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+        Searcher::search_right(self).find_pattern(pattern)
     }
     pub fn find_sequence(
         &self,
-        pattern: impl IntoIterator<Item=impl Into<T>>,
-        ) -> Option<(Child, (PatternId, usize), FoundRange)> {
-        let pattern = T::tokenize(pattern.into_iter());
-        let pattern = self.to_token_children(pattern)?;
-        self.find_pattern(&pattern)
+        pattern: impl IntoIterator<Item = impl Into<T>>,
+    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+        Searcher::search_right(self).find_sequence(pattern)
     }
 }
 #[macro_use]
@@ -121,11 +85,11 @@ impl<'t, 'a, T> Hypergraph<T>
 #[allow(clippy::many_single_char_names)]
 pub(crate) mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
     use crate::hypergraph::{
-        Child,
         tests::context,
+        Child,
     };
+    use pretty_assertions::assert_eq;
     macro_rules! assert_match {
         ($in:expr, $exp:expr) => {
             assert_match!($in, $exp, "")
@@ -169,7 +133,7 @@ pub(crate) mod tests {
             _abab,
             _ababab,
             ababababcdefghi,
-            ) = &*context();
+        ) = &*context();
         let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
         let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
         let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
@@ -177,15 +141,32 @@ pub(crate) mod tests {
         let bc_pattern = &[Child::new(bc, 2)];
         let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
         assert_match!(graph.find_pattern(bc_pattern), None);
-        assert_match!(graph.find_pattern(b_c_pattern), Some((bc, FoundRange::Complete)));
-        assert_match!(graph.find_pattern(a_bc_pattern), Some((abc, FoundRange::Complete)));
-        assert_match!(graph.find_pattern(ab_c_pattern), Some((abc, FoundRange::Complete)));
-        assert_match!(graph.find_pattern(a_bc_d_pattern), Some((abcd, FoundRange::Complete)));
-        assert_match!(graph.find_pattern(a_b_c_pattern), Some((abc, FoundRange::Complete)));
-        let a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern = &[
-            *a, *b, *a, *b, *a, *b, *a, *b, *c, *d, *e, *f, *g, *h, *i
-        ];
-        assert_match!(graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern), Some((ababababcdefghi, FoundRange::Complete)));
+        assert_match!(
+            graph.find_pattern(b_c_pattern),
+            Some((bc, FoundRange::Complete))
+        );
+        assert_match!(
+            graph.find_pattern(a_bc_pattern),
+            Some((abc, FoundRange::Complete))
+        );
+        assert_match!(
+            graph.find_pattern(ab_c_pattern),
+            Some((abc, FoundRange::Complete))
+        );
+        assert_match!(
+            graph.find_pattern(a_bc_d_pattern),
+            Some((abcd, FoundRange::Complete))
+        );
+        assert_match!(
+            graph.find_pattern(a_b_c_pattern),
+            Some((abc, FoundRange::Complete))
+        );
+        let a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern =
+            &[*a, *b, *a, *b, *a, *b, *a, *b, *c, *d, *e, *f, *g, *h, *i];
+        assert_match!(
+            graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern),
+            Some((ababababcdefghi, FoundRange::Complete))
+        );
         let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(c, 1)]].concat();
         assert_eq!(graph.find_pattern(a_b_c_c_pattern), None);
     }
@@ -213,9 +194,17 @@ pub(crate) mod tests {
             _abab,
             _ababab,
             ababababcdefghi,
-            ) = &*context();
+        ) = &*context();
         assert_match!(graph.find_sequence("a".chars()), None, "a");
-        assert_match!(graph.find_sequence("abc".chars()), Some((abc, FoundRange::Complete)), "abc");
-        assert_match!(graph.find_sequence("ababababcdefghi".chars()), Some((ababababcdefghi, FoundRange::Complete)), "ababababcdefghi");
+        assert_match!(
+            graph.find_sequence("abc".chars()),
+            Some((abc, FoundRange::Complete)),
+            "abc"
+        );
+        assert_match!(
+            graph.find_sequence("ababababcdefghi".chars()),
+            Some((ababababcdefghi, FoundRange::Complete)),
+            "ababababcdefghi"
+        );
     }
 }

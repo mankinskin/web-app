@@ -1,39 +1,35 @@
-use crate::{
-    token::{
-        Token,
-        Tokenize,
-    },
+use crate::token::{
+    Token,
+    Tokenize,
 };
+use itertools::Itertools;
+use petgraph::graph::DiGraph;
 use std::{
     collections::HashMap,
     fmt::Debug,
 };
-use itertools::{
-    Itertools,
-};
-use petgraph::graph::DiGraph;
-mod search;
-mod r#match;
-mod matcher;
-mod split;
-mod insert;
-mod vertex;
-mod getters;
 mod child_strings;
+mod getters;
+mod insert;
+mod r#match;
 mod pattern;
+mod search;
+mod split;
+mod vertex;
 
-pub use vertex::*;
-pub use split::*;
-pub use pattern::*;
-pub use getters::*;
 pub use child_strings::*;
+pub use getters::*;
+pub use pattern::*;
+pub use split::*;
+pub use vertex::*;
 
 #[derive(Debug, Default)]
 pub struct Hypergraph<T: Tokenize> {
     graph: indexmap::IndexMap<VertexKey<T>, VertexData>,
 }
 impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't,
+where
+    T: Tokenize + 't,
 {
     pub fn index_width(&self, index: &impl Indexed) -> TokenPosition {
         self.expect_vertex_data(index.borrow()).width
@@ -49,66 +45,84 @@ impl<'t, 'a, T> Hypergraph<T>
     //}
 }
 impl<'t, 'a, T> Hypergraph<T>
-    where T: Tokenize + 't + std::fmt::Display,
+where
+    T: Tokenize + 't + std::fmt::Display,
 {
     pub fn to_petgraph(&self) -> DiGraph<(VertexKey<T>, VertexData), Parent> {
         let mut pg = DiGraph::new();
         // id refers to index in Hypergraph
         // idx refers to index in petgraph
-        let nodes: HashMap<_, _> = self.vertex_iter()
+        let nodes: HashMap<_, _> = self
+            .vertex_iter()
             .map(|(key, node)| {
                 let idx = pg.add_node((*key, node.clone()));
                 let id = self.expect_index_by_key(key);
                 (id, (idx, node))
             })
             .collect();
-        nodes.values()
-            .for_each(|(idx, node)| {
-                let parents = node.get_parents();
-                for (p_id, rel) in parents {
-                    let (p_idx, _p_data)
-                        = nodes.get(p_id).expect("Parent not mapped to node in petgraph!");
-                    pg.add_edge(*p_idx, *idx, rel.clone());
-                }
-            });
+        nodes.values().for_each(|(idx, node)| {
+            let parents = node.get_parents();
+            for (p_id, rel) in parents {
+                let (p_idx, _p_data) = nodes
+                    .get(p_id)
+                    .expect("Parent not mapped to node in petgraph!");
+                pg.add_edge(*p_idx, *idx, rel.clone());
+            }
+        });
         pg
     }
 
     pub fn to_node_child_strings(&self) -> ChildStrings {
-        let nodes = self.graph
-            .iter()
-            .map(|(key, data)|
-                (self.key_data_string(key, data), data.to_pattern_strings(self))
-            );
+        let nodes = self.graph.iter().map(|(key, data)| {
+            (
+                self.key_data_string(key, data),
+                data.to_pattern_strings(self),
+            )
+        });
         ChildStrings::from_nodes(nodes)
     }
     pub fn pattern_child_strings(&self, pattern: Pattern) -> ChildStrings {
-        let nodes = pattern
-            .into_iter()
-            .map(|child|
-                (self.index_string(child.index), self.expect_vertex_data(child.index)
-                    .to_pattern_strings(self))
-            );
+        let nodes = pattern.into_iter().map(|child| {
+            (
+                self.index_string(child.index),
+                self.expect_vertex_data(child.index)
+                    .to_pattern_strings(self),
+            )
+        });
         ChildStrings::from_nodes(nodes)
     }
 
-    fn pattern_string_with_separator(&'a self, pattern: impl IntoIterator<Item=impl Indexed>, separator: &'static str) -> String {
-        pattern.into_iter().map(|child| self.index_string(*child.borrow())).join(separator)
+    fn pattern_string_with_separator(
+        &'a self,
+        pattern: impl IntoIterator<Item = impl Indexed>,
+        separator: &'static str,
+    ) -> String {
+        pattern
+            .into_iter()
+            .map(|child| self.index_string(*child.borrow()))
+            .join(separator)
     }
-    pub fn separated_pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Indexed>) -> String {
+    pub fn separated_pattern_string(
+        &'a self,
+        pattern: impl IntoIterator<Item = impl Indexed>,
+    ) -> String {
         self.pattern_string_with_separator(pattern, "_")
     }
-    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item=impl Indexed>) -> String {
+    pub fn pattern_string(&'a self, pattern: impl IntoIterator<Item = impl Indexed>) -> String {
         self.pattern_string_with_separator(pattern, "")
     }
     pub fn key_data_string(&self, key: &VertexKey<T>, data: &VertexData) -> String {
         self.key_data_string_impl(key, data, |t| t.to_string())
     }
-    pub fn key_data_string_impl(&self, key: &VertexKey<T>, data: &VertexData, f: impl Fn(&Token<T>) -> String) -> String {
+    pub fn key_data_string_impl(
+        &self,
+        key: &VertexKey<T>,
+        data: &VertexData,
+        f: impl Fn(&Token<T>) -> String,
+    ) -> String {
         match key {
             VertexKey::Token(token) => f(token),
-            VertexKey::Pattern(_) =>
-                self.pattern_string(data.expect_any_pattern()),
+            VertexKey::Pattern(_) => self.pattern_string(data.expect_any_pattern()),
         }
     }
     pub fn index_string(&self, index: impl Indexed) -> String {
@@ -129,32 +143,32 @@ mod tests {
     use std::sync::{
         Arc,
         RwLock,
-        RwLockWriteGuard,
         RwLockReadGuard,
+        RwLockWriteGuard,
     };
     type Context = (
-                Hypergraph<char>,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                Child,
-                );
+        Hypergraph<char>,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+        Child,
+    );
     lazy_static::lazy_static! {
         pub static ref
             CONTEXT: Arc<RwLock<Context>> = Arc::new(RwLock::new({
@@ -279,32 +293,23 @@ mod tests {
     #[test]
     fn test_to_petgraph() {
         let mut graph = Hypergraph::default();
-        if let [a, b, c, d] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('c'),
-                Token::Element('d'),
-            ])[..] {
+        if let [a, b, c, d] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('c'),
+            Token::Element('d'),
+        ])[..]
+        {
             // ab cd
             // abc d
             // a bcd
 
             let ab = graph.insert_pattern([a, b]);
             let bc = graph.insert_pattern([b, c]);
-            let abc = graph.insert_patterns([
-                [ab, c],
-                [a, bc],
-            ]);
+            let abc = graph.insert_patterns([[ab, c], [a, bc]]);
             let cd = graph.insert_pattern([c, d]);
-            let bcd = graph.insert_patterns([
-                [bc, d],
-                [b, cd],
-            ]);
-            let _abcd = graph.insert_patterns([
-                [abc, d],
-                [a, bcd],
-            ]);
+            let bcd = graph.insert_patterns([[bc, d], [b, cd]]);
+            let _abcd = graph.insert_patterns([[abc, d], [a, bcd]]);
         } else {
             panic!();
         }
