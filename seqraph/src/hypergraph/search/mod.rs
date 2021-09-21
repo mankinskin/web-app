@@ -1,14 +1,10 @@
 use crate::{
     hypergraph::{
-        pattern_width,
         r#match::PatternMismatch,
         Child,
         Hypergraph,
-        Indexed,
         Pattern,
         PatternId,
-        PatternView,
-        VertexData,
         VertexIndex,
     },
     token::Tokenize,
