@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(try_find)]
 
 extern crate test;
 

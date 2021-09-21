@@ -5,16 +5,9 @@ use crate::{
         Tokenize,
     },
 };
-use std::{
-    num::NonZeroUsize,
-    ops::{
-        Range,
-        RangeFrom,
-    },
-    sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    },
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
 };
 
 impl<'t, 'a, T> Hypergraph<T>

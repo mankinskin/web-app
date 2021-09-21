@@ -230,14 +230,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        hypergraph::{
-            child_strings::*,
-            tests::context_mut,
-        },
-        token::*,
-    };
-    use pretty_assertions::assert_eq;
+    use crate::token::*;
     #[test]
     fn split_range_1() {
         let mut graph = Hypergraph::default();

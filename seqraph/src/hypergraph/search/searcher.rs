@@ -1,6 +1,5 @@
 use crate::{
     hypergraph::{
-        pattern_width,
         r#match::*,
         search::*,
         Child,
@@ -36,6 +35,7 @@ impl<'g, T: Tokenize> Searcher<'g, T, MatchRight> {
     }
 }
 impl<'g, T: Tokenize> Searcher<'g, T, MatchLeft> {
+    #[allow(unused)]
     pub fn search_left(graph: &'g Hypergraph<T>) -> Self {
         Self::new(graph)
     }
@@ -59,38 +59,46 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub fn find_sequence(
         &self,
         pattern: impl IntoIterator<Item = impl Into<T>>,
-    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+    ) -> SearchResult {
         let pattern = T::tokenize(pattern.into_iter());
-        let pattern = self.to_token_children(pattern)?;
-        self.find_pattern(pattern)
+        self.to_token_children(pattern)
+            .ok_or(NotFound::UnknownTokens)
+            .and_then(|pattern|
+                self.find_pattern(pattern)
+            )
     }
     pub(crate) fn find_pattern(
         &self,
         pattern: impl IntoIterator<Item = impl Into<Child>>,
-    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+    ) -> SearchResult {
         let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
-        let (head, tail) = MatchRight::split_head_tail(&pattern)?;
-        if tail.is_empty() {
-            // single index is not a pattern
-            return None;
-        }
-        self.find_parent_matching_postfix(head, tail.to_vec())
+        MatchRight::split_head_tail(&pattern)
+            .ok_or(NotFound::EmptyPatterns)
+            .and_then(|(head, tail)|
+                if tail.is_empty() {
+                    // single index is not a pattern
+                    Err(NotFound::SingleIndex)
+                } else {
+                    self.find_parent_matching_postfix(head, tail.to_vec())
+                }
+            )
     }
+    #[allow(unused)]
     pub fn find_parent_matching_context(
         &self,
         context: PatternView<'g>,
         vertex: &VertexData,
-    ) -> Option<FindParentResult> {
+    ) -> Result<FindParentResult, NotFound> {
         self.find_parent_matching_context_below_width(context, vertex, None)
     }
     pub(crate) fn find_parent_matching_postfix(
         &self,
         index: impl Indexed,
         postfix: Pattern,
-    ) -> Option<(Child, (PatternId, usize), FoundRange)> {
+    ) -> SearchResult {
         let vertex = self.expect_vertex_data(index);
         //let width = pattern_width(&postfix) + vertex.width;
-        let (index, pattern_id, found_range) = self.find_parent_matching_context_below_width(
+        let (index, (pattern_id, pattern_pos), found_range) = self.find_parent_matching_context_below_width(
                 &postfix[..],
                 vertex,
                 None,
@@ -103,10 +111,10 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                 )
             })?;
         match found_range {
-            FoundRange::Complete => Some((index, pattern_id, found_range)),
+            FoundRange::Complete => Ok(SearchFound(index, pattern_id, pattern_pos, found_range)),
             FoundRange::Prefix(post) => self.find_parent_matching_postfix(index, post[..].to_vec()),
             // todo: match prefixes
-            _ => Some((index, pattern_id, found_range)),
+            _ => Ok(SearchFound(index, pattern_id, pattern_pos, found_range)),
         }
     }
     pub fn find_parent_matching_context_below_width(
@@ -114,11 +122,10 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         context: PatternView<'g>,
         vertex: &VertexData,
         width_ceiling: Option<TokenPosition>,
-    ) -> Option<FindParentResult> {
+    ) -> Result<FindParentResult, NotFound> {
         let parents = vertex.get_parents_below_width(width_ceiling);
-        let best_match = self.find_parent_with_matching_children(parents.clone(), context);
-        best_match
-            .and_then(|(&index, child_patterns, parent, pattern_index, sub_index)| {
+        if let Some((&index, child_patterns, parent, pattern_index, sub_index)) =
+            self.find_parent_with_matching_children(parents.clone(), context) {
                 self.matcher().compare_child_pattern_with_remainder(
                     child_patterns,
                     context,
@@ -126,14 +133,16 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                     sub_index,
                 )
                 .map(|(back_context, m)| (index, parent.clone(), (pattern_index, sub_index), back_context, m))
-            })
-            .or_else(|| {
-                // compare all parent's children
-                parents.into_iter().find_map(|(&index, parent)| {
-                    self.matcher().compare_context_with_child_pattern(context, index, parent)
-                        .map(|(ppos, pre, m)| (index, parent.clone(), ppos, pre, m))
-                })
-            })
+                .map_err(NotFound::Mismatch)
+        } else {
+            // compare all parent's children
+            parents.into_iter().find_map(|(&index, parent)|
+                self.matcher().compare_context_with_child_pattern(context, index, parent)
+                    .map(|(ppos, pre, m)| (index, parent.clone(), ppos, pre, m))
+                    .ok()
+            )
+            .ok_or(NotFound::NoMatchingParent)
+        }
     }
     /// find parent with a child pattern matching context
     fn find_parent_with_matching_children(
@@ -190,7 +199,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         child_patterns: &'g ChildPatterns,
         candidates: impl Iterator<Item = (usize, PatternId)>,
         sub_context: PatternView<'g>,
-    ) -> Option<(PatternId, usize)> {
+    ) -> Result<(PatternId, usize), NotFound> {
         candidates.find_or_first(|(pattern_index, sub_index)| {
             Self::compare_next_index_in_child_pattern(
                 child_patterns,
@@ -199,5 +208,6 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                 *sub_index,
             )
         })
+        .ok_or(NotFound::NoChildPatterns)
     }
 }

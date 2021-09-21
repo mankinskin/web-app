@@ -1,6 +1,6 @@
 use crate::{
     hypergraph::{
-        search::FoundRange,
+        search::*,
         split::*,
         Child,
         Hypergraph,
@@ -128,7 +128,7 @@ impl SplitMinimizer {
         // find pattern over merge position
         hypergraph
             .find_pattern(p)
-            .map(|(found, (pattern_id, sub_index), found_range)| {
+            .map(|SearchFound(found, pattern_id, sub_index, found_range)| {
                 match found_range {
                     FoundRange::Postfix(_) | FoundRange::Prefix(_) | FoundRange::Infix(_, _) => {
                         // create new index and replace in parent
@@ -144,7 +144,7 @@ impl SplitMinimizer {
                     FoundRange::Complete => found,
                 }
             })
-            .ok_or_else(|| p.to_vec())
+            .map_err(|_| p.to_vec())
     }
     /// minimal means:
     /// - no two indicies are adjacient more than once
