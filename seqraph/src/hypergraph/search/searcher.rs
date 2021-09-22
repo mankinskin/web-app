@@ -18,13 +18,6 @@ use crate::{
 };
 use itertools::Itertools;
 
-type FindParentResult = (
-    VertexIndex,
-    Parent,
-    (PatternId, usize),
-    Pattern,
-    PatternMatch,
-);
 pub struct Searcher<'g, T: Tokenize, D: MatchDirection> {
     graph: &'g Hypergraph<T>,
     _ty: std::marker::PhantomData<D>,
@@ -79,7 +72,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                     // single index is not a pattern
                     Err(NotFound::SingleIndex)
                 } else {
-                    self.find_parent_matching_postfix(head, tail.to_vec())
+                    self.find_largest_matching_parent(head, tail.to_vec())
                 }
             )
     }
@@ -88,57 +81,69 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         &self,
         context: PatternView<'g>,
         vertex: &VertexData,
-    ) -> Result<FindParentResult, NotFound> {
+    ) -> SearchResult {
         self.find_parent_matching_context_below_width(context, vertex, None)
     }
-    pub(crate) fn find_parent_matching_postfix(
+    pub(crate) fn find_largest_matching_parent(
         &self,
         index: impl Indexed,
         postfix: Pattern,
     ) -> SearchResult {
         let vertex = self.expect_vertex_data(index);
         //let width = pattern_width(&postfix) + vertex.width;
-        let (index, (pattern_id, pattern_pos), found_range) = self.find_parent_matching_context_below_width(
-                &postfix[..],
-                vertex,
-                None,
-            )
-            .map(|(index, parent, pattern_pos, pre, m)| {
-                (
-                    Child::new(index, parent.width),
-                    pattern_pos,
-                    m.prepend_prefix(pre),
-                )
-            })?;
-        match found_range {
-            FoundRange::Complete => Ok(SearchFound(index, pattern_id, pattern_pos, found_range)),
-            FoundRange::Prefix(post) => self.find_parent_matching_postfix(index, post[..].to_vec()),
-            // todo: match prefixes
-            _ => Ok(SearchFound(index, pattern_id, pattern_pos, found_range)),
-        }
+        self.find_parent_matching_context_below_width(
+            &postfix[..],
+            vertex,
+            None,
+        )
+        .and_then(|search_found|
+            match search_found.parent_match.remainder {
+                Some(post) =>
+                    self.find_largest_matching_parent(
+                        search_found.index,
+                        post[..].to_vec()
+                    ),
+                // todo: match prefixes
+                _ => Ok(search_found),
+            }
+        )
     }
     pub fn find_parent_matching_context_below_width(
         &self,
         context: PatternView<'g>,
         vertex: &VertexData,
         width_ceiling: Option<TokenPosition>,
-    ) -> Result<FindParentResult, NotFound> {
+    ) -> SearchResult {
         let parents = vertex.get_parents_below_width(width_ceiling);
-        if let Some((&index, child_patterns, parent, pattern_index, sub_index)) =
+        if let Some((&index, child_patterns, parent, pattern_id, sub_index)) =
             self.find_parent_with_matching_children(parents.clone(), context) {
-                self.matcher().compare_child_pattern_with_remainder(
+                self.matcher().compare_child_pattern_at_offset(
                     child_patterns,
                     context,
-                    pattern_index,
+                    pattern_id,
                     sub_index,
                 )
-                .map(|(back_context, m)| (index, parent.clone(), (pattern_index, sub_index), back_context, m))
+                .map(|parent_match|
+                    SearchFound {
+                        index: Child::new(index, parent.width),
+                        pattern_id,
+                        sub_index,
+                        parent_match,
+                    }
+                )
                 .map_err(NotFound::Mismatch)
         } else {
             // compare all parent's children
             parents.into_iter().find_map(|(&index, parent)|
-                self.matcher().compare_context_with_child_pattern(context, index, parent)
-                    .map(|(ppos, pre, m)| (index, parent.clone(), ppos, pre, m))
+                self.matcher().compare_with_parent_children(context, index, parent)
+                    .map(|(parent_match, pattern_id, sub_index)|
+                        SearchFound {
+                            index: Child::new(index, parent.width),
+                            pattern_id,
+                            sub_index,
+                            parent_match,
+                        }
+                    )
                     .ok()
             )
             .ok_or(NotFound::NoMatchingParent)

@@ -1,7 +1,4 @@
 #![feature(test)]
-#![feature(try_find)]
-
-extern crate test;
 
 pub mod arithmetic_bool;
 pub mod graph;

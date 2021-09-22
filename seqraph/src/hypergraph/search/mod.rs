@@ -1,6 +1,6 @@
 use crate::{
     hypergraph::{
-        r#match::PatternMismatch,
+        r#match::*,
         Child,
         Hypergraph,
         Pattern,
@@ -12,9 +12,13 @@ mod searcher;
 pub use searcher::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SearchFound(pub Child, pub PatternId, pub usize, pub FoundRange);
+pub struct SearchFound {
+    pub index: Child,
+    pub parent_match: ParentMatch,
+    pub pattern_id: PatternId,
+    pub sub_index: usize,
+}
 // found range of search pattern in vertex at index
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FoundRange {
     Complete,                // Full index found
@@ -93,11 +97,23 @@ pub(crate) mod tests {
             match $exp {
                 Ok((a, c)) => {
                     let a: &Child = a;
-                    if let Ok(SearchFound(ia, _, _, ic)) = $in {
-                        assert_eq!(ia, *a, $name);
-                        assert_eq!(ic, c, $name);
+                    if let Ok(SearchFound {
+                        index,
+                        parent_match,
+                        ..
+                        }) = $in {
+                        assert_eq!(index, *a, $name);
+                        assert_eq!(parent_match.parent_range, c, $name);
                     } else {
-                        assert_eq!($in, Ok(SearchFound(*a, 0, 0, c)), $name);
+                        assert_eq!($in, Ok(SearchFound {
+                            index: *a,
+                            pattern_id: 0,
+                            sub_index: 0,
+                            parent_match: ParentMatch {
+                                parent_range: c,
+                                remainder: None,
+                            },
+                        }), $name);
                     }
                 },
                 Err(err) => assert_eq!($in, Err(err), $name),
@@ -191,7 +207,7 @@ pub(crate) mod tests {
             _ababab,
             ababababcdefghi,
         ) = &*context();
-        assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
+        //assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
         assert_match!(
             graph.find_sequence("abc".chars()),
             Ok((abc, FoundRange::Complete)),

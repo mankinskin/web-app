@@ -128,8 +128,8 @@ impl SplitMinimizer {
         // find pattern over merge position
         hypergraph
             .find_pattern(p)
-            .map(|SearchFound(found, pattern_id, sub_index, found_range)| {
-                match found_range {
+            .map(|SearchFound { index: found, pattern_id, sub_index, parent_match }| {
+                match parent_match.parent_range {
                     FoundRange::Postfix(_) | FoundRange::Prefix(_) | FoundRange::Infix(_, _) => {
                         // create new index and replace in parent
                         let partial = hypergraph.insert_pattern(p);
@@ -265,15 +265,14 @@ impl SplitMinimizer {
                 }
             }) {
             Ok(patterns) => {
-                let c = hypergraph.insert_patterns(patterns.clone());
-                println!(
-                    "created {} from [\n{}]",
-                    hypergraph.index_string(c),
-                    patterns.into_iter().fold(String::new(), |acc, p| {
-                        format!("{}{},\n", acc, hypergraph.pattern_string(p))
-                    })
-                );
-                c
+                hypergraph.insert_patterns(patterns)
+                //println!(
+                //    "created {} from [\n{}]",
+                //    hypergraph.index_string(c),
+                //    patterns.into_iter().fold(String::new(), |acc, p| {
+                //        format!("{}{},\n", acc, hypergraph.pattern_string(p))
+                //    })
+                //);
             }
             Err(child) => child,
         }

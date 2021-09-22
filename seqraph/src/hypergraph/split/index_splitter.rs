@@ -59,7 +59,7 @@ impl IndexSplitter {
         range: impl PatternRangeIndex,
     ) -> RangeSplitResult {
         let root = root.index();
-        println!("splitting {} at {:?}", hypergraph.index_string(root), range);
+        //println!("splitting {} at {:?}", hypergraph.index_string(root), range);
         let vertex = hypergraph.expect_vertex_data(root).clone();
         // range is a subrange of the index
         let patterns = vertex.get_children().clone();
@@ -122,7 +122,7 @@ impl IndexSplitter {
                 let left_split = Self::find_pattern_split_index(pattern.clone(), left)
                     .expect("left split not in pattern");
                 let right_split = Self::find_pattern_split_index(pattern, right)
-                    .expect("left split not in pattern");
+                    .expect("right split not in pattern");
                 let left = Self::separate_pattern_split(pattern_index, left_split);
                 let right = Self::separate_pattern_split(pattern_index, right_split);
                 let pattern = current_node.get_child_pattern(&pattern_index).unwrap();
@@ -264,13 +264,13 @@ impl IndexSplitter {
         let inner = SplitMinimizer::merge_inner_optional_splits(hypergraph, inner);
         let right = SplitMinimizer::merge_right_optional_splits(hypergraph, right);
         // split all children and resolve
-        println!(
-            "adding ({}, {}, {}) to {}",
-            hypergraph.index_string(left),
-            hypergraph.index_string(inner),
-            hypergraph.index_string(right),
-            hypergraph.index_string(parent),
-        );
+        //println!(
+        //    "adding ({}, {}, {}) to {}",
+        //    hypergraph.index_string(left),
+        //    hypergraph.index_string(inner),
+        //    hypergraph.index_string(right),
+        //    hypergraph.index_string(parent),
+        //);
         hypergraph.add_pattern_to_node(parent, [left, inner, right]);
         (left, inner, right)
     }
@@ -374,7 +374,7 @@ impl IndexSplitter {
         pos: NonZeroUsize,
     ) -> (Child, Child) {
         let root = root.index();
-        println!("splitting {} at {}", hypergraph.index_string(root), pos);
+        //println!("splitting {} at {}", hypergraph.index_string(root), pos);
         let (perfect_split, remaining_splits) = hypergraph.separate_perfect_split(root, pos);
         Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits)
     }
