@@ -1,51 +1,88 @@
+use std::num::NonZeroUsize;
+
 use crate::{
     hypergraph::{
-        VertexIndex,
-        Hypergraph,
+        pattern_width,
+        search::*,
         split::*,
-        Indexed,
         Child,
+        Hypergraph,
     },
     token::Tokenize,
 };
-use std::{
-    num::NonZeroUsize,
-    cmp::PartialEq,
-    borrow::Borrow,
-    fmt::Display,
-};
 
-
-
-pub(crate) struct IndexReader;
-impl IndexReader {
-    pub fn read_sequence<T: Tokenize>(graph: &mut Hypergraph<T>, sequence: impl IntoIterator<Item=T>) -> Child {
-        if let Some((child, (pattern_id, sub_index), found_range)) = graph.find_sequence(sequence) {
-            match found_range {
-                FoundRange::Complete => child,
-                FoundRange::Prefix(post) => {},
-                FoundRange::Postfix(pre) => {},
-                FoundRange::Infix(pre, post) => {},
-            }
-        } else {
-
+pub(crate) struct IndexReader<'g, T: Tokenize> {
+    graph: &'g mut Hypergraph<T>,
+}
+impl<'a, T: Tokenize> std::ops::Deref for IndexReader<'a, T> {
+    type Target = Hypergraph<T>;
+    fn deref(&self) -> &Self::Target {
+        self.graph
+    }
+}
+impl<'g, T: Tokenize> std::ops::DerefMut for IndexReader<'g, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.graph
+    }
+}
+impl<'g, T: Tokenize> IndexReader<'g, T> {
+    pub fn new(graph: &'g mut Hypergraph<T>) -> Self {
+        Self { graph }
+    }
+    pub fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
+        match self.find_sequence(sequence) {
+            Ok(SearchFound {
+                index,
+                parent_match,
+                ..
+            }) => match parent_match.parent_range {
+                FoundRange::Complete => index,
+                FoundRange::Prefix(post) => {
+                    let width = index.width - pattern_width(post);
+                    let width =
+                        NonZeroUsize::new(width).expect("returned full length postfix remainder");
+                    let (c, _) = self.split_index(index, width);
+                    c
+                }
+                FoundRange::Postfix(pre) => {
+                    let width = pattern_width(pre);
+                    let width =
+                        NonZeroUsize::new(width).expect("returned zero length prefix remainder");
+                    let (_, c) = self.split_index(index, width);
+                    c
+                }
+                FoundRange::Infix(pre, post) => {
+                    let pre_width = pattern_width(pre);
+                    let post_width = pattern_width(post);
+                    match self.index_subrange(index, pre_width..index.width - post_width) {
+                        RangeSplitResult::Full(c) => c,
+                        RangeSplitResult::Single(l, r) => {
+                            if pre_width == 0 {
+                                l
+                            } else {
+                                r
+                            }
+                        }
+                        RangeSplitResult::Double(_, c, _) => c,
+                        RangeSplitResult::None => panic!("range not in index"),
+                    }
+                }
+            },
+            Err(not_found) => panic!("Not found {:?}", not_found),
         }
-        Child::new(0, 0)
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use hypergraph::Hypergraph;
-    use futures::{
-        SinkExt,
-        StreamExt,
-    };
-    async fn read_text() {
-        let (mut tx, mut rx) = futures::channel::mpsc::unbounded::<char>();
+    use crate::hypergraph::*;
+    #[test]
+    fn read_text() {
+        //let (mut tx, mut rx) = futures::channel::mpsc::unbounded::<char>();
         let text = "Hello world!";
-        futures::stream::iter(text.chars().map(|c| Ok(c))).forward(tx);
+        //futures::stream::iter(text.chars().map(|c| Ok(c))).forward(tx);
 
-        let mut g = Hypergraph::new();
-        g.insert_sequence(rx);
+        let mut g = Hypergraph::default();
+        g.read_sequence(text.chars());
     }
 }

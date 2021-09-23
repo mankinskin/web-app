@@ -7,10 +7,7 @@ use crate::{
     },
     token::Tokenize,
 };
-use std::{
-    collections::HashSet,
-    fmt::Display,
-};
+use std::collections::HashSet;
 
 trait MergeDirection {
     fn split_context_head(context: Pattern) -> Option<(Child, Pattern)>;
@@ -42,7 +39,7 @@ trait MergeDirection {
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    fn merge_splits<T: Tokenize + Display>(
+    fn merge_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Child)>,
     ) -> Child {
@@ -50,7 +47,7 @@ trait MergeDirection {
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    fn merge_optional_splits<T: Tokenize + Display>(
+    fn merge_optional_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: impl IntoIterator<Item = (Pattern, Option<Child>)>,
     ) -> Child {
@@ -124,51 +121,60 @@ impl SplitMinimizer {
         right: Child,
     ) -> Result<Child, Pattern> {
         //println!("pos: {}, len: {}", pos, pattern.len());
-        let p = &[left, right];
+        let p = vec![left, right];
         // find pattern over merge position
         hypergraph
-            .find_pattern(p)
-            .map(|SearchFound { index: found, pattern_id, sub_index, parent_match }| {
-                match parent_match.parent_range {
-                    FoundRange::Postfix(_) | FoundRange::Prefix(_) | FoundRange::Infix(_, _) => {
-                        // create new index and replace in parent
-                        let partial = hypergraph.insert_pattern(p);
-                        hypergraph.replace_in_pattern(
-                            found,
-                            pattern_id,
-                            sub_index..sub_index + 2,
-                            [partial],
-                        );
-                        partial
+            .find_pattern(p.as_pattern_view())
+            .map(
+                |SearchFound {
+                     index: found,
+                     pattern_id,
+                     sub_index,
+                     parent_match,
+                 }| {
+                    match parent_match.parent_range {
+                        FoundRange::Postfix(_)
+                        | FoundRange::Prefix(_)
+                        | FoundRange::Infix(_, _) => {
+                            // create new index and replace in parent
+                            let partial = hypergraph.insert_pattern(p.clone());
+                            hypergraph.replace_in_pattern(
+                                found,
+                                pattern_id,
+                                sub_index..sub_index + 2,
+                                [partial],
+                            );
+                            partial
+                        }
+                        FoundRange::Complete => found,
                     }
-                    FoundRange::Complete => found,
-                }
-            })
-            .map_err(|_| p.to_vec())
+                },
+            )
+            .map_err(|_| p.into_pattern())
     }
     /// minimal means:
     /// - no two indicies are adjacient more than once
     /// - no two patterns of the same index share an index border
     /// returns minimal patterns on each side of index split
-    pub fn merge_left_splits<T: Tokenize + Display>(
+    pub fn merge_left_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Child)>,
     ) -> Child {
         MergeLeft::merge_splits(hypergraph, splits)
     }
-    pub fn merge_right_splits<T: Tokenize + Display>(
+    pub fn merge_right_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Child)>,
     ) -> Child {
         MergeRight::merge_splits(hypergraph, splits)
     }
-    pub fn merge_left_optional_splits<T: Tokenize + Display>(
+    pub fn merge_left_optional_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Option<Child>)>,
     ) -> Child {
         MergeLeft::merge_optional_splits(hypergraph, splits)
     }
-    pub fn merge_right_optional_splits<T: Tokenize + Display>(
+    pub fn merge_right_optional_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Pattern, Option<Child>)>,
     ) -> Child {
@@ -176,7 +182,7 @@ impl SplitMinimizer {
     }
     /// returns minimal patterns of pattern split
     /// i.e. no duplicate subsequences with respect to entire index
-    pub fn merge_inner_optional_splits<T: Tokenize + Display>(
+    pub fn merge_inner_optional_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         splits: Vec<(Option<Child>, Pattern, Option<Child>)>,
     ) -> Child {

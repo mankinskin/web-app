@@ -37,8 +37,31 @@ pub trait Indexed: Borrow<VertexIndex> + PartialEq {
     fn index(&self) -> &VertexIndex {
         self.borrow()
     }
+    fn vertex<'g, T: Tokenize>(&'g self, graph: &'g Hypergraph<T>) -> &'g VertexData {
+        graph.expect_vertex_data(self.index())
+    }
 }
-impl<T: Borrow<VertexIndex> + PartialEq> Indexed for T {}
+impl Indexed for VertexIndex {}
+impl Indexed for &VertexIndex {}
+impl Indexed for &Child {}
+impl Indexed for Child {}
+
+impl Indexed for VertexData {
+    fn index(&self) -> &VertexIndex {
+        &self.index
+    }
+    fn vertex<'g, T: Tokenize>(&'g self, _graph: &'g Hypergraph<T>) -> &'g VertexData {
+        self
+    }
+}
+impl Indexed for &VertexData {
+    fn index(&self) -> &VertexIndex {
+        &self.index
+    }
+    fn vertex<'g, T: Tokenize>(&'g self, _graph: &'g Hypergraph<T>) -> &'g VertexData {
+        self
+    }
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum VertexKey<T: Tokenize> {
@@ -174,6 +197,7 @@ impl From<&'_ Child> for Child {
 //}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VertexData {
+    pub index: VertexIndex,
     pub width: TokenPosition,
     pub parents: VertexParents,
     pub children: ChildPatterns,
@@ -183,8 +207,9 @@ impl VertexData {
         static PATTERN_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
         PATTERN_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
-    pub fn with_width(width: TokenPosition) -> Self {
+    pub fn new(index: VertexIndex, width: TokenPosition) -> Self {
         Self {
+            index,
             width,
             parents: VertexParents::new(),
             children: ChildPatterns::new(),
@@ -362,5 +387,16 @@ impl VertexData {
             .to_vec();
         *pattern = replace_in_pattern(pattern.iter().cloned(), range, replace);
         old
+    }
+}
+
+impl Borrow<VertexIndex> for VertexData {
+    fn borrow(&self) -> &VertexIndex {
+        &self.index
+    }
+}
+impl Borrow<VertexIndex> for &VertexData {
+    fn borrow(&self) -> &VertexIndex {
+        &self.index
     }
 }

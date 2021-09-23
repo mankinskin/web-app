@@ -1,14 +1,12 @@
-use crate::{
-    hypergraph::{
-        pattern::*,
-        search::*,
-        Child,
-        Indexed,
-        Parent,
-        PatternId,
-        TokenPosition,
-        VertexData,
-    },
+use crate::hypergraph::{
+    pattern::*,
+    search::*,
+    Child,
+    Indexed,
+    Parent,
+    PatternId,
+    TokenPosition,
+    VertexData,
 };
 use itertools::{
     EitherOrBoth,

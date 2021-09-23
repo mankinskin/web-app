@@ -16,6 +16,39 @@ impl<
     > PatternRangeIndex for T
 {
 }
+pub trait IntoPattern: IntoIterator + Sized
+    where <Self as IntoIterator>::Item: Into<Child>,
+{
+    fn into_pattern(self) -> Pattern {
+        self.into_iter().map(Into::into).collect()
+    }
+    fn as_pattern_view(&'_ self) -> &'_ [Child];
+    fn is_empty(&self) -> bool;
+}
+impl IntoPattern for Pattern {
+    fn as_pattern_view(&'_ self) -> &'_ [Child] {
+        self.as_slice()
+    }
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+}
+impl IntoPattern for &'_ Pattern {
+    fn as_pattern_view(&'_ self) -> &'_ [Child] {
+        self.as_slice()
+    }
+    fn is_empty(&self) -> bool {
+        (*self).is_empty()
+    }
+}
+impl IntoPattern for PatternView<'_> {
+    fn as_pattern_view(&'_ self) -> &'_ [Child] {
+        self
+    }
+    fn is_empty(&self) -> bool {
+        (*self).is_empty()
+    }
+}
 
 pub fn pattern_width<T: Borrow<Child>>(pat: impl IntoIterator<Item = T>) -> TokenPosition {
     pat.into_iter()

@@ -3,16 +3,14 @@ use crate::{
         r#match::*,
         search::*,
         Child,
+        ChildPatterns,
         Hypergraph,
         Indexed,
+        Parent,
         Pattern,
         PatternId,
-        PatternView,
-        VertexData,
-        VertexIndex,
-        Parent,
-        ChildPatterns,
         TokenPosition,
+        VertexIndex,
     },
     token::Tokenize,
 };
@@ -49,111 +47,86 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub(crate) fn matcher(&self) -> Matcher<'g, T, D> {
         Matcher::new(self.graph)
     }
-    pub fn find_sequence(
-        &self,
-        pattern: impl IntoIterator<Item = impl Into<T>>,
-    ) -> SearchResult {
-        let pattern = T::tokenize(pattern.into_iter());
-        self.to_token_children(pattern)
+    pub fn find_sequence(&self, pattern: impl IntoIterator<Item = impl Into<T>>) -> SearchResult {
+        let iter = pattern.into_iter();
+        let iter = T::tokenize(iter);
+        self.to_token_children(iter)
             .ok_or(NotFound::UnknownTokens)
-            .and_then(|pattern|
-                self.find_pattern(pattern)
-            )
+            .and_then(|pattern| self.find_pattern(pattern))
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoIterator<Item = impl Into<Child>>,
+        pattern: impl IntoPattern<Item=impl Into<Child>>,
     ) -> SearchResult {
         let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
         MatchRight::split_head_tail(&pattern)
             .ok_or(NotFound::EmptyPatterns)
-            .and_then(|(head, tail)|
+            .and_then(|(head, tail)| {
                 if tail.is_empty() {
                     // single index is not a pattern
                     Err(NotFound::SingleIndex)
                 } else {
                     self.find_largest_matching_parent(head, tail.to_vec())
                 }
-            )
+            })
     }
-    #[allow(unused)]
-    pub fn find_parent_matching_context(
-        &self,
-        context: PatternView<'g>,
-        vertex: &VertexData,
-    ) -> SearchResult {
-        self.find_parent_matching_context_below_width(context, vertex, None)
-    }
-    pub(crate) fn find_largest_matching_parent(
+    pub fn find_largest_matching_parent(
         &self,
         index: impl Indexed,
-        postfix: Pattern,
+        context: impl IntoPattern<Item=impl Into<Child>>,
     ) -> SearchResult {
-        let vertex = self.expect_vertex_data(index);
-        //let width = pattern_width(&postfix) + vertex.width;
-        self.find_parent_matching_context_below_width(
-            &postfix[..],
-            vertex,
-            None,
-        )
-        .and_then(|search_found|
-            match search_found.parent_match.remainder {
-                Some(post) =>
-                    self.find_largest_matching_parent(
-                        search_found.index,
-                        post[..].to_vec()
-                    ),
-                // todo: match prefixes
-                _ => Ok(search_found),
-            }
-        )
+        self.find_largest_matching_parent_below_width(index, context, None)
     }
-    pub fn find_parent_matching_context_below_width(
+    pub fn find_largest_matching_parent_below_width(
         &self,
-        context: PatternView<'g>,
-        vertex: &VertexData,
+        index: impl Indexed,
+        context: impl IntoPattern<Item=impl Into<Child>>,
         width_ceiling: Option<TokenPosition>,
     ) -> SearchResult {
+        let vertex = self.expect_vertex_data(index);
         let parents = vertex.get_parents_below_width(width_ceiling);
         if let Some((&index, child_patterns, parent, pattern_id, sub_index)) =
-            self.find_parent_with_matching_children(parents.clone(), context) {
-                self.matcher().compare_child_pattern_at_offset(
-                    child_patterns,
-                    context,
+            self.find_parent_with_matching_children(parents.clone(), context.as_pattern_view())
+        {
+            self.matcher()
+                .compare_child_pattern_at_offset(child_patterns, context, pattern_id, sub_index)
+                .map(|parent_match| SearchFound {
+                    index: Child::new(index, parent.width),
                     pattern_id,
                     sub_index,
-                )
-                .map(|parent_match|
-                    SearchFound {
-                        index: Child::new(index, parent.width),
-                        pattern_id,
-                        sub_index,
-                        parent_match,
-                    }
-                )
+                    parent_match,
+                })
                 .map_err(NotFound::Mismatch)
         } else {
             // compare all parent's children
-            parents.into_iter().find_map(|(&index, parent)|
-                self.matcher().compare_with_parent_children(context, index, parent)
-                    .map(|(parent_match, pattern_id, sub_index)|
-                        SearchFound {
+            parents
+                .into_iter()
+                .find_map(|(&index, parent)| {
+                    self.matcher()
+                        .compare_with_parent_children(context.as_pattern_view(), index, parent)
+                        .map(|(parent_match, pattern_id, sub_index)| SearchFound {
                             index: Child::new(index, parent.width),
                             pattern_id,
                             sub_index,
                             parent_match,
-                        }
-                    )
-                    .ok()
-            )
-            .ok_or(NotFound::NoMatchingParent)
+                        })
+                        .ok()
+                })
+                .ok_or(NotFound::NoMatchingParent)
         }
+        .and_then(|search_found| match search_found.parent_match.remainder {
+            Some(post) => {
+                self.find_largest_matching_parent(search_found.index, post[..].to_vec())
+            }
+            // todo: match prefixes
+            _ => Ok(search_found),
+        })
     }
     /// find parent with a child pattern matching context
     fn find_parent_with_matching_children(
         &'g self,
         mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
-        context: PatternView<'g>,
+        context: impl IntoPattern<Item=impl Into<Child>>,
     ) -> Option<(
         &'g VertexIndex,
         &'g ChildPatterns,
@@ -173,7 +146,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                     // find pattern with same next index
                     Self::compare_next_index_in_child_pattern(
                         child_patterns,
-                        context,
+                        context.as_pattern_view(),
                         pattern_index,
                         *sub_index,
                     )
@@ -185,11 +158,11 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     }
     pub(crate) fn compare_next_index_in_child_pattern(
         child_patterns: &'g ChildPatterns,
-        context: PatternView<'g>,
+        context: impl IntoPattern<Item=impl Into<Child>>,
         pattern_index: &PatternId,
         sub_index: usize,
     ) -> bool {
-        D::pattern_head(context)
+        D::pattern_head(context.as_pattern_view())
             .and_then(|next_sub| {
                 D::index_next(sub_index).and_then(|i| {
                     child_patterns
@@ -203,16 +176,17 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub(crate) fn find_best_child_pattern(
         child_patterns: &'g ChildPatterns,
         candidates: impl Iterator<Item = (usize, PatternId)>,
-        sub_context: PatternView<'g>,
+        sub_context: impl IntoPattern<Item=impl Into<Child>>,
     ) -> Result<(PatternId, usize), NotFound> {
-        candidates.find_or_first(|(pattern_index, sub_index)| {
-            Self::compare_next_index_in_child_pattern(
-                child_patterns,
-                sub_context,
-                pattern_index,
-                *sub_index,
-            )
-        })
-        .ok_or(NotFound::NoChildPatterns)
+        candidates
+            .find_or_first(|(pattern_index, sub_index)| {
+                Self::compare_next_index_in_child_pattern(
+                    child_patterns,
+                    sub_context.as_pattern_view(),
+                    pattern_index,
+                    *sub_index,
+                )
+            })
+            .ok_or(NotFound::NoChildPatterns)
     }
 }

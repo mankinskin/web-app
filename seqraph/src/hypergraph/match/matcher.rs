@@ -44,20 +44,22 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     // - once unequal, pick larger and smaller index
     // - search for larger in parents of smaller
     // - otherwise: try to find parent with best matching children
-    pub fn compare(&self, a: PatternView<'_>, b: PatternView<'_>) -> PatternMatchResult {
+    pub fn compare(&self, a: impl IntoPattern<Item=impl Into<Child>>, b: impl IntoPattern<Item=impl Into<Child>>) -> PatternMatchResult {
         //println!("compare_pattern_prefix(\"{}\", \"{}\")", self.pattern_string(pattern_a), self.pattern_string(pattern_b));
-        if let Some((pos, eob)) = D::skip_equal_indices(a.iter(), b.iter()) {
+        let a: Pattern = a.into_pattern();
+        let b: Pattern = b.into_pattern();
+        if let Some((pos, eob)) = D::skip_equal_indices(a.clone().iter(), b.clone().iter()) {
             match eob {
                 // different elements on both sides
                 EitherOrBoth::Both(ai, bi) => {
                     self.match_unequal_indices_in_context(a, *ai, b, *bi, pos)
-                },
+                }
                 EitherOrBoth::Left(_) => {
-                    Ok(PatternMatch(Some(D::split_end_normalized(a, pos)), None))
-                },
+                    Ok(PatternMatch(Some(D::split_end_normalized(&a, pos)), None))
+                }
                 EitherOrBoth::Right(_) => {
-                    Ok(PatternMatch(None, Some(D::split_end_normalized(b, pos))))
-                },
+                    Ok(PatternMatch(None, Some(D::split_end_normalized(&b, pos))))
+                }
             }
         } else {
             Ok(PatternMatch(None, None))
@@ -65,9 +67,9 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     }
     fn match_unequal_indices_in_context(
         &self,
-        a_pattern: PatternView<'a>,
+        a_pattern: impl IntoPattern<Item=impl Into<Child>>,
         a: Child,
-        b_pattern: PatternView<'a>,
+        b_pattern: impl IntoPattern<Item=impl Into<Child>>,
         b: Child,
         pos: TokenPosition,
     ) -> PatternMatchResult {
@@ -85,16 +87,16 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
             Ordering::Equal => return Err(PatternMismatch::Mismatch),
             Ordering::Less => {
                 //println!("right super");
-                sub_context = D::front_context_normalized(a_pattern, pos);
-                sup_context = D::front_context_normalized(b_pattern, pos);
+                sub_context = D::front_context_normalized(a_pattern.as_pattern_view(), pos);
+                sup_context = D::front_context_normalized(b_pattern.as_pattern_view(), pos);
                 sub = a;
                 sup = b;
                 false
             }
             Ordering::Greater => {
                 //println!("left super");
-                sub_context = D::front_context_normalized(b_pattern, pos);
-                sup_context = D::front_context_normalized(a_pattern, pos);
+                sub_context = D::front_context_normalized(b_pattern.as_pattern_view(), pos);
+                sup_context = D::front_context_normalized(a_pattern.as_pattern_view(), pos);
                 sub = b;
                 sup = a;
                 true
@@ -103,25 +105,31 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         // left remainder: sub remainder
         // right remainder: sup remainder
         // matching: sub & sup finished
-        let parent_match = self.match_sub_and_context_with_index(sub, &sub_context[..], sup)?;
+        let parent_match = self.match_sub_and_context_with_index(sub, sub_context, sup)?;
         let rem = parent_match.remainder;
         match parent_match.parent_range {
-            FoundRange::Complete => self.compare(&rem.unwrap_or_default(), &sup_context),
+            FoundRange::Complete => self.compare(rem.unwrap_or_default(), sup_context),
             found_range => {
                 let post = D::get_remainder(found_range);
-                Ok(PatternMatch(rem, post.map(|post| D::merge_remainder_with_context(&post, &sup_context))))
-            },
-        }.map(|result| if rotate {
-            result.flip_remainder()
-        } else {
-            result
+                Ok(PatternMatch(
+                    rem,
+                    post.map(|post| D::merge_remainder_with_context(&post, &sup_context)),
+                ))
+            }
+        }
+        .map(|result| {
+            if rotate {
+                result.flip_remainder()
+            } else {
+                result
+            }
         })
     }
     /// match sub index and context with sup index with max width
     fn match_sub_and_context_with_index(
         &self,
         sub: impl Indexed,
-        sub_context: PatternView<'_>,
+        sub_context: impl IntoPattern<Item=impl Into<Child>>,
         sup: Child,
     ) -> ParentMatchResult {
         //println!("match_sub_pattern_to_super");
@@ -129,7 +137,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         if sub.index() == sup.index() {
             return Ok(ParentMatch {
                 parent_range: FoundRange::Complete,
-                remainder: (!sub_context.is_empty()).then(|| sub_context.into()),
+                remainder: (!sub_context.is_empty()).then(|| sub_context.into_pattern()),
             });
         }
         let vertex = self.expect_vertex_data(sub);
@@ -148,29 +156,34 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
             //println!("matching available parents");
             // search sup in parents
             self.searcher()
-                .find_parent_matching_context_below_width(sub_context, vertex, Some(sup.width))
+                .find_largest_matching_parent_below_width(vertex, sub_context, Some(sup.width))
                 .or(Err(PatternMismatch::NoMatchingParent))
-                .and_then(|SearchFound {
-                    index: parent_index,
-                    parent_match,
-                    ..
-                }|
-                    match (D::found_at_start(parent_match.parent_range), parent_match.remainder) {
-                        (true, rem) => Ok(rem.unwrap_or_default()),
-                        // parent not matching at beginning
-                        (false, _) => Err(PatternMismatch::NoParents),
-                    }
-                    // search next parent
-                    .and_then(|new_context|
-                        self.match_sub_and_context_with_index(parent_index, &new_context, sup)
-                    )
+                .and_then(
+                    |SearchFound {
+                         index: parent_index,
+                         parent_match,
+                         ..
+                     }| {
+                        match (
+                            D::found_at_start(parent_match.parent_range),
+                            parent_match.remainder,
+                        ) {
+                            (true, rem) => Ok(rem.unwrap_or_default()),
+                            // parent not matching at beginning
+                            (false, _) => Err(PatternMismatch::NoParents),
+                        }
+                        // search next parent
+                        .and_then(|new_context| {
+                            self.match_sub_and_context_with_index(parent_index, new_context, sup)
+                        })
+                    },
                 )
         }
     }
     /// match context against child context in parent.
     pub fn compare_with_parent_children(
         &'a self,
-        context: PatternView<'a>,
+        context: impl IntoPattern<Item=impl Into<Child>>,
         parent_index: impl Indexed,
         parent: &Parent,
     ) -> Result<(ParentMatch, PatternId, usize), PatternMismatch> {
@@ -182,18 +195,22 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         let candidates = D::candidate_parent_pattern_indices(parent, child_patterns);
         //println!("with successors \"{}\"", self.pattern_string(post_pattern));
         // try to find child pattern with same next index
-        Searcher::<'a, T, D>::find_best_child_pattern(child_patterns, candidates.into_iter(), context)
-            .or(Err(PatternMismatch::NoChildPatterns))
-            .and_then(|(pattern_index, sub_index)|
-                self.compare_child_pattern_at_offset(child_patterns, context, pattern_index, sub_index)
-                    .map(|parent_match| (parent_match, pattern_index, sub_index))
-            )
+        Searcher::<'a, T, D>::find_best_child_pattern(
+            child_patterns,
+            candidates.into_iter(),
+            context.as_pattern_view(),
+        )
+        .or(Err(PatternMismatch::NoChildPatterns))
+        .and_then(|(pattern_index, sub_index)| {
+            self.compare_child_pattern_at_offset(child_patterns, context, pattern_index, sub_index)
+                .map(|parent_match| (parent_match, pattern_index, sub_index))
+        })
     }
     /// comparison on child pattern and context
     pub fn compare_child_pattern_at_offset(
         &'a self,
         child_patterns: &'a ChildPatterns,
-        context: PatternView<'a>,
+        context: impl IntoPattern<Item=impl Into<Child>>,
         pattern_index: PatternId,
         sub_index: usize,
     ) -> ParentMatchResult {
@@ -204,12 +221,10 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         let child_tail = D::pattern_tail(&rem[..]);
         // match search context with child tail
         // back context is from child pattern
-        self.compare(context, child_tail).map(|pm|
-            ParentMatch {
-                parent_range: D::to_found_range(pm.1, back_context),
-                remainder: pm.0,
-            }
-        )
+        self.compare(context, child_tail).map(|pm| ParentMatch {
+            parent_range: D::to_found_range(pm.1, back_context),
+            remainder: pm.0,
+        })
         // returns result of matching sub with parent's children
     }
 }

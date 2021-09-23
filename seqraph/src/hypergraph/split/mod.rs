@@ -154,11 +154,6 @@ where
             Err(s) => Ok(s),
         }
     }
-}
-impl<'t, 'a, T> Hypergraph<T>
-where
-    T: Tokenize + 't + std::fmt::Display,
-{
     /// Split an index the specified position
     pub fn split_index(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
         IndexSplitter::split_index(self, root, pos)
@@ -171,7 +166,11 @@ where
     ) -> RangeSplitResult {
         IndexSplitter::index_subrange(self, root, range)
     }
-
+}
+impl<'t, 'a, T> Hypergraph<T>
+where
+    T: Tokenize + 't + std::fmt::Display,
+{
     fn pattern_split_string_width(&self, split: &PatternSplit) -> usize {
         let left = self.pattern_string_with_separator(&split.prefix, ".");
         let right = self.pattern_string_with_separator(&split.postfix, ".");

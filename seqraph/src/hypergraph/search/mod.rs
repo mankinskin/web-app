@@ -5,6 +5,7 @@ use crate::{
         Hypergraph,
         Pattern,
         PatternId,
+        pattern::*,
     },
     token::Tokenize,
 };
@@ -68,14 +69,11 @@ where
 {
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoIterator<Item = impl Into<Child>>,
+        pattern: impl IntoPattern<Item=impl Into<Child>>,
     ) -> SearchResult {
         Searcher::search_right(self).find_pattern(pattern)
     }
-    pub fn find_sequence(
-        &self,
-        pattern: impl IntoIterator<Item = impl Into<T>>,
-    ) -> SearchResult {
+    pub fn find_sequence(&self, pattern: impl IntoIterator<Item = impl Into<T>>) -> SearchResult {
         Searcher::search_right(self).find_sequence(pattern)
     }
 }
@@ -101,21 +99,26 @@ pub(crate) mod tests {
                         index,
                         parent_match,
                         ..
-                        }) = $in {
+                    }) = $in
+                    {
                         assert_eq!(index, *a, $name);
                         assert_eq!(parent_match.parent_range, c, $name);
                     } else {
-                        assert_eq!($in, Ok(SearchFound {
-                            index: *a,
-                            pattern_id: 0,
-                            sub_index: 0,
-                            parent_match: ParentMatch {
-                                parent_range: c,
-                                remainder: None,
-                            },
-                        }), $name);
+                        assert_eq!(
+                            $in,
+                            Ok(SearchFound {
+                                index: *a,
+                                pattern_id: 0,
+                                sub_index: 0,
+                                parent_match: ParentMatch {
+                                    parent_range: c,
+                                    remainder: None,
+                                },
+                            }),
+                            $name
+                        );
                     }
-                },
+                }
                 Err(err) => assert_eq!($in, Err(err), $name),
             }
         };
@@ -146,41 +149,44 @@ pub(crate) mod tests {
             _ababab,
             ababababcdefghi,
         ) = &*context();
-        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
-        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
-        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
-        let bc_pattern = &[Child::new(bc, 2)];
-        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
-        assert_match!(graph.find_pattern(bc_pattern), Err(NotFound::SingleIndex));
+        let a_bc_pattern = vec![Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = vec![Child::new(ab, 2), Child::new(c, 1)];
+        let a_bc_d_pattern = vec![Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let b_c_pattern = vec![Child::new(b, 1), Child::new(c, 1)];
+        let bc_pattern = vec![Child::new(bc, 2)];
+        let a_b_c_pattern = vec![Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        assert_match!(graph.find_pattern(&bc_pattern), Err(NotFound::SingleIndex));
         assert_match!(
-            graph.find_pattern(b_c_pattern),
+            graph.find_pattern(&b_c_pattern),
             Ok((bc, FoundRange::Complete))
         );
         assert_match!(
-            graph.find_pattern(a_bc_pattern),
+            graph.find_pattern(&a_bc_pattern),
             Ok((abc, FoundRange::Complete))
         );
         assert_match!(
-            graph.find_pattern(ab_c_pattern),
+            graph.find_pattern(&ab_c_pattern),
             Ok((abc, FoundRange::Complete))
         );
         assert_match!(
-            graph.find_pattern(a_bc_d_pattern),
+            graph.find_pattern(&a_bc_d_pattern),
             Ok((abcd, FoundRange::Complete))
         );
         assert_match!(
-            graph.find_pattern(a_b_c_pattern),
+            graph.find_pattern(&a_b_c_pattern),
             Ok((abc, FoundRange::Complete))
         );
         let a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern =
-            &[*a, *b, *a, *b, *a, *b, *a, *b, *c, *d, *e, *f, *g, *h, *i];
+            vec![*a, *b, *a, *b, *a, *b, *a, *b, *c, *d, *e, *f, *g, *h, *i];
         assert_match!(
-            graph.find_pattern(a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern),
+            graph.find_pattern(&a_b_a_b_a_b_a_b_c_d_e_f_g_h_i_pattern),
             Ok((ababababcdefghi, FoundRange::Complete))
         );
-        let a_b_c_c_pattern = &[&a_b_c_pattern[..], &[Child::new(c, 1)]].concat();
-        assert_eq!(graph.find_pattern(a_b_c_c_pattern), Err(NotFound::NoMatchingParent));
+        let a_b_c_c_pattern = [&a_b_c_pattern[..], &[Child::new(c, 1)]].concat();
+        assert_eq!(
+            graph.find_pattern(a_b_c_c_pattern),
+            Err(NotFound::NoMatchingParent)
+        );
     }
     #[test]
     fn find_sequence() {
@@ -207,7 +213,7 @@ pub(crate) mod tests {
             _ababab,
             ababababcdefghi,
         ) = &*context();
-        //assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
+        assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
         assert_match!(
             graph.find_sequence("abc".chars()),
             Ok((abc, FoundRange::Complete)),

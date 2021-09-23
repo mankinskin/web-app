@@ -10,6 +10,7 @@ use std::{
 };
 mod child_strings;
 mod getters;
+mod index_reader;
 mod insert;
 mod r#match;
 mod pattern;

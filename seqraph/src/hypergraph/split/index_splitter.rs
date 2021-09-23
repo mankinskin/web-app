@@ -10,7 +10,6 @@ use crate::{
 use std::{
     borrow::Borrow,
     cmp::PartialEq,
-    fmt::Display,
     num::NonZeroUsize,
 };
 
@@ -53,7 +52,7 @@ pub type SingleSplitIndices = Vec<(PatternId, SplitIndex)>;
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct IndexSplitter;
 impl IndexSplitter {
-    pub(crate) fn index_subrange<T: Tokenize + Display>(
+    pub(crate) fn index_subrange<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         root: impl Indexed + Clone,
         range: impl PatternRangeIndex,
@@ -204,7 +203,7 @@ impl IndexSplitter {
             Err(split) => Ok(split),
         }
     }
-    pub(crate) fn double_split_from_indices<T: Tokenize + Display>(
+    pub(crate) fn double_split_from_indices<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         parent: impl Indexed,
         indices: Vec<(PatternId, DoubleSplitIndex)>,
@@ -288,7 +287,7 @@ impl IndexSplitter {
             })
             .collect()
     }
-    pub(crate) fn process_single_splits<T: Tokenize + Display>(
+    pub(crate) fn process_single_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         vertex: &VertexData,
         root: impl Indexed + Clone,
@@ -353,7 +352,7 @@ impl IndexSplitter {
             )
         }
     }
-    pub(crate) fn single_split_from_indices<T: Tokenize + Display>(
+    pub(crate) fn single_split_from_indices<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         root: impl Indexed,
         perfect_split: Option<(Split, IndexInParent)>,
@@ -368,7 +367,7 @@ impl IndexSplitter {
             (left, right)
         }
     }
-    pub(crate) fn split_index<T: Tokenize + Display>(
+    pub(crate) fn split_index<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         root: impl Indexed,
         pos: NonZeroUsize,
@@ -417,7 +416,7 @@ impl IndexSplitter {
             c
         }
     }
-    fn perform_child_splits<T: Tokenize + Display>(
+    fn perform_child_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         child_splits: Vec<SplitContext>,
     ) -> (Child, Child) {

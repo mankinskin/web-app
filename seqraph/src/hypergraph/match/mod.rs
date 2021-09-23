@@ -1,6 +1,7 @@
 use crate::{
     hypergraph::{
         pattern::*,
+        Child,
         search::FoundRange,
         Hypergraph,
     },
@@ -69,15 +70,15 @@ where
     }
     pub fn compare_pattern_postfix(
         &self,
-        a: PatternView<'a>,
-        b: PatternView<'a>,
+        a: impl IntoPattern<Item=impl Into<Child>>,
+        b: impl IntoPattern<Item=impl Into<Child>>,
     ) -> PatternMatchResult {
         self.left_matcher().compare(a, b)
     }
     pub fn compare_pattern_prefix(
         &self,
-        a: PatternView<'a>,
-        b: PatternView<'a>,
+        a: impl IntoPattern<Item=impl Into<Child>>,
+        b: impl IntoPattern<Item=impl Into<Child>>,
     ) -> PatternMatchResult {
         self.right_matcher().compare(a, b)
     }
@@ -115,82 +116,82 @@ mod tests {
             _ababab,
             _ababababcdefghi,
         ) = &*context();
-        let a_bc_pattern = &[Child::new(a, 1), Child::new(bc, 2)];
-        let ab_c_pattern = &[Child::new(ab, 2), Child::new(c, 1)];
-        let abc_d_pattern = &[Child::new(abc, 3), Child::new(d, 1)];
-        let a_bc_d_pattern = &[Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
-        let ab_c_d_pattern = &[Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
-        let abcd_pattern = &[Child::new(abcd, 4)];
-        let b_c_pattern = &[Child::new(b, 1), Child::new(c, 1)];
-        let bc_pattern = &[Child::new(bc, 2)];
-        let a_d_c_pattern = &[Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
-        let a_b_c_pattern = &[Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        let a_bc_pattern = vec![Child::new(a, 1), Child::new(bc, 2)];
+        let ab_c_pattern = vec![Child::new(ab, 2), Child::new(c, 1)];
+        let abc_d_pattern = vec![Child::new(abc, 3), Child::new(d, 1)];
+        let a_bc_d_pattern = vec![Child::new(a, 1), Child::new(bc, 2), Child::new(d, 1)];
+        let ab_c_d_pattern = vec![Child::new(ab, 2), Child::new(c, 1), Child::new(d, 1)];
+        let abcd_pattern = vec![Child::new(abcd, 4)];
+        let b_c_pattern = vec![Child::new(b, 1), Child::new(c, 1)];
+        let bc_pattern = vec![Child::new(bc, 2)];
+        let a_d_c_pattern = vec![Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
+        let a_b_c_pattern = vec![Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
         assert_eq!(
-            graph.compare_pattern_prefix(a_bc_pattern, ab_c_pattern),
+            graph.compare_pattern_prefix(&a_bc_pattern, &ab_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(ab_c_pattern, a_bc_pattern),
+            graph.compare_pattern_prefix(&ab_c_pattern, &a_bc_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(a_b_c_pattern, a_bc_pattern),
+            graph.compare_pattern_prefix(&a_b_c_pattern, &a_bc_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(a_b_c_pattern, a_b_c_pattern),
+            graph.compare_pattern_prefix(&a_b_c_pattern, &a_b_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(ab_c_pattern, a_b_c_pattern),
+            graph.compare_pattern_prefix(&ab_c_pattern, &a_b_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(a_bc_d_pattern, ab_c_d_pattern),
+            graph.compare_pattern_prefix(&a_bc_d_pattern, &ab_c_d_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_prefix(abc_d_pattern, a_bc_d_pattern),
+            graph.compare_pattern_prefix(&abc_d_pattern, &a_bc_d_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(bc_pattern, abcd_pattern),
+            graph.compare_pattern_prefix(&bc_pattern, &abcd_pattern),
             Err(PatternMismatch::NoMatchingParent)
         );
         assert_eq!(
-            graph.compare_pattern_prefix(b_c_pattern, a_bc_pattern),
+            graph.compare_pattern_prefix(&b_c_pattern, &a_bc_pattern),
             Err(PatternMismatch::Mismatch)
         );
         assert_eq!(
-            graph.compare_pattern_prefix(b_c_pattern, a_d_c_pattern),
+            graph.compare_pattern_prefix(&b_c_pattern, &a_d_c_pattern),
             Err(PatternMismatch::Mismatch)
         );
 
         assert_eq!(
-            graph.compare_pattern_prefix(a_bc_d_pattern, abc_d_pattern),
+            graph.compare_pattern_prefix(&a_bc_d_pattern, &abc_d_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(a_bc_d_pattern, abcd_pattern),
+            graph.compare_pattern_prefix(&a_bc_d_pattern, &abcd_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(abcd_pattern, a_bc_d_pattern),
+            graph.compare_pattern_prefix(&abcd_pattern, &a_bc_d_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_prefix(a_b_c_pattern, abcd_pattern),
+            graph.compare_pattern_prefix(a_b_c_pattern, &abcd_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*d, 1)])))
         );
 
         assert_eq!(
-            graph.compare_pattern_prefix(ab_c_d_pattern, a_bc_pattern),
+            graph.compare_pattern_prefix(&ab_c_d_pattern, &a_bc_pattern),
             Ok(PatternMatch(Some(vec![Child::new(*d, 1)]), None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(a_bc_pattern, ab_c_d_pattern),
+            graph.compare_pattern_prefix(&a_bc_pattern, &ab_c_d_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*d, 1)])))
         );
     }
@@ -219,101 +220,101 @@ mod tests {
             _ababab,
             _ababababcdefghi,
         ) = &*context();
-        let a_bc_pattern = &[*a, *bc];
-        let ab_c_pattern = &[*ab, *c];
-        let abc_d_pattern = &[*abc, *d];
-        let a_bc_d_pattern = &[*a, *bc, *d];
-        let ab_c_d_pattern = &[*ab, *c, *d];
-        let abcd_pattern = &[*abcd];
-        let b_c_pattern = &[*b, *c];
-        let b_pattern = &[*b];
-        let bc_pattern = &[*bc];
-        let a_d_c_pattern = &[*a, *d, *c];
-        let a_b_c_pattern = &[*a, *b, *c];
-        let a_b_pattern = &[*a, *b];
-        let bc_d_pattern = &[*bc, *d];
+        let a_bc_pattern = vec![*a, *bc];
+        let ab_c_pattern = vec![*ab, *c];
+        let abc_d_pattern = vec![*abc, *d];
+        let a_bc_d_pattern = vec![*a, *bc, *d];
+        let ab_c_d_pattern = vec![*ab, *c, *d];
+        let abcd_pattern = vec![*abcd];
+        let b_c_pattern = vec![*b, *c];
+        let b_pattern = vec![*b];
+        let bc_pattern = vec![*bc];
+        let a_d_c_pattern = vec![*a, *d, *c];
+        let a_b_c_pattern = vec![*a, *b, *c];
+        let a_b_pattern = vec![*a, *b];
+        let bc_d_pattern = vec![*bc, *d];
         assert_eq!(
-            graph.compare_pattern_postfix(a_bc_pattern, ab_c_pattern),
+            graph.compare_pattern_postfix(&a_bc_pattern, &ab_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(ab_c_pattern, a_bc_pattern),
+            graph.compare_pattern_postfix(&ab_c_pattern, &a_bc_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_postfix(a_b_pattern, b_pattern),
+            graph.compare_pattern_postfix(&a_b_pattern, &b_pattern),
             Ok(PatternMatch(Some(vec![Child::new(a, 1)]), None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(a_b_c_pattern, a_bc_pattern),
+            graph.compare_pattern_postfix(&a_b_c_pattern, &a_bc_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_postfix(a_b_c_pattern, a_b_c_pattern),
+            graph.compare_pattern_postfix(&a_b_c_pattern, &a_b_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(ab_c_pattern, a_b_c_pattern),
+            graph.compare_pattern_postfix(&ab_c_pattern, &a_b_c_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(a_bc_d_pattern, ab_c_d_pattern),
+            graph.compare_pattern_postfix(&a_bc_d_pattern, &ab_c_d_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(abc_d_pattern, a_bc_d_pattern),
+            graph.compare_pattern_postfix(&abc_d_pattern, &a_bc_d_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(bc_pattern, abcd_pattern),
+            graph.compare_pattern_postfix(&bc_pattern, &abcd_pattern),
             Err(PatternMismatch::NoMatchingParent)
         );
         assert_eq!(
-            graph.compare_pattern_postfix(b_c_pattern, a_bc_pattern),
+            graph.compare_pattern_postfix(&b_c_pattern, &a_bc_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*a, 1)])))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(b_c_pattern, a_d_c_pattern),
+            graph.compare_pattern_postfix(&b_c_pattern, &a_d_c_pattern),
             Err(PatternMismatch::Mismatch)
         );
         assert_eq!(
-            graph.compare_pattern_postfix(a_bc_d_pattern, abc_d_pattern),
+            graph.compare_pattern_postfix(&a_bc_d_pattern, &abc_d_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_postfix(a_bc_d_pattern, abcd_pattern),
+            graph.compare_pattern_postfix(&a_bc_d_pattern, &abcd_pattern),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(abcd_pattern, a_bc_d_pattern),
+            graph.compare_pattern_postfix(&abcd_pattern, &a_bc_d_pattern),
             Ok(PatternMatch(None, None))
         );
 
         assert_eq!(
-            graph.compare_pattern_postfix(a_b_c_pattern, abcd_pattern),
+            graph.compare_pattern_postfix(&a_b_c_pattern, &abcd_pattern),
             Err(PatternMismatch::NoMatchingParent)
         );
         assert_eq!(
-            graph.compare_pattern_postfix(ab_c_d_pattern, a_bc_pattern),
+            graph.compare_pattern_postfix(&ab_c_d_pattern, &a_bc_pattern),
             Err(PatternMismatch::NoMatchingParent)
         );
         assert_eq!(
-            graph.compare_pattern_postfix(a_bc_pattern, ab_c_d_pattern),
+            graph.compare_pattern_postfix(&a_bc_pattern, &ab_c_d_pattern),
             Err(PatternMismatch::NoMatchingParent)
         );
         assert_eq!(
-            graph.compare_pattern_postfix(bc_d_pattern, ab_c_d_pattern),
+            graph.compare_pattern_postfix(&bc_d_pattern, &ab_c_d_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*a, 1)])))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(bc_d_pattern, abc_d_pattern),
+            graph.compare_pattern_postfix(&bc_d_pattern, &abc_d_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*a, 1)])))
         );
         assert_eq!(
-            graph.compare_pattern_postfix(abcd_pattern, bc_d_pattern),
+            graph.compare_pattern_postfix(&abcd_pattern, &bc_d_pattern),
             Ok(PatternMatch(Some(vec![Child::new(*a, 1)]), None))
         );
     }

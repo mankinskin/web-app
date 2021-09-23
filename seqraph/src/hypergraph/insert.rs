@@ -10,29 +10,35 @@ use std::sync::atomic::{
     Ordering,
 };
 
+use super::index_reader::IndexReader;
+
 impl<'t, 'a, T> Hypergraph<T>
 where
     T: Tokenize + 't,
 {
-    fn next_vertex_id() -> VertexIndex {
+    fn next_pattern_vertex_id() -> VertexIndex {
         static VERTEX_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
         VERTEX_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
     /// insert single token node
-    pub fn insert_vertex(&mut self, key: VertexKey<T>, data: VertexData) -> Child {
+    pub fn insert_vertex(&mut self, key: VertexKey<T>, mut data: VertexData) -> Child {
         // TODO: return error if exists (don't overwrite by default)
-        let width = data.width;
-        Child::new(self.graph.insert_full(key, data).0, width)
+        //let index = insert_full(key, data).0;
+        let entry = self.graph.entry(key);
+        data.index = entry.index();
+        let c = Child::new(data.index, data.width);
+        entry.or_insert(data);
+        c
     }
     /// insert single token node
     pub fn insert_token(&mut self, token: Token<T>) -> Child {
-        self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1))
+        self.insert_vertex(VertexKey::Token(token), VertexData::new(0, 1))
     }
     /// insert multiple token nodes
     pub fn insert_tokens(&mut self, tokens: impl IntoIterator<Item = Token<T>>) -> Vec<Child> {
         tokens
             .into_iter()
-            .map(|token| self.insert_vertex(VertexKey::Token(token), VertexData::with_width(1)))
+            .map(|token| self.insert_vertex(VertexKey::Token(token), VertexData::new(0, 1)))
             .collect()
     }
     /// utility, builds total width, indices and children for pattern
@@ -95,9 +101,9 @@ where
         // todo check if exists already
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
-        let mut new_data = VertexData::with_width(width);
+        let mut new_data = VertexData::new(0, width);
         let pattern_index = new_data.add_pattern(&children);
-        let id = Self::next_vertex_id();
+        let id = Self::next_pattern_vertex_id();
         let index = self.insert_vertex(VertexKey::Pattern(id), new_data);
         self.add_parents_to_pattern_nodes(indices, index, width, pattern_index);
         index
@@ -168,6 +174,9 @@ where
         let parent = parent.index();
         let width = self.expect_vertex_data(parent).width;
         self.add_pattern_parent_with_width(parent, pattern, pattern_id, start, width)
+    }
+    pub fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
+        IndexReader::new(self).read_sequence(sequence)
     }
 }
 
