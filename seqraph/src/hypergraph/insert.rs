@@ -1,16 +1,11 @@
 use crate::{
     hypergraph::*,
-    token::{
-        Token,
-        Tokenize,
-    },
+    token::*,
 };
 use std::sync::atomic::{
     AtomicUsize,
     Ordering,
 };
-
-use super::index_reader::IndexReader;
 
 impl<'t, 'a, T> Hypergraph<T>
 where
@@ -50,7 +45,7 @@ where
         let (a, b) = indices
             .into_iter()
             .map(|index| {
-                let index = *index.borrow();
+                let index = *index.index();
                 let w = self.expect_vertex_data(index).get_width();
                 width += w;
                 (index, Child::new(index, w))
@@ -62,13 +57,12 @@ where
     fn add_parents_to_pattern_nodes(
         &mut self,
         pattern: Vec<VertexIndex>,
-        parent_index: impl Indexed,
-        width: TokenPosition,
+        parent: impl ToChild,
         pattern_id: PatternId,
     ) {
         for (i, child_index) in pattern.into_iter().enumerate() {
             let node = self.expect_vertex_data_mut(child_index);
-            node.add_parent(parent_index.borrow(), width, pattern_id, i);
+            node.add_parent(parent.to_child(), pattern_id, i);
         }
     }
     /// add pattern to existing node
@@ -79,9 +73,9 @@ where
     ) -> PatternId {
         // todo handle token nodes
         let (width, indices, children) = self.to_width_indices_children(indices);
-        let data = self.expect_vertex_data_mut(index.borrow());
+        let data = self.expect_vertex_data_mut(index.index());
         let pattern_id = data.add_pattern(&children);
-        self.add_parents_to_pattern_nodes(indices, index.borrow(), width, pattern_id);
+        self.add_parents_to_pattern_nodes(indices, Child::new(index, width), pattern_id);
         pattern_id
     }
     /// add pattern to existing node
@@ -97,16 +91,25 @@ where
             .collect()
     }
     /// create new node from a pattern
-    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item = impl Indexed>) -> Child {
+    pub fn insert_pattern_with_id(&mut self, indices: impl IntoIterator<Item = impl Indexed>) -> (Child, Option<PatternId>) {
         // todo check if exists already
         // todo handle token nodes
-        let (width, indices, children) = self.to_width_indices_children(indices);
-        let mut new_data = VertexData::new(0, width);
-        let pattern_index = new_data.add_pattern(&children);
-        let id = Self::next_pattern_vertex_id();
-        let index = self.insert_vertex(VertexKey::Pattern(id), new_data);
-        self.add_parents_to_pattern_nodes(indices, index, width, pattern_index);
-        index
+        let indices: Vec<_> = indices.into_iter().collect();
+        if indices.len() == 1 {
+            (self.to_child(indices.first().unwrap().index()), None)
+        } else {
+            let (width, indices, children) = self.to_width_indices_children(indices);
+            let mut new_data = VertexData::new(0, width);
+            let pattern_index = new_data.add_pattern(&children);
+            let id = Self::next_pattern_vertex_id();
+            let index = self.insert_vertex(VertexKey::Pattern(id), new_data);
+            self.add_parents_to_pattern_nodes(indices, Child::new(index, width), pattern_index);
+            (index, Some(pattern_index))
+        }
+    }
+    /// create new node from a pattern
+    pub fn insert_pattern(&mut self, indices: impl IntoIterator<Item = impl Indexed>) -> Child {
+        self.insert_pattern_with_id(indices).0
     }
     /// create new node from multiple patterns
     pub fn insert_patterns(
@@ -146,38 +149,40 @@ where
             c.remove_parent(parent, pat, pos);
         });
         let start = range.next().unwrap();
-        self.add_pattern_parent_with_width(parent, replace, pat, start, width);
+        self.add_pattern_parent(Child::new(parent, width), replace, pat, start);
     }
-    pub(crate) fn add_pattern_parent_with_width(
+    pub(crate) fn add_pattern_parent(
         &mut self,
-        parent: impl Indexed,
-        pattern: impl IntoIterator<Item = Child>,
+        parent: impl ToChild,
+        pattern: impl IntoIterator<Item = impl ToChild>,
         pattern_id: PatternId,
         start: usize,
-        parent_width: usize,
     ) {
-        let parent = parent.index();
         pattern.into_iter().enumerate().for_each(|(pos, c)| {
             let pos = start + pos;
             let c = self.expect_vertex_data_mut(c);
-            c.add_parent(parent, parent_width, pattern_id, pos);
+            c.add_parent(parent.to_child(), pattern_id, pos);
         });
     }
-    #[allow(unused)]
-    pub(crate) fn add_pattern_parent(
+    pub(crate) fn append_to_pattern(
         &mut self,
-        parent: impl Indexed,
-        pattern: impl IntoIterator<Item = Child>,
+        parent: impl ToChild,
         pattern_id: PatternId,
-        start: usize,
+        new: impl IntoIterator<Item = impl ToChild>,
     ) {
-        let parent = parent.index();
-        let width = self.expect_vertex_data(parent).width;
-        self.add_pattern_parent_with_width(parent, pattern, pattern_id, start, width)
+        let new: Vec<_> = new.into_iter().map(|c| c.to_child()).collect();
+        let offset = {
+            let vertex = self.expect_vertex_data_mut(parent.index());
+            let pattern = vertex.expect_child_pattern_mut(&pattern_id);
+            let offset = pattern.len();
+            pattern.extend(new.iter());
+            offset
+        };
+        self.add_pattern_parent(parent, new, pattern_id, offset);
     }
-    pub fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
-        IndexReader::new(self).read_sequence(sequence)
-    }
+    //pub fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
+    //    IndexReader::new(self).read_sequence(sequence)
+    //}
 }
 
 #[cfg(test)]

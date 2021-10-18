@@ -2,6 +2,7 @@ use crate::{
     hypergraph::{
         r#match::*,
         search::*,
+        //read::*,
         Child,
         ChildPatterns,
         Hypergraph,
@@ -12,24 +13,59 @@ use crate::{
         TokenPosition,
         VertexIndex,
     },
-    token::Tokenize,
 };
+//use tokio_stream::{
+//    Stream,
+//    StreamExt,
+//};
 use itertools::Itertools;
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SearchFound {
+    pub index: Child,
+    pub parent_match: ParentMatch,
+    pub pattern_id: PatternId,
+    pub sub_index: usize,
+}
+// found range of search pattern in vertex at index
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FoundRange {
+    Complete,                // Full index found
+    Prefix(Pattern),         // found prefix (remainder)
+    Postfix(Pattern),        // found postfix (remainder)
+    Infix(Pattern, Pattern), // found infix
+}
+impl FoundRange {
+    pub fn prepend_prefix(self, pattern: Pattern) -> Self {
+        if pattern.is_empty() {
+            return self;
+        }
+        match self {
+            FoundRange::Complete => FoundRange::Prefix(pattern),
+            FoundRange::Prefix(post) => FoundRange::Infix(pattern, post),
+            FoundRange::Infix(pre, post) => {
+                FoundRange::Infix([&pattern[..], &pre[..]].concat(), post)
+            }
+            FoundRange::Postfix(pre) => FoundRange::Postfix([&pattern[..], &pre[..]].concat()),
+        }
+    }
+    pub fn is_matching(&self) -> bool {
+        self == &FoundRange::Complete
+    }
+    pub fn reverse(self) -> Self {
+        match self {
+            Self::Complete => Self::Complete,
+            Self::Prefix(post) => Self::Postfix(post),
+            Self::Postfix(pre) => Self::Prefix(pre),
+            Self::Infix(pre, post) => Self::Infix(post, pre),
+        }
+    }
+}
+pub type SearchResult = Result<SearchFound, NotFound>;
 
 pub struct Searcher<'g, T: Tokenize, D: MatchDirection> {
     graph: &'g Hypergraph<T>,
     _ty: std::marker::PhantomData<D>,
-}
-impl<'g, T: Tokenize> Searcher<'g, T, MatchRight> {
-    pub fn search_right(graph: &'g Hypergraph<T>) -> Self {
-        Self::new(graph)
-    }
-}
-impl<'g, T: Tokenize> Searcher<'g, T, MatchLeft> {
-    #[allow(unused)]
-    pub fn search_left(graph: &'g Hypergraph<T>) -> Self {
-        Self::new(graph)
-    }
 }
 impl<'g, T: Tokenize, D: MatchDirection> std::ops::Deref for Searcher<'g, T, D> {
     type Target = Hypergraph<T>;
@@ -48,15 +84,21 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         Matcher::new(self.graph)
     }
     pub fn find_sequence(&self, pattern: impl IntoIterator<Item = impl Into<T>>) -> SearchResult {
-        let iter = pattern.into_iter();
-        let iter = T::tokenize(iter);
-        self.to_token_children(iter)
-            .ok_or(NotFound::UnknownTokens)
-            .and_then(|pattern| self.find_pattern(pattern))
+        let iter = tokenizing_iter(pattern.into_iter());
+        let pattern = self.to_token_children(iter)?;
+        self.find_pattern(pattern)
+    }
+    #[allow(unused)]
+    pub(crate) fn find_pattern_iter(
+        &self,
+        pattern: impl IntoIterator<Item=Result<impl Into<Child> + Tokenize, NotFound>>,
+    ) -> SearchResult {
+        let pattern: Pattern = pattern.into_iter().map(|r| r.map(Into::into)).collect::<Result<Pattern, NotFound>>()?;
+        self.find_pattern(pattern)
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoPattern<Item=impl Into<Child>>,
+        pattern: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
     ) -> SearchResult {
         let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
         MatchRight::split_head_tail(&pattern)
@@ -73,14 +115,14 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub fn find_largest_matching_parent(
         &self,
         index: impl Indexed,
-        context: impl IntoPattern<Item=impl Into<Child>>,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
     ) -> SearchResult {
         self.find_largest_matching_parent_below_width(index, context, None)
     }
     pub fn find_largest_matching_parent_below_width(
         &self,
         index: impl Indexed,
-        context: impl IntoPattern<Item=impl Into<Child>>,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         width_ceiling: Option<TokenPosition>,
     ) -> SearchResult {
         let vertex = self.expect_vertex_data(index);
@@ -101,7 +143,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
             // compare all parent's children
             parents
                 .into_iter()
-                .find_map(|(&index, parent)| {
+                .find_map(|(index, parent)| {
                     self.matcher()
                         .compare_with_parent_children(context.as_pattern_view(), index, parent)
                         .map(|(parent_match, pattern_id, sub_index)| SearchFound {
@@ -123,10 +165,10 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         })
     }
     /// find parent with a child pattern matching context
-    fn find_parent_with_matching_children(
+    pub fn find_parent_with_matching_children(
         &'g self,
         mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
-        context: impl IntoPattern<Item=impl Into<Child>>,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
     ) -> Option<(
         &'g VertexIndex,
         &'g ChildPatterns,
@@ -139,12 +181,12 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
             let child_patterns = vert.get_children();
             //print!("matching parent \"{}\" ", self.index_string(parent.index));
             // get child pattern indices able to match at all
-            let candidates = D::candidate_parent_pattern_indices(parent, child_patterns);
+            let candidates = D::filter_parent_pattern_indices(parent, child_patterns);
             candidates
                 .into_iter()
                 .find(|(pattern_index, sub_index)| {
                     // find pattern with same next index
-                    Self::compare_next_index_in_child_pattern(
+                    Matcher::<'g, T, D>::compare_next_index_in_child_pattern(
                         child_patterns,
                         context.as_pattern_view(),
                         pattern_index,
@@ -155,38 +197,5 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                     (index, child_patterns, parent, pattern_index, sub_index)
                 })
         })
-    }
-    pub(crate) fn compare_next_index_in_child_pattern(
-        child_patterns: &'g ChildPatterns,
-        context: impl IntoPattern<Item=impl Into<Child>>,
-        pattern_index: &PatternId,
-        sub_index: usize,
-    ) -> bool {
-        D::pattern_head(context.as_pattern_view())
-            .and_then(|next_sub| {
-                D::index_next(sub_index).and_then(|i| {
-                    child_patterns
-                        .get(pattern_index)
-                        .and_then(|pattern| pattern.get(i).map(|next_sup| next_sub == next_sup))
-                })
-            })
-            .unwrap_or(false)
-    }
-    /// try to find child pattern with context matching sub_context
-    pub(crate) fn find_best_child_pattern(
-        child_patterns: &'g ChildPatterns,
-        candidates: impl Iterator<Item = (usize, PatternId)>,
-        sub_context: impl IntoPattern<Item=impl Into<Child>>,
-    ) -> Result<(PatternId, usize), NotFound> {
-        candidates
-            .find_or_first(|(pattern_index, sub_index)| {
-                Self::compare_next_index_in_child_pattern(
-                    child_patterns,
-                    sub_context.as_pattern_view(),
-                    pattern_index,
-                    *sub_index,
-                )
-            })
-            .ok_or(NotFound::NoChildPatterns)
     }
 }

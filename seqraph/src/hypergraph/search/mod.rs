@@ -1,32 +1,17 @@
 use crate::{
     hypergraph::{
         r#match::*,
-        Child,
-        Hypergraph,
-        Pattern,
-        PatternId,
         pattern::*,
+        vertex::*,
+        *,
     },
-    token::Tokenize,
+    token::*,
 };
 mod searcher;
 pub use searcher::*;
+//mod async_searcher;
+//pub use async_searcher::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SearchFound {
-    pub index: Child,
-    pub parent_match: ParentMatch,
-    pub pattern_id: PatternId,
-    pub sub_index: usize,
-}
-// found range of search pattern in vertex at index
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum FoundRange {
-    Complete,                // Full index found
-    Prefix(Pattern),         // found prefix (remainder)
-    Postfix(Pattern),        // found postfix (remainder)
-    Infix(Pattern, Pattern), // found infix
-}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum NotFound {
     EmptyPatterns,
@@ -34,47 +19,29 @@ pub enum NotFound {
     NoChildPatterns,
     NoMatchingParent,
     SingleIndex,
-    UnknownTokens,
+    UnknownKey,
+    UnknownIndex,
 }
-pub type SearchResult = Result<SearchFound, NotFound>;
-impl FoundRange {
-    pub fn prepend_prefix(self, pattern: Pattern) -> Self {
-        if pattern.is_empty() {
-            return self;
-        }
-        match self {
-            FoundRange::Complete => FoundRange::Prefix(pattern),
-            FoundRange::Prefix(post) => FoundRange::Infix(pattern, post),
-            FoundRange::Infix(pre, post) => {
-                FoundRange::Infix([&pattern[..], &pre[..]].concat(), post)
-            }
-            FoundRange::Postfix(pre) => FoundRange::Postfix([&pattern[..], &pre[..]].concat()),
-        }
-    }
-    pub fn is_matching(&self) -> bool {
-        self == &FoundRange::Complete
-    }
-    pub fn reverse(self) -> Self {
-        match self {
-            Self::Complete => Self::Complete,
-            Self::Prefix(post) => Self::Postfix(post),
-            Self::Postfix(pre) => Self::Prefix(pre),
-            Self::Infix(pre, post) => Self::Infix(post, pre),
-        }
-    }
-}
+
 impl<'t, 'a, T> Hypergraph<T>
 where
     T: Tokenize + 't,
 {
+    pub(crate) fn right_searcher(&'a self) -> Searcher<'a, T, MatchRight> {
+        Searcher::new(self)
+    }
+    #[allow(unused)]
+    pub(crate) fn left_searcher(&'a self) -> Searcher<'a, T, MatchLeft> {
+        Searcher::new(self)
+    }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoPattern<Item=impl Into<Child>>,
+        pattern: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
     ) -> SearchResult {
-        Searcher::search_right(self).find_pattern(pattern)
+        self.right_searcher().find_pattern(pattern)
     }
     pub fn find_sequence(&self, pattern: impl IntoIterator<Item = impl Into<T>>) -> SearchResult {
-        Searcher::search_right(self).find_sequence(pattern)
+        self.right_searcher().find_sequence(pattern)
     }
 }
 #[macro_use]

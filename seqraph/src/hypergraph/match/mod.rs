@@ -1,49 +1,20 @@
 use crate::{
     hypergraph::{
         pattern::*,
-        Child,
-        search::FoundRange,
-        Hypergraph,
+        search::*,
+        *,
     },
-    token::Tokenize,
 };
 use either::Either;
 mod matcher;
 pub use matcher::*;
 mod match_direction;
 pub use match_direction::*;
+//mod async_matcher;
+//pub use async_matcher::*;
+//mod async_match_direction;
+//pub use async_match_direction::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PatternMatch(pub Option<Pattern>, pub Option<Pattern>);
-
-impl PatternMatch {
-    pub fn left(&self) -> &Option<Pattern> {
-        &self.0
-    }
-    pub fn right(&self) -> &Option<Pattern> {
-        &self.1
-    }
-    pub fn flip_remainder(self) -> Self {
-        Self(self.1, self.0)
-    }
-    pub fn is_matching(&self) -> bool {
-        self.left().is_none() && self.right().is_none()
-    }
-}
-impl From<Either<Pattern, Pattern>> for PatternMatch {
-    fn from(e: Either<Pattern, Pattern>) -> Self {
-        match e {
-            Either::Left(p) => Self(Some(p), None),
-            Either::Right(p) => Self(None, Some(p)),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ParentMatch {
-    pub parent_range: FoundRange,
-    pub remainder: Option<Pattern>,
-}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PatternMismatch {
     EmptyPatterns,
@@ -55,8 +26,6 @@ pub enum PatternMismatch {
     SingleIndex,
     UnknownTokens,
 }
-type PatternMatchResult = Result<PatternMatch, PatternMismatch>;
-type ParentMatchResult = Result<ParentMatch, PatternMismatch>;
 
 impl<'t, 'a, T> Hypergraph<T>
 where
@@ -68,17 +37,17 @@ where
     pub fn left_matcher(&'a self) -> Matcher<'a, T, MatchLeft> {
         Matcher::new(self)
     }
-    pub fn compare_pattern_postfix(
+    pub fn compare_pattern_postfix<C: Into<Child> + Tokenize>(
         &self,
-        a: impl IntoPattern<Item=impl Into<Child>>,
-        b: impl IntoPattern<Item=impl Into<Child>>,
+        a: impl IntoPattern<Item=C>,
+        b: impl IntoPattern<Item=C>,
     ) -> PatternMatchResult {
         self.left_matcher().compare(a, b)
     }
     pub fn compare_pattern_prefix(
         &self,
-        a: impl IntoPattern<Item=impl Into<Child>>,
-        b: impl IntoPattern<Item=impl Into<Child>>,
+        a: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        b: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
     ) -> PatternMatchResult {
         self.right_matcher().compare(a, b)
     }
@@ -182,7 +151,7 @@ mod tests {
         );
 
         assert_eq!(
-            graph.compare_pattern_prefix(a_b_c_pattern, &abcd_pattern),
+            graph.compare_pattern_prefix(&a_b_c_pattern, &abcd_pattern),
             Ok(PatternMatch(None, Some(vec![Child::new(*d, 1)])))
         );
 

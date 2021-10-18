@@ -21,7 +21,7 @@ pub struct SplitKey {
 impl SplitKey {
     pub fn new(index: impl Indexed, offset: NonZeroUsize) -> Self {
         Self {
-            index: *index.borrow(),
+            index: *index.index(),
             offset,
         }
     }

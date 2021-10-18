@@ -8,12 +8,17 @@ use std::{
     collections::HashMap,
     fmt::Debug,
 };
+use async_std::sync::{
+    Arc,
+    RwLock,
+};
+
 mod child_strings;
 mod getters;
-mod index_reader;
 mod insert;
 mod r#match;
 mod pattern;
+mod read;
 mod search;
 mod split;
 mod vertex;
@@ -21,6 +26,8 @@ mod vertex;
 pub use child_strings::*;
 pub use getters::*;
 pub use pattern::*;
+pub(crate) use read::*;
+pub use search::*;
 pub use split::*;
 pub use vertex::*;
 
@@ -28,12 +35,15 @@ pub use vertex::*;
 pub struct Hypergraph<T: Tokenize> {
     graph: indexmap::IndexMap<VertexKey<T>, VertexData>,
 }
+#[allow(unused)]
+type HypergraphHandle<T> = Arc<RwLock<Hypergraph<T>>>;
+
 impl<'t, 'a, T> Hypergraph<T>
 where
     T: Tokenize + 't,
 {
     pub fn index_width(&self, index: &impl Indexed) -> TokenPosition {
-        self.expect_vertex_data(index.borrow()).width
+        self.expect_vertex_data(index.index()).width
     }
     pub fn vertex_count(&self) -> usize {
         self.graph.len()
@@ -100,7 +110,7 @@ where
     ) -> String {
         pattern
             .into_iter()
-            .map(|child| self.index_string(*child.borrow()))
+            .map(|child| self.index_string(*child.index()))
             .join(separator)
     }
     pub fn separated_pattern_string(

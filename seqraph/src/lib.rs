@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(async_closure)]
 
 pub mod arithmetic_bool;
 pub mod graph;
@@ -7,7 +8,6 @@ pub mod graph;
 pub mod token;
 //pub mod grammar;
 pub mod hypergraph;
-pub mod pattern;
 
 //use graph::Graph;
 //use mapping::{

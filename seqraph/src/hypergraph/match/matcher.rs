@@ -2,7 +2,6 @@ use crate::{
     hypergraph::{
         pattern::*,
         r#match::*,
-        search::*,
         Child,
         ChildPatterns,
         Hypergraph,
@@ -15,26 +14,62 @@ use crate::{
 };
 use itertools::EitherOrBoth;
 use std::cmp::Ordering;
+use std::borrow::Borrow;
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PatternMatch(pub Option<Pattern>, pub Option<Pattern>);
+
+impl PatternMatch {
+    pub fn left(&self) -> &Option<Pattern> {
+        &self.0
+    }
+    pub fn right(&self) -> &Option<Pattern> {
+        &self.1
+    }
+    pub fn flip_remainder(self) -> Self {
+        Self(self.1, self.0)
+    }
+    pub fn is_matching(&self) -> bool {
+        self.left().is_none() && self.right().is_none()
+    }
+}
+impl From<Either<Pattern, Pattern>> for PatternMatch {
+    fn from(e: Either<Pattern, Pattern>) -> Self {
+        match e {
+            Either::Left(p) => Self(Some(p), None),
+            Either::Right(p) => Self(None, Some(p)),
+        }
+    }
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ParentMatch {
+    pub parent_range: FoundRange,
+    pub remainder: Option<Pattern>,
+}
+pub type PatternMatchResult = Result<PatternMatch, PatternMismatch>;
+pub type ParentMatchResult = Result<ParentMatch, PatternMismatch>;
 
 #[derive(Clone, Debug)]
 pub struct Matcher<'g, T: Tokenize, D: MatchDirection> {
     graph: &'g Hypergraph<T>,
     _ty: std::marker::PhantomData<D>,
 }
-impl<'a, T: Tokenize, D: MatchDirection> std::ops::Deref for Matcher<'a, T, D> {
+impl<'g, T: Tokenize, D: MatchDirection> std::ops::Deref for Matcher<'g, T, D> {
     type Target = Hypergraph<T>;
     fn deref(&self) -> &Self::Target {
         self.graph
     }
 }
-impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
-    pub fn new(graph: &'a Hypergraph<T>) -> Self {
+impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
+    pub fn new(graph: &'g Hypergraph<T>) -> Self {
         Self {
             graph,
             _ty: Default::default(),
         }
     }
-    pub(crate) fn searcher(&self) -> Searcher<'a, T, D> {
+    pub(crate) fn searcher(&self) -> Searcher<'g, T, D> {
         Searcher::new(self.graph)
     }
     // Outline:
@@ -44,7 +79,11 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     // - once unequal, pick larger and smaller index
     // - search for larger in parents of smaller
     // - otherwise: try to find parent with best matching children
-    pub fn compare(&self, a: impl IntoPattern<Item=impl Into<Child>>, b: impl IntoPattern<Item=impl Into<Child>>) -> PatternMatchResult {
+    pub fn compare<A: IntoPattern<Item=impl Into<Child> + Tokenize>, B: IntoPattern<Item=impl Into<Child> + Tokenize>>(
+        &self,
+        a: A,
+        b: B,
+        ) -> PatternMatchResult {
         //println!("compare_pattern_prefix(\"{}\", \"{}\")", self.pattern_string(pattern_a), self.pattern_string(pattern_b));
         let a: Pattern = a.into_pattern();
         let b: Pattern = b.into_pattern();
@@ -65,11 +104,11 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
             Ok(PatternMatch(None, None))
         }
     }
-    fn match_unequal_indices_in_context(
+    fn match_unequal_indices_in_context<C: Into<Child> + Tokenize, A: IntoPattern<Item=impl Into<Child> + Tokenize, Token=C>, B: IntoPattern<Item=impl Into<Child> + Tokenize, Token=C>>(
         &self,
-        a_pattern: impl IntoPattern<Item=impl Into<Child>>,
+        a_pattern: A,
         a: Child,
-        b_pattern: impl IntoPattern<Item=impl Into<Child>>,
+        b_pattern: B,
         b: Child,
         pos: TokenPosition,
     ) -> PatternMatchResult {
@@ -113,7 +152,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
                 let post = D::get_remainder(found_range);
                 Ok(PatternMatch(
                     rem,
-                    post.map(|post| D::merge_remainder_with_context(&post, &sup_context)),
+                    post.map(|post| D::merge_remainder_with_context(post, sup_context.into_pattern())),
                 ))
             }
         }
@@ -129,7 +168,7 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     fn match_sub_and_context_with_index(
         &self,
         sub: impl Indexed,
-        sub_context: impl IntoPattern<Item=impl Into<Child>>,
+        sub_context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         sup: Child,
     ) -> ParentMatchResult {
         //println!("match_sub_pattern_to_super");
@@ -182,8 +221,8 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
     }
     /// match context against child context in parent.
     pub fn compare_with_parent_children(
-        &'a self,
-        context: impl IntoPattern<Item=impl Into<Child>>,
+        &'g self,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         parent_index: impl Indexed,
         parent: &Parent,
     ) -> Result<(ParentMatch, PatternId, usize), PatternMismatch> {
@@ -191,26 +230,62 @@ impl<'a, T: Tokenize + 'a, D: MatchDirection> Matcher<'a, T, D> {
         let vert = self.expect_vertex_data(parent_index);
         let child_patterns = vert.get_children();
         //print!("matching parent \"{}\" ", self.index_string(parent.index));
-        // optionally filter by sub offset
-        let candidates = D::candidate_parent_pattern_indices(parent, child_patterns);
+        // optionally filter by sub index
+        let candidates = D::filter_parent_pattern_indices(parent, child_patterns);
         //println!("with successors \"{}\"", self.pattern_string(post_pattern));
         // try to find child pattern with same next index
-        Searcher::<'a, T, D>::find_best_child_pattern(
+        Self::find_best_child_pattern(
             child_patterns,
-            candidates.into_iter(),
+            candidates.iter(),
             context.as_pattern_view(),
         )
-        .or(Err(PatternMismatch::NoChildPatterns))
+        .or_else(|| candidates.into_iter().next())
+        .or_else(|| parent.pattern_indices.iter().next().cloned())
+        .ok_or(PatternMismatch::NoParents)
         .and_then(|(pattern_index, sub_index)| {
             self.compare_child_pattern_at_offset(child_patterns, context, pattern_index, sub_index)
                 .map(|parent_match| (parent_match, pattern_index, sub_index))
         })
     }
+    /// try to find child pattern with context matching sub_context
+    pub(crate) fn find_best_child_pattern(
+        child_patterns: &'_ ChildPatterns,
+        candidates: impl Iterator<Item = impl Borrow<(usize, PatternId)>>,
+        sub_context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+    ) -> Option<(PatternId, usize)> {
+        candidates
+            .map(|c| *c.borrow())
+            .find_or_first(|(pattern_index, sub_index)| {
+                Self::compare_next_index_in_child_pattern(
+                    child_patterns,
+                    sub_context.as_pattern_view(),
+                    pattern_index,
+                    *sub_index,
+                )
+            })
+    }
+    pub(crate) fn compare_next_index_in_child_pattern(
+        child_patterns: &'_ ChildPatterns,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        pattern_index: &PatternId,
+        sub_index: usize,
+    ) -> bool {
+        D::pattern_head(context.as_pattern_view())
+            .and_then(|next_sub| {
+                let next_sub: Child = (*next_sub).into();
+                D::index_next(sub_index).and_then(|i| {
+                    child_patterns
+                        .get(pattern_index)
+                        .and_then(|pattern| pattern.get(i).map(|next_sup| next_sub == *next_sup))
+                })
+            })
+            .unwrap_or(false)
+    }
     /// comparison on child pattern and context
     pub fn compare_child_pattern_at_offset(
-        &'a self,
-        child_patterns: &'a ChildPatterns,
-        context: impl IntoPattern<Item=impl Into<Child>>,
+        &'g self,
+        child_patterns: &'g ChildPatterns,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         pattern_index: PatternId,
         sub_index: usize,
     ) -> ParentMatchResult {

@@ -12,6 +12,24 @@ use std::{
     },
     hash::Hash,
 };
+
+pub fn tokenizing_iter<T: Tokenize, C: Into<T>>(seq: impl Iterator<Item=C>) -> impl Iterator<Item=Token<T>> {
+    seq.map(|c| c.into().into_token())
+}
+/// Trait for token that can be mapped in a sequence
+pub trait Tokenize: TokenData + Wide + Hash + Eq + Copy + Debug {
+    fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
+        let mut v = vec![];
+        v.extend(tokenizing_iter(seq));
+        //v.push(Token::End);
+        v
+    }
+    fn into_token(self) -> Token<Self> {
+        Token::Element(self)
+    }
+}
+impl<T: TokenData + Wide + Hash + Eq + Copy + Debug> Tokenize for T {}
+
 #[allow(unused)]
 use tracing::debug;
 pub trait TokenData: NodeData + Wide {}
@@ -25,6 +43,25 @@ impl Wide for char {
         1
     }
 }
+impl<T: Wide> Wide for &'_ T {
+    fn width(&self) -> usize {
+        (**self).width()
+    }
+}
+impl<T: Wide> Wide for &'_ mut T {
+    fn width(&self) -> usize {
+        (**self).width()
+    }
+}
+
+#[derive(Hash, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy)]
+pub struct NoToken;
+
+impl Wide for NoToken {
+    fn width(&self) -> usize {
+        0
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextInfo<T: Tokenize> {
@@ -32,17 +69,6 @@ pub struct ContextInfo<T: Tokenize> {
     pub incoming_groups: Vec<Vec<Token<T>>>,
     pub outgoing_groups: Vec<Vec<Token<T>>>,
 }
-/// Trait for token that can be mapped in a sequence
-pub trait Tokenize: TokenData + Wide + Hash + Eq + Copy + Debug {
-    fn tokenize<T: Into<Self>, I: Iterator<Item = T>>(seq: I) -> Vec<Token<Self>> {
-        let mut v = vec![];
-        v.extend(seq.map(|t| Token::Element(t.into())));
-        //v.push(Token::End);
-        v
-    }
-}
-impl<T: TokenData + Wide + Hash + Eq + Copy + Debug> Tokenize for T {}
-
 pub trait ContextLink: Sized + Clone {
     fn index(&self) -> &EdgeIndex;
     fn into_index(self) -> EdgeIndex {
