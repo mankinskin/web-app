@@ -77,8 +77,8 @@ mod tests {
     #[tokio::test]
     async fn sync_read_text() {
         let text = "Heldldo world!";
-        let mut g = Hypergraph::default();
-        let result = g.read_sequence(text.chars().collect());
+        let mut g: Hypergraph<char> = Hypergraph::default();
+        let result = g.read_sequence(text.chars());
         assert_eq!(result.width, text.len());
     }
     //#[tokio::test]
