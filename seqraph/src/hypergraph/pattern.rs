@@ -74,6 +74,15 @@ impl<'a, T: 'a> IntoPattern for &'a [T]
         (*self).is_empty()
     }
 }
+impl IntoPattern for Child {
+    type Token = Child;
+    fn as_pattern_view(&'_ self) -> &'_ [Self::Token] {
+        std::slice::from_ref(self)
+    }
+    fn is_empty(&self) -> bool {
+        false
+    }
+}
 
 pub fn pattern_width<T: Borrow<Child>>(pat: impl IntoIterator<Item = T>) -> TokenPosition {
     pat.into_iter()

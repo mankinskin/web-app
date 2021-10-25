@@ -239,8 +239,10 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
             candidates.iter(),
             context.as_pattern_view(),
         )
+        // todo: check if this is always correct
         .or_else(|| candidates.into_iter().next())
         .or_else(|| parent.pattern_indices.iter().next().cloned())
+        //
         .ok_or(PatternMismatch::NoParents)
         .and_then(|(pattern_index, sub_index)| {
             self.compare_child_pattern_at_offset(child_patterns, context, pattern_index, sub_index)

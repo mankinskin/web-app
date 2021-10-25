@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::{
     hypergraph::{
         r#match::*,
@@ -27,7 +25,7 @@ impl ReaderCache {
     }
     fn update_index<T: Tokenize + std::fmt::Display>(&mut self, graph: &'_ mut Hypergraph<T>, new: impl IntoIterator<Item=Child>) {
         if let Some(pid) = &self.pattern_id {
-            graph.append_to_pattern(self.index, *pid, new);
+            self.index = graph.append_to_pattern(self.index, *pid, new);
         } else {
             let (index, pattern_id) = graph.insert_pattern_with_id(std::iter::once(self.index).chain(new));
             self.index = index;
@@ -60,6 +58,7 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
             _ty: Default::default(),
         }
     }
+    #[allow(unused)]
     pub(crate) fn right_searcher(&self) -> Searcher<T, MatchRight> {
         Searcher::new(self.graph)
     }
@@ -111,12 +110,14 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
         self.update_cache_index(cache);
         let known_str = self.graph.pattern_string(&known);
         let new_str = self.graph.pattern_string(&new);
-        //println!("cache: \"{}\"", self.graph.pattern_string(&self.cache));
+        if let Some(cache) = &self.cache {
+            println!("cache: \"{}\"", self.graph.index_string(&cache.index));
+        }
         println!("known: \"{}\"\nnew: \"{}\"", known_str, new_str);
         let res = match known.len() {
-            0 => None,
-            1 => Some(*known.first().unwrap()),
-            _ => Some(match self.find_pattern(&known) {
+            0 => vec![].into(),
+            1 => (*known.first().unwrap()).into(),
+            _ => match self.find_pattern(&known) {
                 Ok(SearchFound {
                     index,
                     parent_match,
@@ -124,39 +125,37 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                 }) => match parent_match.parent_range {
                     FoundRange::Complete => {
                         println!("Found full index");
-                        index
+                        SplitSegment::Child(index)
                     },
                     FoundRange::Prefix(post) => {
                         println!("Found prefix");
                         let width = index.width - pattern_width(post);
-                        let width =
-                            NonZeroUsize::new(width).expect("returned full length postfix remainder");
-                        let (c, _) = self.split_index(index, width);
-                        c
+                        let pos = NonZeroUsize::new(width).expect("returned full length postfix remainder");
+                        let (l, _) = self.index_prefix(index, pos);
+                        SplitSegment::Child(l)
                     }
                     FoundRange::Postfix(pre) => {
                         println!("Found postfix");
                         let width = pattern_width(pre);
-                        let width =
-                            NonZeroUsize::new(width).expect("returned zero length prefix remainder");
-                        let (_, c) = self.split_index(index, width);
-                        c
+                        let pos = NonZeroUsize::new(width).expect("returned zero length prefix remainder");
+                        let (_, r) = self.index_postfix(index, pos);
+                        SplitSegment::Child(r)
                     }
                     FoundRange::Infix(pre, post) => {
                         println!("Found infix");
                         let pre_width = pattern_width(pre);
                         let post_width = pattern_width(post);
-                        match self.index_subrange(index, pre_width..index.width - post_width) {
-                            RangeSplitResult::Full(c) => c,
-                            RangeSplitResult::Single(l, r) => {
-                                if pre_width == 0 {
-                                    l
-                                } else {
-                                    r
-                                }
+                        if pre_width == 0 {
+                            let pos = NonZeroUsize::new(index.width - post_width).expect("returned zero length postfix remainder");
+                            let (l, _) = self.index_prefix(index, pos);
+                            SplitSegment::Child(l)
+                        } else {
+                            match self.index_subrange(index, pre_width..index.width - post_width) {
+                                RangeSplitResult::Full(c) => SplitSegment::Child(c),
+                                RangeSplitResult::Single(_, r) => r,
+                                RangeSplitResult::Double(_, c, _) => c,
+                                RangeSplitResult::None => panic!("range not in index"),
                             }
-                            RangeSplitResult::Double(_, c, _) => c,
-                            RangeSplitResult::None => panic!("range not in index"),
                         }
                     }
                 },
@@ -165,11 +164,12 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                         // create new index for this known block
                         println!("No matching parents for {}", known_str);
                         println!("Inserting new pattern");
-                        self.graph.insert_pattern(known)
+                        let c = self.graph.insert_pattern(known);
+                        SplitSegment::Child(c)
                     },
                     _ => panic!("Not found {:?}", not_found),
                 }
-            })
+            }
         };
         self.update_cache_index(res);
         let res = self.try_read_sequence(new);

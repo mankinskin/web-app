@@ -28,9 +28,108 @@ impl SplitKey {
 }
 pub enum RangeSplitResult {
     Full(Child),
-    Single(Child, Child),
-    Double(Child, Child, Child),
+    Single(SplitSegment, SplitSegment),
+    Double(SplitSegment, SplitSegment, SplitSegment),
     None,
+}
+pub type SingleSplitResult = (SplitSegment, SplitSegment);
+
+#[derive(Debug, Clone)]
+pub enum SplitSegment {
+    Pattern(Pattern),
+    Child(Child),
+}
+impl SplitSegment {
+    pub fn pattern(self) -> Option<Pattern> {
+        match self {
+            Self::Child(_) => None,
+            Self::Pattern(p) => Some(p),
+        }
+    }
+    pub fn child(self) -> Option<Child> {
+        match self {
+            Self::Pattern(_) => None,
+            Self::Child(c) => Some(c),
+        }
+    }
+    pub fn map_pattern(self, f: impl FnOnce(Pattern) -> Pattern) -> Self {
+        match self {
+            Self::Pattern(p) => Self::Pattern(f(p)),
+            _ => self,
+        }
+    }
+    pub fn map_child(self, f: impl FnOnce(Child) -> Child) -> Self {
+        match self {
+            Self::Child(c) => Self::Child(f(c)),
+            _ => self,
+        }
+    }
+    pub fn unwrap_pattern(self) -> Pattern {
+        self.pattern().expect("called SplitSegment::unwrap_pattern on a `Child` value")
+    }
+    pub fn unwrap_child(self) -> Child {
+        self.child().expect("called SplitSegment::unwrap_child on a `Pattern` value")
+    }
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Child(_) => 1,
+            Self::Pattern(p) => {
+                let l = p.len();
+                assert!(l != 1, "SplitSegment with len = 1 should be a Child!");
+                l
+            },
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Child(_) => false,
+            Self::Pattern(p) => p.is_empty(),
+        }
+    }
+}
+impl From<Result<Child, Pattern>> for SplitSegment {
+    fn from(r: Result<Child, Pattern>) -> Self {
+        match r {
+            Ok(c) => Self::Child(c),
+            Err(p) => Self::Pattern(p),
+        }
+    }
+}
+impl From<Child> for SplitSegment {
+    fn from(c: Child) -> Self {
+        Self::Child(c)
+    }
+}
+impl From<Pattern> for SplitSegment {
+    fn from(p: Pattern) -> Self {
+        if p.len() == 1 {
+            (*p.first().unwrap()).into()
+        } else {
+            Self::Pattern(p)
+        }
+    }
+}
+impl IntoIterator for SplitSegment {
+    type Item = Child;
+    type IntoIter = std::vec::IntoIter<Child>;
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Pattern(p) => p.into_iter(),
+            Self::Child(c) => vec![c].into_iter(),
+        }
+    }
+}
+impl IntoPattern for SplitSegment {
+    type Token = Child;
+    fn as_pattern_view(&'_ self) -> &'_ [Self::Token] {
+        match self {
+            Self::Child(c) => std::slice::from_ref(c),
+            Self::Pattern(p) => p.as_slice()
+        }
+    }
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
 }
 
 pub type DoublePerfectSplitIndex = (PatternId, Pattern, usize, Pattern, usize, Pattern);
@@ -95,7 +194,8 @@ impl IndexSplitter {
                         }
                         Err(indices) => {
                             // unperfect splits
-                            Self::double_split_from_indices(hypergraph, root, indices)
+                            let (left, inner, right) = Self::double_split_from_indices(hypergraph, root, indices);
+                            (left, SplitSegment::Child(inner), right)
                         }
                     };
                 RangeSplitResult::Double(left, inner, right)
@@ -207,7 +307,7 @@ impl IndexSplitter {
         hypergraph: &mut Hypergraph<T>,
         parent: impl Indexed,
         indices: Vec<(PatternId, DoubleSplitIndex)>,
-    ) -> (Child, Child, Child) {
+    ) -> (SplitSegment, Child, SplitSegment) {
         let parent = parent.index();
         // for every child split
         let (left, inner, right) = indices.into_iter().fold(
@@ -217,27 +317,27 @@ impl IndexSplitter {
                     DoubleSplitIndex::Left(pre, _, infix, single, post) => {
                         let (l, r) = Self::split_index(hypergraph, single.index, single.offset);
                         la.push((pre, None));
-                        ia.push((None, infix, Some(l)));
+                        ia.push((None, SplitSegment::Pattern(infix), Some(l)));
                         ra.push((post, Some(r)));
                     }
                     DoubleSplitIndex::Right(pre, single, infix, _, post) => {
                         let (l, r) = Self::split_index(hypergraph, single.index, single.offset);
                         la.push((pre, Some(l)));
-                        ia.push((Some(r), infix, None));
+                        ia.push((Some(r), SplitSegment::Pattern(infix), None));
                         ra.push((post, None));
                     }
                     DoubleSplitIndex::Infix(pre, left, infix, right, post) => {
                         let (ll, lr) = Self::split_index(hypergraph, left.index, left.offset);
                         let (rl, rr) = Self::split_index(hypergraph, right.index, right.offset);
                         la.push((pre, Some(ll)));
-                        ia.push((Some(lr), infix, Some(rl)));
+                        ia.push((Some(lr), SplitSegment::Pattern(infix), Some(rl)));
                         ra.push((post, Some(rr)));
                     }
                     DoubleSplitIndex::Inner(pre, (index, left, right), post) => {
                         match Self::index_subrange(hypergraph, index, left.get()..right.get()) {
                             RangeSplitResult::Double(l, i, r) => {
                                 la.push((pre, Some(l)));
-                                ia.push((None, vec![i], None));
+                                ia.push((None, i, None));
                                 ra.push((post, Some(r)));
                             }
                             RangeSplitResult::Single(l, r) => {
@@ -246,7 +346,7 @@ impl IndexSplitter {
                             }
                             RangeSplitResult::Full(c) => {
                                 la.push((pre, None));
-                                ia.push((None, vec![c], None));
+                                ia.push((None, SplitSegment::Child(c), None));
                                 ra.push((post, None));
                             }
                             RangeSplitResult::None => {
@@ -259,9 +359,10 @@ impl IndexSplitter {
                 (la, ia, ra)
             },
         );
-        let left = SplitMinimizer::merge_left_optional_splits(hypergraph, left);
-        let inner = SplitMinimizer::merge_inner_optional_splits(hypergraph, inner);
-        let right = SplitMinimizer::merge_right_optional_splits(hypergraph, right);
+        let mut minimizer = SplitMinimizer::new(hypergraph);
+        let left = minimizer.merge_left_optional_splits(left);
+        let inner = minimizer.merge_inner_optional_splits(inner);
+        let right = minimizer.merge_right_optional_splits(right);
         // split all children and resolve
         //println!(
         //    "adding ({}, {}, {}) to {}",
@@ -270,7 +371,9 @@ impl IndexSplitter {
         //    hypergraph.index_string(right),
         //    hypergraph.index_string(parent),
         //);
-        hypergraph.add_pattern_to_node(parent, [left, inner, right]);
+        hypergraph.add_pattern_to_node(parent,
+            left.clone().into_iter().chain(inner).chain(right.clone())
+        );
         (left, inner, right)
     }
     /// Find single split indicies and positions of multiple patterns
@@ -294,8 +397,7 @@ impl IndexSplitter {
         single: impl IntoIterator<Item = (PatternId, SplitIndex)>,
     ) -> RangeSplitResult {
         let (perfect_split, remaining_splits) = Self::separate_single_split_indices(vertex, single);
-        let (left, right) =
-            Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits);
+        let (_, (left, right)) = Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits);
         RangeSplitResult::Single(left, right)
     }
     pub(crate) fn separate_single_split_indices(
@@ -352,74 +454,78 @@ impl IndexSplitter {
             )
         }
     }
-    pub(crate) fn single_split_from_indices<T: Tokenize>(
-        hypergraph: &mut Hypergraph<T>,
-        root: impl Indexed,
-        perfect_split: Option<(Split, IndexInParent)>,
-        remaining_splits: Vec<SplitContext>,
-    ) -> (Child, Child) {
-        if let Some(ps) = perfect_split {
-            Self::perform_perfect_split(hypergraph, ps, root)
-        } else {
-            // split all children and resolve
-            let (left, right) = Self::perform_child_splits(hypergraph, remaining_splits);
-            hypergraph.add_pattern_to_node(root, [left, right]);
-            (left, right)
-        }
-    }
-    pub(crate) fn split_index<T: Tokenize>(
+    pub fn index_prefix<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         root: impl Indexed,
         pos: NonZeroUsize,
-    ) -> (Child, Child) {
+    ) -> (Child, SplitSegment) {
+        let (pid, (l, r)) = Self::split_index_with_pid(hypergraph, root.index(), pos);
+        match l {
+            SplitSegment::Child(c) => (c, r),
+            SplitSegment::Pattern(p) => {
+                let len = p.len();
+                let c = hypergraph.insert_pattern(p);
+                if let Some(pid) = pid {
+                    hypergraph.replace_in_pattern(root, pid, 0..len, c);
+                }
+                (c, r)
+            },
+        }
+    }
+    pub fn index_postfix<T: Tokenize>(
+        hypergraph: &mut Hypergraph<T>,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> (SplitSegment, Child) {
+        let (pid, (l, r)) = Self::split_index_with_pid(hypergraph, root.index(), pos);
+        match r {
+            SplitSegment::Child(c) => (l, c),
+            SplitSegment::Pattern(p) => {
+                let c = hypergraph.insert_pattern(p);
+                if let Some(pid) = pid {
+                    hypergraph.replace_in_pattern(root, pid, l.len().., c);
+                }
+                (l, c)
+            },
+        }
+    }
+    pub(crate) fn split_index_with_pid<T: Tokenize>(
+        hypergraph: &mut Hypergraph<T>,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> (Option<PatternId>, SingleSplitResult) {
         let root = root.index();
         //println!("splitting {} at {}", hypergraph.index_string(root), pos);
         let (perfect_split, remaining_splits) = hypergraph.separate_perfect_split(root, pos);
         Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits)
     }
-    fn perform_perfect_split<T: Tokenize>(
+    pub(crate) fn split_index<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
-        ((pl, pr), ind): (Split, IndexInParent),
-        parent: impl Indexed,
-    ) -> (Child, Child) {
-        // if other patterns can't add any more overlapping splits
-        let parent = parent.index();
-        (
-            Self::resolve_perfect_split_range(
-                hypergraph,
-                pl,
-                parent,
-                ind.pattern_index,
-                0..ind.replaced_index,
-            ),
-            Self::resolve_perfect_split_range(
-                hypergraph,
-                pr,
-                parent,
-                ind.pattern_index,
-                ind.replaced_index..,
-            ),
-        )
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> SingleSplitResult {
+        Self::split_index_with_pid(hypergraph, root, pos).1
     }
-    fn resolve_perfect_split_range<T: Tokenize>(
+    pub(crate) fn single_split_from_indices<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
-        pat: Pattern,
-        parent: impl Indexed,
-        pattern_index: PatternId,
-        range: impl PatternRangeIndex + Clone,
-    ) -> Child {
-        if pat.len() <= 1 {
-            *pat.first().expect("Empty perfect split half!")
+        root: impl Indexed,
+        perfect_split: Option<(Split, IndexInParent)>,
+        remaining_splits: Vec<SplitContext>,
+    ) -> (Option<PatternId>, SingleSplitResult) {
+        if let Some(ps) = perfect_split {
+            let (pid, (left, right)) = Self::perform_perfect_split(hypergraph, ps, root);
+            (Some(pid), (left, right))
         } else {
-            let c = hypergraph.insert_pattern(pat);
-            hypergraph.replace_in_pattern(parent, pattern_index, range, [c]);
-            c
+            // split all children and resolve
+            let (pid, (left, right)) = Self::perform_child_splits(hypergraph, remaining_splits);
+            hypergraph.add_pattern_to_node(root, left.clone().into_iter().chain(right.clone()));
+            (pid, (left, right))
         }
     }
     fn perform_child_splits<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
         child_splits: Vec<SplitContext>,
-    ) -> (Child, Child) {
+    ) -> (Option<PatternId>, SingleSplitResult) {
         // for every child split
         let (left, right) = child_splits
             .into_iter()
@@ -435,9 +541,51 @@ impl IndexSplitter {
                 },
             )
             .unzip();
-        let left = SplitMinimizer::merge_left_splits(hypergraph, left);
-        let right = SplitMinimizer::merge_right_splits(hypergraph, right);
-        (left, right)
+        let mut minimizer = SplitMinimizer::new(hypergraph);
+        let left = minimizer.merge_left_splits(left);
+        let right = minimizer.merge_right_splits(right);
+        (None, (left, right))
+    }
+    fn perform_perfect_split<T: Tokenize>(
+        hypergraph: &mut Hypergraph<T>,
+        ((pl, pr), ind): (Split, IndexInParent),
+        parent: impl Indexed,
+    ) -> (PatternId, SingleSplitResult) {
+        // if other patterns can't add any more overlapping splits
+        let parent = parent.index();
+        (ind.pattern_index, (
+            Self::resolve_perfect_split_range(
+                hypergraph,
+                pl,
+                parent,
+                ind.pattern_index,
+                0..ind.replaced_index,
+            ),
+            Self::resolve_perfect_split_range(
+                hypergraph,
+                pr,
+                parent,
+                ind.pattern_index,
+                ind.replaced_index..,
+            ),
+        ))
+    }
+    fn resolve_perfect_split_range<T: Tokenize>(
+        hypergraph: &mut Hypergraph<T>,
+        pat: Pattern,
+        parent: impl Indexed,
+        pattern_index: PatternId,
+        range: impl PatternRangeIndex + Clone,
+    ) -> SplitSegment {
+        if pat.len() <= 1 {
+            SplitSegment::Child(*pat.first().expect("Empty perfect split half!"))
+        } else if parent.vertex(hypergraph).children.len() == 1 {
+            SplitSegment::Pattern(pat)
+        } else {
+            let c = hypergraph.insert_pattern(pat);
+            hypergraph.replace_in_pattern(parent, pattern_index, range, [c]);
+            SplitSegment::Child(c)
+        }
     }
     /// find split position in index in pattern
     pub fn find_pattern_split_index(

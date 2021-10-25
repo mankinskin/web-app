@@ -118,7 +118,7 @@ where
     ) -> Child {
         // todo handle token nodes
         let mut patterns = patterns.into_iter();
-        let first = patterns.next().expect("Tired to insert no patterns");
+        let first = patterns.next().expect("Tried to insert no patterns");
         let node = self.insert_pattern(first);
         for pat in patterns {
             self.add_pattern_to_node(&node, pat);
@@ -169,16 +169,19 @@ where
         parent: impl ToChild,
         pattern_id: PatternId,
         new: impl IntoIterator<Item = impl ToChild>,
-    ) {
+    ) -> Child {
         let new: Vec<_> = new.into_iter().map(|c| c.to_child()).collect();
-        let offset = {
+        let (offset, width) = {
             let vertex = self.expect_vertex_data_mut(parent.index());
             let pattern = vertex.expect_child_pattern_mut(&pattern_id);
             let offset = pattern.len();
             pattern.extend(new.iter());
-            offset
+            vertex.width = pattern_width(pattern);
+            (offset, vertex.width)
         };
+        let parent = parent.to_child();
         self.add_pattern_parent(parent, new, pattern_id, offset);
+        Child::new(parent.index, width)
     }
     //pub fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
     //    IndexReader::new(self).read_sequence(sequence)

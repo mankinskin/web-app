@@ -24,18 +24,7 @@ pub use {
 };
 
 pub type Split = (Pattern, Pattern);
-/// refers to position of child in parent
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct ContextChild {
-    pub child: usize, // child node in the sub graph
-    pub index_in_parent: IndexInParent,
-}
-/// refers to position of child in parent
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct ContextParent {
-    pub parent: usize, // parent node in the sub graph
-    pub index_in_parent: IndexInParent,
-}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct SplitContext {
     pub prefix: Pattern,
@@ -155,7 +144,7 @@ where
         }
     }
     /// Split an index the specified position
-    pub fn split_index(&mut self, root: impl Indexed + Clone, pos: NonZeroUsize) -> (Child, Child) {
+    pub fn split_index(&mut self, root: impl Indexed, pos: NonZeroUsize) -> SingleSplitResult {
         IndexSplitter::split_index(self, root, pos)
     }
     // create index from token position range in index
@@ -165,6 +154,20 @@ where
         range: impl PatternRangeIndex,
     ) -> RangeSplitResult {
         IndexSplitter::index_subrange(self, root, range)
+    }
+    pub fn index_prefix(
+        &mut self,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> (Child, SplitSegment) {
+        IndexSplitter::index_prefix(self, root, pos)
+    }
+    pub fn index_postfix(
+        &mut self,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> (SplitSegment, Child) {
+        IndexSplitter::index_postfix(self, root, pos)
     }
 }
 impl<'t, 'a, T> Hypergraph<T>

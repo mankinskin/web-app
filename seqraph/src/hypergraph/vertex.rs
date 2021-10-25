@@ -220,6 +220,13 @@ impl From<NewTokenIndex> for Child {
         Self::new(o.index(), 1)
     }
 }
+impl IntoIterator for Child {
+    type Item = Self;
+    type IntoIter = std::iter::Once<Child>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::iter::once(self)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VertexData {

@@ -18,7 +18,6 @@ use crate::{
 //    Stream,
 //    StreamExt,
 //};
-use itertools::Itertools;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SearchFound {

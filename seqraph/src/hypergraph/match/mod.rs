@@ -238,7 +238,7 @@ mod tests {
         );
         assert_eq!(
             graph.compare_pattern_postfix(&bc_pattern, &abcd_pattern),
-            Err(PatternMismatch::NoMatchingParent)
+            Err(PatternMismatch::NoParents)
         );
         assert_eq!(
             graph.compare_pattern_postfix(&b_c_pattern, &a_bc_pattern),
