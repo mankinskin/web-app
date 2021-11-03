@@ -208,9 +208,10 @@ where
         arc: Arc<RwLock<Self>>,
         tokens: impl TokenStream<T> + 't,
     ) -> impl PatternStream<VertexIndex, Token<T>> + 't {
+        let handle = tokio::runtime::Handle::current();
         tokens.map(move |token|
             // is this slow?
-            async_std::task::block_on(async {
+            handle.block_on(async {
                 arc.read().await.get_token_index(&token.into_token())
                     .map_err(|_| Token::Element(token))
             })

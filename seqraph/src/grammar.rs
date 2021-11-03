@@ -1,3 +1,4 @@
+#![feature(test)]
 #![allow(unused)]
 use std::{
     fmt::{

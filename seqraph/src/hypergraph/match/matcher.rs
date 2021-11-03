@@ -209,7 +209,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
                         ) {
                             (true, rem) => Ok(rem.unwrap_or_default()),
                             // parent not matching at beginning
-                            (false, _) => Err(PatternMismatch::NoParents),
+                            (false, _) => Err(PatternMismatch::NoMatchingParent),
                         }
                         // search next parent
                         .and_then(|new_context| {

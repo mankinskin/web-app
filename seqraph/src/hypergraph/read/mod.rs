@@ -74,8 +74,7 @@ mod tests {
     //use tokio::sync::mpsc;
     //use tokio_stream::wrappers::*;
 
-    #[tokio::test]
-    async fn sync_read_text() {
+    fn sync_read_text() {
         let text = "Heldldo world!";
         let mut g: Hypergraph<char> = Hypergraph::default();
         let result = g.read_sequence(text.chars());

@@ -323,94 +323,127 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
 }
 #[cfg(test)]
 mod tests {
-    //use super::*;
-    //use crate::{
-    //    token::*,
-    //    hypergraph::{
-    //        split::*,
-    //    },
-    //};
-    //use std::{
-    //    num::NonZeroUsize,
-    //};
-    //use pretty_assertions::assert_eq;
+    use super::*;
+    use crate::{
+        token::*,
+        hypergraph::{
+            split::*,
+            r#match::*,
+        },
+    };
+    use std::{
+        num::NonZeroUsize,
+    };
+    use pretty_assertions::assert_eq;
 
-    //#[test]
-    //fn merge_split_1() {
-    //    let mut graph = Hypergraph::default();
-    //    if let [a, b, c, d] = graph.insert_tokens(
-    //        [
-    //            Token::Element('a'),
-    //            Token::Element('b'),
-    //            Token::Element('c'),
-    //            Token::Element('d'),
-    //        ])[..] {
-    //        // wxabyzabbyxabyz
-    //        let ab = graph.insert_pattern([a, b]);
-    //        let bc = graph.insert_pattern([b, c]);
-    //        let cd = graph.insert_pattern([c, d]);
-    //        let abc = graph.insert_patterns([
-    //            vec![ab, c],
-    //            vec![a, bc]
-    //        ]);
-    //        let bcd = graph.insert_patterns([
-    //            vec![bc, d],
-    //            vec![b, cd]
-    //        ]);
-    //        let abcd = graph.insert_patterns([
-    //            vec![abc, d],
-    //            vec![a, bcd]
-    //        ]);
-    //        let ab_pattern = vec![ab];
-    //        let cd_pattern = vec![cd];
+    #[test]
+    fn merge_single_split_1() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, c, d] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let bc = graph.insert_pattern([b, c]);
+            let cd = graph.insert_pattern([c, d]);
+            let abc = graph.insert_patterns([
+                vec![ab, c],
+                vec![a, bc]
+            ]);
+            let bcd = graph.insert_patterns([
+                vec![bc, d],
+                vec![b, cd]
+            ]);
+            let abcd = graph.insert_patterns([
+                vec![abc, d],
+                vec![a, bcd]
+            ]);
+            let ab_pattern = vec![ab];
+            let cd_pattern = vec![cd];
+            let left = vec![
+                (ab_pattern.clone(), SplitSegment::Child(c)),
+            ];
+            let right = vec![
+                (cd_pattern.clone(), SplitSegment::Child(b)),
+            ];
+            let mut minimizer = SplitMinimizer::new(&mut graph);
+            let left = minimizer.merge_left_splits(left);
+            let right = minimizer.merge_right_splits(right);
+            assert_eq!(left, SplitSegment::Pattern(ab_pattern), "left");
+            assert_eq!(right, SplitSegment::Pattern(cd_pattern), "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn merge_split_2() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, _w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let x_a_pattern = vec![x, a];
+            let by_z_pattern = vec![by, z];
+            let z_pattern = vec![z];
 
-    //        let index_split = IndexSplitter::build_index_split(&graph, abcd, NonZeroUsize::new(2).unwrap());
-    //        let (left, right) = SplitMinimizer::minimize_index_split(&mut graph, index_split);
-    //        assert_eq!(left, vec![ab_pattern], "left");
-    //        assert_eq!(right, vec![cd_pattern], "right");
-    //    } else {
-    //        panic!();
-    //    }
-    //}
-    //#[test]
-    //fn merge_split_2() {
-    //    let mut graph = Hypergraph::default();
-    //    if let [a, b, _w, x, y, z] = graph.insert_tokens(
-    //        [
-    //            Token::Element('a'),
-    //            Token::Element('b'),
-    //            Token::Element('w'),
-    //            Token::Element('x'),
-    //            Token::Element('y'),
-    //            Token::Element('z'),
-    //        ])[..] {
-    //        // wxabyzabbyxabyz
-    //        let ab = graph.insert_pattern([a, b]);
-    //        let by = graph.insert_pattern([b, y]);
-    //        let yz = graph.insert_pattern([y, z]);
-    //        let xab = graph.insert_pattern([x, ab]);
-    //        let xaby = graph.insert_patterns([
-    //            vec![xab, y],
-    //            vec![x, a, by]
-    //        ]);
-    //        let xabyz = graph.insert_patterns([
-    //            vec![xaby, z],
-    //            vec![xab, yz]
-    //        ]);
-    //        let x_a_pattern = vec![x, a];
-    //        let by_z_pattern = vec![by, z];
+            //let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
 
-    //        let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
-    //        let xa_found = graph.find_pattern(x_a_pattern);
-    //        if let (xa, _, FoundRange::Complete) = xa_found.expect("xa not found") {
-    //            assert_eq!(left, xa, "left");
-    //        } else { panic!(); };
-    //        let byz_found = graph.find_pattern(by_z_pattern);
-    //        if let (byz, _, FoundRange::Complete) = byz_found.expect("byz not found") {
-    //            assert_eq!(right, byz, "right");
-    //        } else { panic!(); };
-    //    } else {
-    //        panic!();
-    //    }
-    //}
+            let left = vec![
+                (x_a_pattern.clone(), None),
+            ];
+            let right = vec![
+                (z_pattern, SplitSegment::Child(by)),
+            ];
+            let mut minimizer = SplitMinimizer::new(&mut graph);
+            let left = minimizer.merge_left_optional_splits(left);
+            let right = minimizer.merge_right_splits(right);
+
+            let xa_found = graph.find_pattern(x_a_pattern);
+            if let SearchFound {
+                index: xa,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = xa_found.expect("xa not found") {
+                assert_eq!(left, SplitSegment::Child(xa), "left");
+            } else { panic!(); };
+            let byz_found = graph.find_pattern(by_z_pattern);
+            if let SearchFound {
+                index: byz,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = byz_found.expect("byz not found") {
+                assert_eq!(right, SplitSegment::Child(byz), "left");
+            } else { panic!(); };
+        } else {
+            panic!();
+        }
+    }
 }

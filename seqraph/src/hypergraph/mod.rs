@@ -92,7 +92,7 @@ where
         });
         ChildStrings::from_nodes(nodes)
     }
-    pub fn pattern_child_strings(&self, pattern: Pattern) -> ChildStrings {
+    pub fn pattern_child_strings(&self, pattern: impl IntoPattern<Item=Child>) -> ChildStrings {
         let nodes = pattern.into_iter().map(|child| {
             (
                 self.index_string(child.index),

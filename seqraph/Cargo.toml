@@ -21,7 +21,6 @@ tracing-test = "^0.1"
 maplit = "^1"
 indexmap = "^1.6"
 either = "^1.6"
-todo-or-die = { version="^0.1", features=["crate"] }
 async-std = "^1"
 async-trait = "^0.1"
 futures = "^0.3"
@@ -47,8 +46,12 @@ version = "0.10"
 [dependencies.tokio]
 version = "^1"
 features = [
-  "full",
+  "sync",
+  "rt",
+  "rt-multi-thread",
+  "macros",
 ]
+
 [dependencies.tokio-stream]
 version = "^0.1"
 features = [

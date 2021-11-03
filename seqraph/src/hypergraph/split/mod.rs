@@ -232,7 +232,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::*;
+    use crate::{
+        token::*,
+        hypergraph::{
+            tests::*,
+            child_strings::*,
+            r#match::*,
+            search::*,
+        },
+    };
     #[test]
     fn split_range_1() {
         let mut graph = Hypergraph::default();
@@ -266,278 +274,336 @@ mod tests {
             panic!();
         }
     }
-    //    #[test]
-    //    fn split_index_1() {
-    //        let (
-    //            graph,
-    //            _a,
-    //            _b,
-    //            c,
-    //            _d,
-    //            _e,
-    //            _f,
-    //            _g,
-    //            _h,
-    //            _i,
-    //            ab,
-    //            _bc,
-    //            _cd,
-    //            _bcd,
-    //            abc,
-    //            _abcd,
-    //            _cdef,
-    //            _efghi,
-    //            _abab,
-    //            _ababab,
-    //            _ababababcdefghi,
-    //            ) = &mut *context_mut();
-    //        let (left, right) = graph.split_index_at_pos(*abc, NonZeroUsize::new(2).unwrap());
-    //        assert_eq!(left, vec![Child::new(*ab, 2)], "left");
-    //        assert_eq!(right, vec![Child::new(*c, 1)], "right");
-    //    }
-    //    #[test]
-    //    fn split_child_patterns_2() {
-    //        let (
-    //            graph,
-    //            _a,
-    //            _b,
-    //            _c,
-    //            d,
-    //            _e,
-    //            _f,
-    //            _g,
-    //            _h,
-    //            _i,
-    //            _ab,
-    //            _bc,
-    //            _cd,
-    //            _bcd,
-    //            abc,
-    //            abcd,
-    //            _cdef,
-    //            _efghi,
-    //            _abab,
-    //            _ababab,
-    //            _ababababcdefghi,
-    //            ) = &mut *context_mut();
-    //        let (left, right) = graph.split_index_at_pos(*abcd, NonZeroUsize::new(3).unwrap());
-    //        assert_eq!(left, vec![Child::new(*abc, 3)], "left");
-    //        assert_eq!(right, vec![Child::new(*d, 1)], "right");
-    //    }
-    //    use crate::token::*;
-    //    fn split_child_patterns_3_impl() {
-    //        let mut graph = Hypergraph::default();
-    //        if let [a, b, c, d] = graph.insert_tokens(
-    //            [
-    //                Token::Element('a'),
-    //                Token::Element('b'),
-    //                Token::Element('c'),
-    //                Token::Element('d'),
-    //            ])[..] {
-    //            // wxabyzabbyxabyz
-    //            let ab = graph.insert_pattern([a, b]);
-    //            let bc = graph.insert_pattern([b, c]);
-    //            let cd = graph.insert_pattern([c, d]);
-    //            let abc = graph.insert_patterns([
-    //                vec![ab, c],
-    //                vec![a, bc]
-    //            ]);
-    //            let bcd = graph.insert_patterns([
-    //                vec![bc, d],
-    //                vec![b, cd]
-    //            ]);
-    //            let abcd = graph.insert_patterns([
-    //                vec![abc, d],
-    //                vec![a, bcd]
-    //            ]);
-    //            let ab_pattern = vec![Child::new(ab, 2)];
-    //            let cd_pattern = vec![Child::new(cd, 2)];
-    //
-    //            let (left, right) = graph.split_index_at_pos(abcd, NonZeroUsize::new(2).unwrap());
-    //            assert_eq!(left, ab_pattern, "left");
-    //            assert_eq!(right, cd_pattern, "right");
-    //        } else {
-    //            panic!();
-    //        }
-    //    }
-    //    #[test]
-    //    fn split_child_patterns_3() {
-    //        split_child_patterns_3_impl()
-    //    }
-    //    #[test]
-    //    fn split_child_patterns_4() {
-    //        let mut graph = Hypergraph::default();
-    //        if let [a, b, _w, x, y, z] = graph.insert_tokens(
-    //            [
-    //                Token::Element('a'),
-    //                Token::Element('b'),
-    //                Token::Element('w'),
-    //                Token::Element('x'),
-    //                Token::Element('y'),
-    //                Token::Element('z'),
-    //            ])[..] {
-    //            // wxabyzabbyxabyz
-    //            let ab = graph.insert_pattern([a, b]);
-    //            let by = graph.insert_pattern([b, y]);
-    //            let yz = graph.insert_pattern([y, z]);
-    //            let xab = graph.insert_pattern([x, ab]);
-    //            let xaby = graph.insert_patterns([
-    //                vec![xab, y],
-    //                vec![x, a, by]
-    //            ]);
-    //            let xabyz = graph.insert_patterns([
-    //                vec![xaby, z],
-    //                vec![xab, yz]
-    //            ]);
-    //            // split xabyz at 2
-    //            let xa_graph = ChildStrings::from_node(
-    //                "xa",
-    //                vec![
-    //                    vec!["x", "a"],
-    //                ]
-    //            );
-    //            let byz_graph = ChildStrings::from_node(
-    //                "byz",
-    //                vec![
-    //                    vec!["by", "z"],
-    //                    vec!["b", "yz"],
-    //                ]
-    //            );
-    //
-    //            let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
-    //            let left = graph.pattern_child_strings(left);
-    //            let right = graph.pattern_child_strings(right);
-    //            assert_eq!(left, xa_graph, "left");
-    //            assert_eq!(right, byz_graph, "right");
-    //        } else {
-    //            panic!();
-    //        }
-    //    }
-    //    #[test]
-    //    fn split_child_patterns_5() {
-    //        let mut graph = Hypergraph::default();
-    //        if let [a, b, w, x, y, z] = graph.insert_tokens(
-    //            [
-    //                Token::Element('a'),
-    //                Token::Element('b'),
-    //                Token::Element('w'),
-    //                Token::Element('x'),
-    //                Token::Element('y'),
-    //                Token::Element('z'),
-    //            ])[..] {
-    //            // wxabyzabbyxabyz
-    //            let ab = graph.insert_pattern([a, b]);
-    //            let by = graph.insert_pattern([b, y]);
-    //            let yz = graph.insert_pattern([y, z]);
-    //            let xa = graph.insert_pattern([x, a]);
-    //            let xab = graph.insert_patterns([
-    //                vec![x, ab],
-    //                vec![xa, b],
-    //            ]);
-    //            let xaby = graph.insert_patterns([
-    //                vec![xab, y],
-    //                vec![xa, by]
-    //            ]);
-    //            let xabyz = graph.insert_patterns([
-    //                vec![xaby, z],
-    //                vec![xab, yz]
-    //            ]);
-    //            let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
-    //
-    //            // split wxabyzabbyxabyz at 3
-    //            let wxa_graph = ChildStrings::from_node(
-    //                "wxa",
-    //                vec![
-    //                    vec!["w", "xa"],
-    //                ]
-    //            );
-    //            let byzabbyxabyz_graph = ChildStrings::from_node(
-    //                "byzabbyxabyz",
-    //                vec![
-    //                    ["byz", "abbyxabyz"],
-    //                ]
-    //            );
-    //            let (left, right) = graph.split_index_at_pos(wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
-    //            let left = graph.pattern_child_strings(left);
-    //            let right = graph.pattern_child_strings(right);
-    //            assert_eq!(left, wxa_graph, "left");
-    //            assert_eq!(right, byzabbyxabyz_graph, "right");
-    //        } else {
-    //            panic!();
-    //        }
-    //    }
-    //    fn split_child_patterns_6_impl() {
-    //        let mut graph = Hypergraph::default();
-    //        if let [a, b, w, x, y, z] = graph.insert_tokens(
-    //            [
-    //                Token::Element('a'),
-    //                Token::Element('b'),
-    //                Token::Element('w'),
-    //                Token::Element('x'),
-    //                Token::Element('y'),
-    //                Token::Element('z'),
-    //            ])[..] {
-    //            // wxabyzabbyxabyz
-    //            let ab = graph.insert_pattern([a, b]);
-    //            let by = graph.insert_pattern([b, y]);
-    //            let yz = graph.insert_pattern([y, z]);
-    //            let wx = graph.insert_pattern([w, x]);
-    //            let xab = graph.insert_pattern([x, ab]);
-    //            let xaby = graph.insert_patterns([
-    //                vec![xab, y],
-    //                vec![x, a, by]
-    //            ]);
-    //            let wxab = graph.insert_patterns([
-    //                vec![wx, ab],
-    //                vec![w, xab]
-    //            ]);
-    //            let wxaby = graph.insert_patterns([
-    //                vec![w, xaby],
-    //                vec![wx, a, by],
-    //                vec![wxab, y]
-    //            ]);
-    //            let xabyz = graph.insert_patterns([
-    //                vec![xaby, z],
-    //                vec![xab, yz]
-    //            ]);
-    //            let wxabyz = graph.insert_patterns([
-    //                vec![w, xabyz],
-    //                vec![wxaby, z],
-    //                vec![wx, ab, yz]
-    //            ]);
-    //            let wxa_graph = ChildStrings::from_node(
-    //                "wxa",
-    //                vec![
-    //                    vec!["wx", "a"],
-    //                ]
-    //            );
-    //            let byz_graph = ChildStrings::from_node(
-    //                "byz",
-    //                vec![
-    //                    vec!["by", "z"],
-    //                    vec!["b", "yz"],
-    //                ]
-    //            );
-    //
-    //            let (left, right) = graph.split_index_at_pos(wxabyz, NonZeroUsize::new(3).unwrap());
-    //            let left = graph.pattern_child_strings(left);
-    //            let right = graph.pattern_child_strings(right);
-    //            assert_eq!(left, wxa_graph, "left");
-    //            assert_eq!(right, byz_graph, "right");
-    //        } else {
-    //            panic!();
-    //        }
-    //    }
-    //    #[test]
-    //    fn split_child_patterns_6() {
-    //        split_child_patterns_6_impl()
-    //    }
-    //    //#[bench]
-    //    //fn bench_split_child_patterns_6(_bencher: &mut test::Bencher) {
-    //    //    split_child_patterns_6_impl()
-    //    //}
-    //    //#[bench]
-    //    //fn bench_split_child_patterns_3(b: &mut test::Bencher) {
-    //    //    b.iter(|| split_child_patterns_3_impl())
-    //    //}
+    #[test]
+    fn split_index_1() {
+        let (
+            graph,
+            _a,
+            _b,
+            c,
+            _d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            ab,
+            _bc,
+            _cd,
+            _bcd,
+            abc,
+            _abcd,
+            _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            _ababababcdefghi,
+            ) = &mut *context_mut();
+        let (left, right) = graph.split_index(*abc, NonZeroUsize::new(2).unwrap());
+        assert_eq!(left, SplitSegment::Child(Child::new(ab, 2)), "left");
+        assert_eq!(right, SplitSegment::Child(Child::new(c, 1)), "right");
+    }
+    #[test]
+    fn split_child_patterns_2() {
+        let (
+            graph,
+            _a,
+            _b,
+            _c,
+            d,
+            _e,
+            _f,
+            _g,
+            _h,
+            _i,
+            _ab,
+            _bc,
+            _cd,
+            _bcd,
+            abc,
+            abcd,
+            _cdef,
+            _efghi,
+            _abab,
+            _ababab,
+            _ababababcdefghi,
+            ) = &mut *context_mut();
+        let (left, right) = graph.split_index(*abcd, NonZeroUsize::new(3).unwrap());
+        assert_eq!(left, SplitSegment::Child(Child::new(abc, 3)), "left");
+        assert_eq!(right, SplitSegment::Child(Child::new(d, 1)), "right");
+    }
+    fn split_child_patterns_3_impl() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, c, d] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('c'),
+                Token::Element('d'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let bc = graph.insert_pattern([b, c]);
+            let cd = graph.insert_pattern([c, d]);
+            let abc = graph.insert_patterns([
+                vec![ab, c],
+                vec![a, bc]
+            ]);
+            let bcd = graph.insert_patterns([
+                vec![bc, d],
+                vec![b, cd]
+            ]);
+            let abcd = graph.insert_patterns([
+                vec![abc, d],
+                vec![a, bcd]
+            ]);
+
+            let (left, right) = graph.split_index(abcd, NonZeroUsize::new(2).unwrap());
+            assert_eq!(left, SplitSegment::Child(ab), "left");
+            assert_eq!(right, SplitSegment::Child(cd), "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_3() {
+        split_child_patterns_3_impl()
+    }
+    #[test]
+    fn split_child_patterns_4() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, _w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let x_a_pattern = vec![x, a];
+            let by_z_pattern = vec![by, z];
+
+            let (left, right) = graph.split_index(xabyz, NonZeroUsize::new(2).unwrap());
+
+            let xa_found = graph.find_pattern(x_a_pattern);
+            if let SearchFound {
+                index: xa,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = xa_found.expect("xa not found") {
+                assert_eq!(left, SplitSegment::Child(xa), "left");
+            } else { panic!(); };
+            let byz_found = graph.find_pattern(by_z_pattern);
+            if let SearchFound {
+                index: byz,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = byz_found.expect("byz not found") {
+                assert_eq!(right, SplitSegment::Child(byz), "left");
+            } else { panic!(); };
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_5() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xa = graph.insert_pattern([x, a]);
+            let xab = graph.insert_patterns([
+                vec![x, ab],
+                vec![xa, b],
+            ]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![xa, by]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
+
+            // split wxabyzabbyxabyz at 3
+            //let wxa_graph = ChildStrings::from_node(
+            //    "wxa",
+            //    vec![
+            //        vec!["w", "xa"],
+            //    ]
+            //);
+            //let byzabbyxabyz_graph = ChildStrings::from_node(
+            //    "byzabbyxabyz",
+            //    vec![
+            //        ["byz", "abbyxabyz"],
+            //    ]
+            //);
+            let (left, right) = graph.split_index(wxabyzabbyxabyz, NonZeroUsize::new(3).unwrap());
+            //let left = graph.pattern_child_strings(left);
+            //let right = graph.pattern_child_strings(right);
+            //assert_eq!(left, wxa_graph, "left");
+            //assert_eq!(right, byzabbyxabyz_graph, "right");
+
+            let w_xa_pattern = vec![w, xa];
+            let xa_found = graph.find_pattern(w_xa_pattern);
+            let wxa = if let SearchFound {
+                index: wxa,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = xa_found.expect("xa not found") {
+                    Some(wxa)
+            } else { None }.unwrap();
+            assert_eq!(left, SplitSegment::Child(wxa), "left");
+
+            let by_z_pattern = vec![by, z];
+            let byz_found = graph.find_pattern(by_z_pattern);
+            let byz = if let SearchFound {
+                index: byz,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = byz_found.expect("byz not found") {
+                    Some(byz)
+            } else { None }.unwrap();
+
+            let ab_by_xabyz_pattern = vec![ab, by, xabyz];
+            let abbyxabyz_found = graph.find_pattern(ab_by_xabyz_pattern);
+            let abbyxabyz = if let SearchFound {
+                index: abbyxabyz,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = abbyxabyz_found.expect("abbyxabyz not found") {
+                    Some(abbyxabyz)
+            } else { None }.unwrap();
+
+            let byz_abbyxabyz_pattern = vec![byz, abbyxabyz];
+            let byzabbyxabyz_found = graph.find_pattern(byz_abbyxabyz_pattern);
+            let byzabbyxabyz = if let SearchFound {
+                index: byzabbyxabyz,
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
+                    ..
+                },
+                ..
+                } = byzabbyxabyz_found.expect("byzabbyxabyz not found") {
+                    Some(byzabbyxabyz)
+            } else { None }.unwrap();
+            assert_eq!(right, SplitSegment::Child(byzabbyxabyz), "left");
+        } else {
+            panic!();
+        }
+    }
+    fn split_child_patterns_6_impl() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let wx = graph.insert_pattern([w, x]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let wxab = graph.insert_patterns([
+                vec![wx, ab],
+                vec![w, xab]
+            ]);
+            let wxaby = graph.insert_patterns([
+                vec![w, xaby],
+                vec![wx, a, by],
+                vec![wxab, y]
+            ]);
+            let xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let wxabyz = graph.insert_patterns([
+                vec![w, xabyz],
+                vec![wxaby, z],
+                vec![wx, ab, yz]
+            ]);
+            let wxa_graph = ChildStrings::from_node(
+                "wxa",
+                vec![
+                    vec!["wx", "a"],
+                ]
+            );
+            let byz_graph = ChildStrings::from_node(
+                "byz",
+                vec![
+                    vec!["by", "z"],
+                    vec!["b", "yz"],
+                ]
+            );
+
+            let (left, right) = graph.split_index(wxabyz, NonZeroUsize::new(3).unwrap());
+            let left = graph.pattern_child_strings(left);
+            let right = graph.pattern_child_strings(right);
+            assert_eq!(left, wxa_graph, "left");
+            assert_eq!(right, byz_graph, "right");
+        } else {
+            panic!();
+        }
+    }
+    #[test]
+    fn split_child_patterns_6() {
+        split_child_patterns_6_impl()
+    }
+    #[bench]
+    fn bench_split_child_patterns_6(b: &mut test::Bencher) {
+        b.iter(split_child_patterns_6_impl)
+    }
+    #[bench]
+    fn bench_split_child_patterns_3(b: &mut test::Bencher) {
+        b.iter(split_child_patterns_3_impl)
+    }
 }
