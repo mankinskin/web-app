@@ -17,7 +17,7 @@ pub enum NotFound {
     EmptyPatterns,
     Mismatch(PatternMismatch),
     NoChildPatterns,
-    NoMatchingParent,
+    NoMatchingParent(VertexIndex),
     SingleIndex,
     UnknownKey,
     UnknownIndex,
@@ -53,7 +53,10 @@ pub(crate) mod tests {
         tests::context,
         Child,
     };
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{
+        assert_eq,
+        assert_matches,
+    };
     macro_rules! assert_match {
         ($in:expr, $exp:expr) => {
             assert_match!($in, $exp, "")
@@ -92,7 +95,7 @@ pub(crate) mod tests {
     }
     pub(crate) use assert_match;
     #[test]
-    fn find_pattern() {
+    fn find_pattern_1() {
         let (
             graph,
             a,
@@ -110,6 +113,7 @@ pub(crate) mod tests {
             _bcd,
             abc,
             abcd,
+            _ef,
             _cdef,
             _efghi,
             _abab,
@@ -150,10 +154,59 @@ pub(crate) mod tests {
             Ok((ababababcdefghi, FoundRange::Complete))
         );
         let a_b_c_c_pattern = [&a_b_c_pattern[..], &[Child::new(c, 1)]].concat();
-        assert_eq!(
+        assert_matches!(
             graph.find_pattern(a_b_c_c_pattern),
-            Err(NotFound::NoMatchingParent)
+            Err(NotFound::NoMatchingParent(_))
         );
+    }
+    #[test]
+    fn find_pattern_2() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, _w, x, y, z] = graph.insert_tokens(
+            [
+                Token::Element('a'),
+                Token::Element('b'),
+                Token::Element('w'),
+                Token::Element('x'),
+                Token::Element('y'),
+                Token::Element('z'),
+            ])[..] {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([
+                vec![xab, y],
+                vec![x, a, by]
+            ]);
+            let _xabyz = graph.insert_patterns([
+                vec![xaby, z],
+                vec![xab, yz]
+            ]);
+            let byz_found = graph.find_pattern(vec![by, z]);
+            let x_a_pattern = vec![x, a];
+            assert_matches!(
+                byz_found,
+                Ok(
+                    SearchFound {
+                        index: Child {
+                            width: 5,
+                            ..
+                        },
+                        parent_match: ParentMatch {
+                            parent_range: FoundRange::Postfix(_),
+                            ..
+                        },
+                        ..
+                    }
+                )
+            );
+            let post = byz_found.unwrap().parent_match.parent_range;
+            assert_eq!(post, FoundRange::Postfix(x_a_pattern));
+        } else {
+            panic!();
+        }
     }
     #[test]
     fn find_sequence() {
@@ -174,6 +227,7 @@ pub(crate) mod tests {
             _bcd,
             abc,
             _abcd,
+            _ef,
             _cdef,
             _efghi,
             _abab,
@@ -181,15 +235,34 @@ pub(crate) mod tests {
             ababababcdefghi,
         ) = &*context();
         assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
-        assert_match!(
-            graph.find_sequence("abc".chars()),
-            Ok((abc, FoundRange::Complete)),
-            "abc"
+
+        let abc_found = graph.find_sequence("abc".chars());
+        assert_matches!(
+            abc_found,
+            Ok(
+                SearchFound {
+                    parent_match: ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
+                    ..
+                }
+            )
         );
-        assert_match!(
-            graph.find_sequence("ababababcdefghi".chars()),
-            Ok((ababababcdefghi, FoundRange::Complete)),
-            "ababababcdefghi"
+        assert_eq!(abc_found.unwrap().index, *abc);
+        let ababababcdefghi_found = graph.find_sequence("ababababcdefghi".chars());
+        assert_matches!(
+            ababababcdefghi_found,
+            Ok(
+                SearchFound {
+                    parent_match: ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
+                    ..
+                }
+            )
         );
+        assert_eq!(ababababcdefghi_found.unwrap().index, *ababababcdefghi);
     }
 }

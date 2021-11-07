@@ -179,6 +179,7 @@ mod tests {
         Child,
         Child,
         Child,
+        Child,
     );
     lazy_static::lazy_static! {
         pub static ref
@@ -210,15 +211,9 @@ mod tests {
                 // ab cd
                 // abc d
                 // a bcd
-
+                // index: 9
                 let ab = graph.insert_pattern([a, b]);
                 let bc = graph.insert_pattern([b, c]);
-                let ef = graph.insert_pattern([e, f]);
-                let def = graph.insert_pattern([d, ef]);
-                let cdef = graph.insert_pattern([c, def]);
-                let gh = graph.insert_pattern([g, h]);
-                let efgh = graph.insert_pattern([ef, gh]);
-                let ghi = graph.insert_pattern([gh, i]);
                 let abc = graph.insert_patterns([
                     [ab, c],
                     [a, bc],
@@ -234,11 +229,26 @@ mod tests {
                     [abc, d],
                     [a, bcd],
                 ]);
+                // index 15
+                let ef = graph.insert_pattern([e, f]);
+                let gh = graph.insert_pattern([g, h]);
+                let ghi = graph.insert_pattern([gh, i]);
+                let efgh = graph.insert_pattern([ef, gh]);
                 let efghi = graph.insert_patterns([
                     [efgh, i],
                     [ef, ghi],
                 ]);
-                let abcdefghi = graph.insert_pattern([abcd, efghi]);
+                let def = graph.insert_pattern([d, ef]);
+                let cdef = graph.insert_pattern([c, def]);
+                // index 22
+                let abcdef = graph.insert_patterns([
+                    [abc, def],
+                    [ab, cdef]
+                ]);
+                let abcdefghi = graph.insert_patterns([
+                    [abcd, efghi],
+                    [abcdef, ghi]
+                ]);
                 let aba = graph.insert_pattern([ab, a]);
                 let abab = graph.insert_patterns([
                     [aba, b],
@@ -283,6 +293,7 @@ mod tests {
                     bcd,
                     abc,
                     abcd,
+                    ef,
                     cdef,
                     efghi,
                     abab,

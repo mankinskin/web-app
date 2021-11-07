@@ -180,16 +180,17 @@ where
         let mut parents = self.get_pattern_parents(pattern, parent)?
             .into_iter()
             .enumerate();
-        parents.next().and_then(|(_, first)|
-            first
-                .pattern_indices
-                .iter()
-                .find(|(pat, pos)| {
-                    parents.all(|(i, post)| post.exists_at_pos_in_pattern(*pat, pos + i))
-                })
-                .cloned()
-        )
-        .ok_or(NotFound::NoMatchingParent)
+        parents.next()
+            .and_then(|(_, first)|
+                first
+                    .pattern_indices
+                    .iter()
+                    .find(|(pat, pos)| {
+                        parents.all(|(i, post)| post.exists_at_pos_in_pattern(*pat, pos + i))
+                    })
+                    .cloned()
+            )
+            .ok_or(NotFound::NoChildPatterns)
     }
     pub fn expect_common_pattern_in_parent(
         &self,

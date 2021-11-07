@@ -48,6 +48,14 @@ pub struct ParentMatch {
     pub parent_range: FoundRange,
     pub remainder: Option<Pattern>,
 }
+impl ParentMatch {
+    pub fn embed_in_super(self, other: Self) -> Self {
+        Self {
+            parent_range: self.parent_range.embed_in_super(other.parent_range),
+            remainder: other.remainder,
+        }
+    }
+}
 pub type PatternMatchResult = Result<PatternMatch, PatternMismatch>;
 pub type ParentMatchResult = Result<ParentMatch, PatternMismatch>;
 
@@ -173,7 +181,8 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
     ) -> ParentMatchResult {
         //println!("match_sub_pattern_to_super");
         // search parent of sub
-        if sub.index() == sup.index() {
+        let sub_index = *sub.index();
+        if sub_index == *sup.index() {
             return Ok(ParentMatch {
                 parent_range: FoundRange::Complete,
                 remainder: (!sub_context.is_empty()).then(|| sub_context.into_pattern()),
@@ -188,7 +197,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
             // found vertex in sup at relevant position
             //println!("sup found in parents");
             // compare context after vertex in parent
-            self.compare_with_parent_children(sub_context, sup, parent)
+            self.match_parent_children(sub_context, sup, parent)
                 .map(|(parent_match, _, _)| parent_match)
         } else {
             // sup is no direct parent, search upwards
@@ -209,7 +218,10 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
                         ) {
                             (true, rem) => Ok(rem.unwrap_or_default()),
                             // parent not matching at beginning
-                            (false, _) => Err(PatternMismatch::NoMatchingParent),
+                            (false, _) => {
+                                //println!("Found index {} not matching at beginning", parent_index.index);
+                                Err(PatternMismatch::NoMatchingParent)
+                            },
                         }
                         // search next parent
                         .and_then(|new_context| {
@@ -220,7 +232,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
         }
     }
     /// match context against child context in parent.
-    pub fn compare_with_parent_children(
+    pub fn match_parent_children(
         &'g self,
         context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         parent_index: impl Indexed,
@@ -234,23 +246,23 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
         let candidates = D::filter_parent_pattern_indices(parent, child_patterns);
         //println!("with successors \"{}\"", self.pattern_string(post_pattern));
         // try to find child pattern with same next index
-        Self::find_best_child_pattern(
+        Self::get_best_child_pattern(
             child_patterns,
             candidates.iter(),
             context.as_pattern_view(),
         )
         // todo: check if this is always correct
-        .or_else(|| candidates.into_iter().next())
-        .or_else(|| parent.pattern_indices.iter().next().cloned())
+        // todo: skip tail comparison for non-candidates (they always point to sub-index at end in parent)
+        //.or_else(|| parent.pattern_indices.iter().next().cloned())
         //
-        .ok_or(PatternMismatch::NoParents)
+        .ok_or(PatternMismatch::NoMatchingParent)
         .and_then(|(pattern_index, sub_index)| {
             self.compare_child_pattern_at_offset(child_patterns, context, pattern_index, sub_index)
                 .map(|parent_match| (parent_match, pattern_index, sub_index))
         })
     }
     /// try to find child pattern with context matching sub_context
-    pub(crate) fn find_best_child_pattern(
+    pub(crate) fn get_best_child_pattern(
         child_patterns: &'_ ChildPatterns,
         candidates: impl Iterator<Item = impl Borrow<(usize, PatternId)>>,
         sub_context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
@@ -303,5 +315,21 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Matcher<'g, T, D> {
             remainder: pm.0,
         })
         // returns result of matching sub with parent's children
+    }
+    pub(crate) fn match_indirect_parent(
+        &'g self,
+        index: VertexIndex,
+        parent: &Parent,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+    ) -> Option<SearchFound> {
+        self
+            .match_parent_children(context.as_pattern_view(), index, parent)
+            .map(|(parent_match, pattern_id, sub_index)| SearchFound {
+                index: Child::new(index, parent.width),
+                pattern_id,
+                sub_index,
+                parent_match,
+            })
+            .ok()
     }
 }

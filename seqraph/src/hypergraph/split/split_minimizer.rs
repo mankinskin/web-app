@@ -18,12 +18,12 @@ trait MergeDirection {
         context: SplitSegment,
         inner: SplitSegment,
     ) -> SplitSegment {
-
         if let Some((outer_head, outer_tail)) = Self::split_context_head(context) {
             let (inner_head, inner_tail) = Self::split_inner_head(inner).expect("Empty SplitSegment::Pattern");
             let (left, right) = Self::merge_order(inner_head, outer_head);
             // try to find parent matching both
-            SplitMinimizer::new(hypergraph).resolve_common_parent(left, right)
+            SplitMinimizer::new(hypergraph)
+                .resolve_common_parent(left, right)
                 .map_pattern(|pat|
                     Self::concat_inner_and_context(inner_tail, pat, outer_tail)
                 )
@@ -148,7 +148,7 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
         //println!("pos: {}, len: {}", pos, pattern.len());
         let p = vec![left, right];
         // find pattern over merge position
-        self.graph
+        match self.graph
             .find_pattern(p.as_pattern_view())
             .map(
                 |SearchFound {
@@ -175,8 +175,10 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
                     }
                 },
             )
-            .map_err(|_| p.into_pattern())
-            .into()
+            .map_err(|_| p.into_pattern()) {
+                Ok(c) => SplitSegment::Child(c),
+                Err(p) => SplitSegment::Pattern(p),
+            }
     }
     /// minimal means:
     /// - no two indicies are adjacient more than once
@@ -331,11 +333,8 @@ mod tests {
             r#match::*,
         },
     };
-    use std::{
-        num::NonZeroUsize,
-    };
     use pretty_assertions::assert_eq;
-
+    use maplit::hashset;
     #[test]
     fn merge_single_split_1() {
         let mut graph = Hypergraph::default();
@@ -358,23 +357,23 @@ mod tests {
                 vec![bc, d],
                 vec![b, cd]
             ]);
-            let abcd = graph.insert_patterns([
+            let _abcd = graph.insert_patterns([
                 vec![abc, d],
                 vec![a, bcd]
             ]);
-            let ab_pattern = vec![ab];
-            let cd_pattern = vec![cd];
             let left = vec![
-                (ab_pattern.clone(), SplitSegment::Child(c)),
+                (vec![a], SplitSegment::Child(b)),
+                (vec![], SplitSegment::Child(ab)),
             ];
             let right = vec![
-                (cd_pattern.clone(), SplitSegment::Child(b)),
+                (vec![d], SplitSegment::Child(c)),
+                (vec![], SplitSegment::Child(cd)),
             ];
             let mut minimizer = SplitMinimizer::new(&mut graph);
             let left = minimizer.merge_left_splits(left);
             let right = minimizer.merge_right_splits(right);
-            assert_eq!(left, SplitSegment::Pattern(ab_pattern), "left");
-            assert_eq!(right, SplitSegment::Pattern(cd_pattern), "right");
+            assert_eq!(left, SplitSegment::Child(ab), "left");
+            assert_eq!(right, SplitSegment::Child(cd), "right");
         } else {
             panic!();
         }
@@ -404,24 +403,14 @@ mod tests {
                 vec![xaby, z],
                 vec![xab, yz]
             ]);
-            let x_a_pattern = vec![x, a];
-            let by_z_pattern = vec![by, z];
-            let z_pattern = vec![z];
 
-            //let (left, right) = graph.split_index_at_pos(xabyz, NonZeroUsize::new(2).unwrap());
+            let (ps, child_splits) = graph.separate_perfect_split(xabyz, NonZeroUsize::new(2).unwrap());
+            assert_eq!(ps, None);
+            let (left, right) = IndexSplitter::build_child_splits(&mut graph, child_splits);
 
-            let left = vec![
-                (x_a_pattern.clone(), None),
-            ];
-            let right = vec![
-                (z_pattern, SplitSegment::Child(by)),
-            ];
-            let mut minimizer = SplitMinimizer::new(&mut graph);
-            let left = minimizer.merge_left_optional_splits(left);
-            let right = minimizer.merge_right_splits(right);
 
-            let xa_found = graph.find_pattern(x_a_pattern);
-            if let SearchFound {
+            let xa_found = graph.find_pattern(vec![x, a]);
+            let xa = if let SearchFound {
                 index: xa,
                 parent_match: ParentMatch {
                     parent_range: FoundRange::Complete,
@@ -429,10 +418,29 @@ mod tests {
                 },
                 ..
                 } = xa_found.expect("xa not found") {
-                assert_eq!(left, SplitSegment::Child(xa), "left");
-            } else { panic!(); };
-            let byz_found = graph.find_pattern(by_z_pattern);
-            if let SearchFound {
+                    Some(xa)
+            } else { None }.expect("xa");
+
+            let expleft = hashset![
+                (vec![], SplitSegment::Child(xa)),
+            ];
+            let expright = hashset![
+                (vec![yz], SplitSegment::Child(b)),
+                (vec![z], SplitSegment::Child(by)),
+            ];
+
+            let (sleft, sright): (HashSet<_>, HashSet<_>) = (left.clone().into_iter().collect(), right.clone().into_iter().collect());
+            assert_eq!(sleft, expleft, "left");
+            assert_eq!(sright, expright, "right");
+
+            let mut minimizer = SplitMinimizer::new(&mut graph);
+            let left = minimizer.merge_left_splits(left);
+            let right = minimizer.merge_right_splits(right);
+            println!("{:#?}", graph);
+            println!("left = {:#?}", left);
+            println!("right = {:#?}", right);
+            let byz_found = graph.find_pattern(vec![b, y, z]);
+            let byz = if let SearchFound {
                 index: byz,
                 parent_match: ParentMatch {
                     parent_range: FoundRange::Complete,
@@ -440,8 +448,10 @@ mod tests {
                 },
                 ..
                 } = byz_found.expect("byz not found") {
-                assert_eq!(right, SplitSegment::Child(byz), "left");
-            } else { panic!(); };
+                    Some(byz)
+            } else { None }.expect("byz");
+            assert_eq!(left, SplitSegment::Child(xa), "left");
+            assert_eq!(right, SplitSegment::Child(byz), "left");
         } else {
             panic!();
         }

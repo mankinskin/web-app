@@ -252,7 +252,8 @@ impl VertexData {
         self.width
     }
     pub fn get_parent(&self, index: impl Indexed) -> Result<&Parent, NotFound> {
-        self.parents.get(index.index()).ok_or(NotFound::NoMatchingParent)
+        let index = index.index();
+        self.parents.get(index).ok_or(NotFound::NoMatchingParent(*index))
     }
     pub fn get_parents(&self) -> &VertexParents {
         &self.parents
@@ -362,8 +363,10 @@ impl VertexData {
         parent_index: impl Indexed,
         cond: impl Fn(&&Parent) -> bool,
     ) -> Result<&'_ Parent, NotFound> {
-        Some(self.get_parent(parent_index.index())?).filter(cond)
-            .ok_or(NotFound::NoMatchingParent)
+        let index = parent_index.index();
+        Some(self.get_parent(index)?)
+            .filter(cond)
+            .ok_or(NotFound::NoMatchingParent(*index))
     }
     pub fn get_parent_starting_at(
         &self,

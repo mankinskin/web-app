@@ -160,9 +160,11 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                     }
                 },
                 Err(not_found) => match not_found {
-                    NotFound::NoMatchingParent => {
+                    NotFound::NoMatchingParent(index) => {
                         // create new index for this known block
+                        let index_str = self.graph.index_string(index);
                         println!("No matching parents for {}", known_str);
+                        println!("At index \'{}\'", index_str);
                         println!("Inserting new pattern");
                         let c = self.graph.insert_pattern(known);
                         SplitSegment::Child(c)

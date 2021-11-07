@@ -59,7 +59,9 @@ mod tests {
         tests::context,
         Child,
     };
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{
+        assert_eq,
+    };
     #[test]
     fn compare_pattern_prefix() {
         let (
@@ -68,19 +70,20 @@ mod tests {
             b,
             c,
             d,
-            _e,
-            _f,
-            _g,
-            _h,
-            _i,
+            e,
+            f,
+            g,
+            h,
+            i,
             ab,
             bc,
             _cd,
             _bcd,
             abc,
             abcd,
+            ef,
             _cdef,
-            _efghi,
+            efghi,
             _abab,
             _ababab,
             _ababababcdefghi,
@@ -95,6 +98,22 @@ mod tests {
         let bc_pattern = vec![Child::new(bc, 2)];
         let a_d_c_pattern = vec![Child::new(a, 1), Child::new(d, 1), Child::new(c, 1)];
         let a_b_c_pattern = vec![Child::new(a, 1), Child::new(b, 1), Child::new(c, 1)];
+        assert_eq!(
+            graph.compare_pattern_prefix(vec![e, f, g, h, i], vec![efghi]),
+            Ok(PatternMatch(None, None))
+        );
+        assert_eq!(
+            graph.compare_pattern_prefix(vec![ef], vec![e, f]),
+            Ok(PatternMatch(None, None))
+        );
+        assert_eq!(
+            graph.compare_pattern_prefix(vec![e, f], vec![ef]),
+            Ok(PatternMatch(None, None))
+        );
+        assert_eq!(
+            graph.compare_pattern_prefix(vec![efghi], vec![e, f, g, h ,i]),
+            Ok(PatternMatch(None, None))
+        );
         assert_eq!(
             graph.compare_pattern_prefix(&a_bc_pattern, &ab_c_pattern),
             Ok(PatternMatch(None, None))
@@ -183,6 +202,7 @@ mod tests {
             _bcd,
             abc,
             abcd,
+            _ef,
             _cdef,
             _efghi,
             _abab,

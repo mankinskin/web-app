@@ -294,4 +294,42 @@ impl IndexSplitter {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::{
+        token::*,
+    };
+    #[test]
+    fn split_range_1() {
+        let mut graph = Hypergraph::default();
+        if let [a, b, w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
+            // wxabyzabbyxabyz
+            let ab = graph.insert_pattern([a, b]);
+            let by = graph.insert_pattern([b, y]);
+            let yz = graph.insert_pattern([y, z]);
+            let wx = graph.insert_pattern([w, x]);
+            let xab = graph.insert_pattern([x, ab]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
+            let wxab = graph.insert_patterns([vec![wx, ab], vec![w, xab]]);
+            let wxaby = graph.insert_patterns([vec![w, xaby], vec![wx, a, by], vec![wxab, y]]);
+            let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
+            let wxabyz = graph.insert_patterns([vec![w, xabyz], vec![wxaby, z], vec![wx, ab, yz]]);
+
+            let _ = graph.index_subrange(wxabyz, 0..);
+            let _ = graph.index_subrange(wxabyz, 1..);
+            let _ = graph.index_subrange(wxabyz, 1..3);
+            let _ = graph.index_subrange(wxabyz, 2..5);
+            let _ = graph.index_subrange(wxabyz, 3..);
+        } else {
+            panic!();
+        }
+    }
+}

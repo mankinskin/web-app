@@ -22,9 +22,9 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SearchFound {
     pub index: Child,
-    pub parent_match: ParentMatch,
     pub pattern_id: PatternId,
     pub sub_index: usize,
+    pub parent_match: ParentMatch,
 }
 // found range of search pattern in vertex at index
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -35,19 +35,6 @@ pub enum FoundRange {
     Infix(Pattern, Pattern), // found infix
 }
 impl FoundRange {
-    pub fn prepend_prefix(self, pattern: Pattern) -> Self {
-        if pattern.is_empty() {
-            return self;
-        }
-        match self {
-            FoundRange::Complete => FoundRange::Prefix(pattern),
-            FoundRange::Prefix(post) => FoundRange::Infix(pattern, post),
-            FoundRange::Infix(pre, post) => {
-                FoundRange::Infix([&pattern[..], &pre[..]].concat(), post)
-            }
-            FoundRange::Postfix(pre) => FoundRange::Postfix([&pattern[..], &pre[..]].concat()),
-        }
-    }
     pub fn is_matching(&self) -> bool {
         self == &FoundRange::Complete
     }
@@ -57,6 +44,21 @@ impl FoundRange {
             Self::Prefix(post) => Self::Postfix(post),
             Self::Postfix(pre) => Self::Prefix(pre),
             Self::Infix(pre, post) => Self::Infix(post, pre),
+        }
+    }
+    pub fn embed_in_super(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Complete, outer) => outer,
+            (inner, Self::Complete) => inner,
+            (Self::Prefix(inner), Self::Postfix(outer)) => Self::Infix(outer, inner),
+            (Self::Prefix(inner), Self::Prefix(outer)) => Self::Prefix([inner, outer].concat()),
+            (Self::Prefix(inner), Self::Infix(louter, router)) => Self::Infix(louter, [inner, router].concat()),
+            (Self::Postfix(inner), Self::Prefix(outer)) => Self::Infix(inner, outer),
+            (Self::Postfix(inner), Self::Postfix(outer)) => Self::Postfix([outer, inner].concat()),
+            (Self::Postfix(inner), Self::Infix(louter, router)) => Self::Infix([louter, inner].concat(), router),
+            (Self::Infix(linner, rinner), Self::Prefix(outer)) => Self::Infix(linner, [rinner, outer].concat()),
+            (Self::Infix(linner, rinner), Self::Postfix(outer)) => Self::Infix([outer, linner].concat(), rinner),
+            (Self::Infix(linner, rinner), Self::Infix(louter, router)) => Self::Infix([louter, linner].concat(), [rinner, router].concat()),
         }
     }
 }
@@ -124,11 +126,13 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
         context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
         width_ceiling: Option<TokenPosition>,
     ) -> SearchResult {
+        let vertex_index = *index.index();
         let vertex = self.expect_vertex_data(index);
         let parents = vertex.get_parents_below_width(width_ceiling);
         if let Some((&index, child_patterns, parent, pattern_id, sub_index)) =
-            self.find_parent_with_matching_children(parents.clone(), context.as_pattern_view())
+            self.find_direct_matching_parent(parents.clone(), context.as_pattern_view())
         {
+            // direct matching parent
             self.matcher()
                 .compare_child_pattern_at_offset(child_patterns, context, pattern_id, sub_index)
                 .map(|parent_match| SearchFound {
@@ -139,32 +143,27 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                 })
                 .map_err(NotFound::Mismatch)
         } else {
+            // no direct matching parent
             // compare all parent's children
-            parents
-                .into_iter()
-                .find_map(|(index, parent)| {
-                    self.matcher()
-                        .compare_with_parent_children(context.as_pattern_view(), index, parent)
-                        .map(|(parent_match, pattern_id, sub_index)| SearchFound {
-                            index: Child::new(index, parent.width),
-                            pattern_id,
-                            sub_index,
-                            parent_match,
-                        })
-                        .ok()
-                })
-                .ok_or(NotFound::NoMatchingParent)
+            self.find_indirect_matching_parent(parents, context)
+                .ok_or(NotFound::NoMatchingParent(vertex_index))
         }
-        .and_then(|search_found| match search_found.parent_match.remainder {
-            Some(post) => {
-                self.find_largest_matching_parent(search_found.index, post[..].to_vec())
+        .and_then(|search_found|
+            if let Some(rem) = &search_found.parent_match.remainder {
+                self.find_largest_matching_parent(search_found.index, rem)
+                    .map(|super_found| SearchFound {
+                        parent_match: search_found.parent_match.embed_in_super(super_found.parent_match),
+                        index: super_found.index,
+                        sub_index: super_found.sub_index,
+                        pattern_id: super_found.pattern_id,
+                    })
+            } else {
+                Ok(search_found)
             }
-            // todo: match prefixes
-            _ => Ok(search_found),
-        })
+        )
     }
     /// find parent with a child pattern matching context
-    pub fn find_parent_with_matching_children(
+    pub fn find_direct_matching_parent(
         &'g self,
         mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
         context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
@@ -196,5 +195,45 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                     (index, child_patterns, parent, pattern_index, sub_index)
                 })
         })
+    }
+    /// find parent with a child pattern matching context
+    pub fn find_indirect_matching_parent(
+        &'g self,
+        mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
+        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+    ) -> Option<SearchFound> {
+        let context = context.as_pattern_view();
+        let mut first = None;
+        parents.find_map(|(index, parent)| {
+                first.get_or_insert((index, parent));
+                self.matcher().match_indirect_parent(*index, parent, context)
+            })
+            .or_else(||
+                first.and_then(|(index, parent)|
+                    parent.pattern_indices.iter().next().cloned()
+                        .ok_or(PatternMismatch::NoParents)
+                        .and_then(|(pattern_index, sub_index)| {
+                            let vert = self.expect_vertex_data(index);
+                            let child_patterns = vert.get_children();
+                            self.matcher()
+                                .compare_child_pattern_at_offset(
+                                    child_patterns,
+                                    context,
+                                    pattern_index,
+                                    sub_index,
+                                )
+                                .map(|parent_match|
+                                    (parent_match, pattern_index, sub_index)
+                                )
+                        })
+                        .map(|(parent_match, pattern_id, sub_index)| SearchFound {
+                            index: Child::new(index, parent.width),
+                            pattern_id,
+                            sub_index,
+                            parent_match,
+                        })
+                        .ok()
+                )
+            )
     }
 }

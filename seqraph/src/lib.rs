@@ -1,5 +1,6 @@
 #![feature(test)]
 #![feature(async_closure)]
+#![feature(assert_matches)]
 
 extern crate test;
 
