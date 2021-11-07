@@ -37,7 +37,8 @@ features = [
 ]
 [dependencies.petgraph]
 #version = "^0.5"
-path = "../../petgraph"
+#path = "../../petgraph"
+git = "https://github.com/mankinskin/petgraph"
 
 [dependencies.nalgebra]
 version = "^0.24"
