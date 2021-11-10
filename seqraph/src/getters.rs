@@ -1,31 +1,33 @@
 use crate::{
-    hypergraph::{
-        *,
-        search::*,
-    },
+    search::*,
     token::Tokenize,
-};
-use tokio_stream::{
-    //Stream,
-    StreamExt,
+    *,
 };
 use async_std::sync::{
     Arc,
     RwLock,
 };
+use tokio_stream::StreamExt;
 
 impl<'t, 'a, T> Hypergraph<T>
 where
     T: Tokenize + 't,
 {
-    pub fn get_vertex(&self, index: impl Indexed) -> Result<(&VertexKey<T>, &VertexData), NotFound> {
-        self.graph.get_index(*index.index()).ok_or(NotFound::UnknownIndex)
+    pub fn get_vertex(
+        &self,
+        index: impl Indexed,
+    ) -> Result<(&VertexKey<T>, &VertexData), NotFound> {
+        self.graph
+            .get_index(*index.index())
+            .ok_or(NotFound::UnknownIndex)
     }
     pub fn get_vertex_mut(
         &mut self,
         index: impl Indexed,
     ) -> Result<(&mut VertexKey<T>, &mut VertexData), NotFound> {
-        self.graph.get_index_mut(*index.index()).ok_or(NotFound::UnknownIndex)
+        self.graph
+            .get_index_mut(*index.index())
+            .ok_or(NotFound::UnknownIndex)
     }
     pub fn expect_vertex(&self, index: impl Indexed) -> (&VertexKey<T>, &VertexData) {
         let index = *index.index();
@@ -49,7 +51,10 @@ where
     pub fn get_vertex_data(&self, index: impl Indexed) -> Result<&VertexData, NotFound> {
         self.get_vertex(index).map(|(_, v)| v)
     }
-    pub fn get_vertex_data_mut(&mut self, index: impl Indexed) -> Result<&mut VertexData, NotFound> {
+    pub fn get_vertex_data_mut(
+        &mut self,
+        index: impl Indexed,
+    ) -> Result<&mut VertexData, NotFound> {
         self.get_vertex_mut(index).map(|(_, v)| v)
     }
     pub fn expect_vertex_data(&self, index: impl Indexed) -> &VertexData {
@@ -61,7 +66,10 @@ where
     pub fn get_vertex_data_by_key(&self, key: &VertexKey<T>) -> Result<&VertexData, NotFound> {
         self.graph.get(key).ok_or(NotFound::UnknownKey)
     }
-    pub fn get_vertex_data_by_key_mut(&mut self, key: &VertexKey<T>) -> Result<&mut VertexData, NotFound> {
+    pub fn get_vertex_data_by_key_mut(
+        &mut self,
+        key: &VertexKey<T>,
+    ) -> Result<&mut VertexData, NotFound> {
         self.graph.get_mut(key).ok_or(NotFound::UnknownKey)
     }
     pub fn expect_vertex_data_by_key(&self, key: &VertexKey<T>) -> &VertexData {
@@ -119,7 +127,7 @@ where
     pub fn to_token_indices_iter(
         &'a self,
         tokens: impl IntoIterator<Item = Token<T>> + 'a,
-    ) -> impl Iterator<Item=Result<VertexIndex, NotFound>> + 'a {
+    ) -> impl Iterator<Item = Result<VertexIndex, NotFound>> + 'a {
         tokens
             .into_iter()
             .map(move |token| self.get_token_index(&token))
@@ -133,14 +141,19 @@ where
             .map(|token| self.get_token_index(&token))
             .collect()
     }
-    pub fn to_token_children_iter(&'a self, tokens: impl IntoIterator<Item = Token<T>> + 'a) -> impl Iterator<Item=Result<Child, NotFound>> + 'a {
+    pub fn to_token_children_iter(
+        &'a self,
+        tokens: impl IntoIterator<Item = Token<T>> + 'a,
+    ) -> impl Iterator<Item = Result<Child, NotFound>> + 'a {
         self.to_token_indices_iter(tokens)
-            .map(move |index|
-                index.map(|index| Child::new(index, 1))
-            )
+            .map(move |index| index.map(|index| Child::new(index, 1)))
     }
-    pub fn to_token_children(&self, tokens: impl IntoIterator<Item = Token<T>>) -> Result<impl IntoPattern<Item=Child>, NotFound> {
-        self.to_token_children_iter(tokens).collect::<Result<Pattern, _>>()
+    pub fn to_token_children(
+        &self,
+        tokens: impl IntoIterator<Item = Token<T>>,
+    ) -> Result<impl IntoPattern<Item = Child>, NotFound> {
+        self.to_token_children_iter(tokens)
+            .collect::<Result<Pattern, _>>()
     }
     pub fn get_token_indices(
         &self,
@@ -177,11 +190,13 @@ where
         pattern: impl IntoIterator<Item = impl Indexed>,
         parent: impl Indexed,
     ) -> Result<(PatternId, usize), NotFound> {
-        let mut parents = self.get_pattern_parents(pattern, parent)?
+        let mut parents = self
+            .get_pattern_parents(pattern, parent)?
             .into_iter()
             .enumerate();
-        parents.next()
-            .and_then(|(_, first)|
+        parents
+            .next()
+            .and_then(|(_, first)| {
                 first
                     .pattern_indices
                     .iter()
@@ -189,7 +204,7 @@ where
                         parents.all(|(i, post)| post.exists_at_pos_in_pattern(*pat, pos + i))
                     })
                     .cloned()
-            )
+            })
             .ok_or(NotFound::NoChildPatterns)
     }
     pub fn expect_common_pattern_in_parent(
@@ -215,31 +230,30 @@ where
             handle.block_on(async {
                 arc.read().await.get_token_index(&token.into_token())
                     .map_err(|_| Token::Element(token))
-            })
-        )
+            }))
     }
     pub async fn async_to_token_children_stream(
         arc: Arc<RwLock<Self>>,
         tokens: impl TokenStream<T> + 't,
-        ) -> impl PatternStream<Child, Token<T>> + 't {
-        Self::async_to_token_indices_stream(arc, tokens).await
-            .map(move |index|
-                index.into_inner().map(|index| Child::new(index, 1))
-            )
+    ) -> impl PatternStream<Child, Token<T>> + 't {
+        Self::async_to_token_indices_stream(arc, tokens)
+            .await
+            .map(move |index| index.into_inner().map(|index| Child::new(index, 1)))
     }
     pub fn to_token_indices_stream(
         &'a self,
         tokens: impl TokenStream<T> + 'a,
     ) -> impl PatternStream<VertexIndex, Token<T>> + 'a {
-        tokens.map(move |token|
+        tokens.map(move |token| {
             self.get_token_index(&token.into_token())
                 .map_err(|_| Token::Element(token))
-        )
+        })
     }
-    pub fn to_token_children_stream(&'a self, tokens: impl TokenStream<T> + 'a) -> impl PatternStream<Child, Token<T>> + 'a {
+    pub fn to_token_children_stream(
+        &'a self,
+        tokens: impl TokenStream<T> + 'a,
+    ) -> impl PatternStream<Child, Token<T>> + 'a {
         self.to_token_indices_stream(tokens)
-            .map(move |index|
-                index.into_inner().map(|index| Child::new(index, 1))
-            )
+            .map(move |index| index.into_inner().map(|index| Child::new(index, 1)))
     }
 }

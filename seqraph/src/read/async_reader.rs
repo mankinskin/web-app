@@ -1,12 +1,10 @@
 use std::collections::VecDeque;
 
 use crate::{
-    hypergraph::{
-        r#match::*,
-        search::*,
-        *,
-    },
+    r#match::*,
+    search::*,
     token::*,
+    *,
 };
 use futures::Stream;
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};

@@ -10,7 +10,6 @@ use petgraph::graph::{
     NodeIndex,
 };
 use std::default::Default;
-#[allow(unused)]
 use tracing::debug;
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub struct Edge {

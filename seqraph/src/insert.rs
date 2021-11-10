@@ -1,7 +1,4 @@
-use crate::{
-    hypergraph::*,
-    token::*,
-};
+use crate::*;
 use std::sync::atomic::{
     AtomicUsize,
     Ordering,
@@ -91,7 +88,10 @@ where
             .collect()
     }
     /// create new node from a pattern
-    pub fn insert_pattern_with_id(&mut self, indices: impl IntoIterator<Item = impl Indexed>) -> (Child, Option<PatternId>) {
+    pub fn insert_pattern_with_id(
+        &mut self,
+        indices: impl IntoIterator<Item = impl Indexed>,
+    ) -> (Child, Option<PatternId>) {
         // todo check if exists already
         // todo handle token nodes
         let indices: Vec<_> = indices.into_iter().collect();

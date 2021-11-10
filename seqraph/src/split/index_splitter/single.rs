@@ -1,10 +1,8 @@
 use crate::{
-    hypergraph::{
-        split::*,
-        Hypergraph,
-        Indexed,
-    },
+    split::*,
     token::Tokenize,
+    Hypergraph,
+    Indexed,
 };
 use std::{
     borrow::Borrow,
@@ -44,7 +42,7 @@ impl IndexSplitter {
                     hypergraph.replace_in_pattern(root, pid, 0..len, c);
                 }
                 (c, r)
-            },
+            }
         }
     }
     pub fn index_postfix<T: Tokenize>(
@@ -61,7 +59,7 @@ impl IndexSplitter {
                     hypergraph.replace_in_pattern(root, pid, l.len().., c);
                 }
                 (l, c)
-            },
+            }
         }
     }
     /// Find single split indicies and positions of multiple patterns
@@ -85,7 +83,8 @@ impl IndexSplitter {
         single: impl IntoIterator<Item = (PatternId, SplitIndex)>,
     ) -> RangeSplitResult {
         let (perfect_split, remaining_splits) = Self::separate_single_split_indices(vertex, single);
-        let (_, (left, right)) = Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits);
+        let (_, (left, right)) =
+            Self::single_split_from_indices(hypergraph, root, perfect_split, remaining_splits);
         RangeSplitResult::Single(left, right)
     }
     pub(crate) fn separate_single_split_indices(
@@ -152,9 +151,7 @@ impl IndexSplitter {
                         },
                     )
                     .map_err(
-                        |ind
-                         @
-                         IndexInParent {
+                        |ind @ IndexInParent {
                              replaced_index: split_index,
                              ..
                          }| {
@@ -234,34 +231,35 @@ impl IndexSplitter {
     ) -> (PatternId, SingleSplitResult) {
         // if other patterns can't add any more overlapping splits
         let parent = parent.index();
-        (ind.pattern_index, (
-            Self::resolve_perfect_split_range(
-                hypergraph,
-                pl,
-                parent,
-                ind.pattern_index,
-                0..ind.replaced_index,
+        (
+            ind.pattern_index,
+            (
+                Self::resolve_perfect_split_range(
+                    hypergraph,
+                    pl,
+                    parent,
+                    ind.pattern_index,
+                    0..ind.replaced_index,
+                ),
+                Self::resolve_perfect_split_range(
+                    hypergraph,
+                    pr,
+                    parent,
+                    ind.pattern_index,
+                    ind.replaced_index..,
+                ),
             ),
-            Self::resolve_perfect_split_range(
-                hypergraph,
-                pr,
-                parent,
-                ind.pattern_index,
-                ind.replaced_index..,
-            ),
-        ))
+        )
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
+        r#match::*,
+        search::*,
+        tests::*,
         token::*,
-        hypergraph::{
-            tests::*,
-            r#match::*,
-            search::*,
-        },
     };
     use pretty_assertions::assert_eq;
     #[test]
@@ -289,7 +287,7 @@ mod tests {
             _abab,
             _ababab,
             _ababababcdefghi,
-            ) = &mut *context_mut();
+        ) = &mut *context_mut();
         let (left, right) = graph.split_index(*abc, NonZeroUsize::new(2).unwrap());
         assert_eq!(left, SplitSegment::Child(Child::new(ab, 2)), "left");
         assert_eq!(right, SplitSegment::Child(Child::new(c, 1)), "right");
@@ -319,36 +317,27 @@ mod tests {
             _abab,
             _ababab,
             _ababababcdefghi,
-            ) = &mut *context_mut();
+        ) = &mut *context_mut();
         let (left, right) = graph.split_index(*abcd, NonZeroUsize::new(3).unwrap());
         assert_eq!(left, SplitSegment::Child(Child::new(abc, 3)), "left");
         assert_eq!(right, SplitSegment::Child(Child::new(d, 1)), "right");
     }
     fn split_index_3_impl() {
         let mut graph = Hypergraph::default();
-        if let [a, b, c, d] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('c'),
-                Token::Element('d'),
-            ])[..] {
+        if let [a, b, c, d] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('c'),
+            Token::Element('d'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let bc = graph.insert_pattern([b, c]);
             let cd = graph.insert_pattern([c, d]);
-            let abc = graph.insert_patterns([
-                vec![ab, c],
-                vec![a, bc]
-            ]);
-            let bcd = graph.insert_patterns([
-                vec![bc, d],
-                vec![b, cd]
-            ]);
-            let abcd = graph.insert_patterns([
-                vec![abc, d],
-                vec![a, bcd]
-            ]);
+            let abc = graph.insert_patterns([vec![ab, c], vec![a, bc]]);
+            let bcd = graph.insert_patterns([vec![bc, d], vec![b, cd]]);
+            let abcd = graph.insert_patterns([vec![abc, d], vec![a, bcd]]);
 
             let (left, right) = graph.split_index(abcd, NonZeroUsize::new(2).unwrap());
             assert_eq!(left, SplitSegment::Child(ab), "left");
@@ -364,54 +353,58 @@ mod tests {
     #[test]
     fn split_index_4() {
         let mut graph = Hypergraph::default();
-        if let [a, b, _w, x, y, z] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('w'),
-                Token::Element('x'),
-                Token::Element('y'),
-                Token::Element('z'),
-            ])[..] {
+        if let [a, b, _w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
             let xab = graph.insert_pattern([x, ab]);
-            let xaby = graph.insert_patterns([
-                vec![xab, y],
-                vec![x, a, by]
-            ]);
-            let xabyz = graph.insert_patterns([
-                vec![xaby, z],
-                vec![xab, yz]
-            ]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
+            let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
 
             let (left, right) = graph.split_index(xabyz, NonZeroUsize::new(2).unwrap());
             println!("{:#?}", graph);
             let xa_found = graph.find_pattern(vec![x, a]);
             let xa = if let SearchFound {
                 index: xa,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = xa_found.expect("xa not found") {
-                    Some(xa)
-            } else { None }.expect("xa");
+            } = xa_found.expect("xa not found")
+            {
+                Some(xa)
+            } else {
+                None
+            }
+            .expect("xa");
 
             let byz_found = graph.find_pattern(vec![b, y, z]);
             let byz = if let SearchFound {
                 index: byz,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = byz_found.expect("byz not found") {
-                    Some(byz)
-            } else { None }.expect("byz");
+            } = byz_found.expect("byz not found")
+            {
+                Some(byz)
+            } else {
+                None
+            }
+            .expect("byz");
             assert_eq!(left, SplitSegment::Child(xa), "left");
             assert_eq!(right, SplitSegment::Child(byz), "left");
         } else {
@@ -421,32 +414,23 @@ mod tests {
     #[test]
     fn split_index_5() {
         let mut graph = Hypergraph::default();
-        if let [a, b, w, x, y, z] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('w'),
-                Token::Element('x'),
-                Token::Element('y'),
-                Token::Element('z'),
-            ])[..] {
+        if let [a, b, w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
             let xa = graph.insert_pattern([x, a]);
-            let xab = graph.insert_patterns([
-                vec![x, ab],
-                vec![xa, b],
-            ]);
-            let xaby = graph.insert_patterns([
-                vec![xab, y],
-                vec![xa, by]
-            ]);
-            let xabyz = graph.insert_patterns([
-                vec![xaby, z],
-                vec![xab, yz]
-            ]);
+            let xab = graph.insert_patterns([vec![x, ab], vec![xa, b]]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![xa, by]]);
+            let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
             let wxabyzabbyxabyz = graph.insert_pattern([w, xabyz, ab, by, xabyz]);
 
             // split wxabyzabbyxabyz at 3
@@ -455,27 +439,37 @@ mod tests {
             let xa_found = graph.find_pattern(vec![w, xa]);
             let wxa = if let SearchFound {
                 index: wxa,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = xa_found.expect("wxa not found") {
-                    Some(wxa)
-            } else { None }.unwrap();
+            } = xa_found.expect("wxa not found")
+            {
+                Some(wxa)
+            } else {
+                None
+            }
+            .unwrap();
             assert_eq!(left, SplitSegment::Child(wxa), "left");
 
             let byzabbyxabyz_found = graph.find_pattern(vec![by, z, ab, by, xabyz]);
             let byzabbyxabyz = if let SearchFound {
                 index: byzabbyxabyz,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = byzabbyxabyz_found.expect("byzabbyxabyz not found") {
-                    Some(byzabbyxabyz)
-            } else { None }.expect("byzabbyxabyz");
+            } = byzabbyxabyz_found.expect("byzabbyxabyz not found")
+            {
+                Some(byzabbyxabyz)
+            } else {
+                None
+            }
+            .expect("byzabbyxabyz");
 
             assert_eq!(right, SplitSegment::Child(byzabbyxabyz), "left");
         } else {
@@ -484,69 +478,62 @@ mod tests {
     }
     fn split_index_6_impl() {
         let mut graph = Hypergraph::default();
-        if let [a, b, w, x, y, z] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('w'),
-                Token::Element('x'),
-                Token::Element('y'),
-                Token::Element('z'),
-            ])[..] {
+        if let [a, b, w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
             let wx = graph.insert_pattern([w, x]);
             let xab = graph.insert_pattern([x, ab]);
-            let xaby = graph.insert_patterns([
-                vec![xab, y],
-                vec![x, a, by]
-            ]);
-            let wxab = graph.insert_patterns([
-                vec![wx, ab],
-                vec![w, xab]
-            ]);
-            let wxaby = graph.insert_patterns([
-                vec![w, xaby],
-                vec![wx, a, by],
-                vec![wxab, y]
-            ]);
-            let xabyz = graph.insert_patterns([
-                vec![xaby, z],
-                vec![xab, yz]
-            ]);
-            let wxabyz = graph.insert_patterns([
-                vec![w, xabyz],
-                vec![wxaby, z],
-                vec![wx, ab, yz]
-            ]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
+            let wxab = graph.insert_patterns([vec![wx, ab], vec![w, xab]]);
+            let wxaby = graph.insert_patterns([vec![w, xaby], vec![wx, a, by], vec![wxab, y]]);
+            let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
+            let wxabyz = graph.insert_patterns([vec![w, xabyz], vec![wxaby, z], vec![wx, ab, yz]]);
 
             let (left, right) = graph.split_index(wxabyz, NonZeroUsize::new(3).unwrap());
             let wxa_found = graph.find_pattern(vec![w, x, a]);
             let wxa = if let SearchFound {
                 index: wxa,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = wxa_found.expect("wxa not found") {
+            } = wxa_found.expect("wxa not found")
+            {
                 Some(wxa)
-            } else { None }.unwrap();
+            } else {
+                None
+            }
+            .unwrap();
             let byz_found = graph.find_pattern(vec![b, y, z]);
             println!("{:#?}", byz_found);
             let byz = if let SearchFound {
                 index: byz,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = byz_found.expect("byz not found") {
+            } = byz_found.expect("byz not found")
+            {
                 println!("byz = {}", graph.index_string(byz));
                 Some(byz)
-            } else { None }.unwrap();
+            } else {
+                None
+            }
+            .unwrap();
 
             assert_eq!(left, SplitSegment::Child(wxa), "left");
             assert_eq!(right, SplitSegment::Child(byz), "right");

@@ -25,7 +25,6 @@ use std::{
     },
     iter::repeat,
 };
-#[allow(unused)]
 use tracing::debug;
 
 /// Stores sequenced tokens with an edge map

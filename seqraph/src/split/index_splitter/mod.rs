@@ -1,9 +1,7 @@
 use crate::{
-    hypergraph::{
-        split::*,
-        Indexed,
-        VertexIndex,
-    },
+    split::*,
+    Indexed,
+    VertexIndex,
 };
 use std::{
     cmp::PartialEq,
@@ -66,10 +64,12 @@ impl SplitSegment {
         }
     }
     pub fn unwrap_pattern(self) -> Pattern {
-        self.pattern().expect("called SplitSegment::unwrap_pattern on a `Child` value")
+        self.pattern()
+            .expect("called SplitSegment::unwrap_pattern on a `Child` value")
     }
     pub fn unwrap_child(self) -> Child {
-        self.child().expect("called SplitSegment::unwrap_child on a `Pattern` value")
+        self.child()
+            .expect("called SplitSegment::unwrap_child on a `Pattern` value")
     }
     pub fn len(&self) -> usize {
         match self {
@@ -78,7 +78,7 @@ impl SplitSegment {
                 let l = p.len();
                 assert!(l != 1, "SplitSegment with len = 1 should be a Child!");
                 l
-            },
+            }
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -125,7 +125,7 @@ impl IntoPattern for SplitSegment {
     fn as_pattern_view(&'_ self) -> &'_ [Self::Token] {
         match self {
             Self::Child(c) => std::slice::from_ref(c),
-            Self::Pattern(p) => p.as_slice()
+            Self::Pattern(p) => p.as_slice(),
         }
     }
     fn is_empty(&self) -> bool {
@@ -151,9 +151,7 @@ pub type SingleSplitIndices = Vec<(PatternId, SplitIndex)>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct IndexSplitter;
-impl IndexSplitter {
-}
+impl IndexSplitter {}
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

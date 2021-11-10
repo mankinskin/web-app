@@ -1,19 +1,24 @@
 use crate::{
-    hypergraph::{
-        pattern::*,
-        Hypergraph,
-        search::*,
-    },
+    pattern::*,
+    search::*,
     token::*,
+    Hypergraph,
 };
 use either::Either;
-use std::{borrow::Borrow, collections::{
+use std::{
+    borrow::Borrow,
+    collections::{
         HashMap,
         HashSet,
-    }, fmt::Debug, hash::Hasher, slice::SliceIndex, sync::atomic::{
+    },
+    fmt::Debug,
+    hash::Hasher,
+    slice::SliceIndex,
+    sync::atomic::{
         AtomicUsize,
         Ordering,
-    }};
+    },
+};
 
 use super::NewTokenIndex;
 
@@ -141,7 +146,7 @@ pub struct Child {
 }
 impl Child {
     #[allow(unused)]
-    pub(crate) const INVALID: Child = Child { index: 0, width: 0, };
+    pub(crate) const INVALID: Child = Child { index: 0, width: 0 };
     pub fn new(index: impl Indexed, width: TokenPosition) -> Self {
         Self {
             index: *index.index(),
@@ -253,7 +258,9 @@ impl VertexData {
     }
     pub fn get_parent(&self, index: impl Indexed) -> Result<&Parent, NotFound> {
         let index = index.index();
-        self.parents.get(index).ok_or(NotFound::NoMatchingParent(*index))
+        self.parents
+            .get(index)
+            .ok_or(NotFound::NoMatchingParent(*index))
     }
     pub fn get_parents(&self) -> &VertexParents {
         &self.parents
@@ -263,12 +270,18 @@ impl VertexData {
         id: &PatternId,
         range: R,
     ) -> Result<&<R as SliceIndex<[Child]>>::Output, NotFound> {
-        self.children.get(id)
+        self.children
+            .get(id)
             .and_then(|p| p.get(range))
             .ok_or(NotFound::NoChildPatterns)
     }
-    pub fn get_child_pattern_position(&self, id: &PatternId, pos: IndexPosition) -> Result<&Child, NotFound> {
-        self.children.get(id)
+    pub fn get_child_pattern_position(
+        &self,
+        id: &PatternId,
+        pos: IndexPosition,
+    ) -> Result<&Child, NotFound> {
+        self.children
+            .get(id)
             .and_then(|p| p.get(pos))
             .ok_or(NotFound::NoChildPatterns)
     }
@@ -306,12 +319,7 @@ impl VertexData {
         self.children.insert(id, pat);
         id
     }
-    pub fn add_parent(
-        &mut self,
-        parent: impl ToChild,
-        pattern: usize,
-        index: PatternId,
-    ) {
+    pub fn add_parent(&mut self, parent: impl ToChild, pattern: usize, index: PatternId) {
         if let Some(parent) = self.parents.get_mut(parent.index()) {
             parent.add_pattern_index(pattern, index);
         } else {
@@ -404,14 +412,16 @@ impl VertexData {
         half: Pattern,
         range: impl PatternRangeIndex + Clone,
     ) -> Result<PatternId, NotFound> {
-        self.children.iter().find_map(|(id, pat)| {
-            if pat[range.clone()] == half[..] {
-                Some(*id)
-            } else {
-                None
-            }
-        })
-        .ok_or(NotFound::NoChildPatterns)
+        self.children
+            .iter()
+            .find_map(|(id, pat)| {
+                if pat[range.clone()] == half[..] {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
+            .ok_or(NotFound::NoChildPatterns)
     }
     /// replace indices in sub pattern and returns old indices
     /// doesn't modify parents of sub-patterns!

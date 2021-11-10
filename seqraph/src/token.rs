@@ -1,4 +1,3 @@
-use crate::graph::node::NodeData;
 use petgraph::graph::EdgeIndex;
 use serde::{
     Deserialize,
@@ -13,7 +12,9 @@ use std::{
     hash::Hash,
 };
 
-pub fn tokenizing_iter<T: Tokenize, C: Into<T>>(seq: impl Iterator<Item=C>) -> impl Iterator<Item=Token<T>> {
+pub fn tokenizing_iter<T: Tokenize, C: Into<T>>(
+    seq: impl Iterator<Item = C>,
+) -> impl Iterator<Item = Token<T>> {
     seq.map(|c| c.into().into_token())
 }
 /// Trait for token that can be mapped in a sequence
@@ -30,10 +31,8 @@ pub trait Tokenize: TokenData + Wide + Hash + Eq + Copy + Debug {
 }
 impl<T: TokenData + Wide + Hash + Eq + Copy + Debug> Tokenize for T {}
 
-#[allow(unused)]
-use tracing::debug;
-pub trait TokenData: NodeData + Wide {}
-impl<T: NodeData + Wide> TokenData for T {}
+pub trait TokenData: Debug + PartialEq + Clone + Wide {}
+impl<T: Debug + PartialEq + Clone + Wide> TokenData for T {}
 
 pub trait Wide {
     fn width(&self) -> usize;

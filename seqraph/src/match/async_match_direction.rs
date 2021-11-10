@@ -1,8 +1,6 @@
 use crate::{
-    hypergraph::{
-        pattern::*,
-        r#match::*,
-    },
+    pattern::*,
+    r#match::*,
 };
 use itertools::{
     EitherOrBoth,

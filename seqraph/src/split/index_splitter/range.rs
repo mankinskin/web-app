@@ -1,14 +1,10 @@
 use crate::{
-    hypergraph::{
-        split::*,
-        Hypergraph,
-        Indexed,
-    },
+    split::*,
     token::Tokenize,
+    Hypergraph,
+    Indexed,
 };
-use std::{
-    num::NonZeroUsize,
-};
+use std::num::NonZeroUsize;
 impl IndexSplitter {
     pub(crate) fn index_subrange<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
@@ -53,7 +49,8 @@ impl IndexSplitter {
                         }
                         Err(indices) => {
                             // unperfect splits
-                            let (left, inner, right) = Self::double_split_from_indices(hypergraph, root, indices);
+                            let (left, inner, right) =
+                                Self::double_split_from_indices(hypergraph, root, indices);
                             (left, SplitSegment::Child(inner), right)
                         }
                     };
@@ -247,8 +244,9 @@ impl IndexSplitter {
         //    hypergraph.index_string(right),
         //    hypergraph.index_string(parent),
         //);
-        hypergraph.add_pattern_to_node(parent,
-            left.clone().into_iter().chain(inner).chain(right.clone())
+        hypergraph.add_pattern_to_node(
+            parent,
+            left.clone().into_iter().chain(inner).chain(right.clone()),
         );
         (left, inner, right)
     }
@@ -296,9 +294,7 @@ impl IndexSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        token::*,
-    };
+    use crate::token::*;
     #[test]
     fn split_range_1() {
         let mut graph = Hypergraph::default();

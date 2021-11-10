@@ -1,9 +1,7 @@
 use crate::{
-    hypergraph::{
-        pattern::*,
-        search::*,
-        *,
-    },
+    pattern::*,
+    search::*,
+    *,
 };
 use either::Either;
 mod matcher;
@@ -39,15 +37,15 @@ where
     }
     pub fn compare_pattern_postfix<C: Into<Child> + Tokenize>(
         &self,
-        a: impl IntoPattern<Item=C>,
-        b: impl IntoPattern<Item=C>,
+        a: impl IntoPattern<Item = C>,
+        b: impl IntoPattern<Item = C>,
     ) -> PatternMatchResult {
         self.left_matcher().compare(a, b)
     }
     pub fn compare_pattern_prefix(
         &self,
-        a: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
-        b: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        a: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
+        b: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> PatternMatchResult {
         self.right_matcher().compare(a, b)
     }
@@ -55,13 +53,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hypergraph::{
+    use crate::{
         tests::context,
         Child,
     };
-    use pretty_assertions::{
-        assert_eq,
-    };
+    use pretty_assertions::assert_eq;
     #[test]
     fn compare_pattern_prefix() {
         let (
@@ -111,7 +107,7 @@ mod tests {
             Ok(PatternMatch(None, None))
         );
         assert_eq!(
-            graph.compare_pattern_prefix(vec![efghi], vec![e, f, g, h ,i]),
+            graph.compare_pattern_prefix(vec![efghi], vec![e, f, g, h, i]),
             Ok(PatternMatch(None, None))
         );
         assert_eq!(

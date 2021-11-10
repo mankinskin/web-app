@@ -1,9 +1,7 @@
 
 use crate::{
-    hypergraph::{
         pattern::*,
         r#match::*,
-    },
     token::Tokenize,
 };
 use itertools::EitherOrBoth;

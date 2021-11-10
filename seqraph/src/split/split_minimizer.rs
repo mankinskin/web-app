@@ -1,17 +1,19 @@
 use crate::{
-    hypergraph::{
-        search::*,
-        split::*,
-        Child,
-        Hypergraph,
-    },
+    search::*,
+    split::*,
     token::Tokenize,
+    Child,
+    Hypergraph,
 };
 use std::collections::HashSet;
 trait MergeDirection {
     fn split_context_head(context: SplitSegment) -> Option<(Child, Pattern)>;
     fn split_inner_head(context: SplitSegment) -> Option<(Child, Pattern)>;
-    fn concat_inner_and_context(inner_context: Pattern, inner: Pattern, outer_context: Pattern) -> Pattern;
+    fn concat_inner_and_context(
+        inner_context: Pattern,
+        inner: Pattern,
+        outer_context: Pattern,
+    ) -> Pattern;
     fn merge_order(inner: Child, head: Child) -> (Child, Child);
     fn minimize_split<T: Tokenize>(
         hypergraph: &mut Hypergraph<T>,
@@ -19,14 +21,13 @@ trait MergeDirection {
         inner: SplitSegment,
     ) -> SplitSegment {
         if let Some((outer_head, outer_tail)) = Self::split_context_head(context) {
-            let (inner_head, inner_tail) = Self::split_inner_head(inner).expect("Empty SplitSegment::Pattern");
+            let (inner_head, inner_tail) =
+                Self::split_inner_head(inner).expect("Empty SplitSegment::Pattern");
             let (left, right) = Self::merge_order(inner_head, outer_head);
             // try to find parent matching both
             SplitMinimizer::new(hypergraph)
                 .resolve_common_parent(left, right)
-                .map_pattern(|pat|
-                    Self::concat_inner_and_context(inner_tail, pat, outer_tail)
-                )
+                .map_pattern(|pat| Self::concat_inner_and_context(inner_tail, pat, outer_tail))
         } else {
             // context empty
             inner
@@ -73,14 +74,12 @@ trait MergeDirection {
                 //hypergraph.add_patterns_to_node(child, patterns);
                 SplitSegment::Child(child)
             }
-            Ok(patterns) => {
-                SplitSegment::Child(if patterns.len() == 1 {
-                    let pattern = patterns.into_iter().next().unwrap();
-                    hypergraph.insert_pattern(pattern)
-                } else {
-                    hypergraph.insert_patterns(patterns)
-                })
-            },
+            Ok(patterns) => SplitSegment::Child(if patterns.len() == 1 {
+                let pattern = patterns.into_iter().next().unwrap();
+                hypergraph.insert_pattern(pattern)
+            } else {
+                hypergraph.insert_patterns(patterns)
+            }),
         }
     }
 }
@@ -102,7 +101,11 @@ impl MergeDirection for MergeLeft {
     fn merge_order(inner: Child, head: Child) -> (Child, Child) {
         (head, inner)
     }
-    fn concat_inner_and_context(inner_context: Pattern, inner: Pattern, outer_context: Pattern) -> Pattern {
+    fn concat_inner_and_context(
+        inner_context: Pattern,
+        inner: Pattern,
+        outer_context: Pattern,
+    ) -> Pattern {
         [outer_context, inner, inner_context].concat()
     }
 }
@@ -125,7 +128,11 @@ impl MergeDirection for MergeRight {
     fn merge_order(inner: Child, head: Child) -> (Child, Child) {
         (inner, head)
     }
-    fn concat_inner_and_context(inner_context: Pattern, inner: Pattern, outer_context: Pattern) -> Pattern {
+    fn concat_inner_and_context(
+        inner_context: Pattern,
+        inner: Pattern,
+        outer_context: Pattern,
+    ) -> Pattern {
         [inner_context, inner, outer_context].concat()
     }
 }
@@ -135,20 +142,15 @@ pub struct SplitMinimizer<'g, T: Tokenize> {
 }
 impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
     pub fn new(graph: &'g mut Hypergraph<T>) -> Self {
-        Self {
-            graph,
-        }
+        Self { graph }
     }
     /// minimize a pattern which has been merged at pos
-    fn resolve_common_parent(
-        &mut self,
-        left: Child,
-        right: Child,
-    ) -> SplitSegment {
+    fn resolve_common_parent(&mut self, left: Child, right: Child) -> SplitSegment {
         //println!("pos: {}, len: {}", pos, pattern.len());
         let p = vec![left, right];
         // find pattern over merge position
-        match self.graph
+        match self
+            .graph
             .find_pattern(p.as_pattern_view())
             .map(
                 |SearchFound {
@@ -175,25 +177,20 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
                     }
                 },
             )
-            .map_err(|_| p.into_pattern()) {
-                Ok(c) => SplitSegment::Child(c),
-                Err(p) => SplitSegment::Pattern(p),
-            }
+            .map_err(|_| p.into_pattern())
+        {
+            Ok(c) => SplitSegment::Child(c),
+            Err(p) => SplitSegment::Pattern(p),
+        }
     }
     /// minimal means:
     /// - no two indicies are adjacient more than once
     /// - no two patterns of the same index share an index border
     /// returns minimal patterns on each side of index split
-    pub fn merge_left_splits(
-        &mut self,
-        splits: Vec<(Pattern, SplitSegment)>,
-    ) -> SplitSegment {
+    pub fn merge_left_splits(&mut self, splits: Vec<(Pattern, SplitSegment)>) -> SplitSegment {
         MergeLeft::merge_splits(self.graph, splits)
     }
-    pub fn merge_right_splits(
-        &mut self,
-        splits: Vec<(Pattern, SplitSegment)>,
-    ) -> SplitSegment {
+    pub fn merge_right_splits(&mut self, splits: Vec<(Pattern, SplitSegment)>) -> SplitSegment {
         MergeRight::merge_splits(self.graph, splits)
     }
     pub fn merge_left_optional_splits(
@@ -278,29 +275,27 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
                         Ok(acc)
                     }
                 }
-            },
+            }
             1 => {
                 let (l, _) = MergeLeft::split_context_head(left.clone()).unwrap();
                 let (i, _) = MergeRight::split_context_head(infix).unwrap();
                 let (r, _) = MergeRight::split_context_head(right.clone()).unwrap();
                 match self.resolve_common_parent(l, i) {
-                    SplitSegment::Child(lc) => {
-                        match self.resolve_common_parent(lc, r) {
-                            SplitSegment::Child(c) => Err(c),
-                            SplitSegment::Pattern(_) => {
-                                match self.resolve_common_parent(i, r) {
-                                    SplitSegment::Child(rc) => {
-                                        acc.insert(lc.into_iter().chain(right).collect());
-                                        acc.insert(left.into_iter().chain(rc).collect());
-                                    }
-                                    SplitSegment::Pattern(_) => {
-                                        acc.insert(lc.into_iter().chain(right).collect());
-                                    }
+                    SplitSegment::Child(lc) => match self.resolve_common_parent(lc, r) {
+                        SplitSegment::Child(c) => Err(c),
+                        SplitSegment::Pattern(_) => {
+                            match self.resolve_common_parent(i, r) {
+                                SplitSegment::Child(rc) => {
+                                    acc.insert(lc.into_iter().chain(right).collect());
+                                    acc.insert(left.into_iter().chain(rc).collect());
                                 }
-                                Ok(acc)
+                                SplitSegment::Pattern(_) => {
+                                    acc.insert(lc.into_iter().chain(right).collect());
+                                }
                             }
+                            Ok(acc)
                         }
-                    }
+                    },
                     SplitSegment::Pattern(_) => {
                         match self.resolve_common_parent(i, r) {
                             SplitSegment::Child(c) => {
@@ -327,40 +322,29 @@ impl<'g, T: Tokenize> SplitMinimizer<'g, T> {
 mod tests {
     use super::*;
     use crate::{
+        r#match::*,
+        split::*,
         token::*,
-        hypergraph::{
-            split::*,
-            r#match::*,
-        },
     };
-    use pretty_assertions::assert_eq;
     use maplit::hashset;
+    use pretty_assertions::assert_eq;
     #[test]
     fn merge_single_split_1() {
         let mut graph = Hypergraph::default();
-        if let [a, b, c, d] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('c'),
-                Token::Element('d'),
-            ])[..] {
+        if let [a, b, c, d] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('c'),
+            Token::Element('d'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let bc = graph.insert_pattern([b, c]);
             let cd = graph.insert_pattern([c, d]);
-            let abc = graph.insert_patterns([
-                vec![ab, c],
-                vec![a, bc]
-            ]);
-            let bcd = graph.insert_patterns([
-                vec![bc, d],
-                vec![b, cd]
-            ]);
-            let _abcd = graph.insert_patterns([
-                vec![abc, d],
-                vec![a, bcd]
-            ]);
+            let abc = graph.insert_patterns([vec![ab, c], vec![a, bc]]);
+            let bcd = graph.insert_patterns([vec![bc, d], vec![b, cd]]);
+            let _abcd = graph.insert_patterns([vec![abc, d], vec![a, bcd]]);
             let left = vec![
                 (vec![a], SplitSegment::Child(b)),
                 (vec![], SplitSegment::Child(ab)),
@@ -381,55 +365,55 @@ mod tests {
     #[test]
     fn merge_split_2() {
         let mut graph = Hypergraph::default();
-        if let [a, b, _w, x, y, z] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('w'),
-                Token::Element('x'),
-                Token::Element('y'),
-                Token::Element('z'),
-            ])[..] {
+        if let [a, b, _w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
             let xab = graph.insert_pattern([x, ab]);
-            let xaby = graph.insert_patterns([
-                vec![xab, y],
-                vec![x, a, by]
-            ]);
-            let xabyz = graph.insert_patterns([
-                vec![xaby, z],
-                vec![xab, yz]
-            ]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
+            let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
 
-            let (ps, child_splits) = graph.separate_perfect_split(xabyz, NonZeroUsize::new(2).unwrap());
+            let (ps, child_splits) =
+                graph.separate_perfect_split(xabyz, NonZeroUsize::new(2).unwrap());
             assert_eq!(ps, None);
             let (left, right) = IndexSplitter::build_child_splits(&mut graph, child_splits);
-
 
             let xa_found = graph.find_pattern(vec![x, a]);
             let xa = if let SearchFound {
                 index: xa,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = xa_found.expect("xa not found") {
-                    Some(xa)
-            } else { None }.expect("xa");
+            } = xa_found.expect("xa not found")
+            {
+                Some(xa)
+            } else {
+                None
+            }
+            .expect("xa");
 
-            let expleft = hashset![
-                (vec![], SplitSegment::Child(xa)),
-            ];
+            let expleft = hashset![(vec![], SplitSegment::Child(xa)),];
             let expright = hashset![
                 (vec![yz], SplitSegment::Child(b)),
                 (vec![z], SplitSegment::Child(by)),
             ];
 
-            let (sleft, sright): (HashSet<_>, HashSet<_>) = (left.clone().into_iter().collect(), right.clone().into_iter().collect());
+            let (sleft, sright): (HashSet<_>, HashSet<_>) = (
+                left.clone().into_iter().collect(),
+                right.clone().into_iter().collect(),
+            );
             assert_eq!(sleft, expleft, "left");
             assert_eq!(sright, expright, "right");
 
@@ -442,14 +426,19 @@ mod tests {
             let byz_found = graph.find_pattern(vec![b, y, z]);
             let byz = if let SearchFound {
                 index: byz,
-                parent_match: ParentMatch {
-                    parent_range: FoundRange::Complete,
-                    ..
-                },
+                parent_match:
+                    ParentMatch {
+                        parent_range: FoundRange::Complete,
+                        ..
+                    },
                 ..
-                } = byz_found.expect("byz not found") {
-                    Some(byz)
-            } else { None }.expect("byz");
+            } = byz_found.expect("byz not found")
+            {
+                Some(byz)
+            } else {
+                None
+            }
+            .expect("byz");
             assert_eq!(left, SplitSegment::Child(xa), "left");
             assert_eq!(right, SplitSegment::Child(byz), "left");
         } else {

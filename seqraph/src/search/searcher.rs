@@ -1,18 +1,16 @@
 use crate::{
-    hypergraph::{
-        r#match::*,
-        search::*,
-        //read::*,
-        Child,
-        ChildPatterns,
-        Hypergraph,
-        Indexed,
-        Parent,
-        Pattern,
-        PatternId,
-        TokenPosition,
-        VertexIndex,
-    },
+    r#match::*,
+    search::*,
+    //read::*,
+    Child,
+    ChildPatterns,
+    Hypergraph,
+    Indexed,
+    Parent,
+    Pattern,
+    PatternId,
+    TokenPosition,
+    VertexIndex,
 };
 //use tokio_stream::{
 //    Stream,
@@ -52,13 +50,23 @@ impl FoundRange {
             (inner, Self::Complete) => inner,
             (Self::Prefix(inner), Self::Postfix(outer)) => Self::Infix(outer, inner),
             (Self::Prefix(inner), Self::Prefix(outer)) => Self::Prefix([inner, outer].concat()),
-            (Self::Prefix(inner), Self::Infix(louter, router)) => Self::Infix(louter, [inner, router].concat()),
+            (Self::Prefix(inner), Self::Infix(louter, router)) => {
+                Self::Infix(louter, [inner, router].concat())
+            }
             (Self::Postfix(inner), Self::Prefix(outer)) => Self::Infix(inner, outer),
             (Self::Postfix(inner), Self::Postfix(outer)) => Self::Postfix([outer, inner].concat()),
-            (Self::Postfix(inner), Self::Infix(louter, router)) => Self::Infix([louter, inner].concat(), router),
-            (Self::Infix(linner, rinner), Self::Prefix(outer)) => Self::Infix(linner, [rinner, outer].concat()),
-            (Self::Infix(linner, rinner), Self::Postfix(outer)) => Self::Infix([outer, linner].concat(), rinner),
-            (Self::Infix(linner, rinner), Self::Infix(louter, router)) => Self::Infix([louter, linner].concat(), [rinner, router].concat()),
+            (Self::Postfix(inner), Self::Infix(louter, router)) => {
+                Self::Infix([louter, inner].concat(), router)
+            }
+            (Self::Infix(linner, rinner), Self::Prefix(outer)) => {
+                Self::Infix(linner, [rinner, outer].concat())
+            }
+            (Self::Infix(linner, rinner), Self::Postfix(outer)) => {
+                Self::Infix([outer, linner].concat(), rinner)
+            }
+            (Self::Infix(linner, rinner), Self::Infix(louter, router)) => {
+                Self::Infix([louter, linner].concat(), [rinner, router].concat())
+            }
         }
     }
 }
@@ -92,14 +100,17 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     #[allow(unused)]
     pub(crate) fn find_pattern_iter(
         &self,
-        pattern: impl IntoIterator<Item=Result<impl Into<Child> + Tokenize, NotFound>>,
+        pattern: impl IntoIterator<Item = Result<impl Into<Child> + Tokenize, NotFound>>,
     ) -> SearchResult {
-        let pattern: Pattern = pattern.into_iter().map(|r| r.map(Into::into)).collect::<Result<Pattern, NotFound>>()?;
+        let pattern: Pattern = pattern
+            .into_iter()
+            .map(|r| r.map(Into::into))
+            .collect::<Result<Pattern, NotFound>>()?;
         self.find_pattern(pattern)
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        pattern: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> SearchResult {
         let pattern: Pattern = pattern.into_iter().map(Into::into).collect();
         MatchRight::split_head_tail(&pattern)
@@ -116,14 +127,14 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub fn find_largest_matching_parent(
         &self,
         index: impl Indexed,
-        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        context: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> SearchResult {
         self.find_largest_matching_parent_below_width(index, context, None)
     }
     pub fn find_largest_matching_parent_below_width(
         &self,
         index: impl Indexed,
-        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        context: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
         width_ceiling: Option<TokenPosition>,
     ) -> SearchResult {
         let vertex_index = *index.index();
@@ -148,11 +159,13 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
             self.find_indirect_matching_parent(parents, context)
                 .ok_or(NotFound::NoMatchingParent(vertex_index))
         }
-        .and_then(|search_found|
+        .and_then(|search_found| {
             if let Some(rem) = &search_found.parent_match.remainder {
                 self.find_largest_matching_parent(search_found.index, rem)
                     .map(|super_found| SearchFound {
-                        parent_match: search_found.parent_match.embed_in_super(super_found.parent_match),
+                        parent_match: search_found
+                            .parent_match
+                            .embed_in_super(super_found.parent_match),
                         index: super_found.index,
                         sub_index: super_found.sub_index,
                         pattern_id: super_found.pattern_id,
@@ -160,13 +173,13 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
             } else {
                 Ok(search_found)
             }
-        )
+        })
     }
     /// find parent with a child pattern matching context
     pub fn find_direct_matching_parent(
         &'g self,
         mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
-        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        context: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> Option<(
         &'g VertexIndex,
         &'g ChildPatterns,
@@ -200,17 +213,23 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
     pub fn find_indirect_matching_parent(
         &'g self,
         mut parents: impl Iterator<Item = (&'g VertexIndex, &'g Parent)>,
-        context: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        context: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> Option<SearchFound> {
         let context = context.as_pattern_view();
         let mut first = None;
-        parents.find_map(|(index, parent)| {
+        parents
+            .find_map(|(index, parent)| {
                 first.get_or_insert((index, parent));
-                self.matcher().match_indirect_parent(*index, parent, context)
+                self.matcher()
+                    .match_indirect_parent(*index, parent, context)
             })
-            .or_else(||
-                first.and_then(|(index, parent)|
-                    parent.pattern_indices.iter().next().cloned()
+            .or_else(|| {
+                first.and_then(|(index, parent)| {
+                    parent
+                        .pattern_indices
+                        .iter()
+                        .next()
+                        .cloned()
                         .ok_or(PatternMismatch::NoParents)
                         .and_then(|(pattern_index, sub_index)| {
                             let vert = self.expect_vertex_data(index);
@@ -222,9 +241,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                                     pattern_index,
                                     sub_index,
                                 )
-                                .map(|parent_match|
-                                    (parent_match, pattern_index, sub_index)
-                                )
+                                .map(|parent_match| (parent_match, pattern_index, sub_index))
                         })
                         .map(|(parent_match, pattern_id, sub_index)| SearchFound {
                             index: Child::new(index, parent.width),
@@ -233,7 +250,7 @@ impl<'g, T: Tokenize + 'g, D: MatchDirection> Searcher<'g, T, D> {
                             parent_match,
                         })
                         .ok()
-                )
-            )
+                })
+            })
     }
 }

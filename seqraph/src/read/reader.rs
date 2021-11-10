@@ -1,14 +1,10 @@
 use crate::{
-    hypergraph::{
-        r#match::*,
-        search::*,
-        *,
-    },
+    r#match::*,
+    search::*,
     token::*,
+    *,
 };
-use std::{
-    num::NonZeroUsize,
-};
+use std::num::NonZeroUsize;
 
 #[derive(Debug)]
 struct ReaderCache {
@@ -16,18 +12,23 @@ struct ReaderCache {
     pub(crate) pattern_id: Option<PatternId>,
 }
 impl ReaderCache {
-    fn new<T: Tokenize + std::fmt::Display>(graph: &'_ mut Hypergraph<T>, new: impl IntoIterator<Item=Child>) -> Self {
+    fn new<T: Tokenize + std::fmt::Display>(
+        graph: &'_ mut Hypergraph<T>,
+        new: impl IntoIterator<Item = Child>,
+    ) -> Self {
         let (index, pattern_id) = graph.insert_pattern_with_id(new);
-        Self {
-            index,
-            pattern_id,
-        }
+        Self { index, pattern_id }
     }
-    fn update_index<T: Tokenize + std::fmt::Display>(&mut self, graph: &'_ mut Hypergraph<T>, new: impl IntoIterator<Item=Child>) {
+    fn update_index<T: Tokenize + std::fmt::Display>(
+        &mut self,
+        graph: &'_ mut Hypergraph<T>,
+        new: impl IntoIterator<Item = Child>,
+    ) {
         if let Some(pid) = &self.pattern_id {
             self.index = graph.append_to_pattern(self.index, *pid, new);
         } else {
-            let (index, pattern_id) = graph.insert_pattern_with_id(std::iter::once(self.index).chain(new));
+            let (index, pattern_id) =
+                graph.insert_pattern_with_id(std::iter::once(self.index).chain(new));
             self.index = index;
             self.pattern_id = pattern_id;
         }
@@ -62,43 +63,52 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
     pub(crate) fn right_searcher(&self) -> Searcher<T, MatchRight> {
         Searcher::new(self.graph)
     }
-    fn index_tokens(&mut self, sequence: impl IntoIterator<Item=T>) -> NewTokenIndices {
-        sequence.into_iter()
+    fn index_tokens(&mut self, sequence: impl IntoIterator<Item = T>) -> NewTokenIndices {
+        sequence
+            .into_iter()
             .map(|t| Token::Element(t))
-            .map(|t|
-                match self.get_token_index(&t) {
-                    Ok(i) => NewTokenIndex::Known(i),
-                    Err(_) => {
-                        let i = self.insert_token(t);
-                        NewTokenIndex::New(i.index)
-                    },
+            .map(|t| match self.get_token_index(&t) {
+                Ok(i) => NewTokenIndex::Known(i),
+                Err(_) => {
+                    let i = self.insert_token(t);
+                    NewTokenIndex::New(i.index)
                 }
-            )
+            })
             .collect()
     }
-    fn take_block<I, J: Iterator<Item=I> + itertools::PeekingNext>(iter: &mut J, f: impl FnMut(&I) -> bool) -> Pattern
-        where Child: From<I>
+    fn take_block<I, J: Iterator<Item = I> + itertools::PeekingNext>(
+        iter: &mut J,
+        f: impl FnMut(&I) -> bool,
+    ) -> Pattern
+    where
+        Child: From<I>,
     {
         iter.peeking_take_while(f).map(Child::from).collect()
     }
-    fn find_known_block(&mut self, sequence: NewTokenIndices) -> (Pattern, Pattern, NewTokenIndices) {
+    fn find_known_block(
+        &mut self,
+        sequence: NewTokenIndices,
+    ) -> (Pattern, Pattern, NewTokenIndices) {
         let mut seq_iter = sequence.into_iter().peekable();
         let cache = Self::take_block(&mut seq_iter, |t| t.is_new());
         let known = Self::take_block(&mut seq_iter, |t| t.is_known());
         (cache, known, seq_iter.collect())
     }
-    fn update_cache_index(&mut self, new: impl IntoIterator<Item=Child>) {
+    fn update_cache_index(&mut self, new: impl IntoIterator<Item = Child>) {
         if let Some(cache) = &mut self.cache {
             cache.update_index(self.graph, new)
         } else {
             self.cache = Some(ReaderCache::new(self.graph, new));
         }
-        println!("Cache index contains: {:?}", self.cache.as_ref()
-            .map(|c| self.graph.index_string(c.index))
-            .unwrap_or_default()
+        println!(
+            "Cache index contains: {:?}",
+            self.cache
+                .as_ref()
+                .map(|c| self.graph.index_string(c.index))
+                .unwrap_or_default()
         );
     }
-    pub(crate) fn read_sequence(&mut self, sequence: impl IntoIterator<Item=T>) -> Child {
+    pub(crate) fn read_sequence(&mut self, sequence: impl IntoIterator<Item = T>) -> Child {
         let sequence: NewTokenIndices = self.index_tokens(sequence);
         self.try_read_sequence(sequence).expect("Empty sequence")
     }
@@ -126,18 +136,20 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                     FoundRange::Complete => {
                         println!("Found full index");
                         SplitSegment::Child(index)
-                    },
+                    }
                     FoundRange::Prefix(post) => {
                         println!("Found prefix");
                         let width = index.width - pattern_width(post);
-                        let pos = NonZeroUsize::new(width).expect("returned full length postfix remainder");
+                        let pos = NonZeroUsize::new(width)
+                            .expect("returned full length postfix remainder");
                         let (l, _) = self.index_prefix(index, pos);
                         SplitSegment::Child(l)
                     }
                     FoundRange::Postfix(pre) => {
                         println!("Found postfix");
                         let width = pattern_width(pre);
-                        let pos = NonZeroUsize::new(width).expect("returned zero length prefix remainder");
+                        let pos = NonZeroUsize::new(width)
+                            .expect("returned zero length prefix remainder");
                         let (_, r) = self.index_postfix(index, pos);
                         SplitSegment::Child(r)
                     }
@@ -146,7 +158,8 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                         let pre_width = pattern_width(pre);
                         let post_width = pattern_width(post);
                         if pre_width == 0 {
-                            let pos = NonZeroUsize::new(index.width - post_width).expect("returned zero length postfix remainder");
+                            let pos = NonZeroUsize::new(index.width - post_width)
+                                .expect("returned zero length postfix remainder");
                             let (l, _) = self.index_prefix(index, pos);
                             SplitSegment::Child(l)
                         } else {
@@ -168,10 +181,10 @@ impl<'a, T: Tokenize + std::fmt::Display, D: MatchDirection> Reader<'a, T, D> {
                         println!("Inserting new pattern");
                         let c = self.graph.insert_pattern(known);
                         SplitSegment::Child(c)
-                    },
+                    }
                     _ => panic!("Not found {:?}", not_found),
-                }
-            }
+                },
+            },
         };
         self.update_cache_index(res);
         let res = self.try_read_sequence(new);

@@ -1,11 +1,9 @@
 use crate::{
-    hypergraph::{
-        r#match::*,
-        pattern::*,
-        vertex::*,
-        *,
-    },
+    pattern::*,
+    r#match::*,
     token::*,
+    vertex::*,
+    *,
 };
 mod searcher;
 pub use searcher::*;
@@ -36,7 +34,7 @@ where
     }
     pub(crate) fn find_pattern(
         &self,
-        pattern: impl IntoPattern<Item=impl Into<Child> + Tokenize>,
+        pattern: impl IntoPattern<Item = impl Into<Child> + Tokenize>,
     ) -> SearchResult {
         self.right_searcher().find_pattern(pattern)
     }
@@ -49,7 +47,7 @@ where
 #[allow(clippy::many_single_char_names)]
 pub(crate) mod tests {
     use super::*;
-    use crate::hypergraph::{
+    use crate::{
         tests::context,
         Child,
     };
@@ -162,45 +160,34 @@ pub(crate) mod tests {
     #[test]
     fn find_pattern_2() {
         let mut graph = Hypergraph::default();
-        if let [a, b, _w, x, y, z] = graph.insert_tokens(
-            [
-                Token::Element('a'),
-                Token::Element('b'),
-                Token::Element('w'),
-                Token::Element('x'),
-                Token::Element('y'),
-                Token::Element('z'),
-            ])[..] {
+        if let [a, b, _w, x, y, z] = graph.insert_tokens([
+            Token::Element('a'),
+            Token::Element('b'),
+            Token::Element('w'),
+            Token::Element('x'),
+            Token::Element('y'),
+            Token::Element('z'),
+        ])[..]
+        {
             // wxabyzabbyxabyz
             let ab = graph.insert_pattern([a, b]);
             let by = graph.insert_pattern([b, y]);
             let yz = graph.insert_pattern([y, z]);
             let xab = graph.insert_pattern([x, ab]);
-            let xaby = graph.insert_patterns([
-                vec![xab, y],
-                vec![x, a, by]
-            ]);
-            let _xabyz = graph.insert_patterns([
-                vec![xaby, z],
-                vec![xab, yz]
-            ]);
+            let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
+            let _xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
             let byz_found = graph.find_pattern(vec![by, z]);
             let x_a_pattern = vec![x, a];
             assert_matches!(
                 byz_found,
-                Ok(
-                    SearchFound {
-                        index: Child {
-                            width: 5,
-                            ..
-                        },
-                        parent_match: ParentMatch {
-                            parent_range: FoundRange::Postfix(_),
-                            ..
-                        },
+                Ok(SearchFound {
+                    index: Child { width: 5, .. },
+                    parent_match: ParentMatch {
+                        parent_range: FoundRange::Postfix(_),
                         ..
-                    }
-                )
+                    },
+                    ..
+                })
             );
             let post = byz_found.unwrap().parent_match.parent_range;
             assert_eq!(post, FoundRange::Postfix(x_a_pattern));
@@ -234,34 +221,34 @@ pub(crate) mod tests {
             _ababab,
             ababababcdefghi,
         ) = &*context();
-        assert_match!(graph.find_sequence("a".chars()), Err(NotFound::SingleIndex), "a");
+        assert_match!(
+            graph.find_sequence("a".chars()),
+            Err(NotFound::SingleIndex),
+            "a"
+        );
 
         let abc_found = graph.find_sequence("abc".chars());
         assert_matches!(
             abc_found,
-            Ok(
-                SearchFound {
-                    parent_match: ParentMatch {
-                        parent_range: FoundRange::Complete,
-                        ..
-                    },
+            Ok(SearchFound {
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
                     ..
-                }
-            )
+                },
+                ..
+            })
         );
         assert_eq!(abc_found.unwrap().index, *abc);
         let ababababcdefghi_found = graph.find_sequence("ababababcdefghi".chars());
         assert_matches!(
             ababababcdefghi_found,
-            Ok(
-                SearchFound {
-                    parent_match: ParentMatch {
-                        parent_range: FoundRange::Complete,
-                        ..
-                    },
+            Ok(SearchFound {
+                parent_match: ParentMatch {
+                    parent_range: FoundRange::Complete,
                     ..
-                }
-            )
+                },
+                ..
+            })
         );
         assert_eq!(ababababcdefghi_found.unwrap().index, *ababababcdefghi);
     }
