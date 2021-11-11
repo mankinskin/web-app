@@ -1,6 +1,6 @@
 use crate::{
-    pattern::*,
     search::*,
+    vertex::*,
     *,
 };
 use either::Either;
@@ -54,7 +54,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        tests::context,
+        graph::tests::context,
         Child,
     };
     use pretty_assertions::assert_eq;

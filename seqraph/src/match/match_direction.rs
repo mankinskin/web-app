@@ -1,7 +1,6 @@
 use crate::{
-    pattern::*,
     search::*,
-    *,
+    vertex::*,
 };
 use itertools::{
     EitherOrBoth,

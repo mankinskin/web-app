@@ -1,7 +1,6 @@
 use super::VertexIndex;
 use crate::{
     r#match::*,
-    token::*,
     vertex::*,
     Hypergraph,
 };

@@ -1,7 +1,5 @@
 use crate::{
-    pattern::*,
     r#match::*,
-    token::*,
     vertex::*,
     *,
 };
@@ -48,7 +46,7 @@ where
 pub(crate) mod tests {
     use super::*;
     use crate::{
-        tests::context,
+        graph::tests::context,
         Child,
     };
     use pretty_assertions::{

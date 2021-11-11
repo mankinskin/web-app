@@ -1,6 +1,6 @@
 use crate::{
     search::*,
-    token::Tokenize,
+    vertex::*,
     *,
 };
 use async_std::sync::{

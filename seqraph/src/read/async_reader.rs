@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::{
     r#match::*,
     search::*,
-    token::*,
+    vertex::*,
     *,
 };
 use futures::Stream;

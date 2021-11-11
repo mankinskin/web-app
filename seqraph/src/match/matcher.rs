@@ -1,7 +1,5 @@
 use crate::{
-    pattern::*,
     r#match::*,
-    token::Tokenize,
     Child,
     ChildPatterns,
     Hypergraph,
@@ -10,7 +8,7 @@ use crate::{
     PatternId,
     TokenPosition,
 };
-use itertools::EitherOrBoth;
+use itertools::*;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 

@@ -1,19 +1,18 @@
 use crate::{
+    merge::*,
     split::*,
-    token::Tokenize,
-    Hypergraph,
     Indexed,
 };
 use std::num::NonZeroUsize;
-impl IndexSplitter {
-    pub(crate) fn index_subrange<T: Tokenize>(
-        hypergraph: &mut Hypergraph<T>,
+impl<'g, T: Tokenize + 'g> IndexSplitter<'g, T> {
+    pub(crate) fn index_subrange(
+        &mut self,
         root: impl Indexed + Clone,
         range: impl PatternRangeIndex,
     ) -> RangeSplitResult {
         let root = root.index();
         //println!("splitting {} at {:?}", hypergraph.index_string(root), range);
-        let vertex = hypergraph.expect_vertex_data(root).clone();
+        let vertex = self.graph.expect_vertex_data(root).clone();
         // range is a subrange of the index
         let patterns = vertex.get_children().clone();
         match Self::verify_range_split_indices(vertex.width, range) {
@@ -24,33 +23,20 @@ impl IndexSplitter {
                         Ok((pattern_id, pre, left, inner, right, post)) => {
                             // perfect split
                             (
-                                Self::resolve_perfect_split_range(
-                                    hypergraph,
-                                    pre,
-                                    root,
-                                    pattern_id,
-                                    0..left,
-                                ),
-                                Self::resolve_perfect_split_range(
-                                    hypergraph,
+                                self.resolve_perfect_split_range(pre, root, pattern_id, 0..left),
+                                self.resolve_perfect_split_range(
                                     inner,
                                     root,
                                     pattern_id,
                                     left..right,
                                 ),
-                                Self::resolve_perfect_split_range(
-                                    hypergraph,
-                                    post,
-                                    root,
-                                    pattern_id,
-                                    right..,
-                                ),
+                                self.resolve_perfect_split_range(post, root, pattern_id, right..),
                             )
                         }
                         Err(indices) => {
                             // unperfect splits
                             let (left, inner, right) =
-                                Self::double_split_from_indices(hypergraph, root, indices);
+                                self.double_split_from_indices(root, indices);
                             (left, SplitSegment::Child(inner), right)
                         }
                     };
@@ -59,13 +45,13 @@ impl IndexSplitter {
             DoubleSplitPositions::Single(single) => {
                 // only a single position in pattern
                 let single = Self::find_single_split_indices(patterns, single);
-                Self::process_single_splits(hypergraph, &vertex, root, single)
+                self.process_single_splits(&vertex, root, single)
             }
             DoubleSplitPositions::None => RangeSplitResult::Full(Child::new(root, vertex.width)),
         }
     }
-    pub(crate) fn resolve_perfect_split_range<T: Tokenize>(
-        hypergraph: &mut Hypergraph<T>,
+    pub(crate) fn resolve_perfect_split_range(
+        &mut self,
         pat: Pattern,
         parent: impl Indexed,
         pattern_index: PatternId,
@@ -73,11 +59,12 @@ impl IndexSplitter {
     ) -> SplitSegment {
         if pat.len() <= 1 {
             SplitSegment::Child(*pat.first().expect("Empty perfect split half!"))
-        } else if parent.vertex(hypergraph).children.len() == 1 {
+        } else if parent.vertex(self.graph).children.len() == 1 {
             SplitSegment::Pattern(pat)
         } else {
-            let c = hypergraph.insert_pattern(pat);
-            hypergraph.replace_in_pattern(parent, pattern_index, range, [c]);
+            let c = self.graph.insert_pattern(pat);
+            self.graph
+                .replace_in_pattern(parent, pattern_index, range, [c]);
             SplitSegment::Child(c)
         }
     }
@@ -176,8 +163,8 @@ impl IndexSplitter {
             Err(split) => Ok(split),
         }
     }
-    fn double_split_from_indices<T: Tokenize>(
-        hypergraph: &mut Hypergraph<T>,
+    fn double_split_from_indices(
+        &mut self,
         parent: impl Indexed,
         indices: Vec<(PatternId, DoubleSplitIndex)>,
     ) -> (SplitSegment, Child, SplitSegment) {
@@ -188,26 +175,26 @@ impl IndexSplitter {
             |(mut la, mut ia, mut ra), (_pattern_id, split_index)| {
                 match split_index {
                     DoubleSplitIndex::Left(pre, _, infix, single, post) => {
-                        let (l, r) = Self::split_index(hypergraph, single.index, single.offset);
+                        let (l, r) = self.split_index(single.index, single.offset);
                         la.push((pre, None));
                         ia.push((None, SplitSegment::Pattern(infix), Some(l)));
                         ra.push((post, Some(r)));
                     }
                     DoubleSplitIndex::Right(pre, single, infix, _, post) => {
-                        let (l, r) = Self::split_index(hypergraph, single.index, single.offset);
+                        let (l, r) = self.split_index(single.index, single.offset);
                         la.push((pre, Some(l)));
                         ia.push((Some(r), SplitSegment::Pattern(infix), None));
                         ra.push((post, None));
                     }
                     DoubleSplitIndex::Infix(pre, left, infix, right, post) => {
-                        let (ll, lr) = Self::split_index(hypergraph, left.index, left.offset);
-                        let (rl, rr) = Self::split_index(hypergraph, right.index, right.offset);
+                        let (ll, lr) = self.split_index(left.index, left.offset);
+                        let (rl, rr) = self.split_index(right.index, right.offset);
                         la.push((pre, Some(ll)));
                         ia.push((Some(lr), SplitSegment::Pattern(infix), Some(rl)));
                         ra.push((post, Some(rr)));
                     }
                     DoubleSplitIndex::Inner(pre, (index, left, right), post) => {
-                        match Self::index_subrange(hypergraph, index, left.get()..right.get()) {
+                        match self.index_subrange(index, left.get()..right.get()) {
                             RangeSplitResult::Double(l, i, r) => {
                                 la.push((pre, Some(l)));
                                 ia.push((None, i, None));
@@ -232,7 +219,7 @@ impl IndexSplitter {
                 (la, ia, ra)
             },
         );
-        let mut minimizer = SplitMinimizer::new(hypergraph);
+        let mut minimizer = SplitMinimizer::new(self.graph);
         let left = minimizer.merge_left_optional_splits(left);
         let inner = minimizer.merge_inner_optional_splits(inner);
         let right = minimizer.merge_right_optional_splits(right);
@@ -244,7 +231,7 @@ impl IndexSplitter {
         //    hypergraph.index_string(right),
         //    hypergraph.index_string(parent),
         //);
-        hypergraph.add_pattern_to_node(
+        self.graph.add_pattern_to_node(
             parent,
             left.clone().into_iter().chain(inner).chain(right.clone()),
         );
@@ -294,7 +281,6 @@ impl IndexSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::*;
     #[test]
     fn split_range_1() {
         let mut graph = Hypergraph::default();

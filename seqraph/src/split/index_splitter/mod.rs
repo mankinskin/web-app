@@ -12,6 +12,92 @@ pub use single::*;
 mod range;
 pub use range::*;
 
+pub type Split = (Pattern, Pattern);
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct SplitContext {
+    pub prefix: Pattern,
+    pub key: SplitKey,
+    pub postfix: Pattern,
+}
+/// refers to an index in a hypergraph node
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct IndexInParent {
+    pub pattern_index: usize,  // index of pattern in parent
+    pub replaced_index: usize, // replaced index in pattern
+}
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SplitIndex {
+    pos: TokenPosition,
+    index: VertexIndex,
+    index_pos: IndexPosition,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub struct PatternSplit {
+    pub(crate) prefix: Pattern,
+    pub(crate) inner: IndexSplit,
+    pub(crate) postfix: Pattern,
+}
+impl PatternSplit {
+    pub fn new(prefix: Pattern, inner: impl Into<IndexSplit>, postfix: Pattern) -> Self {
+        Self {
+            prefix,
+            inner: inner.into(),
+            postfix,
+        }
+    }
+}
+#[derive(Debug, Clone, Eq, Ord, PartialOrd, Default)]
+pub struct IndexSplit {
+    pub(crate) splits: Vec<PatternSplit>,
+}
+impl IndexSplit {
+    pub fn new(inner: impl IntoIterator<Item = impl Into<PatternSplit>>) -> Self {
+        Self {
+            splits: inner.into_iter().map(Into::into).collect(),
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.splits.is_empty()
+    }
+    pub fn add_split<T: Into<PatternSplit>>(&mut self, split: T) {
+        self.splits.push(split.into());
+    }
+}
+impl PartialEq for IndexSplit {
+    fn eq(&self, other: &Self) -> bool {
+        let a: BTreeSet<_> = self.splits.iter().collect();
+        let b: BTreeSet<_> = other.splits.iter().collect();
+        a == b
+    }
+}
+impl From<Split> for PatternSplit {
+    fn from((prefix, postfix): Split) -> Self {
+        Self {
+            prefix,
+            inner: Default::default(),
+            postfix,
+        }
+    }
+}
+impl<T: Into<IndexSplit>> From<(Pattern, T, Pattern)> for PatternSplit {
+    fn from((prefix, inner, postfix): (Pattern, T, Pattern)) -> Self {
+        Self::new(prefix, inner, postfix)
+    }
+}
+impl<T: Into<PatternSplit>> From<Vec<T>> for IndexSplit {
+    fn from(splits: Vec<T>) -> Self {
+        Self {
+            splits: splits.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+impl<T: Into<PatternSplit>> From<T> for IndexSplit {
+    fn from(split: T) -> Self {
+        Self::from(vec![split])
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct SplitKey {
     pub index: VertexIndex, // index in hypergraph
@@ -149,9 +235,42 @@ pub enum DoubleSplitIndex {
 pub type DoubleSplitIndices = Result<DoublePerfectSplitIndex, Vec<(PatternId, DoubleSplitIndex)>>;
 pub type SingleSplitIndices = Vec<(PatternId, SplitIndex)>;
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
-pub struct IndexSplitter;
-impl IndexSplitter {}
-
-#[cfg(test)]
-mod tests {}
+#[derive(Debug)]
+pub struct IndexSplitter<'g, T: Tokenize> {
+    graph: &'g mut Hypergraph<T>,
+}
+impl<'g, T: Tokenize + 'g> IndexSplitter<'g, T> {
+    pub fn new(graph: &'g mut Hypergraph<T>) -> Self {
+        Self { graph }
+    }
+    /// Get perfect split if it exists and remaining pattern split contexts
+    pub(crate) fn separate_perfect_split(
+        &'g self,
+        root: impl Indexed,
+        pos: NonZeroUsize,
+    ) -> (Option<(Split, IndexInParent)>, Vec<SplitContext>) {
+        let current_node = self.graph.expect_vertex_data(root);
+        let children = current_node.get_children().clone();
+        let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
+        let split_indices = Self::find_single_split_indices(child_slices, pos);
+        Self::separate_single_split_indices(current_node, split_indices)
+    }
+    // Get perfect split or pattern split contexts
+    //pub(crate) fn try_perfect_split(
+    //    &self,
+    //    root: impl Indexed,
+    //    pos: NonZeroUsize,
+    //) -> Result<(Split, IndexInParent), Vec<SplitContext>> {
+    //    let current_node = self.get_vertex_data(root).unwrap();
+    //    let children = current_node.get_children().clone();
+    //    let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
+    //    let split_indices = IndexSplitter::find_single_split_indices(child_slices, pos);
+    //    match IndexSplitter::perfect_split_search(current_node, split_indices)
+    //        .into_iter()
+    //        .collect()
+    //    {
+    //        Ok(s) => Err(s),
+    //        Err(s) => Ok(s),
+    //    }
+    //}
+}

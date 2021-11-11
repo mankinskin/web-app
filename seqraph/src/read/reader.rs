@@ -1,9 +1,9 @@
 use crate::{
     r#match::*,
     search::*,
-    token::*,
     *,
 };
+use itertools::*;
 use std::num::NonZeroUsize;
 
 #[derive(Debug)]

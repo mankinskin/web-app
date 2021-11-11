@@ -1,16 +1,7 @@
 use crate::{
     r#match::*,
     search::*,
-    //read::*,
-    Child,
-    ChildPatterns,
     Hypergraph,
-    Indexed,
-    Parent,
-    Pattern,
-    PatternId,
-    TokenPosition,
-    VertexIndex,
 };
 //use tokio_stream::{
 //    Stream,

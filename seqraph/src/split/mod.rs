@@ -1,148 +1,22 @@
 use crate::{
-    pattern::*,
-    token::Tokenize,
     vertex::*,
-    Child,
     Hypergraph,
-    PatternId,
-    TokenPosition,
-    VertexIndex,
 };
 use std::{
-    cmp::PartialEq,
     collections::BTreeSet,
     num::NonZeroUsize,
     ops::Bound,
 };
 mod index_splitter;
-mod split_minimizer;
-pub use {
-    index_splitter::*,
-    split_minimizer::SplitMinimizer,
-};
+pub use index_splitter::*;
 
-pub type Split = (Pattern, Pattern);
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct SplitContext {
-    pub prefix: Pattern,
-    pub key: SplitKey,
-    pub postfix: Pattern,
-}
-/// refers to an index in a hypergraph node
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct IndexInParent {
-    pub pattern_index: usize,  // index of pattern in parent
-    pub replaced_index: usize, // replaced index in pattern
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SplitIndex {
-    pos: TokenPosition,
-    index: VertexIndex,
-    index_pos: IndexPosition,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
-pub struct PatternSplit {
-    pub(crate) prefix: Pattern,
-    pub(crate) inner: IndexSplit,
-    pub(crate) postfix: Pattern,
-}
-impl PatternSplit {
-    pub fn new(prefix: Pattern, inner: impl Into<IndexSplit>, postfix: Pattern) -> Self {
-        Self {
-            prefix,
-            inner: inner.into(),
-            postfix,
-        }
-    }
-}
-#[derive(Debug, Clone, Eq, Ord, PartialOrd, Default)]
-pub struct IndexSplit {
-    pub(crate) splits: Vec<PatternSplit>,
-}
-impl IndexSplit {
-    pub fn new(inner: impl IntoIterator<Item = impl Into<PatternSplit>>) -> Self {
-        Self {
-            splits: inner.into_iter().map(Into::into).collect(),
-        }
-    }
-    pub fn is_empty(&self) -> bool {
-        self.splits.is_empty()
-    }
-    pub fn add_split<T: Into<PatternSplit>>(&mut self, split: T) {
-        self.splits.push(split.into());
-    }
-}
-impl PartialEq for IndexSplit {
-    fn eq(&self, other: &Self) -> bool {
-        let a: BTreeSet<_> = self.splits.iter().collect();
-        let b: BTreeSet<_> = other.splits.iter().collect();
-        a == b
-    }
-}
-impl From<Split> for PatternSplit {
-    fn from((prefix, postfix): Split) -> Self {
-        Self {
-            prefix,
-            inner: Default::default(),
-            postfix,
-        }
-    }
-}
-impl<T: Into<IndexSplit>> From<(Pattern, T, Pattern)> for PatternSplit {
-    fn from((prefix, inner, postfix): (Pattern, T, Pattern)) -> Self {
-        Self::new(prefix, inner, postfix)
-    }
-}
-impl<T: Into<PatternSplit>> From<Vec<T>> for IndexSplit {
-    fn from(splits: Vec<T>) -> Self {
-        Self {
-            splits: splits.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-impl<T: Into<PatternSplit>> From<T> for IndexSplit {
-    fn from(split: T) -> Self {
-        Self::from(vec![split])
-    }
-}
 impl<'t, 'a, T> Hypergraph<T>
 where
     T: Tokenize + 't,
 {
-    /// Get perfect split if it exists and remaining pattern split contexts
-    pub(crate) fn separate_perfect_split(
-        &self,
-        root: impl Indexed,
-        pos: NonZeroUsize,
-    ) -> (Option<(Split, IndexInParent)>, Vec<SplitContext>) {
-        let current_node = self.expect_vertex_data(root);
-        let children = current_node.get_children().clone();
-        let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
-        let split_indices = IndexSplitter::find_single_split_indices(child_slices, pos);
-        IndexSplitter::separate_single_split_indices(current_node, split_indices)
-    }
-    /// Get perfect split or pattern split contexts
-    //pub(crate) fn try_perfect_split(
-    //    &self,
-    //    root: impl Indexed,
-    //    pos: NonZeroUsize,
-    //) -> Result<(Split, IndexInParent), Vec<SplitContext>> {
-    //    let current_node = self.get_vertex_data(root).unwrap();
-    //    let children = current_node.get_children().clone();
-    //    let child_slices = children.into_iter().map(|(i, p)| (i, p.into_iter()));
-    //    let split_indices = IndexSplitter::find_single_split_indices(child_slices, pos);
-    //    match IndexSplitter::perfect_split_search(current_node, split_indices)
-    //        .into_iter()
-    //        .collect()
-    //    {
-    //        Ok(s) => Err(s),
-    //        Err(s) => Ok(s),
-    //    }
-    //}
     /// Split an index the specified position
     pub fn split_index(&mut self, root: impl Indexed, pos: NonZeroUsize) -> SingleSplitResult {
-        IndexSplitter::split_index(self, root, pos)
+        IndexSplitter::new(self).split_index(root, pos)
     }
     // create index from token position range in index
     pub fn index_subrange(
@@ -150,17 +24,17 @@ where
         root: impl Indexed + Clone,
         range: impl PatternRangeIndex,
     ) -> RangeSplitResult {
-        IndexSplitter::index_subrange(self, root, range)
+        IndexSplitter::new(self).index_subrange(root, range)
     }
     pub fn index_prefix(&mut self, root: impl Indexed, pos: NonZeroUsize) -> (Child, SplitSegment) {
-        IndexSplitter::index_prefix(self, root, pos)
+        IndexSplitter::new(self).index_prefix(root, pos)
     }
     pub fn index_postfix(
         &mut self,
         root: impl Indexed,
         pos: NonZeroUsize,
     ) -> (SplitSegment, Child) {
-        IndexSplitter::index_postfix(self, root, pos)
+        IndexSplitter::new(self).index_postfix(root, pos)
     }
 }
 impl<'t, 'a, T> Hypergraph<T>
@@ -228,7 +102,6 @@ mod tests {
     use crate::{
         r#match::*,
         search::*,
-        token::*,
     };
     use maplit::hashset;
     use pretty_assertions::assert_eq;
@@ -259,10 +132,11 @@ mod tests {
                 (vec![d], SplitSegment::Child(c)),
                 (vec![], SplitSegment::Child(cd)),
             ];
+            let mut splitter = IndexSplitter::new(&mut graph);
             let (ps, child_splits) =
-                graph.separate_perfect_split(abcd, NonZeroUsize::new(2).unwrap());
+                splitter.separate_perfect_split(abcd, NonZeroUsize::new(2).unwrap());
             assert_eq!(ps, None);
-            let (left, right) = IndexSplitter::build_child_splits(&mut graph, child_splits);
+            let (left, right) = splitter.build_child_splits(child_splits);
             let (left, right): (HashSet<_>, HashSet<_>) =
                 (left.into_iter().collect(), right.into_iter().collect());
             assert_eq!(left, expleft, "left");
@@ -291,10 +165,11 @@ mod tests {
             let xaby = graph.insert_patterns([vec![xab, y], vec![x, a, by]]);
             let xabyz = graph.insert_patterns([vec![xaby, z], vec![xab, yz]]);
 
+            let mut splitter = IndexSplitter::new(&mut graph);
             let (ps, child_splits) =
-                graph.separate_perfect_split(xabyz, NonZeroUsize::new(2).unwrap());
+                splitter.separate_perfect_split(xabyz, NonZeroUsize::new(2).unwrap());
             assert_eq!(ps, None);
-            let (left, right) = IndexSplitter::build_child_splits(&mut graph, child_splits);
+            let (left, right) = splitter.build_child_splits(child_splits);
             let xa_found = graph.find_pattern(vec![x, a]);
             let xa = if let SearchFound {
                 index: xa,
